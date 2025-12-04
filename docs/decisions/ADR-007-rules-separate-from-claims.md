@@ -5,7 +5,7 @@ Accepted
 
 ## Context
 
-While working on the belief model, we recognised that religions express both **what is** (e.g. "There is one God") and **what ought to be** (e.g. "Keep the Sabbath holy").  Originally we considered representing norms as a special category of `Claim`.  However, mixing prescriptive and descriptive statements made it difficult to enforce different business rules, such as who a directive applies to or which practices are associated with compliance.  Moreover, laws often have structured applicability (e.g. only clergy, only on Fridays) and are supported by specific texts and interpretations.  We needed a first‑class way to capture commands, prohibitions, recommendations and ideals.
+While working on the belief model, we recognised that movements express both **what is** (e.g. "There is one God") and **what ought to be** (e.g. "Keep the Sabbath holy").  Originally we considered representing norms as a special category of `Claim`.  However, mixing prescriptive and descriptive statements made it difficult to enforce different business rules, such as who a directive applies to or which practices are associated with compliance.  Moreover, laws often have structured applicability (e.g. only clergy, only on Fridays) and are supported by specific texts and interpretations.  We needed a first‑class way to capture commands, prohibitions, recommendations and ideals.
 
 ## Decision
 

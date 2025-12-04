@@ -9,7 +9,7 @@ As we developed the designer’s UI layer, we needed to decide where data transf
 
 ## Decision
 
-View model builders are defined as **pure projection functions** that take raw domain data and lightweight inputs and return data transfer objects (DTOs) shaped specifically for a screen.  They perform no side effects, no I/O and no business logic beyond organising data.  They do not interpret rules, enforce policies or perform validation; such work is done in separate service functions.  For example, `buildReligionDashboardViewModel` summarises counts and picks exemplar entities but does not decide if a religion is valid.  Likewise, `buildEntityDetailViewModel` collects related claims and practices but does not infer hierarchies.  View models live in their own module (`view-models.js`) and are the only thing the UI layers call to obtain display data.  Domain services produce view models that cross the religion boundary or apply business logic, and they call view model builders internally when needed.
+View model builders are defined as **pure projection functions** that take raw domain data and lightweight inputs and return data transfer objects (DTOs) shaped specifically for a screen.  They perform no side effects, no I/O and no business logic beyond organising data.  They do not interpret rules, enforce policies or perform validation; such work is done in separate service functions.  For example, `buildMovementDashboardViewModel` summarises counts and picks exemplar entities but does not decide if a movement is valid.  Likewise, `buildEntityDetailViewModel` collects related claims and practices but does not infer hierarchies.  View models live in their own module (`view-models.js`) and are the only thing the UI layers call to obtain display data.  Domain services produce view models that cross the movement boundary or apply business logic, and they call view model builders internally when needed.
 
 ## Rationale
 
@@ -27,5 +27,5 @@ Treating view models as pure projections ensures the UI is decoupled from domain
 - Developers may be tempted to bypass the view model layer and query domain collections directly in the UI if not disciplined.
 
 ### Mitigation
-- Provide service functions (e.g. ComparisonService, TemplateService) that return ready‑to‑use view models for cross‑religion operations.
+- Provide service functions (e.g. ComparisonService, TemplateService) that return ready‑to‑use view models for cross‑movement operations.
 - Document guidelines and enforce code reviews to prevent leakage of business logic into the view model builders.

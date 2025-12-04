@@ -1,6 +1,6 @@
 /* app.js
  *
- * UI layer for Religion Designer v3.
+ * UI layer for Movement Engineer v3.
  * All domain logic lives in view-models.js & your data model.
  * This file just handles DOM, localStorage, import/export, and wiring.
  */
@@ -12,10 +12,10 @@
 
   // ---- Storage & snapshot management ----
 
-  const STORAGE_KEY = 'religionDesigner.v3.snapshot';
+  const STORAGE_KEY = 'movementDesigner.v3.snapshot';
 
   const COLLECTION_NAMES = [
-    'religions',
+    'movements',
     'textCollections',
     'texts',
     'entities',
@@ -28,7 +28,7 @@
     'relations'
   ];
 
-  const COLLECTIONS_WITH_RELIGION_ID = new Set([
+  const COLLECTIONS_WITH_MOVEMENT_ID = new Set([
     'textCollections',
     'texts',
     'entities',
@@ -42,7 +42,7 @@
   ]);
 
   let snapshot = null;
-  let currentReligionId = null;
+  let currentMovementId = null;
   let currentCollectionName = 'entities';
   let currentItemId = null;
 
@@ -83,7 +83,7 @@
       setStatus('Save failed');
     }
     // Re-render current views to reflect changes
-    renderReligionList();
+    renderMovementList();
     renderActiveTab();
   }
 
@@ -107,54 +107,54 @@
     return base + Math.random().toString(36).substr(2, 9);
   }
 
-  // ---- Religion helpers ----
+  // ---- Movement helpers ----
 
-  function getReligionById(id) {
-    return snapshot.religions.find(r => r.id === id) || null;
+  function getMovementById(id) {
+    return snapshot.movements.find(r => r.id === id) || null;
   }
 
-  function selectReligion(id) {
-    currentReligionId = id || null;
+  function selectMovement(id) {
+    currentMovementId = id || null;
     currentItemId = null; // reset item selection in collection editor
-    renderReligionList();
+    renderMovementList();
     renderActiveTab();
   }
 
-  function addReligion() {
-    const rel = {
-      id: generateId('rel-'),
-      name: 'New Religion',
+  function addMovement() {
+    const movement = {
+      id: generateId('mov-'),
+      name: 'New Movement',
       shortName: 'New',
       summary: '',
       notes: null,
       tags: []
     };
-    snapshot.religions.push(rel);
-    selectReligion(rel.id);
+    snapshot.movements.push(movement);
+    selectMovement(movement.id);
     saveSnapshot();
   }
 
-  function deleteReligion(id) {
+  function deleteMovement(id) {
     if (!id) return;
-    const rel = getReligionById(id);
-    if (!rel) return;
+    const movement = getMovementById(id);
+    if (!movement) return;
 
     const confirmed = window.confirm(
-      'Delete this religion AND all data with this religionId?\n\n' +
-        rel.name +
+      'Delete this movement AND all data with this movementId?\n\n' +
+        movement.name +
         '\n\nThis cannot be undone.'
     );
     if (!confirmed) return;
 
-    // Remove religion itself
-    snapshot.religions = snapshot.religions.filter(r => r.id !== id);
+    // Remove movement itself
+    snapshot.movements = snapshot.movements.filter(r => r.id !== id);
 
-    // Cascade delete on religion-scoped collections
-    COLLECTIONS_WITH_RELIGION_ID.forEach(collName => {
-      snapshot[collName] = snapshot[collName].filter(item => item.religionId !== id);
+    // Cascade delete on movement-scoped collections
+    COLLECTIONS_WITH_MOVEMENT_ID.forEach(collName => {
+      snapshot[collName] = snapshot[collName].filter(item => item.movementId !== id);
     });
 
-    currentReligionId = snapshot.religions[0] ? snapshot.religions[0].id : null;
+    currentMovementId = snapshot.movements[0] ? snapshot.movements[0].id : null;
     currentItemId = null;
     saveSnapshot();
   }
@@ -162,13 +162,13 @@
   // ---- Skeleton creators for new items ----
 
   function createSkeletonItem(collectionName) {
-    const rid = currentReligionId || null;
+    const rid = currentMovementId || null;
 
     switch (collectionName) {
       case 'entities':
         return {
           id: generateId('ent-'),
-          religionId: rid,
+          movementId: rid,
           name: 'New entity',
           kind: null,
           summary: '',
@@ -180,7 +180,7 @@
       case 'practices':
         return {
           id: generateId('prc-'),
-          religionId: rid,
+          movementId: rid,
           name: 'New practice',
           kind: null,
           description: '',
@@ -197,7 +197,7 @@
       case 'events':
         return {
           id: generateId('evt-'),
-          religionId: rid,
+          movementId: rid,
           name: 'New event',
           description: '',
           recurrence: 'yearly',
@@ -212,7 +212,7 @@
       case 'rules':
         return {
           id: generateId('rul-'),
-          religionId: rid,
+          movementId: rid,
           shortText: 'New rule',
           kind: 'must_do',
           details: null,
@@ -228,7 +228,7 @@
       case 'claims':
         return {
           id: generateId('clm-'),
-          religionId: rid,
+          movementId: rid,
           text: 'New claim',
           category: null,
           tags: [],
@@ -241,7 +241,7 @@
       case 'textCollections':
         return {
           id: generateId('tc-'),
-          religionId: rid,
+          movementId: rid,
           name: 'New text collection',
           description: null,
           tags: [],
@@ -250,7 +250,7 @@
       case 'texts':
         return {
           id: generateId('txt-'),
-          religionId: rid,
+          movementId: rid,
           parentId: null,
           level: 'work',
           title: 'New text',
@@ -263,7 +263,7 @@
       case 'media':
         return {
           id: generateId('med-'),
-          religionId: rid,
+          movementId: rid,
           kind: 'image',
           uri: '',
           title: 'New media asset',
@@ -277,7 +277,7 @@
       case 'notes':
         return {
           id: generateId('note-'),
-          religionId: rid,
+          movementId: rid,
           targetType: 'Entity',
           targetId: '',
           author: null,
@@ -288,7 +288,7 @@
       case 'relations':
         return {
           id: generateId('rel-'),
-          religionId: rid,
+          movementId: rid,
           fromEntityId: '',
           toEntityId: '',
           relationType: 'related_to',
@@ -324,8 +324,8 @@
       case 'dashboard':
         renderDashboard();
         break;
-      case 'religion':
-        renderReligionForm();
+      case 'movement':
+        renderMovementForm();
         break;
       case 'data':
         renderCollectionList();
@@ -339,48 +339,48 @@
     }
   }
 
-  // ---- Religion list & form ----
+  // ---- Movement list & form ----
 
-  function renderReligionList() {
-    const list = document.getElementById('religion-list');
+  function renderMovementList() {
+    const list = document.getElementById('movement-list');
     if (!list) return;
     clearElement(list);
 
-    if (!snapshot.religions.length) {
+    if (!snapshot.movements.length) {
       const li = document.createElement('li');
-      li.textContent = 'No religions yet. Click + to add one.';
+      li.textContent = 'No movements yet. Click + to add one.';
       li.style.fontStyle = 'italic';
       li.style.cursor = 'default';
       list.appendChild(li);
       return;
     }
 
-    snapshot.religions.forEach(rel => {
+    snapshot.movements.forEach(movement => {
       const li = document.createElement('li');
-      li.dataset.id = rel.id;
-      li.className = rel.id === currentReligionId ? 'selected' : '';
+      li.dataset.id = movement.id;
+      li.className = movement.id === currentMovementId ? 'selected' : '';
       const primary = document.createElement('span');
-      primary.textContent = rel.name || rel.id;
+      primary.textContent = movement.name || movement.id;
       const secondary = document.createElement('span');
       secondary.className = 'secondary';
-      secondary.textContent = rel.shortName || '';
+      secondary.textContent = movement.shortName || '';
       li.appendChild(primary);
       li.appendChild(secondary);
-      li.addEventListener('click', () => selectReligion(rel.id));
+      li.addEventListener('click', () => selectMovement(movement.id));
       list.appendChild(li);
     });
   }
 
-  function renderReligionForm() {
-    const idLabel = document.getElementById('religion-id-label');
-    const nameInput = document.getElementById('religion-name');
-    const shortInput = document.getElementById('religion-shortName');
-    const summaryInput = document.getElementById('religion-summary');
-    const tagsInput = document.getElementById('religion-tags');
-    const deleteBtn = document.getElementById('btn-delete-religion');
-    const saveBtn = document.getElementById('btn-save-religion');
+  function renderMovementForm() {
+    const idLabel = document.getElementById('movement-id-label');
+    const nameInput = document.getElementById('movement-name');
+    const shortInput = document.getElementById('movement-shortName');
+    const summaryInput = document.getElementById('movement-summary');
+    const tagsInput = document.getElementById('movement-tags');
+    const deleteBtn = document.getElementById('btn-delete-movement');
+    const saveBtn = document.getElementById('btn-save-movement');
 
-    if (!currentReligionId) {
+    if (!currentMovementId) {
       idLabel.textContent = '—';
       nameInput.value = '';
       shortInput.value = '';
@@ -392,11 +392,11 @@
       return;
     }
 
-    const rel = getReligionById(currentReligionId);
-    if (!rel) {
+    const movement = getMovementById(currentMovementId);
+    if (!movement) {
       // out of sync; reset
-      currentReligionId = null;
-      renderReligionForm();
+      currentMovementId = null;
+      renderMovementForm();
       return;
     }
 
@@ -404,29 +404,31 @@
       el.disabled = false;
     });
 
-    idLabel.textContent = rel.id;
-    nameInput.value = rel.name || '';
-    shortInput.value = rel.shortName || '';
-    summaryInput.value = rel.summary || '';
-    tagsInput.value = Array.isArray(rel.tags) ? rel.tags.join(', ') : '';
+    idLabel.textContent = movement.id;
+    nameInput.value = movement.name || '';
+    shortInput.value = movement.shortName || '';
+    summaryInput.value = movement.summary || '';
+    tagsInput.value = Array.isArray(movement.tags)
+      ? movement.tags.join(', ')
+      : '';
 
     // Save handler wired once in init; here we only set values
   }
 
-  function saveReligionFromForm() {
-    if (!currentReligionId) return;
-    const rel = getReligionById(currentReligionId);
-    if (!rel) return;
+  function saveMovementFromForm() {
+    if (!currentMovementId) return;
+    const movement = getMovementById(currentMovementId);
+    if (!movement) return;
 
-    const nameInput = document.getElementById('religion-name');
-    const shortInput = document.getElementById('religion-shortName');
-    const summaryInput = document.getElementById('religion-summary');
-    const tagsInput = document.getElementById('religion-tags');
+    const nameInput = document.getElementById('movement-name');
+    const shortInput = document.getElementById('movement-shortName');
+    const summaryInput = document.getElementById('movement-summary');
+    const tagsInput = document.getElementById('movement-tags');
 
-    rel.name = nameInput.value.trim() || 'Untitled religion';
-    rel.shortName = shortInput.value.trim() || rel.name;
-    rel.summary = summaryInput.value.trim();
-    rel.tags = tagsInput.value
+    movement.name = nameInput.value.trim() || 'Untitled movement';
+    movement.shortName = shortInput.value.trim() || movement.name;
+    movement.summary = summaryInput.value.trim();
+    movement.tags = tagsInput.value
       .split(',')
       .map(s => s.trim())
       .filter(Boolean);
@@ -441,9 +443,9 @@
     if (!container) return;
     clearElement(container);
 
-    if (!currentReligionId) {
+    if (!currentMovementId) {
       const p = document.createElement('p');
-      p.textContent = 'Create a religion on the left to see a dashboard.';
+      p.textContent = 'Create a movement on the left to see a dashboard.';
       container.appendChild(p);
       return;
     }
@@ -455,23 +457,23 @@
       return;
     }
 
-    const vm = ViewModels.buildReligionDashboardViewModel(snapshot, {
-      religionId: currentReligionId
+    const vm = ViewModels.buildMovementDashboardViewModel(snapshot, {
+      movementId: currentMovementId
     });
 
-    if (!vm.religion) {
+    if (!vm.movement) {
       const p = document.createElement('p');
-      p.textContent = 'Selected religion not found in dataset.';
+      p.textContent = 'Selected movement not found in dataset.';
       container.appendChild(p);
       return;
     }
 
     const title = document.createElement('h2');
-    title.textContent = vm.religion.name + (vm.religion.shortName ? ` (${vm.religion.shortName})` : '');
+    title.textContent = vm.movement.name + (vm.movement.shortName ? ` (${vm.movement.shortName})` : '');
     container.appendChild(title);
 
     const summary = document.createElement('p');
-    summary.textContent = vm.religion.summary || 'No summary yet.';
+    summary.textContent = vm.movement.summary || 'No summary yet.';
     container.appendChild(summary);
 
     // Stats cards
@@ -603,12 +605,12 @@
 
     const collName = currentCollectionName;
     const coll = snapshot[collName] || [];
-    const filterByRel = document.getElementById('collection-filter-by-religion').checked;
+    const filterByMovement = document.getElementById('collection-filter-by-movement').checked;
 
     let items = coll;
-    if (filterByRel && currentReligionId && COLLECTIONS_WITH_RELIGION_ID.has(collName)) {
+    if (filterByMovement && currentMovementId && COLLECTIONS_WITH_MOVEMENT_ID.has(collName)) {
       items = coll.filter(
-        item => item.religionId === currentReligionId || item.religionId == null
+        item => item.movementId === currentMovementId || item.movementId == null
       );
     }
 
@@ -751,14 +753,14 @@
     clearElement(selector);
     clearElement(wrapper);
 
-    if (!snapshot.religions.length) {
+    if (!snapshot.movements.length) {
       const p = document.createElement('p');
-      p.textContent = 'No religions to compare yet.';
+      p.textContent = 'No movements to compare yet.';
       selector.appendChild(p);
       return;
     }
 
-    snapshot.religions.forEach(rel => {
+    snapshot.movements.forEach(rel => {
       const label = document.createElement('label');
       const cb = document.createElement('input');
       cb.type = 'checkbox';
@@ -791,13 +793,13 @@
     );
     if (!selectedIds.length) {
       const p = document.createElement('p');
-      p.textContent = 'Select at least one religion.';
+      p.textContent = 'Select at least one movement.';
       wrapper.appendChild(p);
       return;
     }
 
     const cmpVm = ViewModels.buildComparisonViewModel(snapshot, {
-      religionIds: selectedIds
+      movementIds: selectedIds
     });
 
     const rows = cmpVm.rows || [];
@@ -817,7 +819,7 @@
 
     rows.forEach(row => {
       const th = document.createElement('th');
-      th.textContent = row.religion?.name || row.religion?.id || '—';
+      th.textContent = row.movement?.name || row.movement?.id || '—';
       headerRow.appendChild(th);
     });
     table.appendChild(headerRow);
@@ -879,7 +881,7 @@
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'religion-snapshot.json';
+    a.download = 'movement-snapshot.json';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -892,12 +894,12 @@
     reader.onload = () => {
       try {
         const data = JSON.parse(reader.result);
-        if (!data || !Array.isArray(data.religions)) {
-          alert('Invalid snapshot file: missing top-level "religions" array.');
+        if (!data || !Array.isArray(data.movements)) {
+          alert('Invalid snapshot file: missing top-level "movements" array.');
           return;
         }
         snapshot = ensureAllCollections(data);
-        currentReligionId = snapshot.religions[0] ? snapshot.religions[0].id : null;
+        currentMovementId = snapshot.movements[0] ? snapshot.movements[0].id : null;
         currentItemId = null;
         saveSnapshot();
         setStatus('Imported JSON');
@@ -913,12 +915,12 @@
     const sample =
       (typeof window !== 'undefined' && window.sampleData) ||
       {
-        religions: [
+        movements: [
           {
-            id: 'rel-test',
+            id: 'mov-test',
             name: 'Test Faith',
             shortName: 'TF',
-            summary: 'A tiny test religion.',
+            summary: 'A tiny test movement.',
             notes: null,
             tags: ['test']
           }
@@ -928,7 +930,7 @@
         entities: [
           {
             id: 'ent-god',
-            religionId: 'rel-test',
+            movementId: 'mov-test',
             name: 'Test God',
             kind: 'being',
             summary: 'The primary deity of Test Faith.',
@@ -941,7 +943,7 @@
         practices: [
           {
             id: 'pr-weekly',
-            religionId: 'rel-test',
+            movementId: 'mov-test',
             name: 'Weekly Gathering',
             kind: 'ritual',
             description: 'People meet once a week.',
@@ -964,7 +966,7 @@
         relations: []
       };
 
-    const name = sample.religions?.[0]?.name || 'the sample dataset';
+    const name = sample.movements?.[0]?.name || 'the sample dataset';
     const confirmReset = window.confirm(
       `Replace the current snapshot with ${name}? This will overwrite all current data.`
     );
@@ -972,7 +974,7 @@
 
     // Clone to avoid mutating the global sample reference
     snapshot = ensureAllCollections(JSON.parse(JSON.stringify(sample)));
-    currentReligionId = snapshot.religions[0] ? snapshot.religions[0].id : null;
+    currentMovementId = snapshot.movements[0] ? snapshot.movements[0].id : null;
     currentItemId = null;
     saveSnapshot();
     setStatus('Loaded sample');
@@ -984,7 +986,7 @@
     );
     if (!ok) return;
     snapshot = createEmptySnapshot();
-    currentReligionId = null;
+    currentMovementId = null;
     currentItemId = null;
     saveSnapshot();
     setStatus('New snapshot created');
@@ -994,12 +996,12 @@
 
   function init() {
     snapshot = loadSnapshot();
-    currentReligionId = snapshot.religions[0] ? snapshot.religions[0].id : null;
+    currentMovementId = snapshot.movements[0] ? snapshot.movements[0].id : null;
 
     // Sidebar
     document
-      .getElementById('btn-add-religion')
-      .addEventListener('click', () => addReligion());
+      .getElementById('btn-add-movement')
+      .addEventListener('click', () => addMovement());
 
     // Top bar actions
     document
@@ -1026,13 +1028,13 @@
       .getElementById('btn-new-snapshot')
       .addEventListener('click', newSnapshot);
 
-    // Religion form
+    // Movement form
     document
-      .getElementById('btn-save-religion')
-      .addEventListener('click', saveReligionFromForm);
+      .getElementById('btn-save-movement')
+      .addEventListener('click', saveMovementFromForm);
     document
-      .getElementById('btn-delete-religion')
-      .addEventListener('click', () => deleteReligion(currentReligionId));
+      .getElementById('btn-delete-movement')
+      .addEventListener('click', () => deleteMovement(currentMovementId));
 
     // Tabs
     document.querySelectorAll('.tab').forEach(btn => {
@@ -1058,7 +1060,7 @@
       });
 
     document
-      .getElementById('collection-filter-by-religion')
+      .getElementById('collection-filter-by-movement')
       .addEventListener('change', () => {
         renderCollectionList();
         renderItemEditor();
@@ -1071,7 +1073,7 @@
     document.getElementById('btn-save-item').addEventListener('click', saveItemFromEditor);
 
     // Initial render
-    renderReligionList();
+    renderMovementList();
     renderActiveTab();
   }
 

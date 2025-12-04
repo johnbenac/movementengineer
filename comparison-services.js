@@ -1,8 +1,8 @@
 /*
- * Comparison & Template Services for Religion Designer.
+ * Comparison & Template Services for Movement Engineer.
  *
  * These functions operate on plain JavaScript objects that follow:
- * - the v3.4 religion data model (data-model.js)
+ * - the v3.4 movement data model (data-model.js)
  * - the comparison/meta models (comparison-model.js, ADR-018)
  *
  * They are pure and environment-agnostic: no DOM, no fetch, no FS.
@@ -29,16 +29,16 @@ function generateId(prefix) {
 
 /**
  * Create a ComparisonBinding with empty cells for every
- * (dimension, religion) pair in the schema.
+ * (dimension, movement) pair in the schema.
  *
  * @param {Object} schema  ComparisonSchema object
- * @param {string[]} religionIds  IDs of religions to compare
+ * @param {string[]} movementIds  IDs of movements to compare
  * @param {Object} [options]  { id?, name?, description?, tags? }
  * @returns {Object} ComparisonBinding
  */
-function createBlankBinding(schema, religionIds, options) {
+function createBlankBinding(schema, movementIds, options) {
   const opts = options || {};
-  const relIds = normaliseArray(religionIds).filter(Boolean);
+  const movementIdsNormalised = normaliseArray(movementIds).filter(Boolean);
 
   const bindingId = opts.id || generateId('cmp-binding-');
   const name = opts.name || schema.name || 'Untitled Binding';
@@ -50,10 +50,10 @@ function createBlankBinding(schema, religionIds, options) {
   const cells = [];
   normaliseArray(schema.dimensions).forEach(dim => {
     if (!dim || !dim.id) return;
-    relIds.forEach(religionId => {
+    movementIdsNormalised.forEach(movementId => {
       cells.push({
         dimensionId: dim.id,
-        religionId,
+        movementId,
         value: null,
         notes: null
       });
@@ -66,20 +66,20 @@ function createBlankBinding(schema, religionIds, options) {
     name,
     description,
     tags,
-    religionIds: relIds,
+    movementIds: movementIdsNormalised,
     cells
   };
 }
 
 /**
- * Return the cell for a given (dimensionId, religionId) pair,
+ * Return the cell for a given (dimensionId, movementId) pair,
  * or null if none exists.
  */
-function getBindingCell(binding, dimensionId, religionId) {
+function getBindingCell(binding, dimensionId, movementId) {
   if (!binding || !Array.isArray(binding.cells)) return null;
   return (
     binding.cells.find(
-      c => c.dimensionId === dimensionId && c.religionId === religionId
+      c => c.dimensionId === dimensionId && c.movementId === movementId
     ) || null
   );
 }
@@ -88,16 +88,16 @@ function getBindingCell(binding, dimensionId, religionId) {
  * Return a new ComparisonBinding with a specific cell updated
  * or created. Does not mutate the original binding.
  */
-function setBindingValue(binding, dimensionId, religionId, value, notes) {
-  const base = binding || { cells: [], religionIds: [] };
-  const relIds = normaliseArray(base.religionIds);
-  const newReligionIds = relIds.includes(religionId)
-    ? relIds.slice()
-    : relIds.concat([religionId]);
+function setBindingValue(binding, dimensionId, movementId, value, notes) {
+  const base = binding || { cells: [], movementIds: [] };
+  const movementIds = normaliseArray(base.movementIds);
+  const newMovementIds = movementIds.includes(movementId)
+    ? movementIds.slice()
+    : movementIds.concat([movementId]);
 
   let found = false;
   const newCells = normaliseArray(base.cells).map(cell => {
-    if (cell.dimensionId === dimensionId && cell.religionId === religionId) {
+    if (cell.dimensionId === dimensionId && cell.movementId === movementId) {
       found = true;
       return {
         ...cell,
@@ -111,7 +111,7 @@ function setBindingValue(binding, dimensionId, religionId, value, notes) {
   if (!found) {
     newCells.push({
       dimensionId,
-      religionId,
+      movementId,
       value,
       notes: typeof notes === 'undefined' ? null : notes
     });
@@ -119,18 +119,18 @@ function setBindingValue(binding, dimensionId, religionId, value, notes) {
 
   return {
     ...base,
-    religionIds: newReligionIds,
+    movementIds: newMovementIds,
     cells: newCells
   };
 }
 
 /**
- * Internal: derive an automatic value for a dimension/religion pair
+ * Internal: derive an automatic value for a dimension/movement pair
  * based on sourceKind/sourceCollection/etc.
  *
  * This respects ADR-018: schemas hold only declarative hints; logic lives here.
  */
-function deriveAutoValue(data, dimension, religionId) {
+function deriveAutoValue(data, dimension, movementId) {
   if (!dimension || !data) return null;
   const sourceKind = dimension.sourceKind || 'none';
   if (sourceKind === 'none') return null;
@@ -146,11 +146,11 @@ function deriveAutoValue(data, dimension, religionId) {
   if (sourceKind === 'collection_count' || sourceKind === 'tagged_collection_count') {
     const matches = items.filter(item => {
       if (!item) return false;
-      const matchesReligion =
-        item.religionId === religionId ||
-        (includeShared && item.religionId == null);
+      const matchesMovement =
+        item.movementId === movementId ||
+        (includeShared && item.movementId == null);
 
-      if (!matchesReligion) return false;
+      if (!matchesMovement) return false;
       if (sourceKind === 'tagged_collection_count' && filterTags.length > 0) {
         const tags = normaliseArray(item.tags);
         return filterTags.some(tag => tags.indexOf(tag) !== -1);
@@ -177,35 +177,35 @@ function deriveAutoValue(data, dimension, religionId) {
 function buildComparisonMatrix(data, schema, binding) {
   const safeSchema = schema || { id: null, name: null, dimensions: [] };
   const dimensions = normaliseArray(safeSchema.dimensions);
-  const relIds = binding ? normaliseArray(binding.religionIds) : [];
-  const religionLookup = buildLookup(
-    data && data.religions ? data.religions : [],
+  const movementIds = binding ? normaliseArray(binding.movementIds) : [];
+  const movementLookup = buildLookup(
+    data && data.movements ? data.movements : [],
     'id'
   );
 
-  const religions = relIds.map(id => {
-    const rel = religionLookup.get(id);
-    if (rel) {
+  const movements = movementIds.map(id => {
+    const movement = movementLookup.get(id);
+    if (movement) {
       return {
-        id: rel.id,
-        name: rel.name,
-        shortName: rel.shortName || rel.name || rel.id
+        id: movement.id,
+        name: movement.name,
+        shortName: movement.shortName || movement.name || movement.id
       };
     }
     return { id, name: id, shortName: id };
   });
 
   const rows = dimensions.map(dim => {
-    const cells = relIds.map(religionId => {
+    const cells = movementIds.map(movementId => {
       const explicitCell = binding
-        ? getBindingCell(binding, dim.id, religionId)
+        ? getBindingCell(binding, dim.id, movementId)
         : null;
       let value = explicitCell ? explicitCell.value : null;
       if (value == null) {
-        value = deriveAutoValue(data, dim, religionId);
+        value = deriveAutoValue(data, dim, movementId);
       }
       return {
-        religionId,
+        movementId,
         value
       };
     });
@@ -222,72 +222,72 @@ function buildComparisonMatrix(data, schema, binding) {
   return {
     schemaId: safeSchema.id || null,
     schemaName: safeSchema.name || null,
-    religions,
+    movements,
     rows
   };
 }
 
 /**
- * Apply a ReligionTemplate to a dataset to produce a new skeleton religion.
+ * Apply a MovementTemplate to a dataset to produce a new skeleton movement.
  *
  * This is intentionally conservative:
  * - It never mutates the input data.
  * - It only knows about collection/tag filtering and copy modes.
  * - It focuses on structural copying; detailed semantics can be extended later.
  *
- * @param {Object} data  Religion snapshot (arrays: religions, entities, practices, etc.)
- * @param {Object} template  ReligionTemplate
+ * @param {Object} data  Movement snapshot (arrays: movements, entities, practices, etc.)
+ * @param {Object} template  MovementTemplate
  * @param {Object} options  {
- *   sourceReligionId?,  // overrides template.sourceReligionId
- *   newReligionId?,     // if omitted, generated
- *   newReligionName?,
- *   newReligionShortName?,
- *   newReligionSummary?,
- *   extraReligionTags?
+ *   sourceMovementId?,  // overrides template.sourceMovementId
+ *   newMovementId?,     // if omitted, generated
+ *   newMovementName?,
+ *   newMovementShortName?,
+ *   newMovementSummary?,
+ *   extraMovementTags?
  * }
  */
-function applyTemplateToReligion(data, template, options) {
+function applyTemplateToMovement(data, template, options) {
   const srcData = data || {};
   const tmpl = template || { rules: [] };
   const opts = options || {};
 
-  const sourceReligionId = opts.sourceReligionId || tmpl.sourceReligionId;
-  if (!sourceReligionId) {
+  const sourceMovementId = opts.sourceMovementId || tmpl.sourceMovementId;
+  if (!sourceMovementId) {
     throw new Error(
-      'applyTemplateToReligion: sourceReligionId must be provided in options or template.'
+      'applyTemplateToMovement: sourceMovementId must be provided in options or template.'
     );
   }
 
-  const religions = normaliseArray(srcData.religions);
-  const sourceReligion = religions.find(r => r.id === sourceReligionId);
-  if (!sourceReligion) {
+  const movements = normaliseArray(srcData.movements);
+  const sourceMovement = movements.find(r => r.id === sourceMovementId);
+  if (!sourceMovement) {
     throw new Error(
-      'applyTemplateToReligion: source religion not found: ' + sourceReligionId
+      'applyTemplateToMovement: source movement not found: ' + sourceMovementId
     );
   }
 
-  const newReligionId = opts.newReligionId || generateId('rel-template-');
-  const extraTags = normaliseArray(opts.extraReligionTags);
+  const newMovementId = opts.newMovementId || generateId('mov-template-');
+  const extraTags = normaliseArray(opts.extraMovementTags);
 
-  const newReligion = {
-    id: newReligionId,
-    name: opts.newReligionName || sourceReligion.name,
+  const newMovement = {
+    id: newMovementId,
+    name: opts.newMovementName || sourceMovement.name,
     shortName:
-      opts.newReligionShortName ||
-      sourceReligion.shortName ||
-      sourceReligion.name,
-    summary: opts.newReligionSummary || sourceReligion.summary,
-    notes: sourceReligion.notes || null,
+      opts.newMovementShortName ||
+      sourceMovement.shortName ||
+      sourceMovement.name,
+    summary: opts.newMovementSummary || sourceMovement.summary,
+    notes: sourceMovement.notes || null,
     tags: Array.from(
       new Set(
-        normaliseArray(sourceReligion.tags).concat(extraTags)
+        normaliseArray(sourceMovement.tags).concat(extraTags)
       )
     )
   };
 
   // Shallow copy all collections to avoid mutating srcData
   const result = {
-    religions: religions.concat([newReligion]),
+    movements: movements.concat([newMovement]),
     textCollections: normaliseArray(srcData.textCollections).slice(),
     texts: normaliseArray(srcData.texts).slice(),
     entities: normaliseArray(srcData.entities).slice(),
@@ -319,7 +319,7 @@ function applyTemplateToReligion(data, template, options) {
     const fieldsToClear = normaliseArray(rule.fieldsToClear);
 
     const candidates = originalItems.filter(item => {
-      if (!item || item.religionId !== sourceReligionId) return false;
+      if (!item || item.movementId !== sourceMovementId) return false;
       if (matchTags.length === 0) return true;
       const tags = normaliseArray(item.tags);
       return matchTags.some(tag => tags.indexOf(tag) !== -1);
@@ -328,7 +328,7 @@ function applyTemplateToReligion(data, template, options) {
     const newItems = candidates.map(item => {
       const copy = { ...item };
       copy.id = generateId(collectionName.slice(0, 3) + '-tmpl-');
-      copy.religionId = newReligionId;
+      copy.movementId = newMovementId;
 
       if (copyMode === 'copy_structure_only') {
         const defaultFieldsToClear = [
@@ -368,7 +368,7 @@ const ComparisonServices = {
   getBindingCell,
   setBindingValue,
   buildComparisonMatrix,
-  applyTemplateToReligion
+  applyTemplateToMovement
 };
 
 if (typeof module !== 'undefined') {

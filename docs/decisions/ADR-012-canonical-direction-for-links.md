@@ -36,5 +36,5 @@ Maintaining bidirectional fields is error‑prone and redundant when the reverse
 - Users accustomed to seeing “related objects” on both sides might need to adjust to the new directionality.
 
 ### Mitigation
-- Provide helper functions or indexes in the religion designer and backend to quickly answer reverse lookups (e.g. find all events involving this entity).
+- Provide helper functions or indexes in the movement engineer and backend to quickly answer reverse lookups (e.g. find all events involving this entity).
 - Clearly document the canonical direction for each relationship type and update sample data accordingly.

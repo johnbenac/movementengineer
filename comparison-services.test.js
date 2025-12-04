@@ -17,7 +17,7 @@ function testCreateBlankBinding() {
       {
         id: 'entity_count',
         label: 'Entities',
-        description: 'Number of entities for this religion.',
+        description: 'Number of entities for this movement.',
         valueKind: 'number',
         sourceKind: 'collection_count',
         sourceCollection: 'entities',
@@ -27,7 +27,7 @@ function testCreateBlankBinding() {
       {
         id: 'practice_count',
         label: 'Practices',
-        description: 'Number of practices for this religion.',
+        description: 'Number of practices for this movement.',
         valueKind: 'number',
         sourceKind: 'collection_count',
         sourceCollection: 'practices',
@@ -37,13 +37,19 @@ function testCreateBlankBinding() {
     ]
   };
 
-  const binding = ComparisonServices.createBlankBinding(schema, ['rel-test']);
+  const binding = ComparisonServices.createBlankBinding(schema, ['mov-catholic']);
 
   assert(binding.schemaId === 'schema-basic', 'Binding should reference schema id');
-  assert(binding.religionIds.length === 1, 'Binding should include one religion');
-  assert(binding.religionIds[0] === 'rel-test', 'Binding religion should be rel-test');
+  assert(binding.movementIds.length === 1, 'Binding should include one movement');
+  assert(
+    binding.movementIds[0] === 'mov-catholic',
+    'Binding movement should be mov-catholic'
+  );
   assert(Array.isArray(binding.cells), 'Binding.cells should be an array');
-  assert(binding.cells.length === 2, 'There should be one cell per dimension for rel-test');
+  assert(
+    binding.cells.length === 2,
+    'There should be one cell per dimension for mov-catholic'
+  );
 
   binding.cells.forEach(cell => {
     assert(cell.value === null, 'New binding cells should start with null value');
@@ -67,19 +73,19 @@ function testSetBindingValueIsPure() {
     ]
   };
 
-  const binding = ComparisonServices.createBlankBinding(schema, ['rel-test']);
+  const binding = ComparisonServices.createBlankBinding(schema, ['mov-catholic']);
   const originalCell = binding.cells[0];
 
   const updated = ComparisonServices.setBindingValue(
     binding,
     'entity_count',
-    'rel-test',
+    'mov-catholic',
     42,
     'Manual override'
   );
 
   const updatedCell = updated.cells.find(
-    c => c.dimensionId === 'entity_count' && c.religionId === 'rel-test'
+    c => c.dimensionId === 'entity_count' && c.movementId === 'mov-catholic'
   );
 
   assert(
@@ -122,12 +128,12 @@ function testBuildComparisonMatrixAutoCounts() {
     ]
   };
 
-  const binding = ComparisonServices.createBlankBinding(schema, ['rel-test']);
+  const binding = ComparisonServices.createBlankBinding(schema, ['mov-catholic']);
   const matrix = ComparisonServices.buildComparisonMatrix(baseData, schema, binding);
 
   assert(matrix.schemaId === 'schema-basic', 'Matrix should reference schema id');
-  assert(matrix.religions.length === 1, 'There should be one religion in the matrix');
-  assert(matrix.religions[0].id === 'rel-test', 'Religion id should be rel-test');
+  assert(matrix.movements.length === 1, 'There should be one movement in the matrix');
+  assert(matrix.movements[0].id === 'mov-catholic', 'Movement id should be mov-catholic');
   assert(matrix.rows.length === 2, 'There should be a row per dimension');
 
   const entityRow = matrix.rows.find(r => r.dimensionId === 'entity_count');
@@ -137,19 +143,19 @@ function testBuildComparisonMatrixAutoCounts() {
   assert(practiceRow, 'Practice count row should exist');
 
   assert(
-    entityRow.cells[0].value === 1,
-    'Auto-derived entity count should be 1 for sample-data'
+    entityRow.cells[0].value === 23,
+    'Auto-derived entity count should be 23 for sample-data'
   );
   assert(
-    practiceRow.cells[0].value === 1,
-    'Auto-derived practice count should be 1 for sample-data'
+    practiceRow.cells[0].value === 7,
+    'Auto-derived practice count should be 7 for sample-data'
   );
 
   // Now override the entity count in the binding and ensure override wins
   const overridden = ComparisonServices.setBindingValue(
     binding,
     'entity_count',
-    'rel-test',
+    'mov-catholic',
     99
   );
   const matrixOverride = ComparisonServices.buildComparisonMatrix(
@@ -167,62 +173,59 @@ function testBuildComparisonMatrixAutoCounts() {
   );
 }
 
-function testApplyTemplateToReligion() {
+function testApplyTemplateToMovement() {
   const template = {
     id: 'tmpl-entities-skeleton',
     name: 'Entity Skeleton Template',
-    description: 'Copies entities from a source religion but clears summaries and sources.',
+    description: 'Copies entities from a source movement but clears summaries and sources.',
     tags: [],
-    sourceReligionId: 'rel-test',
+    sourceMovementId: 'mov-catholic',
     rules: [
       {
         id: 'rule-entities',
         collection: 'entities',
-        matchTags: [], // copy all entities from the source religion
+        matchTags: [], // copy all entities from the source movement
         copyMode: 'copy_structure_only',
         fieldsToClear: ['summary', 'notes', 'sourcesOfTruth', 'sourceEntityIds']
       }
     ]
   };
 
-  const newData = ComparisonServices.applyTemplateToReligion(baseData, template, {
-    newReligionId: 'rel-template',
-    newReligionName: 'Test Faith Template',
-    newReligionShortName: 'TFT',
-    newReligionSummary: 'Template of Test Faith.',
-    extraReligionTags: ['template']
+  const newData = ComparisonServices.applyTemplateToMovement(baseData, template, {
+    newMovementId: 'mov-template',
+    newMovementName: 'Test Faith Template',
+    newMovementShortName: 'TFT',
+    newMovementSummary: 'Template of Test Faith.',
+    extraMovementTags: ['template']
   });
 
   // Original data should be unchanged
-  assert(
-    baseData.religions.length === 1,
-    'Base data should still have 1 religion'
-  );
+  assert(baseData.movements.length === 1, 'Base data should still have 1 movement');
 
   assert(
-    newData.religions.length === 2,
-    'New data should have one extra religion'
+    newData.movements.length === 2,
+    'New data should have one extra movement'
   );
 
-  const newRel = newData.religions.find(r => r.id === 'rel-template');
-  assert(newRel, 'New religion with id rel-template should exist');
+  const newMovement = newData.movements.find(r => r.id === 'mov-template');
+  assert(newMovement, 'New movement with id mov-template should exist');
   assert(
-    newRel.summary === 'Template of Test Faith.',
-    'New religion should use provided summary'
+    newMovement.summary === 'Template of Test Faith.',
+    'New movement should use provided summary'
   );
   assert(
-    newRel.tags.includes('template'),
-    'New religion should include extra template tag'
-  );
-
-  // Entities: base has 1, new data should have base + copied skeleton(s)
-  assert(
-    newData.entities.length === baseData.entities.length + 1,
-    'One skeleton entity should be added for the new religion'
+    newMovement.tags.includes('template'),
+    'New movement should include extra template tag'
   );
 
-  const skeleton = newData.entities.find(e => e.religionId === 'rel-template');
-  assert(skeleton, 'Skeleton entity should belong to new religion');
+  // Entities: base has 23, new data should have base + copied skeleton(s)
+  assert(
+    newData.entities.length === baseData.entities.length * 2,
+    'Skeleton entities should be added for the new movement'
+  );
+
+  const skeleton = newData.entities.find(e => e.movementId === 'mov-template');
+  assert(skeleton, 'Skeleton entity should belong to new movement');
   assert(
     skeleton.id !== baseData.entities[0].id,
     'Skeleton entity should have a new id'
@@ -248,7 +251,7 @@ function runTests() {
   testCreateBlankBinding();
   testSetBindingValueIsPure();
   testBuildComparisonMatrixAutoCounts();
-  testApplyTemplateToReligion();
+  testApplyTemplateToMovement();
   console.log('All comparison-services tests passed ✅');
 }
 

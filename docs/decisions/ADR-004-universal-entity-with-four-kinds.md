@@ -5,11 +5,11 @@ Accepted
 
 ## Context
 
-Early design discussions considered modelling separate types for gods, spirits, ancestors, places, relics, institutions and abstract concepts.  While this granularity could encode theological nuance, it risked exploding the schema into dozens of specialised entity types.  We needed a representation that could cover an incredibly diverse range of beings and things: from the Holy Trinity and kami spirits to stadiums and colours in the Aggie football religion.  The core challenge was to choose a level of abstraction that allowed any religious system to encode its cosmology and ontology consistently without requiring per‑religion schema customisations.
+Early design discussions considered modelling separate types for gods, spirits, ancestors, places, relics, institutions and abstract concepts.  While this granularity could encode theological nuance, it risked exploding the schema into dozens of specialised entity types.  We needed a representation that could cover an incredibly diverse range of beings and things: from the Holy Trinity and kami spirits to stadiums and colours in the Aggie football movement.  The core challenge was to choose a level of abstraction that allowed any religious system to encode its cosmology and ontology consistently without requiring per‑movement schema customisations.
 
 ## Decision
 
-We created a single `Entity` record to represent anything that exists in the world of the religion.  It has a `kind` field with four possible values: `being` (gods, spirits, saints, people), `place` (heavens, hells, shrines, stadiums), `object` (relics, artifacts, sacred texts, ritual tools) and `idea` (virtues, laws, abstract principles).  Each entity stores a human‑readable `summary`, free‑form `tags` and lists of `sourceOfTruth` labels and related `sourceEntityIds`.  Rather than embed domain‑specific subtypes, we encourage authors to use `tags` and, when needed, `Relation` records to capture finer distinctions such as “angel”, “institution” or “sacrament”.
+We created a single `Entity` record to represent anything that exists in the world of the movement.  It has a `kind` field with four possible values: `being` (gods, spirits, saints, people), `place` (heavens, hells, shrines, stadiums), `object` (relics, artifacts, sacred texts, ritual tools) and `idea` (virtues, laws, abstract principles).  Each entity stores a human‑readable `summary`, free‑form `tags` and lists of `sourceOfTruth` labels and related `sourceEntityIds`.  Rather than embed domain‑specific subtypes, we encourage authors to use `tags` and, when needed, `Relation` records to capture finer distinctions such as “angel”, “institution” or “sacrament”.
 
 ## Rationale
 

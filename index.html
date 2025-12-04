@@ -2,14 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Religion Designer v3</title>
+  <title>Movement Engineer v3</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
   <header class="top-bar">
     <div class="top-bar-left">
-      <h1>Religion Designer v3</h1>
+      <h1>Movement Engineer v3</h1>
       <span class="schema-version">Schema v3.4</span>
     </div>
     <div class="top-bar-right">
@@ -33,16 +33,16 @@
   <main class="layout">
     <aside class="sidebar">
       <div class="sidebar-header">
-        <h2>Religions</h2>
-        <button id="btn-add-religion" title="Create a new religion">+</button>
+        <h2>Movements</h2>
+        <button id="btn-add-movement" title="Create a new movement">+</button>
       </div>
-      <ul id="religion-list" class="item-list"></ul>
+      <ul id="movement-list" class="item-list"></ul>
     </aside>
 
     <section class="content">
       <nav class="tabs">
         <button class="tab active" data-tab="dashboard">Dashboard</button>
-        <button class="tab" data-tab="religion">Religion</button>
+        <button class="tab" data-tab="movement">Movement</button>
         <button class="tab" data-tab="data">Collections</button>
         <button class="tab" data-tab="comparison">Comparison</button>
       </nav>
@@ -52,43 +52,43 @@
         <div id="dashboard-content" class="panel-body"></div>
       </section>
 
-      <!-- Single religion details -->
-      <section id="tab-religion" class="tab-panel">
+      <!-- Single movement details -->
+      <section id="tab-movement" class="tab-panel">
         <div class="panel-body">
-          <h2>Religion details</h2>
+          <h2>Movement details</h2>
           <p class="hint">
-            Choose a religion in the sidebar, then edit its core fields here.
+            Choose a movement in the sidebar, then edit its core fields here.
           </p>
-          <form id="religion-form" autocomplete="off">
+          <form id="movement-form" autocomplete="off">
             <div class="form-row">
               <label>ID</label>
-              <span id="religion-id-label" class="code-pill">—</span>
+              <span id="movement-id-label" class="code-pill">—</span>
             </div>
 
             <div class="form-row">
-              <label for="religion-name">Name</label>
-              <input id="religion-name" type="text" required />
+              <label for="movement-name">Name</label>
+              <input id="movement-name" type="text" required />
             </div>
 
             <div class="form-row">
-              <label for="religion-shortName">Short name</label>
-              <input id="religion-shortName" type="text" />
+              <label for="movement-shortName">Short name</label>
+              <input id="movement-shortName" type="text" />
             </div>
 
             <div class="form-row">
-              <label for="religion-summary">Summary</label>
-              <textarea id="religion-summary" rows="4"></textarea>
+              <label for="movement-summary">Summary</label>
+              <textarea id="movement-summary" rows="4"></textarea>
             </div>
 
             <div class="form-row">
-              <label for="religion-tags">Tags (comma‑separated)</label>
-              <input id="religion-tags" type="text" placeholder="test, catholic, etc." />
+              <label for="movement-tags">Tags (comma‑separated)</label>
+              <input id="movement-tags" type="text" placeholder="test, catholic, etc." />
             </div>
 
             <div class="form-actions">
-              <button id="btn-save-religion" type="button">Save religion</button>
-              <button id="btn-delete-religion" type="button" class="danger">
-                Delete religion & related data
+              <button id="btn-save-movement" type="button">Save movement</button>
+              <button id="btn-delete-movement" type="button" class="danger">
+                Delete movement & related data
               </button>
             </div>
           </form>
@@ -100,8 +100,8 @@
         <div class="panel-body">
           <h2>Collections</h2>
           <p class="hint">
-            Edit any collection as JSON. For religion‑scoped collections, you can filter by the
-            currently selected religion.
+            Edit any collection as JSON. For movement‑scoped collections, you can filter by the
+            currently selected movement.
           </p>
 
           <div class="collection-toolbar">
@@ -122,8 +122,8 @@
             </label>
 
             <label class="inline">
-              <input id="collection-filter-by-religion" type="checkbox" checked />
-              Filter by current religion (including shared)
+              <input id="collection-filter-by-movement" type="checkbox" checked />
+              Filter by current movement (including shared)
             </label>
 
             <div class="collection-actions">
@@ -153,7 +153,7 @@
         <div class="panel-body">
           <h2>Comparison</h2>
           <p class="hint">
-            Pick religions to compare. The table uses
+            Pick movements to compare. The table uses
             <code>buildComparisonViewModel</code> under the hood.
           </p>
 

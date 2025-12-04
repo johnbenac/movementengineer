@@ -1,22 +1,22 @@
 /*
- * Religion Designer v2
+ * Movement Engineer v2
  *
  * This script powers a client‑side web application that allows users to
- * design, save, load, fork and compare religions. Religions are stored
+ * design, save, load, fork and compare movements. Movements are stored
  * in localStorage to persist across sessions and can be exported/imported
- * as JSON. Preloaded religions provide examples from major world
+ * as JSON. Preloaded movements provide examples from major world
  * traditions with brief hints and citations.  The UI uses tabs to
  * organise information into sections. Dropdowns and checkboxes
  * encourage structured input while leaving room for custom entries via
- * "Other" fields. A comparison modal presents selected religions side
+ * "Other" fields. A comparison modal presents selected movements side
  * by side for easy contrast.
  */
 
 // ==== Data Structures ====
 
-// Preloaded religions with minimal canonical details. Each entry
+// Preloaded movements with minimal canonical details. Each entry
 // includes hints referencing sources (citations) where applicable.
-const preloadedReligions = [
+const preloadedMovements = [
   {
     name: 'Buddhism',
     description:
@@ -142,79 +142,79 @@ const preloadedReligions = [
   }
 ];
 
-// Storage key for custom religions
-const STORAGE_KEY = 'customReligionsV2';
+// Storage key for custom movements
+const STORAGE_KEY = 'customMovementsV2';
 
-// Current religion in the editor (object) and the associated key (for updating)
-let currentReligion = null;
+// Current movement in the editor (object) and the associated key (for updating)
+let currentMovement = null;
 let currentKey = null;
 
 // ==== Helper Functions ====
 
-// Load custom religions from localStorage
-function loadCustomReligions() {
+// Load custom movements from localStorage
+function loadCustomMovements() {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) return {};
   try {
     const obj = JSON.parse(raw);
     return obj;
   } catch (e) {
-    console.warn('Failed to parse stored religions:', e);
+    console.warn('Failed to parse stored movements:', e);
     return {};
   }
 }
 
-// Save custom religions to localStorage
-function saveCustomReligions(regions) {
+// Save custom movements to localStorage
+function saveCustomMovements(regions) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(regions));
 }
 
-// Generate a random ID for saved religions
+// Generate a random ID for saved movements
 function generateId() {
-  return 'religion_' + Math.random().toString(36).substr(2, 9);
+  return 'movement_' + Math.random().toString(36).substr(2, 9);
 }
 
-// Render the list of saved religions in the sidebar
+// Render the list of saved movements in the sidebar
 function renderSavedList() {
   const savedList = document.getElementById('savedList');
   savedList.innerHTML = '';
-  const religions = loadCustomReligions();
-  Object.keys(religions).forEach(key => {
+  const movements = loadCustomMovements();
+  Object.keys(movements).forEach(key => {
     const li = document.createElement('li');
-    li.textContent = religions[key].name;
+    li.textContent = movements[key].name;
     li.dataset.key = key;
     li.title = 'Click to load';
     li.addEventListener('click', () => {
-      currentReligion = religions[key];
+      currentMovement = movements[key];
       currentKey = key;
-      fillForm(currentReligion);
+      fillForm(currentMovement);
     });
     savedList.appendChild(li);
   });
 }
 
-// Render the preloaded religions list
+// Render the preloaded movements list
 function renderPreloadedList() {
   const preList = document.getElementById('preloadedList');
   preList.innerHTML = '';
-  preloadedReligions.forEach((rel, idx) => {
+  preloadedMovements.forEach((rel, idx) => {
     const li = document.createElement('li');
     li.textContent = rel.name;
     li.dataset.index = idx;
     li.title = 'Click to load';
     li.addEventListener('click', () => {
-      // assign new current religion as a copy (to avoid editing preloaded directly)
-      currentReligion = JSON.parse(JSON.stringify(rel));
+      // assign new current movement as a copy (to avoid editing preloaded directly)
+      currentMovement = JSON.parse(JSON.stringify(rel));
       currentKey = null; // new unsaved instance
-      fillForm(currentReligion);
+      fillForm(currentMovement);
     });
     preList.appendChild(li);
   });
 }
 
-// Fill the form fields with a religion object
+// Fill the form fields with a movement object
 function fillForm(rel) {
-  const form = document.getElementById('religionForm');
+  const form = document.getElementById('movementForm');
   // Basic fields
   form.name.value = rel.name || '';
   form.description.value = rel.description || '';
@@ -265,9 +265,9 @@ function syncCheckboxes(groupId, values) {
   });
 }
 
-// Extract form values into a religion object
+// Extract form values into a movement object
 function extractForm() {
-  const form = document.getElementById('religionForm');
+  const form = document.getElementById('movementForm');
   const obj = {
     name: form.name.value.trim(),
     description: form.description.value.trim(),
@@ -373,48 +373,48 @@ function updateOtherInputsVisibility() {
   artsOtherInput.style.display = artsOtherChecked ? 'block' : 'none';
 }
 
-// Handle saving the current religion (overwrite or new)
-function saveReligion(asNew = false) {
-  const religions = loadCustomReligions();
+// Handle saving the current movement (overwrite or new)
+function saveMovement(asNew = false) {
+  const movements = loadCustomMovements();
   const newRel = extractForm();
   if (!newRel.name) {
-    alert('Please provide a name for the religion before saving.');
+    alert('Please provide a name for the movement before saving.');
     return;
   }
   // If this is Save As or no currentKey (unsaved), generate new key
   if (asNew || !currentKey) {
     currentKey = generateId();
   }
-  religions[currentKey] = newRel;
-  saveCustomReligions(religions);
-  currentReligion = newRel;
+  movements[currentKey] = newRel;
+  saveCustomMovements(movements);
+  currentMovement = newRel;
   renderSavedList();
-  alert('Religion saved successfully.');
+  alert('Movement saved successfully.');
 }
 
-// Handle forking: create new religion with a copy of the current one, new key
-function forkReligion() {
-  if (!currentReligion) {
-    alert('No religion loaded to fork.');
+// Handle forking: create new movement with a copy of the current one, new key
+function forkMovement() {
+  if (!currentMovement) {
+    alert('No movement loaded to fork.');
     return;
   }
-  const religions = loadCustomReligions();
+  const movements = loadCustomMovements();
   const newKey = generateId();
   const copy = JSON.parse(JSON.stringify(extractForm()));
   copy.name = copy.name + ' (Fork)';
-  religions[newKey] = copy;
-  saveCustomReligions(religions);
+  movements[newKey] = copy;
+  saveCustomMovements(movements);
   currentKey = newKey;
-  currentReligion = copy;
+  currentMovement = copy;
   renderSavedList();
   fillForm(copy);
-  alert('Religion forked successfully.');
+  alert('Movement forked successfully.');
 }
 
-// Export current religion as JSON
-function exportReligion() {
-  if (!currentReligion) {
-    alert('No religion loaded to export.');
+// Export current movement as JSON
+function exportMovement() {
+  if (!currentMovement) {
+    alert('No movement loaded to export.');
     return;
   }
   const dataStr = JSON.stringify(extractForm(), null, 2);
@@ -422,9 +422,9 @@ function exportReligion() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  const safeName = currentReligion.name
-    ? currentReligion.name.replace(/[^a-z0-9]+/gi, '_').toLowerCase()
-    : 'religion';
+  const safeName = currentMovement.name
+    ? currentMovement.name.replace(/[^a-z0-9]+/gi, '_').toLowerCase()
+    : 'movement';
   a.download = safeName + '.json';
   document.body.appendChild(a);
   a.click();
@@ -432,7 +432,7 @@ function exportReligion() {
   URL.revokeObjectURL(url);
 }
 
-// Import religion from JSON file
+// Import movement from JSON file
 function handleImport(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -442,15 +442,15 @@ function handleImport(event) {
       const data = JSON.parse(reader.result);
       // Basic validation: must have a name
       if (!data.name) {
-        alert('Invalid religion file: missing name.');
+        alert('Invalid movement file: missing name.');
         return;
       }
-      const religions = loadCustomReligions();
+      const movements = loadCustomMovements();
       const newKey = generateId();
-      religions[newKey] = data;
-      saveCustomReligions(religions);
+      movements[newKey] = data;
+      saveCustomMovements(movements);
       renderSavedList();
-      alert('Religion imported successfully.');
+      alert('Movement imported successfully.');
     } catch (e) {
       alert('Failed to import: ' + e.message);
     }
@@ -460,11 +460,11 @@ function handleImport(event) {
   event.target.value = '';
 }
 
-// Clear form to create a new religion
-function newReligion() {
-  currentReligion = null;
+// Clear form to create a new movement
+function newMovement() {
+  currentMovement = null;
   currentKey = null;
-  document.getElementById('religionForm').reset();
+  document.getElementById('movementForm').reset();
   // clear multi selects and checkboxes
   // Deselect multi select
   Array.from(document.getElementById('texts').options).forEach(opt => {
@@ -500,7 +500,7 @@ function openComparisonModal() {
   // Create checkboxes for preloaded and saved
   const selections = [];
   // Preloaded
-  preloadedReligions.forEach((rel, idx) => {
+  preloadedMovements.forEach((rel, idx) => {
     const id = 'cmp_pre_' + idx;
     const label = document.createElement('label');
     const cb = document.createElement('input');
@@ -511,7 +511,7 @@ function openComparisonModal() {
     selectionDiv.appendChild(label);
   });
   // Saved
-  const saved = loadCustomReligions();
+  const saved = loadCustomMovements();
   Object.keys(saved).forEach(key => {
     const id = 'cmp_saved_' + key;
     const label = document.createElement('label');
@@ -536,20 +536,20 @@ function generateComparison() {
     document.querySelectorAll('#compareSelection input[type="checkbox"]:checked')
   ).map(cb => cb.value);
   if (selectedValues.length === 0) {
-    alert('Select at least one religion to compare.');
+    alert('Select at least one movement to compare.');
     return;
   }
   const comparison = [];
   selectedValues.forEach(val => {
     const [type, id] = val.split(':');
     if (type === 'pre') {
-      comparison.push(preloadedReligions[parseInt(id)]);
+      comparison.push(preloadedMovements[parseInt(id)]);
     } else if (type === 'saved') {
-      const saved = loadCustomReligions();
+      const saved = loadCustomMovements();
       comparison.push(saved[id]);
     }
   });
-  // Always include current religion (if any and not already selected)
+  // Always include current movement (if any and not already selected)
   const current = extractForm();
   if (current.name && !comparison.some(r => r.name === current.name)) {
     comparison.unshift(current);
@@ -665,11 +665,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   document.getElementById('texts').addEventListener('change', updateOtherInputsVisibility);
   // Top bar buttons
-  document.getElementById('newBtn').addEventListener('click', newReligion);
-  document.getElementById('saveBtn').addEventListener('click', () => saveReligion(false));
-  document.getElementById('saveAsBtn').addEventListener('click', () => saveReligion(true));
-  document.getElementById('forkBtn').addEventListener('click', forkReligion);
-  document.getElementById('exportBtn').addEventListener('click', exportReligion);
+  document.getElementById('newBtn').addEventListener('click', newMovement);
+  document.getElementById('saveBtn').addEventListener('click', () => saveMovement(false));
+  document.getElementById('saveAsBtn').addEventListener('click', () => saveMovement(true));
+  document.getElementById('forkBtn').addEventListener('click', forkMovement);
+  document.getElementById('exportBtn').addEventListener('click', exportMovement);
   document.getElementById('importBtn').addEventListener('click', () => {
     document.getElementById('importFile').click();
   });

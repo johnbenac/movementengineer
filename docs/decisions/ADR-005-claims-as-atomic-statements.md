@@ -5,11 +5,11 @@ Accepted
 
 ## Context
 
-Religion designers needed a way to capture statements about reality, gods, people, afterlife, ethics and cosmology.  We initially considered storing these as annotations on texts or as notes on entities.  However, such an approach would bury doctrinal content inside narrative or descriptive fields, making it difficult to query or attach authority metadata.  We wanted to separate the presentation of text from the extraction of meaning.  Furthermore, religions may hold multiple competing interpretations of a passage, or scholars may want to record summary beliefs that are not identical to any one verse.  A dedicated mechanism was required to capture these “truth claims” in a structured and traceable way.
+Movement designers needed a way to capture statements about reality, gods, people, afterlife, ethics and cosmology.  We initially considered storing these as annotations on texts or as notes on entities.  However, such an approach would bury doctrinal content inside narrative or descriptive fields, making it difficult to query or attach authority metadata.  We wanted to separate the presentation of text from the extraction of meaning.  Furthermore, movements may hold multiple competing interpretations of a passage, or scholars may want to record summary beliefs that are not identical to any one verse.  A dedicated mechanism was required to capture these “truth claims” in a structured and traceable way.
 
 ## Decision
 
-We introduced a `Claim` entity representing an atomic statement believed or asserted within the religion.  Each claim stores the claim text, optional category and tags, and lists of `sourceTextIds` (passages that support or inspire the claim) and `aboutEntityIds` (entities the claim concerns).  Claims also record `sourcesOfTruth` strings and `sourceEntityIds` to document why they are considered authoritative.  Claims are intentionally flat; they are not nested or composed but can be linked indirectly via categories or tags.  Statements that prescribe behaviour are represented as `Rule`s rather than claims.
+We introduced a `Claim` entity representing an atomic statement believed or asserted within the movement.  Each claim stores the claim text, optional category and tags, and lists of `sourceTextIds` (passages that support or inspire the claim) and `aboutEntityIds` (entities the claim concerns).  Claims also record `sourcesOfTruth` strings and `sourceEntityIds` to document why they are considered authoritative.  Claims are intentionally flat; they are not nested or composed but can be linked indirectly via categories or tags.  Statements that prescribe behaviour are represented as `Rule`s rather than claims.
 
 ## Rationale
 
