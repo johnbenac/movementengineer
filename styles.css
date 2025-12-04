@@ -576,6 +576,63 @@ button.danger:hover {
   background: #d1d5db;
 }
 
+/* Entity graph */
+
+.entity-graph-visual {
+  position: relative;
+  height: 420px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #f9fafb;
+  margin-bottom: 0.6rem;
+  overflow: hidden;
+}
+
+.entity-graph-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.entity-graph-edge {
+  stroke: #d1d5db;
+}
+
+.entity-graph-edge-label {
+  fill: #6b7280;
+  font-size: 0.65rem;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  pointer-events: none;
+}
+
+.entity-graph-node {
+  cursor: pointer;
+}
+
+.entity-graph-node-circle {
+  fill: #fff;
+  stroke: #1f2937;
+  stroke-width: 1.5;
+}
+
+.entity-graph-node.is-center .entity-graph-node-circle {
+  fill: #1f2937;
+  stroke: #111827;
+}
+
+.entity-graph-node-label {
+  font-size: 0.72rem;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  fill: #111827;
+  pointer-events: none;
+}
+
+.entity-graph-node.is-center .entity-graph-node-label {
+  fill: #fff;
+  font-weight: 600;
+}
+
 /* Comparison */
 
 .comparison-selector {

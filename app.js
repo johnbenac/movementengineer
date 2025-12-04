@@ -768,6 +768,25 @@
       relationTypeFilter
     });
 
+    const graphHeading = document.createElement('div');
+    graphHeading.className = 'section-heading';
+    graphHeading.textContent = 'Relation graph (visual)';
+    graphContainer.appendChild(graphHeading);
+
+    const vizHost = document.createElement('div');
+    vizHost.className = 'entity-graph-visual';
+    graphContainer.appendChild(vizHost);
+
+    const graphRenderer = new EntityGraphRenderer(vizHost, {
+      onNodeClick: nodeId => {
+        if (nodeId) {
+          document.getElementById('entity-select').value = nodeId;
+          renderEntitiesView();
+        }
+      }
+    });
+    graphRenderer.render(graphVm);
+
     const nodesById = new Map();
     graphVm.nodes.forEach(n => nodesById.set(n.id, n));
 
@@ -802,6 +821,7 @@
     graphContainer.appendChild(edgesTitle);
 
     const edgesList = document.createElement('ul');
+    edgesList.className = 'entity-graph-edges';
     edgesList.style.fontSize = '0.8rem';
     graphVm.edges.forEach(e => {
       const li = document.createElement('li');
