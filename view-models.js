@@ -27,7 +27,11 @@ function buildLookup(items) {
 function pickTop(items, limit = 5) {
   return normaliseArray(items)
     .slice()
-    .sort((a, b) => (normaliseArray(b.tags).length || 0) - (normaliseArray(a.tags).length || 0))
+    .sort(
+      (a, b) =>
+        (normaliseArray(b.tags).length || 0) -
+        (normaliseArray(a.tags).length || 0)
+    )
     .slice(0, limit);
 }
 
@@ -40,8 +44,11 @@ function histogram(items, keyAccessor) {
 }
 
 function filterByMovement(items, movementId, includeShared = false) {
-  return normaliseArray(items).filter(item =>
-    item && (item.movementId === movementId || (includeShared && item.movementId == null))
+  return normaliseArray(items).filter(
+    item =>
+      item &&
+      (item.movementId === movementId ||
+        (includeShared && item.movementId == null))
   );
 }
 
@@ -105,7 +112,9 @@ function buildMovementDashboardViewModel(data, input) {
 function buildScriptureTreeViewModel(data, input) {
   const { movementId, textCollectionId } = input;
   const collections = buildLookup(data.textCollections);
-  const collection = textCollectionId ? collections.get(textCollectionId) || null : null;
+  const collection = textCollectionId
+    ? collections.get(textCollectionId) || null
+    : null;
   const texts = filterByMovement(data.texts, movementId);
   const claims = filterByMovement(data.claims, movementId, true);
   const events = filterByMovement(data.events, movementId);
@@ -122,7 +131,11 @@ function buildScriptureTreeViewModel(data, input) {
   claims.forEach(claim => {
     normaliseArray(claim.sourceTextIds).forEach(textId => {
       const bucket = referencedByClaims.get(textId) || [];
-      bucket.push({ id: claim.id, text: claim.text, category: claim.category ?? null });
+      bucket.push({
+        id: claim.id,
+        text: claim.text,
+        category: claim.category ?? null
+      });
       referencedByClaims.set(textId, bucket);
     });
   });
@@ -131,7 +144,11 @@ function buildScriptureTreeViewModel(data, input) {
   events.forEach(event => {
     normaliseArray(event.readingTextIds).forEach(textId => {
       const bucket = usedInEvents.get(textId) || [];
-      bucket.push({ id: event.id, name: event.name, recurrence: event.recurrence });
+      bucket.push({
+        id: event.id,
+        name: event.name,
+        recurrence: event.recurrence
+      });
       usedInEvents.set(textId, bucket);
     });
   });
@@ -141,7 +158,11 @@ function buildScriptureTreeViewModel(data, input) {
     const mentionsEntities = normaliseArray(text.mentionsEntityIds)
       .map(id => entities.get(id))
       .filter(Boolean)
-      .map(entity => ({ id: entity.id, name: entity.name, kind: entity.kind ?? null }));
+      .map(entity => ({
+        id: entity.id,
+        name: entity.name,
+        kind: entity.kind ?? null
+      }));
 
     nodesById[text.id] = {
       id: text.id,
@@ -205,7 +226,9 @@ function buildEntityDetailViewModel(data, input) {
     }));
 
   const practices = normaliseArray(data.practices)
-    .filter(practice => normaliseArray(practice.involvedEntityIds).includes(entityId))
+    .filter(practice =>
+      normaliseArray(practice.involvedEntityIds).includes(entityId)
+    )
     .map(practice => ({
       id: practice.id,
       name: practice.name,
@@ -215,11 +238,20 @@ function buildEntityDetailViewModel(data, input) {
 
   const events = normaliseArray(data.events)
     .filter(event => normaliseArray(event.mainEntityIds).includes(entityId))
-    .map(event => ({ id: event.id, name: event.name, recurrence: event.recurrence }));
+    .map(event => ({
+      id: event.id,
+      name: event.name,
+      recurrence: event.recurrence
+    }));
 
   const media = normaliseArray(data.media)
     .filter(asset => normaliseArray(asset.linkedEntityIds).includes(entityId))
-    .map(asset => ({ id: asset.id, kind: asset.kind, uri: asset.uri, title: asset.title }));
+    .map(asset => ({
+      id: asset.id,
+      kind: asset.kind,
+      uri: asset.uri,
+      title: asset.title
+    }));
 
   const relationsOut = normaliseArray(data.relations)
     .filter(rel => rel.fromEntityId === entityId)
@@ -229,7 +261,11 @@ function buildEntityDetailViewModel(data, input) {
       to: (() => {
         const target = entityLookup.get(rel.toEntityId);
         return target
-          ? { id: target.id, name: target.name, kind: target.kind ?? null }
+          ? {
+              id: target.id,
+              name: target.name,
+              kind: target.kind ?? null
+            }
           : { id: rel.toEntityId, name: rel.toEntityId, kind: null };
       })()
     }));
@@ -242,7 +278,11 @@ function buildEntityDetailViewModel(data, input) {
       from: (() => {
         const source = entityLookup.get(rel.fromEntityId);
         return source
-          ? { id: source.id, name: source.name, kind: source.kind ?? null }
+          ? {
+              id: source.id,
+              name: source.name,
+              kind: source.kind ?? null
+            }
           : { id: rel.fromEntityId, name: rel.fromEntityId, kind: null };
       })()
     }));
@@ -265,7 +305,9 @@ function buildEntityGraphViewModel(data, input) {
 
   let relations = filterByMovement(data.relations, movementId, true);
   if (Array.isArray(relationTypeFilter) && relationTypeFilter.length > 0) {
-    relations = relations.filter(rel => relationTypeFilter.includes(rel.relationType));
+    relations = relations.filter(rel =>
+      relationTypeFilter.includes(rel.relationType)
+    );
   }
 
   if (centerEntityId && Number.isFinite(depth)) {
@@ -296,7 +338,9 @@ function buildEntityGraphViewModel(data, input) {
       if (frontier.length === 0) break;
     }
 
-    relations = relations.filter(rel => visited.has(rel.fromEntityId) || visited.has(rel.toEntityId));
+    relations = relations.filter(
+      rel => visited.has(rel.fromEntityId) || visited.has(rel.toEntityId)
+    );
   }
 
   const nodeIds = new Set();
@@ -339,34 +383,62 @@ function buildPracticeDetailViewModel(data, input) {
 
   const practice = practiceLookup.get(practiceId) || null;
 
-  const entities = normaliseArray(practice?.involvedEntityIds).map(id => {
-    const entity = entityLookup.get(id);
-    return entity ? { id: entity.id, name: entity.name, kind: entity.kind ?? null } : null;
-  }).filter(Boolean);
+  const entities = normaliseArray(practice?.involvedEntityIds)
+    .map(id => {
+      const entity = entityLookup.get(id);
+      return entity
+        ? { id: entity.id, name: entity.name, kind: entity.kind ?? null }
+        : null;
+    })
+    .filter(Boolean);
 
-  const instructionsTexts = normaliseArray(practice?.instructionsTextIds).map(id => {
-    const text = textLookup.get(id);
-    return text
-      ? { id: text.id, title: text.title, level: text.level, mainFunction: text.mainFunction ?? null }
-      : null;
-  }).filter(Boolean);
+  const instructionsTexts = normaliseArray(practice?.instructionsTextIds)
+    .map(id => {
+      const text = textLookup.get(id);
+      return text
+        ? {
+            id: text.id,
+            title: text.title,
+            level: text.level,
+            mainFunction: text.mainFunction ?? null
+          }
+        : null;
+    })
+    .filter(Boolean);
 
-  const supportingClaims = normaliseArray(practice?.supportingClaimIds).map(id => {
-    const claim = claimLookup.get(id);
-    return claim ? { id: claim.id, text: claim.text, category: claim.category ?? null } : null;
-  }).filter(Boolean);
+  const supportingClaims = normaliseArray(practice?.supportingClaimIds)
+    .map(id => {
+      const claim = claimLookup.get(id);
+      return claim
+        ? { id: claim.id, text: claim.text, category: claim.category ?? null }
+        : null;
+    })
+    .filter(Boolean);
 
   const attachedRules = normaliseArray(data.rules)
     .filter(rule => normaliseArray(rule.relatedPracticeIds).includes(practiceId))
-    .map(rule => ({ id: rule.id, shortText: rule.shortText, kind: rule.kind }));
+    .map(rule => ({
+      id: rule.id,
+      shortText: rule.shortText,
+      kind: rule.kind
+    }));
 
   const attachedEvents = normaliseArray(data.events)
     .filter(event => normaliseArray(event.mainPracticeIds).includes(practiceId))
-    .map(event => ({ id: event.id, name: event.name, recurrence: event.recurrence }));
+    .map(event => ({
+      id: event.id,
+      name: event.name,
+      recurrence: event.recurrence
+    }));
 
   const media = normaliseArray(data.media)
     .filter(asset => normaliseArray(asset.linkedPracticeIds).includes(practiceId))
-    .map(asset => ({ id: asset.id, kind: asset.kind, uri: asset.uri, title: asset.title }));
+    .map(asset => ({
+      id: asset.id,
+      kind: asset.kind,
+      uri: asset.uri,
+      title: asset.title
+    }));
 
   return {
     practice,
@@ -401,11 +473,19 @@ function buildCalendarViewModel(data, input) {
     mainPractices: normaliseArray(event.mainPracticeIds)
       .map(id => practiceLookup.get(id))
       .filter(Boolean)
-      .map(practice => ({ id: practice.id, name: practice.name, kind: practice.kind ?? null })),
+      .map(practice => ({
+        id: practice.id,
+        name: practice.name,
+        kind: practice.kind ?? null
+      })),
     mainEntities: normaliseArray(event.mainEntityIds)
       .map(id => entityLookup.get(id))
       .filter(Boolean)
-      .map(entity => ({ id: entity.id, name: entity.name, kind: entity.kind ?? null })),
+      .map(entity => ({
+        id: entity.id,
+        name: entity.name,
+        kind: entity.kind ?? null
+      })),
     readings: normaliseArray(event.readingTextIds)
       .map(id => textLookup.get(id))
       .filter(Boolean)
@@ -413,7 +493,11 @@ function buildCalendarViewModel(data, input) {
     supportingClaims: normaliseArray(event.supportingClaimIds)
       .map(id => claimLookup.get(id))
       .filter(Boolean)
-      .map(claim => ({ id: claim.id, text: claim.text, category: claim.category ?? null }))
+      .map(claim => ({
+        id: claim.id,
+        text: claim.text,
+        category: claim.category ?? null
+      }))
   }));
 
   return {
@@ -426,10 +510,14 @@ function buildClaimsExplorerViewModel(data, input) {
   const { movementId, categoryFilter, entityIdFilter } = input;
   let claims = filterByMovement(data.claims, movementId, true);
   if (Array.isArray(categoryFilter) && categoryFilter.length > 0) {
-    claims = claims.filter(claim => claim.category && categoryFilter.includes(claim.category));
+    claims = claims.filter(
+      claim => claim.category && categoryFilter.includes(claim.category)
+    );
   }
   if (entityIdFilter) {
-    claims = claims.filter(claim => normaliseArray(claim.aboutEntityIds).includes(entityIdFilter));
+    claims = claims.filter(claim =>
+      normaliseArray(claim.aboutEntityIds).includes(entityIdFilter)
+    );
   }
 
   const entityLookup = buildLookup(data.entities);
@@ -443,7 +531,11 @@ function buildClaimsExplorerViewModel(data, input) {
     aboutEntities: normaliseArray(claim.aboutEntityIds)
       .map(id => entityLookup.get(id))
       .filter(Boolean)
-      .map(entity => ({ id: entity.id, name: entity.name, kind: entity.kind ?? null })),
+      .map(entity => ({
+        id: entity.id,
+        name: entity.name,
+        kind: entity.kind ?? null
+      })),
     sourceTexts: normaliseArray(claim.sourceTextIds)
       .map(id => textLookup.get(id))
       .filter(Boolean)
@@ -461,7 +553,9 @@ function buildRuleExplorerViewModel(data, input) {
     rules = rules.filter(rule => kindFilter.includes(rule.kind));
   }
   if (Array.isArray(domainFilter) && domainFilter.length > 0) {
-    rules = rules.filter(rule => normaliseArray(rule.domain).some(domain => domainFilter.includes(domain)));
+    rules = rules.filter(rule =>
+      normaliseArray(rule.domain).some(domain => domainFilter.includes(domain))
+    );
   }
 
   const textLookup = buildLookup(data.texts);
@@ -483,11 +577,19 @@ function buildRuleExplorerViewModel(data, input) {
     supportingClaims: normaliseArray(rule.supportingClaimIds)
       .map(id => claimLookup.get(id))
       .filter(Boolean)
-      .map(claim => ({ id: claim.id, text: claim.text, category: claim.category ?? null })),
+      .map(claim => ({
+        id: claim.id,
+        text: claim.text,
+        category: claim.category ?? null
+      })),
     relatedPractices: normaliseArray(rule.relatedPracticeIds)
       .map(id => practiceLookup.get(id))
       .filter(Boolean)
-      .map(practice => ({ id: practice.id, name: practice.name, kind: practice.kind ?? null })),
+      .map(practice => ({
+        id: practice.id,
+        name: practice.name,
+        kind: practice.kind ?? null
+      })),
     sourcesOfTruth: normaliseArray(rule.sourcesOfTruth)
   }));
 
@@ -505,14 +607,15 @@ function buildAuthorityViewModel(data, input) {
   const sources = new Map();
   const addSourceUsage = (label, key, id) => {
     if (!label) return;
-    const record = sources.get(label) || {
-      label,
-      usedByClaims: [],
-      usedByRules: [],
-      usedByPractices: [],
-      usedByEntities: [],
-      usedByRelations: []
-    };
+    const record =
+      sources.get(label) || {
+        label,
+        usedByClaims: [],
+        usedByRules: [],
+        usedByPractices: [],
+        usedByEntities: [],
+        usedByRelations: []
+      };
     if (!record[key].includes(id)) {
       record[key].push(id);
     }
@@ -520,31 +623,48 @@ function buildAuthorityViewModel(data, input) {
   };
 
   claims.forEach(claim => {
-    normaliseArray(claim.sourcesOfTruth).forEach(label => addSourceUsage(label, 'usedByClaims', claim.id));
+    normaliseArray(claim.sourcesOfTruth).forEach(label =>
+      addSourceUsage(label, 'usedByClaims', claim.id)
+    );
   });
   rules.forEach(rule => {
-    normaliseArray(rule.sourcesOfTruth).forEach(label => addSourceUsage(label, 'usedByRules', rule.id));
+    normaliseArray(rule.sourcesOfTruth).forEach(label =>
+      addSourceUsage(label, 'usedByRules', rule.id)
+    );
   });
   practices.forEach(practice => {
-    normaliseArray(practice.sourcesOfTruth).forEach(label => addSourceUsage(label, 'usedByPractices', practice.id));
+    normaliseArray(practice.sourcesOfTruth).forEach(label =>
+      addSourceUsage(label, 'usedByPractices', practice.id)
+    );
   });
   entities.forEach(entity => {
-    normaliseArray(entity.sourcesOfTruth).forEach(label => addSourceUsage(label, 'usedByEntities', entity.id));
+    normaliseArray(entity.sourcesOfTruth).forEach(label =>
+      addSourceUsage(label, 'usedByEntities', entity.id)
+    );
   });
   relations.forEach(relation => {
-    normaliseArray(relation.sourcesOfTruth).forEach(label => addSourceUsage(label, 'usedByRelations', relation.id));
+    normaliseArray(relation.sourcesOfTruth).forEach(label =>
+      addSourceUsage(label, 'usedByRelations', relation.id)
+    );
   });
 
   const authorityEntitiesLookup = buildLookup(data.entities);
   const authorityEntities = new Map();
   const addEntityUsage = (entityId, key, id) => {
     if (!entityId) return;
-    const base = authorityEntities.get(entityId) || {
-      id: entityId,
-      name: authorityEntitiesLookup.get(entityId)?.name || entityId,
-      kind: authorityEntitiesLookup.get(entityId)?.kind ?? null,
-      usedAsSourceIn: { claims: [], rules: [], practices: [], entities: [], relations: [] }
-    };
+    const base =
+      authorityEntities.get(entityId) || {
+        id: entityId,
+        name: authorityEntitiesLookup.get(entityId)?.name || entityId,
+        kind: authorityEntitiesLookup.get(entityId)?.kind ?? null,
+        usedAsSourceIn: {
+          claims: [],
+          rules: [],
+          practices: [],
+          entities: [],
+          relations: []
+        }
+      };
     if (!base.usedAsSourceIn[key].includes(id)) {
       base.usedAsSourceIn[key].push(id);
     }
@@ -552,19 +672,29 @@ function buildAuthorityViewModel(data, input) {
   };
 
   claims.forEach(claim => {
-    normaliseArray(claim.sourceEntityIds).forEach(entityId => addEntityUsage(entityId, 'claims', claim.id));
+    normaliseArray(claim.sourceEntityIds).forEach(entityId =>
+      addEntityUsage(entityId, 'claims', claim.id)
+    );
   });
   rules.forEach(rule => {
-    normaliseArray(rule.sourceEntityIds).forEach(entityId => addEntityUsage(entityId, 'rules', rule.id));
+    normaliseArray(rule.sourceEntityIds).forEach(entityId =>
+      addEntityUsage(entityId, 'rules', rule.id)
+    );
   });
   practices.forEach(practice => {
-    normaliseArray(practice.sourceEntityIds).forEach(entityId => addEntityUsage(entityId, 'practices', practice.id));
+    normaliseArray(practice.sourceEntityIds).forEach(entityId =>
+      addEntityUsage(entityId, 'practices', practice.id)
+    );
   });
   entities.forEach(ent => {
-    normaliseArray(ent.sourceEntityIds).forEach(entityId => addEntityUsage(entityId, 'entities', ent.id));
+    normaliseArray(ent.sourceEntityIds).forEach(entityId =>
+      addEntityUsage(entityId, 'entities', ent.id)
+    );
   });
   relations.forEach(rel => {
-    normaliseArray(rel.sourceEntityIds).forEach(entityId => addEntityUsage(entityId, 'relations', rel.id));
+    normaliseArray(rel.sourceEntityIds).forEach(entityId =>
+      addEntityUsage(entityId, 'relations', rel.id)
+    );
   });
 
   return {
@@ -574,14 +704,31 @@ function buildAuthorityViewModel(data, input) {
 }
 
 function buildMediaGalleryViewModel(data, input) {
-  const { movementId, entityIdFilter, practiceIdFilter, eventIdFilter, textIdFilter } = input;
+  const { movementId, entityIdFilter, practiceIdFilter, eventIdFilter, textIdFilter } =
+    input;
   let media = filterByMovement(data.media, movementId, true);
 
   media = media.filter(asset => {
-    if (entityIdFilter && !normaliseArray(asset.linkedEntityIds).includes(entityIdFilter)) return false;
-    if (practiceIdFilter && !normaliseArray(asset.linkedPracticeIds).includes(practiceIdFilter)) return false;
-    if (eventIdFilter && !normaliseArray(asset.linkedEventIds).includes(eventIdFilter)) return false;
-    if (textIdFilter && !normaliseArray(asset.linkedTextIds).includes(textIdFilter)) return false;
+    if (
+      entityIdFilter &&
+      !normaliseArray(asset.linkedEntityIds).includes(entityIdFilter)
+    )
+      return false;
+    if (
+      practiceIdFilter &&
+      !normaliseArray(asset.linkedPracticeIds).includes(practiceIdFilter)
+    )
+      return false;
+    if (
+      eventIdFilter &&
+      !normaliseArray(asset.linkedEventIds).includes(eventIdFilter)
+    )
+      return false;
+    if (
+      textIdFilter &&
+      !normaliseArray(asset.linkedTextIds).includes(textIdFilter)
+    )
+      return false;
     return true;
   });
 
@@ -623,10 +770,15 @@ function buildRelationExplorerViewModel(data, input) {
   let relations = filterByMovement(data.relations, movementId, true);
 
   if (Array.isArray(relationTypeFilter) && relationTypeFilter.length > 0) {
-    relations = relations.filter(rel => relationTypeFilter.includes(rel.relationType));
+    relations = relations.filter(rel =>
+      relationTypeFilter.includes(rel.relationType)
+    );
   }
   if (entityIdFilter) {
-    relations = relations.filter(rel => rel.fromEntityId === entityIdFilter || rel.toEntityId === entityIdFilter);
+    relations = relations.filter(
+      rel =>
+        rel.fromEntityId === entityIdFilter || rel.toEntityId === entityIdFilter
+    );
   }
 
   const entityLookup = buildLookup(data.entities);
@@ -638,8 +790,12 @@ function buildRelationExplorerViewModel(data, input) {
     return {
       id: rel.id,
       relationType: rel.relationType,
-      from: from ? { id: from.id, name: from.name, kind: from.kind ?? null } : { id: rel.fromEntityId, name: rel.fromEntityId, kind: null },
-      to: to ? { id: to.id, name: to.name, kind: to.kind ?? null } : { id: rel.toEntityId, name: rel.toEntityId, kind: null },
+      from: from
+        ? { id: from.id, name: from.name, kind: from.kind ?? null }
+        : { id: rel.fromEntityId, name: rel.fromEntityId, kind: null },
+      to: to
+        ? { id: to.id, name: to.name, kind: to.kind ?? null }
+        : { id: rel.toEntityId, name: rel.toEntityId, kind: null },
       tags: normaliseArray(rel.tags),
       supportingClaims: normaliseArray(rel.supportingClaimIds)
         .map(id => claimLookup.get(id))
@@ -694,6 +850,7 @@ function buildNotesViewModel(data, input) {
   }
 
   const lookups = {
+    Movement: buildLookup(data.movements),
     TextNode: buildLookup(data.texts),
     Entity: buildLookup(data.entities),
     Practice: buildLookup(data.practices),

@@ -69,7 +69,10 @@
       const parsed = JSON.parse(raw);
       return ensureAllCollections(parsed);
     } catch (e) {
-      console.warn('Failed to load snapshot from localStorage, using empty:', e);
+      console.warn(
+        'Failed to load snapshot from localStorage, using empty:',
+        e
+      );
       return createEmptySnapshot();
     }
   }
@@ -151,10 +154,14 @@
 
     // Cascade delete on movement-scoped collections
     COLLECTIONS_WITH_MOVEMENT_ID.forEach(collName => {
-      snapshot[collName] = snapshot[collName].filter(item => item.movementId !== id);
+      snapshot[collName] = snapshot[collName].filter(
+        item => item.movementId !== id
+      );
     });
 
-    currentMovementId = snapshot.movements[0] ? snapshot.movements[0].id : null;
+    currentMovementId = snapshot.movements[0]
+      ? snapshot.movements[0].id
+      : null;
     currentItemId = null;
     saveSnapshot();
   }
@@ -310,12 +317,35 @@
   }
 
   function clearElement(el) {
+    if (!el) return;
     while (el.firstChild) el.removeChild(el.firstChild);
   }
 
   function getActiveTabName() {
     const btn = document.querySelector('.tab.active');
     return btn ? btn.dataset.tab : 'dashboard';
+  }
+
+  function getActiveMovementSubtabName() {
+    const btn = document.querySelector('#movement-subtabs .subtab.active');
+    return btn ? btn.dataset.subtab : 'scripture';
+  }
+
+  function setActiveMovementSubtab(name) {
+    const buttons = document.querySelectorAll('#movement-subtabs .subtab');
+    buttons.forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.subtab === name);
+    });
+    const panels = document.querySelectorAll(
+      '.movement-explorer .subtab-panel'
+    );
+    panels.forEach(panel => {
+      panel.classList.toggle(
+        'active',
+        panel.id === 'movement-subtab-' + name
+      );
+    });
+    renderMovementSubtab(name);
   }
 
   function renderActiveTab() {
@@ -326,6 +356,7 @@
         break;
       case 'movement':
         renderMovementForm();
+        renderMovementExplorer();
         break;
       case 'data':
         renderCollectionList();
@@ -386,9 +417,11 @@
       shortInput.value = '';
       summaryInput.value = '';
       tagsInput.value = '';
-      [nameInput, shortInput, summaryInput, tagsInput, deleteBtn, saveBtn].forEach(el => {
-        el.disabled = true;
-      });
+      [nameInput, shortInput, summaryInput, tagsInput, deleteBtn, saveBtn].forEach(
+        el => {
+          el.disabled = true;
+        }
+      );
       return;
     }
 
@@ -400,9 +433,11 @@
       return;
     }
 
-    [nameInput, shortInput, summaryInput, tagsInput, deleteBtn, saveBtn].forEach(el => {
-      el.disabled = false;
-    });
+    [nameInput, shortInput, summaryInput, tagsInput, deleteBtn, saveBtn].forEach(
+      el => {
+        el.disabled = false;
+      }
+    );
 
     idLabel.textContent = movement.id;
     nameInput.value = movement.name || '';
@@ -411,8 +446,6 @@
     tagsInput.value = Array.isArray(movement.tags)
       ? movement.tags.join(', ')
       : '';
-
-    // Save handler wired once in init; here we only set values
   }
 
   function saveMovementFromForm() {
@@ -434,6 +467,1566 @@
       .filter(Boolean);
 
     saveSnapshot();
+  }
+
+  // ---- Movement explorer (view-model-driven views) ----
+
+  function renderMovementExplorer() {
+    const explorer = document.querySelector('.movement-explorer');
+    if (!explorer) return;
+
+    const hasMovement = Boolean(currentMovementId);
+    // Disable inner controls textually when no movement
+    const subtabPanels = explorer.querySelectorAll('.subtab-panel');
+    if (!hasMovement) {
+      subtabPanels.forEach(panel => {
+        clearElement(panel.querySelector('.tree-container') || panel);
+      });
+    }
+    const activeSubtab = getActiveMovementSubtabName();
+    renderMovementSubtab(activeSubtab);
+  }
+
+  function ensureSelectOptions(selectEl, options, includeEmptyLabel) {
+    if (!selectEl) return;
+    const prev = selectEl.value;
+    clearElement(selectEl);
+    if (includeEmptyLabel) {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = includeEmptyLabel;
+      selectEl.appendChild(opt);
+    }
+    options.forEach(optData => {
+      const opt = document.createElement('option');
+      opt.value = optData.value;
+      opt.textContent = optData.label;
+      selectEl.appendChild(opt);
+    });
+    if (prev && options.some(o => o.value === prev)) {
+      selectEl.value = prev;
+    }
+  }
+
+  function renderMovementSubtab(name) {
+    if (!currentMovementId) {
+      // Show a simple message in each container
+      const containers = {
+        scripture: $('#scripture-tree'),
+        entities: $('#entity-detail'),
+        practices: $('#practice-detail'),
+        calendar: $('#calendar-view'),
+        claims: $('#claims-table-wrapper'),
+        rules: $('#rules-table-wrapper'),
+        authority: $('#authority-sources'),
+        media: $('#media-gallery'),
+        relations: $('#relations-table-wrapper'),
+        notes: $('#notes-table-wrapper')
+      };
+      const target = containers[name];
+      if (target) {
+        clearElement(target);
+        const p = document.createElement('p');
+        p.className = 'hint';
+        p.textContent =
+          'Create or select a movement on the left to explore this section.';
+        target.appendChild(p);
+      }
+      return;
+    }
+
+    switch (name) {
+      case 'scripture':
+        renderScriptureView();
+        break;
+      case 'entities':
+        renderEntitiesView();
+        break;
+      case 'practices':
+        renderPracticesView();
+        break;
+      case 'calendar':
+        renderCalendarView();
+        break;
+      case 'claims':
+        renderClaimsView();
+        break;
+      case 'rules':
+        renderRulesView();
+        break;
+      case 'authority':
+        renderAuthorityView();
+        break;
+      case 'media':
+        renderMediaView();
+        break;
+      case 'relations':
+        renderRelationsView();
+        break;
+      case 'notes':
+        renderNotesView();
+        break;
+      default:
+        break;
+    }
+  }
+
+  // ---- Scripture (buildScriptureTreeViewModel) ----
+
+  function renderScriptureView() {
+    const treeContainer = document.getElementById('scripture-tree');
+    if (!treeContainer) return;
+    clearElement(treeContainer);
+
+    const select = document.getElementById('scripture-collection-select');
+    if (!select) return;
+
+    const allCollections = snapshot.textCollections || [];
+    const ownCollections = allCollections.filter(
+      tc => tc.movementId === currentMovementId
+    );
+    const options = ownCollections.map(tc => ({
+      value: tc.id,
+      label: tc.name || tc.id
+    }));
+    ensureSelectOptions(select, options, 'All texts (no collection filter)');
+
+    const textCollectionId = select.value || null;
+
+    const vm = ViewModels.buildScriptureTreeViewModel(snapshot, {
+      movementId: currentMovementId,
+      textCollectionId: textCollectionId || null
+    });
+
+    if (!vm.roots || vm.roots.length === 0) {
+      const p = document.createElement('p');
+      p.className = 'hint';
+      p.textContent = 'No texts found for this movement.';
+      treeContainer.appendChild(p);
+      return;
+    }
+
+    const ul = document.createElement('ul');
+    ul.className = 'text-tree';
+
+    const renderNode = node => {
+      const li = document.createElement('li');
+      li.className = 'text-node';
+
+      const header = document.createElement('div');
+      header.className = 'text-node-header';
+
+      const titleSpan = document.createElement('span');
+      titleSpan.className = 'text-node-title';
+      const labelPart = node.label ? node.label + ' ' : '';
+      titleSpan.textContent =
+        (labelPart + (node.title || '')).trim() || node.id;
+      header.appendChild(titleSpan);
+
+      const metaSpan = document.createElement('span');
+      metaSpan.className = 'text-node-meta';
+      const bits = [];
+      if (node.level) bits.push(node.level);
+      if (node.mainFunction) bits.push(node.mainFunction);
+      if (node.hasContent) bits.push('has content');
+      metaSpan.textContent = bits.join(' · ');
+      header.appendChild(metaSpan);
+
+      li.appendChild(header);
+
+      const body = document.createElement('div');
+      body.className = 'text-node-body';
+
+      if (node.tags && node.tags.length) {
+        const row = document.createElement('div');
+        row.className = 'chip-row';
+        node.tags.forEach(tag => {
+          const chip = document.createElement('span');
+          chip.className = 'chip';
+          chip.textContent = tag;
+          row.appendChild(chip);
+        });
+        body.appendChild(row);
+      }
+
+      if (node.mentionsEntities && node.mentionsEntities.length) {
+        const label = document.createElement('div');
+        label.textContent = 'Mentions:';
+        label.style.fontSize = '0.75rem';
+        body.appendChild(label);
+
+        const row = document.createElement('div');
+        row.className = 'chip-row';
+        node.mentionsEntities.forEach(ent => {
+          const chip = document.createElement('span');
+          chip.className = 'chip clickable';
+          chip.textContent = ent.name || ent.id;
+          chip.title = ent.kind || '';
+          chip.addEventListener('click', () => jumpToEntity(ent.id));
+          row.appendChild(chip);
+        });
+        body.appendChild(row);
+      }
+
+      if (node.referencedByClaims && node.referencedByClaims.length) {
+        const label = document.createElement('div');
+        label.textContent = `Claims (${node.referencedByClaims.length}):`;
+        label.style.fontSize = '0.75rem';
+        body.appendChild(label);
+      }
+
+      if (node.usedInEvents && node.usedInEvents.length) {
+        const label = document.createElement('div');
+        label.textContent = `Used in events (${node.usedInEvents.length}):`;
+        label.style.fontSize = '0.75rem';
+        body.appendChild(label);
+      }
+
+      if (body.childNodes.length) {
+        li.appendChild(body);
+      }
+
+      if (node.childIds && node.childIds.length) {
+        const childUl = document.createElement('ul');
+        childUl.className = 'text-tree';
+        node.childIds.forEach(id => {
+          const child = vm.nodesById[id];
+          if (child) {
+            childUl.appendChild(renderNode(child));
+          }
+        });
+        li.appendChild(childUl);
+      }
+
+      return li;
+    };
+
+    vm.roots.forEach(root => {
+      ul.appendChild(renderNode(root));
+    });
+    treeContainer.appendChild(ul);
+  }
+
+  // ---- Entities (buildEntityDetailViewModel + buildEntityGraphViewModel) ----
+
+  function renderEntitiesView() {
+    const select = document.getElementById('entity-select');
+    const detailContainer = document.getElementById('entity-detail');
+    const graphDepthSelect = document.getElementById('entity-graph-depth');
+    const graphContainer = document.getElementById('entity-graph');
+    if (!select || !detailContainer || !graphDepthSelect || !graphContainer)
+      return;
+
+    const entities = (snapshot.entities || []).filter(
+      e => e.movementId === currentMovementId || e.movementId == null
+    );
+
+    const options = entities
+      .slice()
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+      .map(e => ({ value: e.id, label: e.name || e.id }));
+    ensureSelectOptions(select, options, 'Choose entity');
+
+    const entityId =
+      select.value || (options.length ? options[0].value : null);
+
+    clearElement(detailContainer);
+    clearElement(graphContainer);
+
+    if (!entityId) {
+      const p = document.createElement('p');
+      p.className = 'hint';
+      p.textContent = 'No entities found for this movement.';
+      detailContainer.appendChild(p);
+      return;
+    }
+
+    // Detail view
+    const vm = ViewModels.buildEntityDetailViewModel(snapshot, {
+      entityId
+    });
+
+    if (!vm.entity) {
+      const p = document.createElement('p');
+      p.className = 'hint';
+      p.textContent = 'Entity not found.';
+      detailContainer.appendChild(p);
+      return;
+    }
+
+    const title = document.createElement('h3');
+    title.textContent =
+      vm.entity.name +
+      (vm.entity.kind ? ` (${vm.entity.kind})` : '');
+    detailContainer.appendChild(title);
+
+    if (vm.entity.summary) {
+      const summary = document.createElement('p');
+      summary.textContent = vm.entity.summary;
+      detailContainer.appendChild(summary);
+    }
+
+    const mkSection = (label, contentBuilder) => {
+      const heading = document.createElement('div');
+      heading.className = 'section-heading small';
+      heading.textContent = label;
+      detailContainer.appendChild(heading);
+      const section = document.createElement('div');
+      section.style.fontSize = '0.8rem';
+      contentBuilder(section);
+      detailContainer.appendChild(section);
+    };
+
+    if (vm.claims && vm.claims.length) {
+      mkSection('Claims about this entity', section => {
+        const ul = document.createElement('ul');
+        vm.claims.forEach(c => {
+          const li = document.createElement('li');
+          li.textContent =
+            (c.category ? '[' + c.category + '] ' : '') + c.text;
+          ul.appendChild(li);
+        });
+        section.appendChild(ul);
+      });
+    }
+
+    if (vm.practices && vm.practices.length) {
+      mkSection('Involved in practices', section => {
+        const row = document.createElement('div');
+        row.className = 'chip-row';
+        vm.practices.forEach(p => {
+          const chip = document.createElement('span');
+          chip.className = 'chip clickable';
+          chip.textContent = p.name || p.id;
+          chip.title = p.kind || '';
+          chip.addEventListener('click', () => jumpToPractice(p.id));
+          row.appendChild(chip);
+        });
+        section.appendChild(row);
+      });
+    }
+
+    if (vm.events && vm.events.length) {
+      mkSection('Appears in events', section => {
+        const row = document.createElement('div');
+        row.className = 'chip-row';
+        vm.events.forEach(ev => {
+          const chip = document.createElement('span');
+          chip.className = 'chip';
+          chip.textContent = ev.name || ev.id;
+          row.appendChild(chip);
+        });
+        section.appendChild(row);
+      });
+    }
+
+    if (vm.mentioningTexts && vm.mentioningTexts.length) {
+      mkSection('Mentioned in texts', section => {
+        const row = document.createElement('div');
+        row.className = 'chip-row';
+        vm.mentioningTexts.forEach(t => {
+          const chip = document.createElement('span');
+          chip.className = 'chip clickable';
+          chip.textContent = t.title || t.id;
+          chip.title = t.level || '';
+          chip.addEventListener('click', () => jumpToText(t.id));
+          row.appendChild(chip);
+        });
+        section.appendChild(row);
+      });
+    }
+
+    if (vm.media && vm.media.length) {
+      mkSection('Linked media', section => {
+        const ul = document.createElement('ul');
+        vm.media.forEach(m => {
+          const li = document.createElement('li');
+          const a = document.createElement('a');
+          a.href = m.uri;
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+          a.textContent = `${m.title} (${m.kind})`;
+          li.appendChild(a);
+          ul.appendChild(li);
+        });
+        section.appendChild(ul);
+      });
+    }
+
+    if (
+      (vm.relationsOut && vm.relationsOut.length) ||
+      (vm.relationsIn && vm.relationsIn.length)
+    ) {
+      mkSection('Relations', section => {
+        const ul = document.createElement('ul');
+        vm.relationsOut.forEach(r => {
+          const li = document.createElement('li');
+          li.textContent = `→ ${r.relationType} → ${r.to.name}`;
+          li.style.cursor = 'pointer';
+          li.addEventListener('click', () => jumpToEntity(r.to.id));
+          ul.appendChild(li);
+        });
+        vm.relationsIn.forEach(r => {
+          const li = document.createElement('li');
+          li.textContent = `← ${r.relationType} ← ${r.from.name}`;
+          li.style.cursor = 'pointer';
+          li.addEventListener('click', () => jumpToEntity(r.from.id));
+          ul.appendChild(li);
+        });
+        section.appendChild(ul);
+      });
+    }
+
+    // Graph view
+    const depth = parseInt(
+      document.getElementById('entity-graph-depth').value,
+      10
+    );
+    const relTypeInput = document.getElementById(
+      'entity-graph-relation-types'
+    );
+    const relTypesRaw = relTypeInput.value || '';
+    const relationTypeFilter = relTypesRaw
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+
+    const graphVm = ViewModels.buildEntityGraphViewModel(snapshot, {
+      movementId: currentMovementId,
+      centerEntityId: entityId,
+      depth: Number.isFinite(depth) ? depth : 1,
+      relationTypeFilter
+    });
+
+    const nodesById = new Map();
+    graphVm.nodes.forEach(n => nodesById.set(n.id, n));
+
+    const nodesTitle = document.createElement('div');
+    nodesTitle.className = 'section-heading small';
+    nodesTitle.textContent = `Nodes (${graphVm.nodes.length})`;
+    graphContainer.appendChild(nodesTitle);
+
+    const nodeRow = document.createElement('div');
+    nodeRow.className = 'chip-row';
+    graphVm.nodes.forEach(n => {
+      const chip = document.createElement('span');
+      chip.className =
+        'chip' + (n.id === graphVm.centerEntityId ? ' clickable' : '');
+      chip.textContent =
+        (n.id === graphVm.centerEntityId ? '★ ' : '') +
+        (n.name || n.id);
+      chip.title = n.kind || '';
+      chip.addEventListener('click', () => {
+        if (n.id) {
+          document.getElementById('entity-select').value = n.id;
+          renderEntitiesView();
+        }
+      });
+      nodeRow.appendChild(chip);
+    });
+    graphContainer.appendChild(nodeRow);
+
+    const edgesTitle = document.createElement('div');
+    edgesTitle.className = 'section-heading small';
+    edgesTitle.textContent = `Edges (${graphVm.edges.length})`;
+    graphContainer.appendChild(edgesTitle);
+
+    const edgesList = document.createElement('ul');
+    edgesList.style.fontSize = '0.8rem';
+    graphVm.edges.forEach(e => {
+      const li = document.createElement('li');
+      const from = nodesById.get(e.fromId);
+      const to = nodesById.get(e.toId);
+      li.textContent = `${from ? from.name : e.fromId} — ${
+        e.relationType
+      } → ${to ? to.name : e.toId}`;
+      edgesList.appendChild(li);
+    });
+    graphContainer.appendChild(edgesList);
+  }
+
+  // ---- Practices (buildPracticeDetailViewModel) ----
+
+  function renderPracticesView() {
+    const select = document.getElementById('practice-select');
+    const detailContainer = document.getElementById('practice-detail');
+    if (!select || !detailContainer) return;
+    clearElement(detailContainer);
+
+    const practices = (snapshot.practices || []).filter(
+      p => p.movementId === currentMovementId
+    );
+    const options = practices
+      .slice()
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+      .map(p => ({ value: p.id, label: p.name || p.id }));
+    ensureSelectOptions(select, options, 'Choose practice');
+
+    const practiceId =
+      select.value || (options.length ? options[0].value : null);
+
+    if (!practiceId) {
+      const p = document.createElement('p');
+      p.className = 'hint';
+      p.textContent = 'No practices found for this movement.';
+      detailContainer.appendChild(p);
+      return;
+    }
+
+    const vm = ViewModels.buildPracticeDetailViewModel(snapshot, {
+      practiceId
+    });
+
+    if (!vm.practice) {
+      const p = document.createElement('p');
+      p.className = 'hint';
+      p.textContent = 'Practice not found.';
+      detailContainer.appendChild(p);
+      return;
+    }
+
+    const title = document.createElement('h3');
+    title.textContent =
+      vm.practice.name +
+      (vm.practice.kind ? ` (${vm.practice.kind})` : '');
+    detailContainer.appendChild(title);
+
+    const meta = document.createElement('p');
+    meta.style.fontSize = '0.8rem';
+    meta.textContent = `Frequency: ${vm.practice.frequency} · Public: ${
+      vm.practice.isPublic ? 'yes' : 'no'
+    }`;
+    detailContainer.appendChild(meta);
+
+    if (vm.practice.description) {
+      const desc = document.createElement('p');
+      desc.textContent = vm.practice.description;
+      detailContainer.appendChild(desc);
+    }
+
+    const mkSection = (label, contentBuilder) => {
+      const heading = document.createElement('div');
+      heading.className = 'section-heading small';
+      heading.textContent = label;
+      detailContainer.appendChild(heading);
+      const section = document.createElement('div');
+      section.style.fontSize = '0.8rem';
+      contentBuilder(section);
+      detailContainer.appendChild(section);
+    };
+
+    if (vm.entities && vm.entities.length) {
+      mkSection('Involves entities', section => {
+        const row = document.createElement('div');
+        row.className = 'chip-row';
+        vm.entities.forEach(e => {
+          const chip = document.createElement('span');
+          chip.className = 'chip clickable';
+          chip.textContent = e.name || e.id;
+          chip.title = e.kind || '';
+          chip.addEventListener('click', () => jumpToEntity(e.id));
+          row.appendChild(chip);
+        });
+        section.appendChild(row);
+      });
+    }
+
+    if (vm.instructionsTexts && vm.instructionsTexts.length) {
+      mkSection('Instruction texts', section => {
+        const row = document.createElement('div');
+        row.className = 'chip-row';
+        vm.instructionsTexts.forEach(t => {
+          const chip = document.createElement('span');
+          chip.className = 'chip clickable';
+          chip.textContent = t.title || t.id;
+          chip.title = t.level || '';
+          chip.addEventListener('click', () => jumpToText(t.id));
+          row.appendChild(chip);
+        });
+        section.appendChild(row);
+      });
+    }
+
+    if (vm.supportingClaims && vm.supportingClaims.length) {
+      mkSection('Supporting claims', section => {
+        const ul = document.createElement('ul');
+        vm.supportingClaims.forEach(c => {
+          const li = document.createElement('li');
+          li.textContent =
+            (c.category ? '[' + c.category + '] ' : '') + c.text;
+          ul.appendChild(li);
+        });
+        section.appendChild(ul);
+      });
+    }
+
+    if (vm.attachedRules && vm.attachedRules.length) {
+      mkSection('Related rules', section => {
+        const ul = document.createElement('ul');
+        vm.attachedRules.forEach(r => {
+          const li = document.createElement('li');
+          li.textContent =
+            (r.kind ? '[' + r.kind + '] ' : '') + r.shortText;
+          ul.appendChild(li);
+        });
+        section.appendChild(ul);
+      });
+    }
+
+    if (vm.attachedEvents && vm.attachedEvents.length) {
+      mkSection('Scheduled in events', section => {
+        const row = document.createElement('div');
+        row.className = 'chip-row';
+        vm.attachedEvents.forEach(ev => {
+          const chip = document.createElement('span');
+          chip.className = 'chip';
+          chip.textContent = `${ev.name} (${ev.recurrence})`;
+          row.appendChild(chip);
+        });
+        section.appendChild(row);
+      });
+    }
+
+    if (vm.media && vm.media.length) {
+      mkSection('Media', section => {
+        const ul = document.createElement('ul');
+        vm.media.forEach(m => {
+          const li = document.createElement('li');
+          const a = document.createElement('a');
+          a.href = m.uri;
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+          a.textContent = `${m.title} (${m.kind})`;
+          li.appendChild(a);
+          ul.appendChild(li);
+        });
+        section.appendChild(ul);
+      });
+    }
+  }
+
+  // ---- Calendar (buildCalendarViewModel) ----
+
+  function renderCalendarView() {
+    const wrapper = document.getElementById('calendar-view');
+    const select = document.getElementById('calendar-recurrence-filter');
+    if (!wrapper || !select) return;
+    clearElement(wrapper);
+
+    const val = select.value;
+    const recurrenceFilter = val ? [val] : [];
+
+    const vm = ViewModels.buildCalendarViewModel(snapshot, {
+      movementId: currentMovementId,
+      recurrenceFilter
+    });
+
+    if (!vm.events || vm.events.length === 0) {
+      const p = document.createElement('p');
+      p.className = 'hint';
+      p.textContent = 'No events in the calendar for this filter.';
+      wrapper.appendChild(p);
+      return;
+    }
+
+    vm.events.forEach(e => {
+      const card = document.createElement('div');
+      card.className = 'card';
+
+      const title = document.createElement('h4');
+      title.textContent = e.name;
+      card.appendChild(title);
+
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.textContent = `${e.recurrence} · ${e.timingRule}`;
+      card.appendChild(meta);
+
+      if (e.description) {
+        const p = document.createElement('p');
+        p.textContent = e.description;
+        card.appendChild(p);
+      }
+
+      if (e.tags && e.tags.length) {
+        const row = document.createElement('div');
+        row.className = 'chip-row';
+        e.tags.forEach(tag => {
+          const chip = document.createElement('span');
+          chip.className = 'chip';
+          chip.textContent = tag;
+          row.appendChild(chip);
+        });
+        card.appendChild(row);
+      }
+
+      if (e.mainPractices && e.mainPractices.length) {
+        const heading = document.createElement('div');
+        heading.style.fontSize = '0.75rem';
+        heading.textContent = 'Practices:';
+        card.appendChild(heading);
+
+        const row = document.createElement('div');
+        row.className = 'chip-row';
+        e.mainPractices.forEach(p => {
+          const chip = document.createElement('span');
+          chip.className = 'chip clickable';
+          chip.textContent = p.name || p.id;
+          chip.addEventListener('click', () => jumpToPractice(p.id));
+          row.appendChild(chip);
+        });
+        card.appendChild(row);
+      }
+
+      if (e.mainEntities && e.mainEntities.length) {
+        const heading = document.createElement('div');
+        heading.style.fontSize = '0.75rem';
+        heading.textContent = 'Entities:';
+        card.appendChild(heading);
+
+        const row = document.createElement('div');
+        row.className = 'chip-row';
+        e.mainEntities.forEach(ent => {
+          const chip = document.createElement('span');
+          chip.className = 'chip clickable';
+          chip.textContent = ent.name || ent.id;
+          chip.addEventListener('click', () => jumpToEntity(ent.id));
+          row.appendChild(chip);
+        });
+        card.appendChild(row);
+      }
+
+      if (e.readings && e.readings.length) {
+        const heading = document.createElement('div');
+        heading.style.fontSize = '0.75rem';
+        heading.textContent = 'Readings:';
+        card.appendChild(heading);
+
+        const row = document.createElement('div');
+        row.className = 'chip-row';
+        e.readings.forEach(t => {
+          const chip = document.createElement('span');
+          chip.className = 'chip clickable';
+          chip.textContent = t.title || t.id;
+          chip.addEventListener('click', () => jumpToText(t.id));
+          row.appendChild(chip);
+        });
+        card.appendChild(row);
+      }
+
+      if (e.supportingClaims && e.supportingClaims.length) {
+        const heading = document.createElement('div');
+        heading.style.fontSize = '0.75rem';
+        heading.textContent = 'Supporting claims:';
+        card.appendChild(heading);
+
+        const ul = document.createElement('ul');
+        e.supportingClaims.forEach(c => {
+          const li = document.createElement('li');
+          li.textContent =
+            (c.category ? '[' + c.category + '] ' : '') + c.text;
+          ul.appendChild(li);
+        });
+        card.appendChild(ul);
+      }
+
+      wrapper.appendChild(card);
+    });
+  }
+
+  // ---- Claims (buildClaimsExplorerViewModel) ----
+
+  function renderClaimsView() {
+    const wrapper = document.getElementById('claims-table-wrapper');
+    const catSelect = document.getElementById('claims-category-filter');
+    const entSelect = document.getElementById('claims-entity-filter');
+    if (!wrapper || !catSelect || !entSelect) return;
+    clearElement(wrapper);
+
+    const allClaims = (snapshot.claims || []).filter(
+      c =>
+        c.movementId === currentMovementId ||
+        c.movementId == null
+    );
+    const categories = Array.from(
+      new Set(
+        allClaims
+          .map(c => c.category)
+          .filter(Boolean)
+      )
+    ).sort();
+
+    const entities = (snapshot.entities || []).filter(
+      e => e.movementId === currentMovementId || e.movementId == null
+    );
+
+    ensureSelectOptions(
+      catSelect,
+      categories.map(c => ({ value: c, label: c })),
+      'All'
+    );
+    ensureSelectOptions(
+      entSelect,
+      entities
+        .slice()
+        .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+        .map(e => ({ value: e.id, label: e.name || e.id })),
+      'Any'
+    );
+
+    const categoryVal = catSelect.value || '';
+    const entityVal = entSelect.value || '';
+
+    const vm = ViewModels.buildClaimsExplorerViewModel(snapshot, {
+      movementId: currentMovementId,
+      categoryFilter: categoryVal ? [categoryVal] : [],
+      entityIdFilter: entityVal || null
+    });
+
+    if (!vm.claims || vm.claims.length === 0) {
+      const p = document.createElement('p');
+      p.className = 'hint';
+      p.textContent = 'No claims match this filter.';
+      wrapper.appendChild(p);
+      return;
+    }
+
+    const table = document.createElement('table');
+    const headerRow = document.createElement('tr');
+    [
+      'Category',
+      'Text',
+      'Tags',
+      'About entities',
+      'Source texts',
+      'Sources of truth'
+    ].forEach(h => {
+      const th = document.createElement('th');
+      th.textContent = h;
+      headerRow.appendChild(th);
+    });
+    table.appendChild(headerRow);
+
+    vm.claims.forEach(c => {
+      const tr = document.createElement('tr');
+
+      const tdCat = document.createElement('td');
+      tdCat.textContent = c.category || '';
+      tr.appendChild(tdCat);
+
+      const tdText = document.createElement('td');
+      tdText.textContent = c.text;
+      tr.appendChild(tdText);
+
+      const tdTags = document.createElement('td');
+      tdTags.textContent = (c.tags || []).join(', ');
+      tr.appendChild(tdTags);
+
+      const tdEnts = document.createElement('td');
+      if (c.aboutEntities && c.aboutEntities.length) {
+        const row = document.createElement('div');
+        row.className = 'chip-row';
+        c.aboutEntities.forEach(e => {
+          const chip = document.createElement('span');
+          chip.className = 'chip clickable';
+          chip.textContent = e.name || e.id;
+          chip.addEventListener('click', () => jumpToEntity(e.id));
+          row.appendChild(chip);
+        });
+        tdEnts.appendChild(row);
+      }
+      tr.appendChild(tdEnts);
+
+      const tdTexts = document.createElement('td');
+      if (c.sourceTexts && c.sourceTexts.length) {
+        const row = document.createElement('div');
+        row.className = 'chip-row';
+        c.sourceTexts.forEach(t => {
+          const chip = document.createElement('span');
+          chip.className = 'chip clickable';
+          chip.textContent = t.title || t.id;
+          chip.addEventListener('click', () => jumpToText(t.id));
+          row.appendChild(chip);
+        });
+        tdTexts.appendChild(row);
+      }
+      tr.appendChild(tdTexts);
+
+      const tdSources = document.createElement('td');
+      tdSources.textContent = (c.sourcesOfTruth || []).join(', ');
+      tr.appendChild(tdSources);
+
+      table.appendChild(tr);
+    });
+
+    wrapper.appendChild(table);
+  }
+
+  // ---- Rules (buildRuleExplorerViewModel) ----
+
+  function renderRulesView() {
+    const wrapper = document.getElementById('rules-table-wrapper');
+    const kindSelect = document.getElementById('rules-kind-filter');
+    const domainInput = document.getElementById('rules-domain-filter');
+    if (!wrapper || !kindSelect || !domainInput) return;
+    clearElement(wrapper);
+
+    const kindVal = kindSelect.value || '';
+    const rawDomain = domainInput.value || '';
+    const domainFilter = rawDomain
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+
+    const vm = ViewModels.buildRuleExplorerViewModel(snapshot, {
+      movementId: currentMovementId,
+      kindFilter: kindVal ? [kindVal] : [],
+      domainFilter
+    });
+
+    if (!vm.rules || vm.rules.length === 0) {
+      const p = document.createElement('p');
+      p.className = 'hint';
+      p.textContent = 'No rules match this filter.';
+      wrapper.appendChild(p);
+      return;
+    }
+
+    const table = document.createElement('table');
+    const headerRow = document.createElement('tr');
+    [
+      'Kind',
+      'Short text',
+      'Domain',
+      'Applies to',
+      'Tags',
+      'Supporting texts',
+      'Supporting claims',
+      'Related practices',
+      'Sources of truth'
+    ].forEach(h => {
+      const th = document.createElement('th');
+      th.textContent = h;
+      headerRow.appendChild(th);
+    });
+    table.appendChild(headerRow);
+
+    vm.rules.forEach(r => {
+      const tr = document.createElement('tr');
+
+      const tdKind = document.createElement('td');
+      tdKind.textContent = r.kind || '';
+      tr.appendChild(tdKind);
+
+      const tdShort = document.createElement('td');
+      tdShort.textContent = r.shortText;
+      tr.appendChild(tdShort);
+
+      const tdDomain = document.createElement('td');
+      tdDomain.textContent = (r.domain || []).join(', ');
+      tr.appendChild(tdDomain);
+
+      const tdApplies = document.createElement('td');
+      tdApplies.textContent = (r.appliesTo || []).join(', ');
+      tr.appendChild(tdApplies);
+
+      const tdTags = document.createElement('td');
+      tdTags.textContent = (r.tags || []).join(', ');
+      tr.appendChild(tdTags);
+
+      const tdTexts = document.createElement('td');
+      if (r.supportingTexts && r.supportingTexts.length) {
+        const row = document.createElement('div');
+        row.className = 'chip-row';
+        r.supportingTexts.forEach(t => {
+          const chip = document.createElement('span');
+          chip.className = 'chip clickable';
+          chip.textContent = t.title || t.id;
+          chip.addEventListener('click', () => jumpToText(t.id));
+          row.appendChild(chip);
+        });
+        tdTexts.appendChild(row);
+      }
+      tr.appendChild(tdTexts);
+
+      const tdClaims = document.createElement('td');
+      if (r.supportingClaims && r.supportingClaims.length) {
+        const ul = document.createElement('ul');
+        r.supportingClaims.forEach(c => {
+          const li = document.createElement('li');
+          li.textContent =
+            (c.category ? '[' + c.category + '] ' : '') + c.text;
+          ul.appendChild(li);
+        });
+        tdClaims.appendChild(ul);
+      }
+      tr.appendChild(tdClaims);
+
+      const tdPractices = document.createElement('td');
+      if (r.relatedPractices && r.relatedPractices.length) {
+        const row = document.createElement('div');
+        row.className = 'chip-row';
+        r.relatedPractices.forEach(p => {
+          const chip = document.createElement('span');
+          chip.className = 'chip clickable';
+          chip.textContent = p.name || p.id;
+          chip.addEventListener('click', () => jumpToPractice(p.id));
+          row.appendChild(chip);
+        });
+        tdPractices.appendChild(row);
+      }
+      tr.appendChild(tdPractices);
+
+      const tdSources = document.createElement('td');
+      tdSources.textContent = (r.sourcesOfTruth || []).join(', ');
+      tr.appendChild(tdSources);
+
+      table.appendChild(tr);
+    });
+
+    wrapper.appendChild(table);
+  }
+
+  // ---- Authority (buildAuthorityViewModel) ----
+
+  function renderAuthorityView() {
+    const srcWrapper = document.getElementById('authority-sources');
+    const entWrapper = document.getElementById('authority-entities');
+    if (!srcWrapper || !entWrapper) return;
+    clearElement(srcWrapper);
+    clearElement(entWrapper);
+
+    const vm = ViewModels.buildAuthorityViewModel(snapshot, {
+      movementId: currentMovementId
+    });
+
+    if (!vm.sourcesByLabel || vm.sourcesByLabel.length === 0) {
+      const p = document.createElement('p');
+      p.className = 'hint';
+      p.textContent = 'No sources of truth recorded yet.';
+      srcWrapper.appendChild(p);
+    } else {
+      vm.sourcesByLabel.forEach(s => {
+        const card = document.createElement('div');
+        card.className = 'card';
+
+        const h = document.createElement('h4');
+        h.textContent = s.label;
+        card.appendChild(h);
+
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        meta.textContent = [
+          `Claims: ${s.usedByClaims.length}`,
+          `Rules: ${s.usedByRules.length}`,
+          `Practices: ${s.usedByPractices.length}`,
+          `Entities: ${s.usedByEntities.length}`,
+          `Relations: ${s.usedByRelations.length}`
+        ].join(' · ');
+        card.appendChild(meta);
+
+        srcWrapper.appendChild(card);
+      });
+    }
+
+    if (!vm.authorityEntities || vm.authorityEntities.length === 0) {
+      const p = document.createElement('p');
+      p.className = 'hint';
+      p.textContent = 'No authority entities recorded yet.';
+      entWrapper.appendChild(p);
+    } else {
+      vm.authorityEntities.forEach(e => {
+        const card = document.createElement('div');
+        card.className = 'card';
+
+        const h = document.createElement('h4');
+        h.textContent =
+          e.name + (e.kind ? ` (${e.kind})` : '');
+        card.appendChild(h);
+
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        meta.textContent = [
+          `Claims: ${e.usedAsSourceIn.claims.length}`,
+          `Rules: ${e.usedAsSourceIn.rules.length}`,
+          `Practices: ${e.usedAsSourceIn.practices.length}`,
+          `Entities: ${e.usedAsSourceIn.entities.length}`,
+          `Relations: ${e.usedAsSourceIn.relations.length}`
+        ].join(' · ');
+        card.appendChild(meta);
+
+        entWrapper.appendChild(card);
+      });
+    }
+  }
+
+  // ---- Media (buildMediaGalleryViewModel) ----
+
+  function renderMediaView() {
+    const wrapper = document.getElementById('media-gallery');
+    const entSelect = document.getElementById('media-entity-filter');
+    const prSelect = document.getElementById('media-practice-filter');
+    const evSelect = document.getElementById('media-event-filter');
+    const txSelect = document.getElementById('media-text-filter');
+    if (!wrapper || !entSelect || !prSelect || !evSelect || !txSelect) return;
+    clearElement(wrapper);
+
+    const entities = (snapshot.entities || []).filter(
+      e => e.movementId === currentMovementId || e.movementId == null
+    );
+    const practices = (snapshot.practices || []).filter(
+      p => p.movementId === currentMovementId
+    );
+    const events = (snapshot.events || []).filter(
+      e => e.movementId === currentMovementId
+    );
+    const texts = (snapshot.texts || []).filter(
+      t => t.movementId === currentMovementId
+    );
+
+    ensureSelectOptions(
+      entSelect,
+      entities
+        .slice()
+        .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+        .map(e => ({ value: e.id, label: e.name || e.id })),
+      'Any'
+    );
+    ensureSelectOptions(
+      prSelect,
+      practices
+        .slice()
+        .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+        .map(p => ({ value: p.id, label: p.name || p.id })),
+      'Any'
+    );
+    ensureSelectOptions(
+      evSelect,
+      events
+        .slice()
+        .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+        .map(e => ({ value: e.id, label: e.name || e.id })),
+      'Any'
+    );
+    ensureSelectOptions(
+      txSelect,
+      texts
+        .slice()
+        .sort((a, b) => (a.title || '').localeCompare(b.title || ''))
+        .map(t => ({ value: t.id, label: t.title || t.id })),
+      'Any'
+    );
+
+    const entityIdFilter = entSelect.value || null;
+    const practiceIdFilter = prSelect.value || null;
+    const eventIdFilter = evSelect.value || null;
+    const textIdFilter = txSelect.value || null;
+
+    const vm = ViewModels.buildMediaGalleryViewModel(snapshot, {
+      movementId: currentMovementId,
+      entityIdFilter: entityIdFilter || null,
+      practiceIdFilter: practiceIdFilter || null,
+      eventIdFilter: eventIdFilter || null,
+      textIdFilter: textIdFilter || null
+    });
+
+    if (!vm.items || vm.items.length === 0) {
+      const p = document.createElement('p');
+      p.className = 'hint';
+      p.textContent = 'No media match this filter.';
+      wrapper.appendChild(p);
+      return;
+    }
+
+    vm.items.forEach(m => {
+      const card = document.createElement('div');
+      card.className = 'card';
+
+      const h = document.createElement('h4');
+      h.textContent =
+        m.title + (m.kind ? ` (${m.kind})` : '');
+      card.appendChild(h);
+
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.textContent = m.uri;
+      card.appendChild(meta);
+
+      if (m.description) {
+        const p = document.createElement('p');
+        p.textContent = m.description;
+        card.appendChild(p);
+      }
+
+      if (m.tags && m.tags.length) {
+        const row = document.createElement('div');
+        row.className = 'chip-row';
+        m.tags.forEach(tag => {
+          const chip = document.createElement('span');
+          chip.className = 'chip';
+          chip.textContent = tag;
+          row.appendChild(chip);
+        });
+        card.appendChild(row);
+      }
+
+      if (m.entities && m.entities.length) {
+        const heading = document.createElement('div');
+        heading.style.fontSize = '0.75rem';
+        heading.textContent = 'Entities:';
+        card.appendChild(heading);
+
+        const row = document.createElement('div');
+        row.className = 'chip-row';
+        m.entities.forEach(e => {
+          const chip = document.createElement('span');
+          chip.className = 'chip clickable';
+          chip.textContent = e.name || e.id;
+          chip.addEventListener('click', () => jumpToEntity(e.id));
+          row.appendChild(chip);
+        });
+        card.appendChild(row);
+      }
+
+      if (m.practices && m.practices.length) {
+        const heading = document.createElement('div');
+        heading.style.fontSize = '0.75rem';
+        heading.textContent = 'Practices:';
+        card.appendChild(heading);
+
+        const row = document.createElement('div');
+        row.className = 'chip-row';
+        m.practices.forEach(p => {
+          const chip = document.createElement('span');
+          chip.className = 'chip clickable';
+          chip.textContent = p.name || p.id;
+          chip.addEventListener('click', () => jumpToPractice(p.id));
+          row.appendChild(chip);
+        });
+        card.appendChild(row);
+      }
+
+      if (m.events && m.events.length) {
+        const heading = document.createElement('div');
+        heading.style.fontSize = '0.75rem';
+        heading.textContent = 'Events:';
+        card.appendChild(heading);
+
+        const row = document.createElement('div');
+        row.className = 'chip-row';
+        m.events.forEach(e => {
+          const chip = document.createElement('span');
+          chip.className = 'chip';
+          chip.textContent = e.name || e.id;
+          row.appendChild(chip);
+        });
+        card.appendChild(row);
+      }
+
+      if (m.texts && m.texts.length) {
+        const heading = document.createElement('div');
+        heading.style.fontSize = '0.75rem';
+        heading.textContent = 'Texts:';
+        card.appendChild(heading);
+
+        const row = document.createElement('div');
+        row.className = 'chip-row';
+        m.texts.forEach(t => {
+          const chip = document.createElement('span');
+          chip.className = 'chip clickable';
+          chip.textContent = t.title || t.id;
+          chip.addEventListener('click', () => jumpToText(t.id));
+          row.appendChild(chip);
+        });
+        card.appendChild(row);
+      }
+
+      wrapper.appendChild(card);
+    });
+  }
+
+  // ---- Relations (buildRelationExplorerViewModel) ----
+
+  function renderRelationsView() {
+    const wrapper = document.getElementById('relations-table-wrapper');
+    const typeSelect = document.getElementById('relations-type-filter');
+    const entSelect = document.getElementById('relations-entity-filter');
+    if (!wrapper || !typeSelect || !entSelect) return;
+    clearElement(wrapper);
+
+    const allRelations = (snapshot.relations || []).filter(
+      r =>
+        r.movementId === currentMovementId ||
+        r.movementId == null
+    );
+    const relationTypes = Array.from(
+      new Set(allRelations.map(r => r.relationType).filter(Boolean))
+    ).sort();
+
+    const entities = (snapshot.entities || []).filter(
+      e => e.movementId === currentMovementId || e.movementId == null
+    );
+
+    ensureSelectOptions(
+      typeSelect,
+      relationTypes.map(t => ({ value: t, label: t })),
+      'All'
+    );
+    ensureSelectOptions(
+      entSelect,
+      entities
+        .slice()
+        .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+        .map(e => ({ value: e.id, label: e.name || e.id })),
+      'Any'
+    );
+
+    const typeVal = typeSelect.value || '';
+    const entVal = entSelect.value || '';
+
+    const vm = ViewModels.buildRelationExplorerViewModel(snapshot, {
+      movementId: currentMovementId,
+      relationTypeFilter: typeVal ? [typeVal] : [],
+      entityIdFilter: entVal || null
+    });
+
+    if (!vm.relations || vm.relations.length === 0) {
+      const p = document.createElement('p');
+      p.className = 'hint';
+      p.textContent = 'No relations match this filter.';
+      wrapper.appendChild(p);
+      return;
+    }
+
+    const table = document.createElement('table');
+    const headerRow = document.createElement('tr');
+    ['Type', 'From', 'To', 'Tags', 'Supporting claims', 'Sources of truth'].forEach(
+      h => {
+        const th = document.createElement('th');
+        th.textContent = h;
+        headerRow.appendChild(th);
+      }
+    );
+    table.appendChild(headerRow);
+
+    vm.relations.forEach(r => {
+      const tr = document.createElement('tr');
+
+      const tdType = document.createElement('td');
+      tdType.textContent = r.relationType;
+      tr.appendChild(tdType);
+
+      const tdFrom = document.createElement('td');
+      const fromLink = document.createElement('a');
+      fromLink.href = '#';
+      fromLink.textContent = r.from.name || r.from.id;
+      fromLink.className = 'entity-link';
+      fromLink.addEventListener('click', ev => {
+        ev.preventDefault();
+        jumpToEntity(r.from.id);
+      });
+      tdFrom.appendChild(fromLink);
+      tr.appendChild(tdFrom);
+
+      const tdTo = document.createElement('td');
+      const toLink = document.createElement('a');
+      toLink.href = '#';
+      toLink.textContent = r.to.name || r.to.id;
+      toLink.className = 'entity-link';
+      toLink.addEventListener('click', ev => {
+        ev.preventDefault();
+        jumpToEntity(r.to.id);
+      });
+      tdTo.appendChild(toLink);
+      tr.appendChild(tdTo);
+
+      const tdTags = document.createElement('td');
+      tdTags.textContent = (r.tags || []).join(', ');
+      tr.appendChild(tdTags);
+
+      const tdClaims = document.createElement('td');
+      if (r.supportingClaims && r.supportingClaims.length) {
+        const ul = document.createElement('ul');
+        r.supportingClaims.forEach(c => {
+          const li = document.createElement('li');
+          li.textContent = c.text;
+          ul.appendChild(li);
+        });
+        tdClaims.appendChild(ul);
+      }
+      tr.appendChild(tdClaims);
+
+      const tdSources = document.createElement('td');
+      tdSources.textContent = (r.sourcesOfTruth || []).join(', ');
+      tr.appendChild(tdSources);
+
+      table.appendChild(tr);
+    });
+
+    wrapper.appendChild(table);
+  }
+
+  // ---- Notes (buildNotesViewModel) ----
+
+  function renderNotesView() {
+    const wrapper = document.getElementById('notes-table-wrapper');
+    const typeSelect = document.getElementById('notes-target-type-filter');
+    const idSelect = document.getElementById('notes-target-id-filter');
+    if (!wrapper || !typeSelect || !idSelect) return;
+    clearElement(wrapper);
+
+    // First pass to build filters from all notes
+    const baseVm = ViewModels.buildNotesViewModel(snapshot, {
+      movementId: currentMovementId,
+      targetTypeFilter: null,
+      targetIdFilter: null
+    });
+
+    const notes = baseVm.notes || [];
+    const targetTypes = Array.from(
+      new Set(notes.map(n => n.targetType).filter(Boolean))
+    ).sort();
+
+    ensureSelectOptions(
+      typeSelect,
+      targetTypes.map(t => ({ value: t, label: t })),
+      'All'
+    );
+
+    const selectedType = typeSelect.value || '';
+
+    const idsForType = notes.filter(
+      n => !selectedType || n.targetType === selectedType
+    );
+
+    const idOptionsMap = new Map();
+    idsForType.forEach(n => {
+      if (!idOptionsMap.has(n.targetId)) {
+        idOptionsMap.set(n.targetId, n.targetLabel || n.targetId);
+      }
+    });
+
+    const idOptions = Array.from(idOptionsMap.entries()).map(
+      ([value, label]) => ({ value, label })
+    );
+    ensureSelectOptions(idSelect, idOptions, 'Any');
+
+    const selectedId = idSelect.value || '';
+
+    const vm = ViewModels.buildNotesViewModel(snapshot, {
+      movementId: currentMovementId,
+      targetTypeFilter: selectedType || null,
+      targetIdFilter: selectedId || null
+    });
+
+    if (!vm.notes || vm.notes.length === 0) {
+      const p = document.createElement('p');
+      p.className = 'hint';
+      p.textContent = 'No notes match this filter.';
+      wrapper.appendChild(p);
+      return;
+    }
+
+    const table = document.createElement('table');
+    const headerRow = document.createElement('tr');
+    [
+      'Target type',
+      'Target',
+      'Author',
+      'Body',
+      'Context',
+      'Tags'
+    ].forEach(h => {
+      const th = document.createElement('th');
+      th.textContent = h;
+      headerRow.appendChild(th);
+    });
+    table.appendChild(headerRow);
+
+    vm.notes.forEach(n => {
+      const tr = document.createElement('tr');
+
+      const tdType = document.createElement('td');
+      tdType.textContent = n.targetType;
+      tr.appendChild(tdType);
+
+      const tdTarget = document.createElement('td');
+      tdTarget.textContent = n.targetLabel || n.targetId;
+      tr.appendChild(tdTarget);
+
+      const tdAuthor = document.createElement('td');
+      tdAuthor.textContent = n.author || '';
+      tr.appendChild(tdAuthor);
+
+      const tdBody = document.createElement('td');
+      tdBody.textContent = n.body;
+      tr.appendChild(tdBody);
+
+      const tdCtx = document.createElement('td');
+      tdCtx.textContent = n.context || '';
+      tr.appendChild(tdCtx);
+
+      const tdTags = document.createElement('td');
+      tdTags.textContent = (n.tags || []).join(', ');
+      tr.appendChild(tdTags);
+
+      table.appendChild(tr);
+    });
+
+    wrapper.appendChild(table);
+  }
+
+  // ---- Cross-navigation helpers ----
+
+  function jumpToEntity(entityId) {
+    if (!entityId) return;
+    const entSelect = document.getElementById('entity-select');
+    if (!entSelect) return;
+    // Switch to movement tab + entities subtab
+    document
+      .querySelectorAll('.tab')
+      .forEach(b => b.classList.remove('active'));
+    document.querySelector('[data-tab="movement"]').classList.add('active');
+    document
+      .querySelectorAll('.tab-panel')
+      .forEach(panel => panel.classList.remove('active'));
+    document.getElementById('tab-movement').classList.add('active');
+    setActiveMovementSubtab('entities');
+    entSelect.value = entityId;
+    renderEntitiesView();
+  }
+
+  function jumpToPractice(practiceId) {
+    if (!practiceId) return;
+    const prSelect = document.getElementById('practice-select');
+    if (!prSelect) return;
+    document
+      .querySelectorAll('.tab')
+      .forEach(b => b.classList.remove('active'));
+    document.querySelector('[data-tab="movement"]').classList.add('active');
+    document
+      .querySelectorAll('.tab-panel')
+      .forEach(panel => panel.classList.remove('active'));
+    document.getElementById('tab-movement').classList.add('active');
+    setActiveMovementSubtab('practices');
+    prSelect.value = practiceId;
+    renderPracticesView();
+  }
+
+  function jumpToText(textId) {
+    if (!textId) return;
+    document
+      .querySelectorAll('.tab')
+      .forEach(b => b.classList.remove('active'));
+    document.querySelector('[data-tab="movement"]').classList.add('active');
+    document
+      .querySelectorAll('.tab-panel')
+      .forEach(panel => panel.classList.remove('active'));
+    document.getElementById('tab-movement').classList.add('active');
+    setActiveMovementSubtab('scripture');
+    // Scripture view does not currently center on a text,
+    // but re-render so the user can browse the tree that includes it.
+    renderScriptureView();
   }
 
   // ---- Dashboard (ViewModels) ----
@@ -469,7 +2062,9 @@
     }
 
     const title = document.createElement('h2');
-    title.textContent = vm.movement.name + (vm.movement.shortName ? ` (${vm.movement.shortName})` : '');
+    title.textContent =
+      vm.movement.name +
+      (vm.movement.shortName ? ` (${vm.movement.shortName})` : '');
     container.appendChild(title);
 
     const summary = document.createElement('p');
@@ -526,11 +2121,13 @@
     eventCard.innerHTML = `<h3>Events</h3><p>Total: ${vm.eventStats.totalEvents}</p>`;
     if (vm.eventStats.byRecurrence) {
       const ul = document.createElement('ul');
-      Object.entries(vm.eventStats.byRecurrence).forEach(([rec, count]) => {
-        const li = document.createElement('li');
-        li.textContent = `${rec}: ${count}`;
-        ul.appendChild(li);
-      });
+      Object.entries(vm.eventStats.byRecurrence).forEach(
+        ([rec, count]) => {
+          const li = document.createElement('li');
+          li.textContent = `${rec}: ${count}`;
+          ul.appendChild(li);
+        }
+      );
       eventCard.appendChild(ul);
     }
     statsGrid.appendChild(eventCard);
@@ -605,12 +2202,20 @@
 
     const collName = currentCollectionName;
     const coll = snapshot[collName] || [];
-    const filterByMovement = document.getElementById('collection-filter-by-movement').checked;
+    const filterByMovement = document.getElementById(
+      'collection-filter-by-movement'
+    ).checked;
 
     let items = coll;
-    if (filterByMovement && currentMovementId && COLLECTIONS_WITH_MOVEMENT_ID.has(collName)) {
+    if (
+      filterByMovement &&
+      currentMovementId &&
+      COLLECTIONS_WITH_MOVEMENT_ID.has(collName)
+    ) {
       items = coll.filter(
-        item => item.movementId === currentMovementId || item.movementId == null
+        item =>
+          item.movementId === currentMovementId ||
+          item.movementId == null
       );
     }
 
@@ -788,9 +2393,9 @@
       return;
     }
 
-    const selectedIds = Array.from(document.querySelectorAll('.cmp-rel:checked')).map(
-      cb => cb.value
-    );
+    const selectedIds = Array.from(
+      document.querySelectorAll('.cmp-rel:checked')
+    ).map(cb => cb.value);
     if (!selectedIds.length) {
       const p = document.createElement('p');
       p.textContent = 'Select at least one movement.';
@@ -895,11 +2500,15 @@
       try {
         const data = JSON.parse(reader.result);
         if (!data || !Array.isArray(data.movements)) {
-          alert('Invalid snapshot file: missing top-level "movements" array.');
+          alert(
+            'Invalid snapshot file: missing top-level "movements" array.'
+          );
           return;
         }
         snapshot = ensureAllCollections(data);
-        currentMovementId = snapshot.movements[0] ? snapshot.movements[0].id : null;
+        currentMovementId = snapshot.movements[0]
+          ? snapshot.movements[0].id
+          : null;
         currentItemId = null;
         saveSnapshot();
         setStatus('Imported JSON');
@@ -913,8 +2522,7 @@
   // Optional: sample dataset roughly matching sample-data.js
   function loadSampleSnapshot() {
     const sample =
-      (typeof window !== 'undefined' && window.sampleData) ||
-      {
+      (typeof window !== 'undefined' && window.sampleData) || {
         movements: [
           {
             id: 'mov-test',
@@ -974,7 +2582,9 @@
 
     // Clone to avoid mutating the global sample reference
     snapshot = ensureAllCollections(JSON.parse(JSON.stringify(sample)));
-    currentMovementId = snapshot.movements[0] ? snapshot.movements[0].id : null;
+    currentMovementId = snapshot.movements[0]
+      ? snapshot.movements[0].id
+      : null;
     currentItemId = null;
     saveSnapshot();
     setStatus('Loaded sample');
@@ -996,7 +2606,9 @@
 
   function init() {
     snapshot = loadSnapshot();
-    currentMovementId = snapshot.movements[0] ? snapshot.movements[0].id : null;
+    currentMovementId = snapshot.movements[0]
+      ? snapshot.movements[0].id
+      : null;
 
     // Sidebar
     document
@@ -1008,17 +2620,21 @@
       .getElementById('btn-export-snapshot')
       .addEventListener('click', exportSnapshot);
 
-    document.getElementById('btn-import-snapshot').addEventListener('click', () => {
-      const input = document.getElementById('file-input');
-      input.value = '';
-      input.click();
-    });
+    document
+      .getElementById('btn-import-snapshot')
+      .addEventListener('click', () => {
+        const input = document.getElementById('file-input');
+        input.value = '';
+        input.click();
+      });
 
-    document.getElementById('file-input').addEventListener('change', e => {
-      const file = e.target.files && e.target.files[0];
-      if (!file) return;
-      importSnapshotFromFile(file);
-    });
+    document
+      .getElementById('file-input')
+      .addEventListener('change', e => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        importSnapshotFromFile(file);
+      });
 
     document
       .getElementById('btn-load-sample')
@@ -1034,20 +2650,137 @@
       .addEventListener('click', saveMovementFromForm);
     document
       .getElementById('btn-delete-movement')
-      .addEventListener('click', () => deleteMovement(currentMovementId));
+      .addEventListener('click', () =>
+        deleteMovement(currentMovementId)
+      );
 
     // Tabs
     document.querySelectorAll('.tab').forEach(btn => {
       btn.addEventListener('click', () => {
-        document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+        document
+          .querySelectorAll('.tab')
+          .forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         const tabName = btn.dataset.tab;
-        document.querySelectorAll('.tab-panel').forEach(panel => {
-          panel.classList.toggle('active', panel.id === 'tab-' + tabName);
-        });
+        document
+          .querySelectorAll('.tab-panel')
+          .forEach(panel => {
+            panel.classList.toggle(
+              'active',
+              panel.id === 'tab-' + tabName
+            );
+          });
         renderActiveTab();
       });
     });
+
+    // Movement subtabs
+    document
+      .querySelectorAll('#movement-subtabs .subtab')
+      .forEach(btn => {
+        btn.addEventListener('click', () => {
+          setActiveMovementSubtab(btn.dataset.subtab);
+        });
+      });
+
+    // Entity graph refresh button
+    const refreshGraphBtn = document.getElementById(
+      'btn-refresh-entity-graph'
+    );
+    if (refreshGraphBtn) {
+      refreshGraphBtn.addEventListener('click', () => {
+        renderEntitiesView();
+      });
+    }
+
+    // Calendar / claims / rules / media / relations / notes filters react on change
+    const calendarFilter = document.getElementById(
+      'calendar-recurrence-filter'
+    );
+    if (calendarFilter) {
+      calendarFilter.addEventListener('change', renderCalendarView);
+    }
+    const claimsCatFilter = document.getElementById(
+      'claims-category-filter'
+    );
+    const claimsEntFilter = document.getElementById(
+      'claims-entity-filter'
+    );
+    if (claimsCatFilter) {
+      claimsCatFilter.addEventListener('change', renderClaimsView);
+    }
+    if (claimsEntFilter) {
+      claimsEntFilter.addEventListener('change', renderClaimsView);
+    }
+    const rulesKindFilter = document.getElementById(
+      'rules-kind-filter'
+    );
+    const rulesDomainFilter = document.getElementById(
+      'rules-domain-filter'
+    );
+    if (rulesKindFilter) {
+      rulesKindFilter.addEventListener('change', renderRulesView);
+    }
+    if (rulesDomainFilter) {
+      rulesDomainFilter.addEventListener('input', renderRulesView);
+    }
+
+    const mediaFilters = [
+      'media-entity-filter',
+      'media-practice-filter',
+      'media-event-filter',
+      'media-text-filter'
+    ];
+    mediaFilters.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('change', renderMediaView);
+      }
+    });
+
+    const relTypeFilter = document.getElementById(
+      'relations-type-filter'
+    );
+    const relEntFilter = document.getElementById(
+      'relations-entity-filter'
+    );
+    if (relTypeFilter) {
+      relTypeFilter.addEventListener('change', renderRelationsView);
+    }
+    if (relEntFilter) {
+      relEntFilter.addEventListener('change', renderRelationsView);
+    }
+
+    const notesTypeFilter = document.getElementById(
+      'notes-target-type-filter'
+    );
+    const notesIdFilter = document.getElementById(
+      'notes-target-id-filter'
+    );
+    if (notesTypeFilter) {
+      notesTypeFilter.addEventListener('change', renderNotesView);
+    }
+    if (notesIdFilter) {
+      notesIdFilter.addEventListener('change', renderNotesView);
+    }
+
+    const entitySelect = document.getElementById('entity-select');
+    if (entitySelect) {
+      entitySelect.addEventListener('change', renderEntitiesView);
+    }
+    const practiceSelect = document.getElementById('practice-select');
+    if (practiceSelect) {
+      practiceSelect.addEventListener('change', renderPracticesView);
+    }
+    const scriptureCollectionSelect = document.getElementById(
+      'scripture-collection-select'
+    );
+    if (scriptureCollectionSelect) {
+      scriptureCollectionSelect.addEventListener(
+        'change',
+        renderScriptureView
+      );
+    }
 
     // Collections tab
     document
@@ -1066,11 +2799,15 @@
         renderItemEditor();
       });
 
-    document.getElementById('btn-add-item').addEventListener('click', addNewItem);
+    document
+      .getElementById('btn-add-item')
+      .addEventListener('click', addNewItem);
     document
       .getElementById('btn-delete-item')
       .addEventListener('click', deleteCurrentItem);
-    document.getElementById('btn-save-item').addEventListener('click', saveItemFromEditor);
+    document
+      .getElementById('btn-save-item')
+      .addEventListener('click', saveItemFromEditor);
 
     // Initial render
     renderMovementList();
