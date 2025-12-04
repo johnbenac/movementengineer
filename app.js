@@ -360,7 +360,7 @@
         break;
       case 'data':
         renderCollectionList();
-        renderItemEditor();
+        renderItemDetail();
         break;
       case 'comparison':
         renderComparison();
@@ -2243,12 +2243,279 @@
       li.addEventListener('click', () => {
         currentItemId = item.id;
         renderCollectionList();
-        renderItemEditor();
+        renderItemDetail();
       });
       list.appendChild(li);
     });
 
     document.getElementById('btn-delete-item').disabled = !currentItemId;
+  }
+
+  function mapIdToLabel(collectionName, id) {
+    if (!id) return '—';
+    if (collectionName === 'movements') {
+      const movement = getMovementById(id);
+      return movement ? movement.name || movement.id : id;
+    }
+    const coll = snapshot[collectionName] || [];
+    const item = coll.find(it => it.id === id);
+    return item ? getLabelForItem(item) : id;
+  }
+
+  function renderPreviewValue(container, value, type, refCollection) {
+    const placeholder = () => {
+      const span = document.createElement('span');
+      span.className = 'muted';
+      span.textContent = '—';
+      container.appendChild(span);
+    };
+
+    switch (type) {
+      case 'chips': {
+        const arr = Array.isArray(value) ? value.filter(Boolean) : [];
+        if (!arr.length) return placeholder();
+        const row = document.createElement('div');
+        row.className = 'chip-row';
+        arr.forEach(v => {
+          const chip = document.createElement('span');
+          chip.className = 'chip';
+          chip.textContent = v;
+          row.appendChild(chip);
+        });
+        container.appendChild(row);
+        return;
+      }
+      case 'id': {
+        if (!value) return placeholder();
+        const chip = document.createElement('span');
+        chip.className = 'chip';
+        chip.textContent = mapIdToLabel(refCollection, value);
+        container.appendChild(chip);
+        return;
+      }
+      case 'idList': {
+        const ids = Array.isArray(value) ? value.filter(Boolean) : [];
+        if (!ids.length) return placeholder();
+        const row = document.createElement('div');
+        row.className = 'chip-row';
+        ids.forEach(id => {
+          const chip = document.createElement('span');
+          chip.className = 'chip';
+          chip.textContent = mapIdToLabel(refCollection, id);
+          row.appendChild(chip);
+        });
+        container.appendChild(row);
+        return;
+      }
+      case 'paragraph': {
+        if (!value) return placeholder();
+        const p = document.createElement('p');
+        p.textContent = value;
+        container.appendChild(p);
+        return;
+      }
+      case 'boolean': {
+        if (typeof value !== 'boolean') return placeholder();
+        const span = document.createElement('span');
+        span.textContent = value ? 'Yes' : 'No';
+        container.appendChild(span);
+        return;
+      }
+      case 'link': {
+        if (!value) return placeholder();
+        const a = document.createElement('a');
+        a.href = value;
+        a.target = '_blank';
+        a.rel = 'noreferrer';
+        a.textContent = value;
+        container.appendChild(a);
+        return;
+      }
+      case 'code': {
+        if (!value) return placeholder();
+        const pre = document.createElement('pre');
+        pre.textContent = value;
+        container.appendChild(pre);
+        return;
+      }
+      default: {
+        if (value === undefined || value === null || value === '')
+          return placeholder();
+        const span = document.createElement('span');
+        span.textContent = value;
+        container.appendChild(span);
+      }
+    }
+  }
+
+  function renderPreviewRow(container, label, value, type, refCollection) {
+    const row = document.createElement('div');
+    row.className = 'preview-row';
+    const lbl = document.createElement('div');
+    lbl.className = 'preview-label';
+    lbl.textContent = label;
+    const val = document.createElement('div');
+    val.className = 'preview-value';
+    renderPreviewValue(val, value, type, refCollection);
+    row.appendChild(lbl);
+    row.appendChild(val);
+    container.appendChild(row);
+  }
+
+  const PREVIEW_FIELDS = {
+    entities: [
+      { label: 'Kind', key: 'kind' },
+      { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
+      { label: 'Summary', key: 'summary', type: 'paragraph' },
+      { label: 'Tags', key: 'tags', type: 'chips' },
+      { label: 'Sources of truth', key: 'sourcesOfTruth', type: 'chips' },
+      { label: 'Source entities', key: 'sourceEntityIds', type: 'idList', ref: 'entities' },
+      { label: 'Notes', key: 'notes', type: 'paragraph' }
+    ],
+    practices: [
+      { label: 'Kind', key: 'kind' },
+      { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
+      { label: 'Description', key: 'description', type: 'paragraph' },
+      { label: 'Frequency', key: 'frequency' },
+      { label: 'Public', key: 'isPublic', type: 'boolean' },
+      { label: 'Tags', key: 'tags', type: 'chips' },
+      { label: 'Involved entities', key: 'involvedEntityIds', type: 'idList', ref: 'entities' },
+      { label: 'Instructions texts', key: 'instructionsTextIds', type: 'idList', ref: 'texts' },
+      { label: 'Supporting claims', key: 'supportingClaimIds', type: 'idList', ref: 'claims' },
+      { label: 'Sources of truth', key: 'sourcesOfTruth', type: 'chips' },
+      { label: 'Source entities', key: 'sourceEntityIds', type: 'idList', ref: 'entities' },
+      { label: 'Notes', key: 'notes', type: 'paragraph' }
+    ],
+    events: [
+      { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
+      { label: 'Description', key: 'description', type: 'paragraph' },
+      { label: 'Recurrence', key: 'recurrence' },
+      { label: 'Timing rule', key: 'timingRule' },
+      { label: 'Tags', key: 'tags', type: 'chips' },
+      { label: 'Main practices', key: 'mainPracticeIds', type: 'idList', ref: 'practices' },
+      { label: 'Main entities', key: 'mainEntityIds', type: 'idList', ref: 'entities' },
+      { label: 'Readings', key: 'readingTextIds', type: 'idList', ref: 'texts' },
+      { label: 'Supporting claims', key: 'supportingClaimIds', type: 'idList', ref: 'claims' }
+    ],
+    rules: [
+      { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
+      { label: 'Kind', key: 'kind' },
+      { label: 'Details', key: 'details', type: 'paragraph' },
+      { label: 'Applies to', key: 'appliesTo', type: 'chips' },
+      { label: 'Domain', key: 'domain', type: 'chips' },
+      { label: 'Tags', key: 'tags', type: 'chips' },
+      { label: 'Supporting texts', key: 'supportingTextIds', type: 'idList', ref: 'texts' },
+      { label: 'Supporting claims', key: 'supportingClaimIds', type: 'idList', ref: 'claims' },
+      { label: 'Related practices', key: 'relatedPracticeIds', type: 'idList', ref: 'practices' },
+      { label: 'Sources of truth', key: 'sourcesOfTruth', type: 'chips' },
+      { label: 'Source entities', key: 'sourceEntityIds', type: 'idList', ref: 'entities' }
+    ],
+    claims: [
+      { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
+      { label: 'Category', key: 'category' },
+      { label: 'Text', key: 'text', type: 'paragraph' },
+      { label: 'Tags', key: 'tags', type: 'chips' },
+      { label: 'About entities', key: 'aboutEntityIds', type: 'idList', ref: 'entities' },
+      { label: 'Source texts', key: 'sourceTextIds', type: 'idList', ref: 'texts' },
+      { label: 'Sources of truth', key: 'sourcesOfTruth', type: 'chips' },
+      { label: 'Source entities', key: 'sourceEntityIds', type: 'idList', ref: 'entities' },
+      { label: 'Notes', key: 'notes', type: 'paragraph' }
+    ],
+    textCollections: [
+      { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
+      { label: 'Description', key: 'description', type: 'paragraph' },
+      { label: 'Tags', key: 'tags', type: 'chips' },
+      { label: 'Root texts', key: 'rootTextIds', type: 'idList', ref: 'texts' }
+    ],
+    texts: [
+      { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
+      { label: 'Level', key: 'level' },
+      { label: 'Label', key: 'label' },
+      { label: 'Parent text', key: 'parentId', type: 'id', ref: 'texts' },
+      { label: 'Content', key: 'content', type: 'paragraph' },
+      { label: 'Main function', key: 'mainFunction' },
+      { label: 'Tags', key: 'tags', type: 'chips' },
+      { label: 'Mentions entities', key: 'mentionsEntityIds', type: 'idList', ref: 'entities' }
+    ],
+    media: [
+      { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
+      { label: 'Kind', key: 'kind' },
+      { label: 'URI', key: 'uri', type: 'link' },
+      { label: 'Title', key: 'title' },
+      { label: 'Description', key: 'description', type: 'paragraph' },
+      { label: 'Tags', key: 'tags', type: 'chips' },
+      { label: 'Linked entities', key: 'linkedEntityIds', type: 'idList', ref: 'entities' },
+      { label: 'Linked practices', key: 'linkedPracticeIds', type: 'idList', ref: 'practices' },
+      { label: 'Linked events', key: 'linkedEventIds', type: 'idList', ref: 'events' },
+      { label: 'Linked texts', key: 'linkedTextIds', type: 'idList', ref: 'texts' }
+    ],
+    notes: [
+      { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
+      { label: 'Target type', key: 'targetType' },
+      { label: 'Target', key: 'targetId' },
+      { label: 'Author', key: 'author' },
+      { label: 'Context', key: 'context', type: 'paragraph' },
+      { label: 'Body', key: 'body', type: 'paragraph' },
+      { label: 'Tags', key: 'tags', type: 'chips' }
+    ],
+    relations: [
+      { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
+      { label: 'From', key: 'fromEntityId', type: 'id', ref: 'entities' },
+      { label: 'To', key: 'toEntityId', type: 'id', ref: 'entities' },
+      { label: 'Type', key: 'relationType' },
+      { label: 'Tags', key: 'tags', type: 'chips' },
+      { label: 'Supporting claims', key: 'supportingClaimIds', type: 'idList', ref: 'claims' },
+      { label: 'Sources of truth', key: 'sourcesOfTruth', type: 'chips' },
+      { label: 'Source entities', key: 'sourceEntityIds', type: 'idList', ref: 'entities' },
+      { label: 'Notes', key: 'notes', type: 'paragraph' }
+    ]
+  };
+
+  function renderItemPreview() {
+    const titleEl = document.getElementById('item-preview-title');
+    const subtitleEl = document.getElementById('item-preview-subtitle');
+    const body = document.getElementById('item-preview-body');
+    const badge = document.getElementById('item-preview-collection');
+    if (!titleEl || !subtitleEl || !body || !badge) return;
+
+    clearElement(body);
+    badge.textContent = currentCollectionName;
+
+    if (!currentItemId) {
+      titleEl.textContent = 'Select an item';
+      subtitleEl.textContent = 'Preview will appear here';
+      const p = document.createElement('p');
+      p.className = 'muted';
+      p.textContent = 'Pick an item on the left to see a human-friendly summary.';
+      body.appendChild(p);
+      return;
+    }
+
+    const coll = snapshot[currentCollectionName] || [];
+    const item = coll.find(it => it.id === currentItemId);
+    if (!item) {
+      titleEl.textContent = 'Not found';
+      subtitleEl.textContent = '';
+      const p = document.createElement('p');
+      p.className = 'muted';
+      p.textContent = 'The selected item could not be loaded.';
+      body.appendChild(p);
+      return;
+    }
+
+    titleEl.textContent = getLabelForItem(item);
+    subtitleEl.textContent = `${currentCollectionName.slice(0, -1)} · ${item.id}`;
+
+    const fields = PREVIEW_FIELDS[currentCollectionName];
+    if (!fields) {
+      renderPreviewRow(body, 'Details', JSON.stringify(item, null, 2), 'code');
+      return;
+    }
+
+    fields.forEach(field => {
+      const value = item[field.key];
+      renderPreviewRow(body, field.label, value, field.type, field.ref);
+    });
   }
 
   function renderItemEditor() {
@@ -2261,6 +2528,7 @@
       editor.value = '';
       editor.disabled = coll.length === 0;
       deleteBtn.disabled = true;
+      renderItemPreview();
       return;
     }
 
@@ -2269,12 +2537,19 @@
       editor.value = '';
       editor.disabled = true;
       deleteBtn.disabled = true;
+      renderItemPreview();
       return;
     }
 
     editor.disabled = false;
     deleteBtn.disabled = false;
     editor.value = JSON.stringify(item, null, 2);
+    renderItemPreview();
+  }
+
+  function renderItemDetail() {
+    renderItemPreview();
+    renderItemEditor();
   }
 
   function saveItemFromEditor() {
@@ -2329,7 +2604,7 @@
     saveSnapshot(false); // we'll call setStatus manually
     setStatus('New item created');
     renderCollectionList();
-    renderItemEditor();
+    renderItemDetail();
   }
 
   function deleteCurrentItem() {
@@ -2789,14 +3064,14 @@
         currentCollectionName = e.target.value;
         currentItemId = null;
         renderCollectionList();
-        renderItemEditor();
+        renderItemDetail();
       });
 
     document
       .getElementById('collection-filter-by-movement')
       .addEventListener('change', () => {
         renderCollectionList();
-        renderItemEditor();
+        renderItemDetail();
       });
 
     document

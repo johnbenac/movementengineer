@@ -358,9 +358,37 @@
               <ul id="collection-items" class="item-list"></ul>
             </div>
             <div class="detail-pane">
-              <textarea id="item-editor" rows="24" spellcheck="false" placeholder="{ ... }"></textarea>
-              <div class="editor-actions">
-                <button id="btn-save-item" type="button">Save item</button>
+              <div class="item-detail-grid">
+                <section class="preview-pane">
+                  <div class="preview-header">
+                    <div>
+                      <div class="eyebrow">Human-readable view</div>
+                      <h3 id="item-preview-title">Select an item</h3>
+                      <div id="item-preview-subtitle" class="muted"></div>
+                    </div>
+                    <div class="badge" id="item-preview-collection">—</div>
+                  </div>
+                  <div id="item-preview-body" class="preview-body"></div>
+                </section>
+
+                <section class="editor-pane">
+                  <div class="preview-header">
+                    <div>
+                      <div class="eyebrow">Raw JSON</div>
+                      <h3>Machine view</h3>
+                      <div class="muted">Edit and save changes</div>
+                    </div>
+                  </div>
+                  <textarea
+                    id="item-editor"
+                    rows="20"
+                    spellcheck="false"
+                    placeholder="{ ... }"
+                  ></textarea>
+                  <div class="editor-actions">
+                    <button id="btn-save-item" type="button">Save item</button>
+                  </div>
+                </section>
               </div>
             </div>
           </div>
