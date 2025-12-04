@@ -7,7 +7,12 @@ const data = {
       "shortName": "Catholic",
       "summary": "The Roman Catholic Church is a worldwide Christian church that teaches one God in three persons, centered on Jesus Christ, the sacraments, and a liturgical life ordered around the Eucharist.",
       "notes": null,
-      "tags": ["christian", "catholic", "sacramental", "liturgical"]
+      "tags": [
+        "christian",
+        "catholic",
+        "sacramental",
+        "liturgical"
+      ]
     }
   ],
   "textCollections": [
@@ -16,16 +21,28 @@ const data = {
       "movementId": "mov-catholic",
       "name": "Sacred Scripture (Bible)",
       "description": "The collection of biblical books recognized and used in the Catholic Church.",
-      "tags": ["scripture", "bible"],
-      "rootTextIds": ["txt-bible-root"]
+      "tags": [
+        "scripture",
+        "bible"
+      ],
+      "rootTextIds": [
+        "txt-bible-root"
+      ]
     },
     {
       "id": "tc-catholic-catechism",
       "movementId": "mov-catholic",
       "name": "Catechism and Creeds",
       "description": "Key doctrinal summaries such as the Catechism of the Catholic Church and the Nicene Creed.",
-      "tags": ["catechism", "creed", "doctrine"],
-      "rootTextIds": ["txt-catechism-root", "txt-nicene-creed"]
+      "tags": [
+        "catechism",
+        "creed",
+        "doctrine"
+      ],
+      "rootTextIds": [
+        "txt-catechism-root",
+        "txt-nicene-creed"
+      ]
     }
   ],
   "texts": [
@@ -38,10 +55,16 @@ const data = {
       "label": "Bible",
       "content": null,
       "mainFunction": null,
-      "tags": ["scripture", "collection"],
-      "mentionsEntityIds": ["ent-god-trinity", "ent-jesus-christ", "ent-holy-spirit", "ent-virgin-mary"],
-      "relatedClaimIds": ["clm-trinity-central", "clm-real-presence-eucharist"],
-      "usedInEventIds": ["ev-sunday-mass", "ev-easter-sunday", "ev-christmas-day"]
+      "tags": [
+        "scripture",
+        "collection"
+      ],
+      "mentionsEntityIds": [
+        "ent-god-trinity",
+        "ent-jesus-christ",
+        "ent-holy-spirit",
+        "ent-virgin-mary"
+      ]
     },
     {
       "id": "txt-nt-gospels",
@@ -52,10 +75,14 @@ const data = {
       "label": "New Testament Gospels",
       "content": null,
       "mainFunction": "story",
-      "tags": ["gospels", "story"],
-      "mentionsEntityIds": ["ent-jesus-christ", "ent-virgin-mary"],
-      "relatedClaimIds": ["clm-trinity-central"],
-      "usedInEventIds": ["ev-sunday-mass", "ev-christmas-day", "ev-easter-sunday"]
+      "tags": [
+        "gospels",
+        "story"
+      ],
+      "mentionsEntityIds": [
+        "ent-jesus-christ",
+        "ent-virgin-mary"
+      ]
     },
     {
       "id": "txt-luke-last-supper",
@@ -66,10 +93,15 @@ const data = {
       "label": "Luke Last Supper Summary",
       "content": "At a final meal with his disciples, Jesus blesses bread and wine and speaks of them as his body and blood given for many.",
       "mainFunction": "story",
-      "tags": ["last_supper", "eucharist"],
-      "mentionsEntityIds": ["ent-jesus-christ", "ent-eucharist-sacrament", "ent-eucharist-host"],
-      "relatedClaimIds": ["clm-real-presence-eucharist"],
-      "usedInEventIds": ["ev-sunday-mass", "ev-easter-sunday"]
+      "tags": [
+        "last_supper",
+        "eucharist"
+      ],
+      "mentionsEntityIds": [
+        "ent-jesus-christ",
+        "ent-eucharist-sacrament",
+        "ent-eucharist-host"
+      ]
     },
     {
       "id": "txt-luke-last-supper-line1",
@@ -80,10 +112,14 @@ const data = {
       "label": "Last Supper Bread Line",
       "content": "Jesus takes bread, gives thanks, breaks it, and shares it as a sign of his body given for his followers.",
       "mainFunction": "story",
-      "tags": ["eucharist", "paraphrase"],
-      "mentionsEntityIds": ["ent-jesus-christ", "ent-eucharist-host"],
-      "relatedClaimIds": ["clm-real-presence-eucharist"],
-      "usedInEventIds": ["ev-sunday-mass"]
+      "tags": [
+        "eucharist",
+        "paraphrase"
+      ],
+      "mentionsEntityIds": [
+        "ent-jesus-christ",
+        "ent-eucharist-host"
+      ]
     },
     {
       "id": "txt-catechism-root",
@@ -94,10 +130,16 @@ const data = {
       "label": "Catechism",
       "content": null,
       "mainFunction": "teaching",
-      "tags": ["catechism", "doctrine"],
-      "mentionsEntityIds": ["ent-god-trinity", "ent-church-universal", "ent-virgin-mary", "ent-eucharist-sacrament"],
-      "relatedClaimIds": ["clm-trinity-central", "clm-seven-sacraments", "clm-grace-participation", "clm-mary-mother-of-god"],
-      "usedInEventIds": []
+      "tags": [
+        "catechism",
+        "doctrine"
+      ],
+      "mentionsEntityIds": [
+        "ent-god-trinity",
+        "ent-church-universal",
+        "ent-virgin-mary",
+        "ent-eucharist-sacrament"
+      ]
     },
     {
       "id": "txt-catechism-trinity",
@@ -108,10 +150,16 @@ const data = {
       "label": "Catechism Trinity Summary",
       "content": "The Church teaches that the mystery of the Most Holy Trinity is the central mystery of the Christian faith and life: one God in three distinct persons.",
       "mainFunction": "teaching",
-      "tags": ["trinity", "doctrine"],
-      "mentionsEntityIds": ["ent-god-trinity", "ent-god-father", "ent-god-son", "ent-holy-spirit"],
-      "relatedClaimIds": ["clm-trinity-central"],
-      "usedInEventIds": []
+      "tags": [
+        "trinity",
+        "doctrine"
+      ],
+      "mentionsEntityIds": [
+        "ent-god-trinity",
+        "ent-god-father",
+        "ent-god-son",
+        "ent-holy-spirit"
+      ]
     },
     {
       "id": "txt-catechism-eucharist",
@@ -122,10 +170,15 @@ const data = {
       "label": "Catechism Eucharist Summary",
       "content": "The Eucharist is the sacrament in which bread and wine, consecrated by a priest, become the body and blood of Christ, the source and summit of the Christian life.",
       "mainFunction": "teaching",
-      "tags": ["eucharist", "sacrament"],
-      "mentionsEntityIds": ["ent-eucharist-sacrament", "ent-eucharist-host", "ent-jesus-christ"],
-      "relatedClaimIds": ["clm-real-presence-eucharist"],
-      "usedInEventIds": ["ev-sunday-mass"]
+      "tags": [
+        "eucharist",
+        "sacrament"
+      ],
+      "mentionsEntityIds": [
+        "ent-eucharist-sacrament",
+        "ent-eucharist-host",
+        "ent-jesus-christ"
+      ]
     },
     {
       "id": "txt-nicene-creed",
@@ -136,10 +189,16 @@ const data = {
       "label": "Nicene Creed",
       "content": "A structured statement of faith in one God, the Father almighty, in Jesus Christ his only Son, in the Holy Spirit, the Church, baptism, and the life of the world to come.",
       "mainFunction": "teaching",
-      "tags": ["creed", "liturgy"],
-      "mentionsEntityIds": ["ent-god-father", "ent-god-son", "ent-holy-spirit", "ent-church-universal"],
-      "relatedClaimIds": ["clm-trinity-central", "clm-communion-of-saints"],
-      "usedInEventIds": ["ev-sunday-mass", "ev-easter-sunday"]
+      "tags": [
+        "creed",
+        "liturgy"
+      ],
+      "mentionsEntityIds": [
+        "ent-god-father",
+        "ent-god-son",
+        "ent-holy-spirit",
+        "ent-church-universal"
+      ]
     },
     {
       "id": "txt-our-father",
@@ -150,10 +209,14 @@ const data = {
       "label": "Our Father",
       "content": "A prayer taught by Jesus that addresses God as Father, asks for the coming of the kingdom, daily bread, forgiveness, and protection from evil.",
       "mainFunction": "prayer_or_song",
-      "tags": ["prayer", "lord_prayer"],
-      "mentionsEntityIds": ["ent-god-father", "ent-jesus-christ"],
-      "relatedClaimIds": ["clm-grace-participation"],
-      "usedInEventIds": ["ev-sunday-mass", "ev-daily-mass"]
+      "tags": [
+        "prayer",
+        "lord_prayer"
+      ],
+      "mentionsEntityIds": [
+        "ent-god-father",
+        "ent-jesus-christ"
+      ]
     },
     {
       "id": "txt-confession-instructions",
@@ -164,10 +227,15 @@ const data = {
       "label": "Confession Instructions",
       "content": "Brief steps: examine your conscience, express sorrow for sins, confess to a priest, receive absolution, and do the given penance.",
       "mainFunction": "instructions",
-      "tags": ["confession", "reconciliation", "instructions"],
-      "mentionsEntityIds": ["ent-church-universal", "ent-parish-local"],
-      "relatedClaimIds": ["clm-grace-participation"],
-      "usedInEventIds": []
+      "tags": [
+        "confession",
+        "reconciliation",
+        "instructions"
+      ],
+      "mentionsEntityIds": [
+        "ent-church-universal",
+        "ent-parish-local"
+      ]
     },
     {
       "id": "txt-saint-francis-story",
@@ -178,10 +246,14 @@ const data = {
       "label": "St Francis Story",
       "content": "A brief narrative of Francis of Assisi, who embraced poverty and proclaimed peace, becoming an example of joyful discipleship.",
       "mainFunction": "story",
-      "tags": ["saint", "francis", "example"],
-      "mentionsEntityIds": ["ent-saint-francis"],
-      "relatedClaimIds": [],
-      "usedInEventIds": []
+      "tags": [
+        "saint",
+        "francis",
+        "example"
+      ],
+      "mentionsEntityIds": [
+        "ent-saint-francis"
+      ]
     },
     {
       "id": "txt-commentary-on-mary",
@@ -192,10 +264,15 @@ const data = {
       "label": "Mary Commentary",
       "content": "An explanatory note on the Catholic belief that Mary is Mother of God and a model of faith and charity for the Church.",
       "mainFunction": "commentary",
-      "tags": ["mary", "commentary"],
-      "mentionsEntityIds": ["ent-virgin-mary", "ent-jesus-christ", "ent-church-universal"],
-      "relatedClaimIds": ["clm-mary-mother-of-god"],
-      "usedInEventIds": ["ev-christmas-day"]
+      "tags": [
+        "mary",
+        "commentary"
+      ],
+      "mentionsEntityIds": [
+        "ent-virgin-mary",
+        "ent-jesus-christ",
+        "ent-church-universal"
+      ]
     },
     {
       "id": "txt-moral-rule-summary",
@@ -206,10 +283,14 @@ const data = {
       "label": "Moral Summary",
       "content": "Love of God and neighbor is the heart of the moral law. The Ten Commandments and the teachings of Jesus guide Catholics in conscience and action.",
       "mainFunction": "rule",
-      "tags": ["morality", "commandments"],
-      "mentionsEntityIds": ["ent-god-trinity", "ent-church-universal"],
-      "relatedClaimIds": [],
-      "usedInEventIds": []
+      "tags": [
+        "morality",
+        "commandments"
+      ],
+      "mentionsEntityIds": [
+        "ent-god-trinity",
+        "ent-church-universal"
+      ]
     }
   ],
   "entities": [
@@ -219,15 +300,18 @@ const data = {
       "name": "The Holy Trinity",
       "kind": "being",
       "summary": "One God in three distinct persons: Father, Son, and Holy Spirit, the central mystery of Catholic faith and life.",
-      "isGeneric": true,
       "notes": null,
-      "tags": ["god", "trinity"],
-      "sourcesOfTruth": ["Catechism of the Catholic Church", "Nicene Creed"],
-      "sourceEntityIds": ["ent-catechism"],
-      "relatedEntityIds": ["ent-god-father", "ent-god-son", "ent-holy-spirit"],
-      "relatedPracticeIds": ["pr-sunday-mass", "pr-daily-mass", "pr-daily-rosary"],
-      "relatedTextIds": ["txt-catechism-trinity", "txt-nicene-creed"],
-      "relatedEventIds": ["ev-sunday-mass", "ev-easter-sunday", "ev-christmas-day"]
+      "tags": [
+        "god",
+        "trinity"
+      ],
+      "sourcesOfTruth": [
+        "Catechism of the Catholic Church",
+        "Nicene Creed"
+      ],
+      "sourceEntityIds": [
+        "ent-catechism"
+      ]
     },
     {
       "id": "ent-god-father",
@@ -235,15 +319,19 @@ const data = {
       "name": "God the Father",
       "kind": "being",
       "summary": "The first person of the Trinity, creator and source of all that exists.",
-      "isGeneric": true,
       "notes": null,
-      "tags": ["god", "father"],
-      "sourcesOfTruth": ["Bible", "Catechism of the Catholic Church"],
-      "sourceEntityIds": ["ent-bible-book", "ent-catechism"],
-      "relatedEntityIds": ["ent-god-trinity", "ent-god-son", "ent-holy-spirit"],
-      "relatedPracticeIds": ["pr-sunday-mass", "pr-daily-rosary"],
-      "relatedTextIds": ["txt-our-father", "txt-nicene-creed"],
-      "relatedEventIds": ["ev-sunday-mass"]
+      "tags": [
+        "god",
+        "father"
+      ],
+      "sourcesOfTruth": [
+        "Bible",
+        "Catechism of the Catholic Church"
+      ],
+      "sourceEntityIds": [
+        "ent-bible-book",
+        "ent-catechism"
+      ]
     },
     {
       "id": "ent-god-son",
@@ -251,15 +339,19 @@ const data = {
       "name": "God the Son",
       "kind": "being",
       "summary": "The second person of the Trinity, who became incarnate as Jesus Christ.",
-      "isGeneric": true,
       "notes": null,
-      "tags": ["god", "son"],
-      "sourcesOfTruth": ["Bible", "Catechism of the Catholic Church"],
-      "sourceEntityIds": ["ent-bible-book", "ent-catechism"],
-      "relatedEntityIds": ["ent-god-trinity", "ent-god-father", "ent-holy-spirit", "ent-jesus-christ"],
-      "relatedPracticeIds": ["pr-sunday-mass"],
-      "relatedTextIds": ["txt-nt-gospels", "txt-nicene-creed"],
-      "relatedEventIds": ["ev-easter-sunday", "ev-christmas-day"]
+      "tags": [
+        "god",
+        "son"
+      ],
+      "sourcesOfTruth": [
+        "Bible",
+        "Catechism of the Catholic Church"
+      ],
+      "sourceEntityIds": [
+        "ent-bible-book",
+        "ent-catechism"
+      ]
     },
     {
       "id": "ent-holy-spirit",
@@ -267,15 +359,19 @@ const data = {
       "name": "The Holy Spirit",
       "kind": "being",
       "summary": "The third person of the Trinity, who gives life to the Church and dwells in believers.",
-      "isGeneric": true,
       "notes": null,
-      "tags": ["god", "spirit"],
-      "sourcesOfTruth": ["Bible", "Catechism of the Catholic Church"],
-      "sourceEntityIds": ["ent-bible-book", "ent-catechism"],
-      "relatedEntityIds": ["ent-god-trinity", "ent-god-father", "ent-god-son"],
-      "relatedPracticeIds": ["pr-sunday-mass"],
-      "relatedTextIds": ["txt-catechism-trinity"],
-      "relatedEventIds": ["ev-easter-sunday"]
+      "tags": [
+        "god",
+        "spirit"
+      ],
+      "sourcesOfTruth": [
+        "Bible",
+        "Catechism of the Catholic Church"
+      ],
+      "sourceEntityIds": [
+        "ent-bible-book",
+        "ent-catechism"
+      ]
     },
     {
       "id": "ent-jesus-christ",
@@ -283,15 +379,19 @@ const data = {
       "name": "Jesus Christ",
       "kind": "being",
       "summary": "The incarnate Son of God, fully divine and fully human, whose life, death, and resurrection are at the center of Catholic faith.",
-      "isGeneric": false,
       "notes": null,
-      "tags": ["jesus", "christ"],
-      "sourcesOfTruth": ["Bible", "Catechism of the Catholic Church"],
-      "sourceEntityIds": ["ent-bible-book", "ent-catechism"],
-      "relatedEntityIds": ["ent-god-trinity", "ent-virgin-mary"],
-      "relatedPracticeIds": ["pr-sunday-mass", "pr-daily-mass"],
-      "relatedTextIds": ["txt-nt-gospels", "txt-luke-last-supper"],
-      "relatedEventIds": ["ev-easter-sunday", "ev-christmas-day"]
+      "tags": [
+        "jesus",
+        "christ"
+      ],
+      "sourcesOfTruth": [
+        "Bible",
+        "Catechism of the Catholic Church"
+      ],
+      "sourceEntityIds": [
+        "ent-bible-book",
+        "ent-catechism"
+      ]
     },
     {
       "id": "ent-virgin-mary",
@@ -299,15 +399,19 @@ const data = {
       "name": "Mary, Mother of Jesus",
       "kind": "being",
       "summary": "The mother of Jesus, honored as Mother of God and model disciple in Catholic tradition.",
-      "isGeneric": false,
       "notes": null,
-      "tags": ["mary", "saint"],
-      "sourcesOfTruth": ["Bible", "Catechism of the Catholic Church"],
-      "sourceEntityIds": ["ent-bible-book", "ent-catechism"],
-      "relatedEntityIds": ["ent-jesus-christ", "ent-church-universal"],
-      "relatedPracticeIds": ["pr-daily-rosary"],
-      "relatedTextIds": ["txt-commentary-on-mary"],
-      "relatedEventIds": ["ev-christmas-day"]
+      "tags": [
+        "mary",
+        "saint"
+      ],
+      "sourcesOfTruth": [
+        "Bible",
+        "Catechism of the Catholic Church"
+      ],
+      "sourceEntityIds": [
+        "ent-bible-book",
+        "ent-catechism"
+      ]
     },
     {
       "id": "ent-saint-francis",
@@ -315,15 +419,16 @@ const data = {
       "name": "Saint Francis of Assisi",
       "kind": "being",
       "summary": "A medieval Catholic saint known for his embrace of poverty and love of creation.",
-      "isGeneric": false,
       "notes": null,
-      "tags": ["saint", "francis"],
-      "sourcesOfTruth": ["hagiography", "tradition"],
-      "sourceEntityIds": [],
-      "relatedEntityIds": ["ent-church-universal"],
-      "relatedPracticeIds": ["pr-charity-service"],
-      "relatedTextIds": ["txt-saint-francis-story"],
-      "relatedEventIds": []
+      "tags": [
+        "saint",
+        "francis"
+      ],
+      "sourcesOfTruth": [
+        "hagiography",
+        "tradition"
+      ],
+      "sourceEntityIds": []
     },
     {
       "id": "ent-church-universal",
@@ -331,15 +436,17 @@ const data = {
       "name": "The Catholic Church",
       "kind": "idea",
       "summary": "The worldwide community of believers united in faith, sacraments, and governance under the Pope and bishops.",
-      "isGeneric": true,
       "notes": null,
-      "tags": ["church", "community"],
-      "sourcesOfTruth": ["Catechism of the Catholic Church"],
-      "sourceEntityIds": ["ent-catechism"],
-      "relatedEntityIds": ["ent-pope-office", "ent-parish-local", "ent-diocese"],
-      "relatedPracticeIds": ["pr-sunday-mass", "pr-daily-mass", "pr-reconciliation"],
-      "relatedTextIds": ["txt-nicene-creed"],
-      "relatedEventIds": ["ev-sunday-mass"]
+      "tags": [
+        "church",
+        "community"
+      ],
+      "sourcesOfTruth": [
+        "Catechism of the Catholic Church"
+      ],
+      "sourceEntityIds": [
+        "ent-catechism"
+      ]
     },
     {
       "id": "ent-parish-local",
@@ -347,15 +454,16 @@ const data = {
       "name": "Local Parish",
       "kind": "being",
       "summary": "A local community of Catholics gathered around a church building under the care of a pastor.",
-      "isGeneric": true,
       "notes": null,
-      "tags": ["parish", "local_church"],
-      "sourcesOfTruth": ["Canon law", "pastoral practice"],
-      "sourceEntityIds": [],
-      "relatedEntityIds": ["ent-church-universal", "ent-diocese"],
-      "relatedPracticeIds": ["pr-sunday-mass", "pr-reconciliation", "pr-bible-study-group"],
-      "relatedTextIds": [],
-      "relatedEventIds": ["ev-sunday-mass", "ev-daily-mass"]
+      "tags": [
+        "parish",
+        "local_church"
+      ],
+      "sourcesOfTruth": [
+        "Canon law",
+        "pastoral practice"
+      ],
+      "sourceEntityIds": []
     },
     {
       "id": "ent-diocese",
@@ -363,15 +471,15 @@ const data = {
       "name": "Diocese",
       "kind": "being",
       "summary": "A regional grouping of parishes under the leadership of a bishop.",
-      "isGeneric": true,
       "notes": null,
-      "tags": ["diocese", "jurisdiction"],
-      "sourcesOfTruth": ["Canon law"],
-      "sourceEntityIds": [],
-      "relatedEntityIds": ["ent-church-universal", "ent-parish-local"],
-      "relatedPracticeIds": [],
-      "relatedTextIds": [],
-      "relatedEventIds": []
+      "tags": [
+        "diocese",
+        "jurisdiction"
+      ],
+      "sourcesOfTruth": [
+        "Canon law"
+      ],
+      "sourceEntityIds": []
     },
     {
       "id": "ent-pope-office",
@@ -379,15 +487,16 @@ const data = {
       "name": "The Pope",
       "kind": "being",
       "summary": "The bishop of Rome and visible head of the Catholic Church on earth.",
-      "isGeneric": false,
       "notes": null,
-      "tags": ["pope", "office"],
-      "sourcesOfTruth": ["Catholic tradition", "Canon law"],
-      "sourceEntityIds": [],
-      "relatedEntityIds": ["ent-church-universal", "ent-diocese"],
-      "relatedPracticeIds": [],
-      "relatedTextIds": [],
-      "relatedEventIds": []
+      "tags": [
+        "pope",
+        "office"
+      ],
+      "sourcesOfTruth": [
+        "Catholic tradition",
+        "Canon law"
+      ],
+      "sourceEntityIds": []
     },
     {
       "id": "ent-heaven",
@@ -395,15 +504,19 @@ const data = {
       "name": "Heaven",
       "kind": "place",
       "summary": "The state of eternal life in union with God and the saints.",
-      "isGeneric": true,
       "notes": null,
-      "tags": ["afterlife", "heaven"],
-      "sourcesOfTruth": ["Bible", "Catechism of the Catholic Church"],
-      "sourceEntityIds": ["ent-bible-book", "ent-catechism"],
-      "relatedEntityIds": [],
-      "relatedPracticeIds": ["pr-sunday-mass"],
-      "relatedTextIds": ["txt-nicene-creed"],
-      "relatedEventIds": []
+      "tags": [
+        "afterlife",
+        "heaven"
+      ],
+      "sourcesOfTruth": [
+        "Bible",
+        "Catechism of the Catholic Church"
+      ],
+      "sourceEntityIds": [
+        "ent-bible-book",
+        "ent-catechism"
+      ]
     },
     {
       "id": "ent-hell",
@@ -411,15 +524,19 @@ const data = {
       "name": "Hell",
       "kind": "place",
       "summary": "The state of definitive self-exclusion from communion with God and the blessed.",
-      "isGeneric": true,
       "notes": null,
-      "tags": ["afterlife", "hell"],
-      "sourcesOfTruth": ["Bible", "Catechism of the Catholic Church"],
-      "sourceEntityIds": ["ent-bible-book", "ent-catechism"],
-      "relatedEntityIds": [],
-      "relatedPracticeIds": [],
-      "relatedTextIds": [],
-      "relatedEventIds": []
+      "tags": [
+        "afterlife",
+        "hell"
+      ],
+      "sourcesOfTruth": [
+        "Bible",
+        "Catechism of the Catholic Church"
+      ],
+      "sourceEntityIds": [
+        "ent-bible-book",
+        "ent-catechism"
+      ]
     },
     {
       "id": "ent-purgatory",
@@ -427,15 +544,17 @@ const data = {
       "name": "Purgatory",
       "kind": "place",
       "summary": "A state of purification for those who die in God's grace but are not yet fully perfected.",
-      "isGeneric": true,
       "notes": null,
-      "tags": ["afterlife", "purgatory"],
-      "sourcesOfTruth": ["Catechism of the Catholic Church"],
-      "sourceEntityIds": ["ent-catechism"],
-      "relatedEntityIds": [],
-      "relatedPracticeIds": ["pr-daily-rosary"],
-      "relatedTextIds": [],
-      "relatedEventIds": []
+      "tags": [
+        "afterlife",
+        "purgatory"
+      ],
+      "sourcesOfTruth": [
+        "Catechism of the Catholic Church"
+      ],
+      "sourceEntityIds": [
+        "ent-catechism"
+      ]
     },
     {
       "id": "ent-bible-book",
@@ -443,15 +562,15 @@ const data = {
       "name": "Sacred Scripture (Bible)",
       "kind": "object",
       "summary": "The collection of inspired writings of the Old and New Testaments used in Catholic worship and teaching.",
-      "isGeneric": true,
       "notes": null,
-      "tags": ["bible", "scripture"],
-      "sourcesOfTruth": ["Catholic tradition"],
-      "sourceEntityIds": [],
-      "relatedEntityIds": [],
-      "relatedPracticeIds": ["pr-bible-study-group"],
-      "relatedTextIds": ["txt-bible-root"],
-      "relatedEventIds": ["ev-sunday-mass", "ev-daily-mass"]
+      "tags": [
+        "bible",
+        "scripture"
+      ],
+      "sourcesOfTruth": [
+        "Catholic tradition"
+      ],
+      "sourceEntityIds": []
     },
     {
       "id": "ent-catechism",
@@ -459,15 +578,15 @@ const data = {
       "name": "Catechism of the Catholic Church",
       "kind": "object",
       "summary": "A reference text that systematically presents Catholic doctrine, morals, and worship.",
-      "isGeneric": true,
       "notes": null,
-      "tags": ["catechism", "doctrine"],
-      "sourcesOfTruth": ["Magisterium of the Catholic Church"],
-      "sourceEntityIds": [],
-      "relatedEntityIds": [],
-      "relatedPracticeIds": ["pr-bible-study-group"],
-      "relatedTextIds": ["txt-catechism-root"],
-      "relatedEventIds": []
+      "tags": [
+        "catechism",
+        "doctrine"
+      ],
+      "sourcesOfTruth": [
+        "Magisterium of the Catholic Church"
+      ],
+      "sourceEntityIds": []
     },
     {
       "id": "ent-eucharist-sacrament",
@@ -475,15 +594,19 @@ const data = {
       "name": "Sacrament of the Eucharist",
       "kind": "idea",
       "summary": "The sacrament in which Christ becomes present under the appearances of bread and wine and the faithful receive his body and blood.",
-      "isGeneric": true,
       "notes": null,
-      "tags": ["sacrament", "eucharist"],
-      "sourcesOfTruth": ["Bible", "Catechism of the Catholic Church"],
-      "sourceEntityIds": ["ent-bible-book", "ent-catechism"],
-      "relatedEntityIds": ["ent-eucharist-host"],
-      "relatedPracticeIds": ["pr-sunday-mass", "pr-daily-mass"],
-      "relatedTextIds": ["txt-luke-last-supper", "txt-catechism-eucharist"],
-      "relatedEventIds": ["ev-sunday-mass", "ev-easter-sunday"]
+      "tags": [
+        "sacrament",
+        "eucharist"
+      ],
+      "sourcesOfTruth": [
+        "Bible",
+        "Catechism of the Catholic Church"
+      ],
+      "sourceEntityIds": [
+        "ent-bible-book",
+        "ent-catechism"
+      ]
     },
     {
       "id": "ent-eucharist-host",
@@ -491,15 +614,17 @@ const data = {
       "name": "Consecrated Host",
       "kind": "object",
       "summary": "The consecrated bread which Catholics believe is the body of Christ in the Eucharist.",
-      "isGeneric": true,
       "notes": null,
-      "tags": ["eucharist", "host"],
-      "sourcesOfTruth": ["Catechism of the Catholic Church"],
-      "sourceEntityIds": ["ent-catechism"],
-      "relatedEntityIds": ["ent-eucharist-sacrament"],
-      "relatedPracticeIds": ["pr-sunday-mass", "pr-daily-mass"],
-      "relatedTextIds": ["txt-luke-last-supper-line1"],
-      "relatedEventIds": ["ev-sunday-mass"]
+      "tags": [
+        "eucharist",
+        "host"
+      ],
+      "sourcesOfTruth": [
+        "Catechism of the Catholic Church"
+      ],
+      "sourceEntityIds": [
+        "ent-catechism"
+      ]
     },
     {
       "id": "ent-altar",
@@ -507,15 +632,15 @@ const data = {
       "name": "Altar",
       "kind": "object",
       "summary": "The table in a church on which the Eucharistic sacrifice is offered.",
-      "isGeneric": true,
       "notes": null,
-      "tags": ["altar", "church_furnishing"],
-      "sourcesOfTruth": ["liturgical books"],
-      "sourceEntityIds": [],
-      "relatedEntityIds": [],
-      "relatedPracticeIds": ["pr-sunday-mass", "pr-daily-mass"],
-      "relatedTextIds": [],
-      "relatedEventIds": ["ev-sunday-mass"]
+      "tags": [
+        "altar",
+        "church_furnishing"
+      ],
+      "sourcesOfTruth": [
+        "liturgical books"
+      ],
+      "sourceEntityIds": []
     },
     {
       "id": "ent-lent-season",
@@ -523,15 +648,15 @@ const data = {
       "name": "Lent",
       "kind": "idea",
       "summary": "A liturgical season of forty days of prayer, fasting, and almsgiving in preparation for Easter.",
-      "isGeneric": true,
       "notes": null,
-      "tags": ["lent", "season"],
-      "sourcesOfTruth": ["liturgical tradition"],
-      "sourceEntityIds": [],
-      "relatedEntityIds": [],
-      "relatedPracticeIds": ["pr-lenten-fasting", "pr-charity-service"],
-      "relatedTextIds": [],
-      "relatedEventIds": ["ev-lent-season", "ev-ash-wednesday"]
+      "tags": [
+        "lent",
+        "season"
+      ],
+      "sourcesOfTruth": [
+        "liturgical tradition"
+      ],
+      "sourceEntityIds": []
     },
     {
       "id": "ent-easter-sunday",
@@ -539,15 +664,15 @@ const data = {
       "name": "Easter Sunday",
       "kind": "idea",
       "summary": "The principal feast of the liturgical year, celebrating the resurrection of Jesus from the dead.",
-      "isGeneric": true,
       "notes": null,
-      "tags": ["easter", "feast"],
-      "sourcesOfTruth": ["liturgical tradition"],
-      "sourceEntityIds": [],
-      "relatedEntityIds": ["ent-jesus-christ"],
-      "relatedPracticeIds": ["pr-sunday-mass"],
-      "relatedTextIds": [],
-      "relatedEventIds": ["ev-easter-sunday"]
+      "tags": [
+        "easter",
+        "feast"
+      ],
+      "sourcesOfTruth": [
+        "liturgical tradition"
+      ],
+      "sourceEntityIds": []
     },
     {
       "id": "ent-crucifix-object",
@@ -555,15 +680,15 @@ const data = {
       "name": "Crucifix",
       "kind": "object",
       "summary": "A cross bearing the figure of the crucified Christ, used as a devotional and liturgical symbol.",
-      "isGeneric": true,
       "notes": null,
-      "tags": ["crucifix", "symbol"],
-      "sourcesOfTruth": ["devotional tradition"],
-      "sourceEntityIds": [],
-      "relatedEntityIds": ["ent-jesus-christ"],
-      "relatedPracticeIds": ["pr-daily-rosary"],
-      "relatedTextIds": [],
-      "relatedEventIds": []
+      "tags": [
+        "crucifix",
+        "symbol"
+      ],
+      "sourcesOfTruth": [
+        "devotional tradition"
+      ],
+      "sourceEntityIds": []
     },
     {
       "id": "ent-rosary-object",
@@ -571,15 +696,15 @@ const data = {
       "name": "Rosary Beads",
       "kind": "object",
       "summary": "A string of beads used to count prayers in the devotion known as the Rosary.",
-      "isGeneric": true,
       "notes": null,
-      "tags": ["rosary", "devotion"],
-      "sourcesOfTruth": ["devotional tradition"],
-      "sourceEntityIds": [],
-      "relatedEntityIds": ["ent-virgin-mary"],
-      "relatedPracticeIds": ["pr-daily-rosary"],
-      "relatedTextIds": [],
-      "relatedEventIds": []
+      "tags": [
+        "rosary",
+        "devotion"
+      ],
+      "sourcesOfTruth": [
+        "devotional tradition"
+      ],
+      "sourceEntityIds": []
     }
   ],
   "practices": [
@@ -592,12 +717,34 @@ const data = {
       "frequency": "weekly",
       "isPublic": true,
       "notes": null,
-      "tags": ["mass", "eucharist", "worship"],
-      "involvedEntityIds": ["ent-god-trinity", "ent-jesus-christ", "ent-eucharist-sacrament", "ent-altar", "ent-parish-local"],
-      "instructionsTextIds": ["txt-catechism-eucharist"],
-      "supportingClaimIds": ["clm-real-presence-eucharist", "clm-sunday-obligation"],
-      "sourcesOfTruth": ["Bible", "liturgical books", "Canon law"],
-      "sourceEntityIds": ["ent-bible-book", "ent-catechism"]
+      "tags": [
+        "mass",
+        "eucharist",
+        "worship"
+      ],
+      "involvedEntityIds": [
+        "ent-god-trinity",
+        "ent-jesus-christ",
+        "ent-eucharist-sacrament",
+        "ent-altar",
+        "ent-parish-local"
+      ],
+      "instructionsTextIds": [
+        "txt-catechism-eucharist"
+      ],
+      "supportingClaimIds": [
+        "clm-real-presence-eucharist",
+        "clm-sunday-obligation"
+      ],
+      "sourcesOfTruth": [
+        "Bible",
+        "liturgical books",
+        "Canon law"
+      ],
+      "sourceEntityIds": [
+        "ent-bible-book",
+        "ent-catechism"
+      ]
     },
     {
       "id": "pr-daily-mass",
@@ -608,11 +755,25 @@ const data = {
       "frequency": "daily",
       "isPublic": true,
       "notes": null,
-      "tags": ["mass", "eucharist"],
-      "involvedEntityIds": ["ent-god-trinity", "ent-jesus-christ", "ent-eucharist-sacrament", "ent-altar"],
-      "instructionsTextIds": ["txt-catechism-eucharist"],
-      "supportingClaimIds": ["clm-real-presence-eucharist"],
-      "sourcesOfTruth": ["liturgical books"],
+      "tags": [
+        "mass",
+        "eucharist"
+      ],
+      "involvedEntityIds": [
+        "ent-god-trinity",
+        "ent-jesus-christ",
+        "ent-eucharist-sacrament",
+        "ent-altar"
+      ],
+      "instructionsTextIds": [
+        "txt-catechism-eucharist"
+      ],
+      "supportingClaimIds": [
+        "clm-real-presence-eucharist"
+      ],
+      "sourcesOfTruth": [
+        "liturgical books"
+      ],
       "sourceEntityIds": []
     },
     {
@@ -624,12 +785,27 @@ const data = {
       "frequency": "other",
       "isPublic": false,
       "notes": "Celebrated individually as needed; some parishes have scheduled times.",
-      "tags": ["confession", "penance", "healing"],
-      "involvedEntityIds": ["ent-church-universal", "ent-parish-local"],
-      "instructionsTextIds": ["txt-confession-instructions"],
-      "supportingClaimIds": ["clm-grace-participation"],
-      "sourcesOfTruth": ["Catechism of the Catholic Church"],
-      "sourceEntityIds": ["ent-catechism"]
+      "tags": [
+        "confession",
+        "penance",
+        "healing"
+      ],
+      "involvedEntityIds": [
+        "ent-church-universal",
+        "ent-parish-local"
+      ],
+      "instructionsTextIds": [
+        "txt-confession-instructions"
+      ],
+      "supportingClaimIds": [
+        "clm-grace-participation"
+      ],
+      "sourcesOfTruth": [
+        "Catechism of the Catholic Church"
+      ],
+      "sourceEntityIds": [
+        "ent-catechism"
+      ]
     },
     {
       "id": "pr-daily-rosary",
@@ -640,11 +816,22 @@ const data = {
       "frequency": "daily",
       "isPublic": false,
       "notes": null,
-      "tags": ["rosary", "devotion"],
-      "involvedEntityIds": ["ent-virgin-mary", "ent-rosary-object", "ent-crucifix-object"],
+      "tags": [
+        "rosary",
+        "devotion"
+      ],
+      "involvedEntityIds": [
+        "ent-virgin-mary",
+        "ent-rosary-object",
+        "ent-crucifix-object"
+      ],
       "instructionsTextIds": [],
-      "supportingClaimIds": ["clm-communion-of-saints"],
-      "sourcesOfTruth": ["devotional tradition"],
+      "supportingClaimIds": [
+        "clm-communion-of-saints"
+      ],
+      "sourcesOfTruth": [
+        "devotional tradition"
+      ],
       "sourceEntityIds": []
     },
     {
@@ -656,11 +843,22 @@ const data = {
       "frequency": "yearly",
       "isPublic": true,
       "notes": "Exact rules vary by region and age.",
-      "tags": ["lent", "fasting", "abstinence"],
-      "involvedEntityIds": ["ent-lent-season"],
+      "tags": [
+        "lent",
+        "fasting",
+        "abstinence"
+      ],
+      "involvedEntityIds": [
+        "ent-lent-season"
+      ],
       "instructionsTextIds": [],
-      "supportingClaimIds": ["clm-lent-penance"],
-      "sourcesOfTruth": ["Canon law", "bishops' conference guidelines"],
+      "supportingClaimIds": [
+        "clm-lent-penance"
+      ],
+      "sourcesOfTruth": [
+        "Canon law",
+        "bishops' conference guidelines"
+      ],
       "sourceEntityIds": []
     },
     {
@@ -672,12 +870,25 @@ const data = {
       "frequency": "other",
       "isPublic": true,
       "notes": null,
-      "tags": ["charity", "service"],
-      "involvedEntityIds": ["ent-saint-francis", "ent-parish-local"],
+      "tags": [
+        "charity",
+        "service"
+      ],
+      "involvedEntityIds": [
+        "ent-saint-francis",
+        "ent-parish-local"
+      ],
       "instructionsTextIds": [],
-      "supportingClaimIds": ["clm-grace-participation"],
-      "sourcesOfTruth": ["Bible", "Catholic social teaching"],
-      "sourceEntityIds": ["ent-bible-book"]
+      "supportingClaimIds": [
+        "clm-grace-participation"
+      ],
+      "sourcesOfTruth": [
+        "Bible",
+        "Catholic social teaching"
+      ],
+      "sourceEntityIds": [
+        "ent-bible-book"
+      ]
     },
     {
       "id": "pr-bible-study-group",
@@ -688,11 +899,22 @@ const data = {
       "frequency": "monthly",
       "isPublic": true,
       "notes": null,
-      "tags": ["study", "scripture"],
-      "involvedEntityIds": ["ent-bible-book", "ent-catechism", "ent-parish-local"],
+      "tags": [
+        "study",
+        "scripture"
+      ],
+      "involvedEntityIds": [
+        "ent-bible-book",
+        "ent-catechism",
+        "ent-parish-local"
+      ],
       "instructionsTextIds": [],
-      "supportingClaimIds": ["clm-grace-participation"],
-      "sourcesOfTruth": ["pastoral practice"],
+      "supportingClaimIds": [
+        "clm-grace-participation"
+      ],
+      "sourcesOfTruth": [
+        "pastoral practice"
+      ],
       "sourceEntityIds": []
     }
   ],
@@ -705,11 +927,26 @@ const data = {
       "recurrence": "weekly",
       "timingRule": "Every Sunday, typically in the morning, at times set by the parish.",
       "notes": null,
-      "tags": ["mass", "sunday", "parish"],
-      "mainPracticeIds": ["pr-sunday-mass"],
-      "mainEntityIds": ["ent-parish-local", "ent-eucharist-sacrament"],
-      "readingTextIds": ["txt-bible-root", "txt-nt-gospels", "txt-nicene-creed"],
-      "supportingClaimIds": ["clm-sunday-obligation"]
+      "tags": [
+        "mass",
+        "sunday",
+        "parish"
+      ],
+      "mainPracticeIds": [
+        "pr-sunday-mass"
+      ],
+      "mainEntityIds": [
+        "ent-parish-local",
+        "ent-eucharist-sacrament"
+      ],
+      "readingTextIds": [
+        "txt-bible-root",
+        "txt-nt-gospels",
+        "txt-nicene-creed"
+      ],
+      "supportingClaimIds": [
+        "clm-sunday-obligation"
+      ]
     },
     {
       "id": "ev-daily-mass",
@@ -719,11 +956,23 @@ const data = {
       "recurrence": "daily",
       "timingRule": "On most weekdays, at times set by the parish.",
       "notes": null,
-      "tags": ["mass", "daily"],
-      "mainPracticeIds": ["pr-daily-mass"],
-      "mainEntityIds": ["ent-parish-local", "ent-eucharist-sacrament"],
-      "readingTextIds": ["txt-bible-root"],
-      "supportingClaimIds": ["clm-real-presence-eucharist"]
+      "tags": [
+        "mass",
+        "daily"
+      ],
+      "mainPracticeIds": [
+        "pr-daily-mass"
+      ],
+      "mainEntityIds": [
+        "ent-parish-local",
+        "ent-eucharist-sacrament"
+      ],
+      "readingTextIds": [
+        "txt-bible-root"
+      ],
+      "supportingClaimIds": [
+        "clm-real-presence-eucharist"
+      ]
     },
     {
       "id": "ev-easter-sunday",
@@ -733,11 +982,23 @@ const data = {
       "recurrence": "yearly",
       "timingRule": "The Sunday after the first full moon following the northern spring equinox.",
       "notes": null,
-      "tags": ["easter", "feast"],
-      "mainPracticeIds": ["pr-sunday-mass"],
-      "mainEntityIds": ["ent-jesus-christ", "ent-easter-sunday"],
-      "readingTextIds": ["txt-nt-gospels"],
-      "supportingClaimIds": ["clm-trinity-central"]
+      "tags": [
+        "easter",
+        "feast"
+      ],
+      "mainPracticeIds": [
+        "pr-sunday-mass"
+      ],
+      "mainEntityIds": [
+        "ent-jesus-christ",
+        "ent-easter-sunday"
+      ],
+      "readingTextIds": [
+        "txt-nt-gospels"
+      ],
+      "supportingClaimIds": [
+        "clm-trinity-central"
+      ]
     },
     {
       "id": "ev-christmas-day",
@@ -747,11 +1008,24 @@ const data = {
       "recurrence": "yearly",
       "timingRule": "December 25 each year.",
       "notes": null,
-      "tags": ["christmas", "feast"],
-      "mainPracticeIds": ["pr-sunday-mass"],
-      "mainEntityIds": ["ent-jesus-christ", "ent-virgin-mary"],
-      "readingTextIds": ["txt-nt-gospels", "txt-commentary-on-mary"],
-      "supportingClaimIds": ["clm-mary-mother-of-god"]
+      "tags": [
+        "christmas",
+        "feast"
+      ],
+      "mainPracticeIds": [
+        "pr-sunday-mass"
+      ],
+      "mainEntityIds": [
+        "ent-jesus-christ",
+        "ent-virgin-mary"
+      ],
+      "readingTextIds": [
+        "txt-nt-gospels",
+        "txt-commentary-on-mary"
+      ],
+      "supportingClaimIds": [
+        "clm-mary-mother-of-god"
+      ]
     },
     {
       "id": "ev-ash-wednesday",
@@ -761,11 +1035,22 @@ const data = {
       "recurrence": "yearly",
       "timingRule": "46 days before Easter Sunday.",
       "notes": null,
-      "tags": ["lent", "penance"],
-      "mainPracticeIds": ["pr-lenten-fasting"],
-      "mainEntityIds": ["ent-lent-season"],
-      "readingTextIds": ["txt-moral-rule-summary"],
-      "supportingClaimIds": ["clm-lent-penance"]
+      "tags": [
+        "lent",
+        "penance"
+      ],
+      "mainPracticeIds": [
+        "pr-lenten-fasting"
+      ],
+      "mainEntityIds": [
+        "ent-lent-season"
+      ],
+      "readingTextIds": [
+        "txt-moral-rule-summary"
+      ],
+      "supportingClaimIds": [
+        "clm-lent-penance"
+      ]
     },
     {
       "id": "ev-first-friday-devotion",
@@ -775,9 +1060,16 @@ const data = {
       "recurrence": "monthly",
       "timingRule": "First Friday of each month.",
       "notes": null,
-      "tags": ["devotion", "sacred_heart"],
-      "mainPracticeIds": ["pr-daily-mass"],
-      "mainEntityIds": ["ent-jesus-christ"],
+      "tags": [
+        "devotion",
+        "sacred_heart"
+      ],
+      "mainPracticeIds": [
+        "pr-daily-mass"
+      ],
+      "mainEntityIds": [
+        "ent-jesus-christ"
+      ],
       "readingTextIds": [],
       "supportingClaimIds": []
     },
@@ -789,9 +1081,14 @@ const data = {
       "recurrence": "once",
       "timingRule": "On a particular date chosen by the bishop.",
       "notes": null,
-      "tags": ["ordination", "holy_orders"],
+      "tags": [
+        "ordination",
+        "holy_orders"
+      ],
       "mainPracticeIds": [],
-      "mainEntityIds": ["ent-church-universal"],
+      "mainEntityIds": [
+        "ent-church-universal"
+      ],
       "readingTextIds": [],
       "supportingClaimIds": []
     },
@@ -803,11 +1100,21 @@ const data = {
       "recurrence": "other",
       "timingRule": "From Ash Wednesday until the beginning of the Easter Triduum.",
       "notes": null,
-      "tags": ["lent", "season"],
-      "mainPracticeIds": ["pr-lenten-fasting", "pr-charity-service"],
-      "mainEntityIds": ["ent-lent-season"],
+      "tags": [
+        "lent",
+        "season"
+      ],
+      "mainPracticeIds": [
+        "pr-lenten-fasting",
+        "pr-charity-service"
+      ],
+      "mainEntityIds": [
+        "ent-lent-season"
+      ],
       "readingTextIds": [],
-      "supportingClaimIds": ["clm-lent-penance"]
+      "supportingClaimIds": [
+        "clm-lent-penance"
+      ]
     }
   ],
   "rules": [
@@ -817,14 +1124,34 @@ const data = {
       "shortText": "Catholics must attend Mass on Sundays and holy days of obligation.",
       "kind": "must_do",
       "details": "Missing Mass on these days without a serious reason is considered a grave matter.",
-      "appliesTo": ["Catholic faithful of required age"],
-      "domain": ["worship", "sacramental_law"],
-      "tags": ["mass", "obligation"],
-      "supportingTextIds": ["txt-nicene-creed", "txt-catechism-root"],
-      "supportingClaimIds": ["clm-sunday-obligation"],
-      "relatedPracticeIds": ["pr-sunday-mass"],
-      "sourcesOfTruth": ["Canon law", "Catechism of the Catholic Church"],
-      "sourceEntityIds": ["ent-catechism"]
+      "appliesTo": [
+        "Catholic faithful of required age"
+      ],
+      "domain": [
+        "worship",
+        "sacramental_law"
+      ],
+      "tags": [
+        "mass",
+        "obligation"
+      ],
+      "supportingTextIds": [
+        "txt-nicene-creed",
+        "txt-catechism-root"
+      ],
+      "supportingClaimIds": [
+        "clm-sunday-obligation"
+      ],
+      "relatedPracticeIds": [
+        "pr-sunday-mass"
+      ],
+      "sourcesOfTruth": [
+        "Canon law",
+        "Catechism of the Catholic Church"
+      ],
+      "sourceEntityIds": [
+        "ent-catechism"
+      ]
     },
     {
       "id": "rl-no-meat-fridays-lent",
@@ -832,13 +1159,31 @@ const data = {
       "shortText": "Abstain from meat on Fridays in Lent.",
       "kind": "must_not_do",
       "details": "On Fridays during Lent, Catholics of appropriate age are asked not to eat meat as a small act of penance.",
-      "appliesTo": ["Catholic faithful of required age"],
-      "domain": ["penance", "diet"],
-      "tags": ["lent", "fasting", "abstinence"],
-      "supportingTextIds": ["txt-moral-rule-summary"],
-      "supportingClaimIds": ["clm-lent-penance"],
-      "relatedPracticeIds": ["pr-lenten-fasting"],
-      "sourcesOfTruth": ["Canon law", "bishops' conference guidelines"],
+      "appliesTo": [
+        "Catholic faithful of required age"
+      ],
+      "domain": [
+        "penance",
+        "diet"
+      ],
+      "tags": [
+        "lent",
+        "fasting",
+        "abstinence"
+      ],
+      "supportingTextIds": [
+        "txt-moral-rule-summary"
+      ],
+      "supportingClaimIds": [
+        "clm-lent-penance"
+      ],
+      "relatedPracticeIds": [
+        "pr-lenten-fasting"
+      ],
+      "sourcesOfTruth": [
+        "Canon law",
+        "bishops' conference guidelines"
+      ],
       "sourceEntityIds": []
     },
     {
@@ -847,14 +1192,33 @@ const data = {
       "shortText": "Catholics should confess serious sins at least once a year.",
       "kind": "should_do",
       "details": "The Church encourages regular use of the Sacrament of Reconciliation, especially when conscious of serious sin.",
-      "appliesTo": ["Catholic faithful"],
-      "domain": ["penance", "sacramental_law"],
-      "tags": ["confession", "penance"],
-      "supportingTextIds": ["txt-catechism-root"],
-      "supportingClaimIds": ["clm-grace-participation"],
-      "relatedPracticeIds": ["pr-reconciliation"],
-      "sourcesOfTruth": ["Canon law", "Catechism of the Catholic Church"],
-      "sourceEntityIds": ["ent-catechism"]
+      "appliesTo": [
+        "Catholic faithful"
+      ],
+      "domain": [
+        "penance",
+        "sacramental_law"
+      ],
+      "tags": [
+        "confession",
+        "penance"
+      ],
+      "supportingTextIds": [
+        "txt-catechism-root"
+      ],
+      "supportingClaimIds": [
+        "clm-grace-participation"
+      ],
+      "relatedPracticeIds": [
+        "pr-reconciliation"
+      ],
+      "sourcesOfTruth": [
+        "Canon law",
+        "Catechism of the Catholic Church"
+      ],
+      "sourceEntityIds": [
+        "ent-catechism"
+      ]
     },
     {
       "id": "rl-daily-prayer-ideal",
@@ -862,13 +1226,30 @@ const data = {
       "shortText": "Daily personal prayer is an ideal for every Catholic.",
       "kind": "ideal",
       "details": "Catholics are encouraged to set aside time each day for prayer, reading Scripture, and conversation with God.",
-      "appliesTo": ["Catholic faithful"],
-      "domain": ["prayer", "spiritual_life"],
-      "tags": ["prayer", "ideal"],
-      "supportingTextIds": ["txt-our-father"],
-      "supportingClaimIds": ["clm-grace-participation"],
-      "relatedPracticeIds": ["pr-daily-rosary", "pr-bible-study-group"],
-      "sourcesOfTruth": ["spiritual tradition"],
+      "appliesTo": [
+        "Catholic faithful"
+      ],
+      "domain": [
+        "prayer",
+        "spiritual_life"
+      ],
+      "tags": [
+        "prayer",
+        "ideal"
+      ],
+      "supportingTextIds": [
+        "txt-our-father"
+      ],
+      "supportingClaimIds": [
+        "clm-grace-participation"
+      ],
+      "relatedPracticeIds": [
+        "pr-daily-rosary",
+        "pr-bible-study-group"
+      ],
+      "sourcesOfTruth": [
+        "spiritual tradition"
+      ],
       "sourceEntityIds": []
     }
   ],
@@ -878,11 +1259,26 @@ const data = {
       "movementId": "mov-catholic",
       "text": "The mystery of the Most Holy Trinity—one God in three persons—is the central mystery of Catholic faith and life.",
       "category": "theology",
-      "tags": ["trinity", "core_belief"],
-      "sourceTextIds": ["txt-catechism-trinity", "txt-nicene-creed"],
-      "aboutEntityIds": ["ent-god-trinity", "ent-god-father", "ent-god-son", "ent-holy-spirit"],
-      "sourcesOfTruth": ["Catechism of the Catholic Church"],
-      "sourceEntityIds": ["ent-catechism"],
+      "tags": [
+        "trinity",
+        "core_belief"
+      ],
+      "sourceTextIds": [
+        "txt-catechism-trinity",
+        "txt-nicene-creed"
+      ],
+      "aboutEntityIds": [
+        "ent-god-trinity",
+        "ent-god-father",
+        "ent-god-son",
+        "ent-holy-spirit"
+      ],
+      "sourcesOfTruth": [
+        "Catechism of the Catholic Church"
+      ],
+      "sourceEntityIds": [
+        "ent-catechism"
+      ],
       "notes": null
     },
     {
@@ -890,11 +1286,25 @@ const data = {
       "movementId": "mov-catholic",
       "text": "In the Eucharist, the consecrated bread and wine truly become the body and blood of Christ, while remaining under the appearances of bread and wine.",
       "category": "sacramental_theology",
-      "tags": ["eucharist", "real_presence"],
-      "sourceTextIds": ["txt-luke-last-supper", "txt-catechism-eucharist"],
-      "aboutEntityIds": ["ent-eucharist-sacrament", "ent-eucharist-host", "ent-jesus-christ"],
-      "sourcesOfTruth": ["Catechism of the Catholic Church"],
-      "sourceEntityIds": ["ent-catechism"],
+      "tags": [
+        "eucharist",
+        "real_presence"
+      ],
+      "sourceTextIds": [
+        "txt-luke-last-supper",
+        "txt-catechism-eucharist"
+      ],
+      "aboutEntityIds": [
+        "ent-eucharist-sacrament",
+        "ent-eucharist-host",
+        "ent-jesus-christ"
+      ],
+      "sourcesOfTruth": [
+        "Catechism of the Catholic Church"
+      ],
+      "sourceEntityIds": [
+        "ent-catechism"
+      ],
       "notes": null
     },
     {
@@ -902,11 +1312,23 @@ const data = {
       "movementId": "mov-catholic",
       "text": "The Catholic Church recognizes seven sacraments instituted by Christ as effective signs of grace: Baptism, Confirmation, Eucharist, Penance, Anointing of the Sick, Holy Orders, and Matrimony.",
       "category": "sacramental_theology",
-      "tags": ["sacraments", "seven"],
-      "sourceTextIds": ["txt-catechism-root"],
-      "aboutEntityIds": ["ent-eucharist-sacrament"],
-      "sourcesOfTruth": ["Catechism of the Catholic Church", "Council of Trent"],
-      "sourceEntityIds": ["ent-catechism"],
+      "tags": [
+        "sacraments",
+        "seven"
+      ],
+      "sourceTextIds": [
+        "txt-catechism-root"
+      ],
+      "aboutEntityIds": [
+        "ent-eucharist-sacrament"
+      ],
+      "sourcesOfTruth": [
+        "Catechism of the Catholic Church",
+        "Council of Trent"
+      ],
+      "sourceEntityIds": [
+        "ent-catechism"
+      ],
       "notes": null
     },
     {
@@ -914,11 +1336,24 @@ const data = {
       "movementId": "mov-catholic",
       "text": "Mary is honored as Mother of God because the one she bore is truly God the Son made man.",
       "category": "mariology",
-      "tags": ["mary", "mother_of_god"],
-      "sourceTextIds": ["txt-commentary-on-mary"],
-      "aboutEntityIds": ["ent-virgin-mary", "ent-jesus-christ"],
-      "sourcesOfTruth": ["Ecumenical councils", "Catechism of the Catholic Church"],
-      "sourceEntityIds": ["ent-catechism"],
+      "tags": [
+        "mary",
+        "mother_of_god"
+      ],
+      "sourceTextIds": [
+        "txt-commentary-on-mary"
+      ],
+      "aboutEntityIds": [
+        "ent-virgin-mary",
+        "ent-jesus-christ"
+      ],
+      "sourcesOfTruth": [
+        "Ecumenical councils",
+        "Catechism of the Catholic Church"
+      ],
+      "sourceEntityIds": [
+        "ent-catechism"
+      ],
       "notes": null
     },
     {
@@ -926,11 +1361,22 @@ const data = {
       "movementId": "mov-catholic",
       "text": "Grace is a participation in the life of God, given through Christ by the Holy Spirit.",
       "category": "grace",
-      "tags": ["grace"],
-      "sourceTextIds": ["txt-catechism-root"],
-      "aboutEntityIds": ["ent-god-trinity", "ent-church-universal"],
-      "sourcesOfTruth": ["Catechism of the Catholic Church"],
-      "sourceEntityIds": ["ent-catechism"],
+      "tags": [
+        "grace"
+      ],
+      "sourceTextIds": [
+        "txt-catechism-root"
+      ],
+      "aboutEntityIds": [
+        "ent-god-trinity",
+        "ent-church-universal"
+      ],
+      "sourcesOfTruth": [
+        "Catechism of the Catholic Church"
+      ],
+      "sourceEntityIds": [
+        "ent-catechism"
+      ],
       "notes": null
     },
     {
@@ -938,11 +1384,23 @@ const data = {
       "movementId": "mov-catholic",
       "text": "Sunday, the day of the Lord’s resurrection, is the principal day for the celebration of the Eucharist and a day of obligation for Catholics to participate in Mass.",
       "category": "worship",
-      "tags": ["sunday", "obligation"],
-      "sourceTextIds": ["txt-catechism-root"],
-      "aboutEntityIds": ["ent-church-universal"],
-      "sourcesOfTruth": ["Catechism of the Catholic Church", "Canon law"],
-      "sourceEntityIds": ["ent-catechism"],
+      "tags": [
+        "sunday",
+        "obligation"
+      ],
+      "sourceTextIds": [
+        "txt-catechism-root"
+      ],
+      "aboutEntityIds": [
+        "ent-church-universal"
+      ],
+      "sourcesOfTruth": [
+        "Catechism of the Catholic Church",
+        "Canon law"
+      ],
+      "sourceEntityIds": [
+        "ent-catechism"
+      ],
       "notes": null
     },
     {
@@ -950,10 +1408,19 @@ const data = {
       "movementId": "mov-catholic",
       "text": "Lent is a season of special prayer, fasting, and works of charity in preparation for Easter.",
       "category": "penance",
-      "tags": ["lent", "penance"],
-      "sourceTextIds": ["txt-moral-rule-summary"],
-      "aboutEntityIds": ["ent-lent-season"],
-      "sourcesOfTruth": ["liturgical tradition"],
+      "tags": [
+        "lent",
+        "penance"
+      ],
+      "sourceTextIds": [
+        "txt-moral-rule-summary"
+      ],
+      "aboutEntityIds": [
+        "ent-lent-season"
+      ],
+      "sourcesOfTruth": [
+        "liturgical tradition"
+      ],
       "sourceEntityIds": [],
       "notes": null
     },
@@ -962,11 +1429,22 @@ const data = {
       "movementId": "mov-catholic",
       "text": "Catholics believe in the communion of saints, a spiritual solidarity among the faithful on earth, the souls in purification, and the saints in heaven.",
       "category": "ecclesiology",
-      "tags": ["communion_of_saints"],
-      "sourceTextIds": ["txt-nicene-creed"],
-      "aboutEntityIds": ["ent-church-universal"],
-      "sourcesOfTruth": ["Creeds", "Catechism of the Catholic Church"],
-      "sourceEntityIds": ["ent-catechism"],
+      "tags": [
+        "communion_of_saints"
+      ],
+      "sourceTextIds": [
+        "txt-nicene-creed"
+      ],
+      "aboutEntityIds": [
+        "ent-church-universal"
+      ],
+      "sourcesOfTruth": [
+        "Creeds",
+        "Catechism of the Catholic Church"
+      ],
+      "sourceEntityIds": [
+        "ent-catechism"
+      ],
       "notes": null
     }
   ],
@@ -978,10 +1456,22 @@ const data = {
       "uri": "https://example.com/images/crucifix.jpg",
       "title": "Crucifix in Parish Church",
       "description": "A crucifix above the altar, symbolizing the sacrifice of Christ remembered in the Mass.",
-      "tags": ["crucifix", "altar", "mass"],
-      "linkedEntityIds": ["ent-crucifix-object", "ent-altar"],
-      "linkedPracticeIds": ["pr-sunday-mass", "pr-daily-rosary"],
-      "linkedEventIds": ["ev-sunday-mass"],
+      "tags": [
+        "crucifix",
+        "altar",
+        "mass"
+      ],
+      "linkedEntityIds": [
+        "ent-crucifix-object",
+        "ent-altar"
+      ],
+      "linkedPracticeIds": [
+        "pr-sunday-mass",
+        "pr-daily-rosary"
+      ],
+      "linkedEventIds": [
+        "ev-sunday-mass"
+      ],
       "linkedTextIds": []
     },
     {
@@ -991,10 +1481,20 @@ const data = {
       "uri": "https://example.com/audio/gregorian-chant.mp3",
       "title": "Gregorian Chant Kyrie",
       "description": "An example of Gregorian chant used in the liturgy.",
-      "tags": ["chant", "music", "liturgy"],
-      "linkedEntityIds": ["ent-church-universal"],
-      "linkedPracticeIds": ["pr-sunday-mass"],
-      "linkedEventIds": ["ev-sunday-mass"],
+      "tags": [
+        "chant",
+        "music",
+        "liturgy"
+      ],
+      "linkedEntityIds": [
+        "ent-church-universal"
+      ],
+      "linkedPracticeIds": [
+        "pr-sunday-mass"
+      ],
+      "linkedEventIds": [
+        "ev-sunday-mass"
+      ],
       "linkedTextIds": []
     },
     {
@@ -1004,11 +1504,23 @@ const data = {
       "uri": "https://example.com/video/sunday-mass.mp4",
       "title": "Recorded Sunday Mass",
       "description": "Video of a Sunday Mass including readings, homily, and Eucharistic prayer.",
-      "tags": ["mass", "video"],
-      "linkedEntityIds": ["ent-parish-local", "ent-altar"],
-      "linkedPracticeIds": ["pr-sunday-mass"],
-      "linkedEventIds": ["ev-sunday-mass"],
-      "linkedTextIds": ["txt-catechism-eucharist"]
+      "tags": [
+        "mass",
+        "video"
+      ],
+      "linkedEntityIds": [
+        "ent-parish-local",
+        "ent-altar"
+      ],
+      "linkedPracticeIds": [
+        "pr-sunday-mass"
+      ],
+      "linkedEventIds": [
+        "ev-sunday-mass"
+      ],
+      "linkedTextIds": [
+        "txt-catechism-eucharist"
+      ]
     },
     {
       "id": "med-hymn-text",
@@ -1017,11 +1529,22 @@ const data = {
       "uri": "https://example.com/text/hymn.txt",
       "title": "Hymn Text Excerpt",
       "description": "A short hymn text praising the Trinity (example, not an actual hymn).",
-      "tags": ["hymn", "text"],
-      "linkedEntityIds": ["ent-god-trinity"],
-      "linkedPracticeIds": ["pr-sunday-mass"],
-      "linkedEventIds": ["ev-sunday-mass"],
-      "linkedTextIds": ["txt-catechism-trinity"]
+      "tags": [
+        "hymn",
+        "text"
+      ],
+      "linkedEntityIds": [
+        "ent-god-trinity"
+      ],
+      "linkedPracticeIds": [
+        "pr-sunday-mass"
+      ],
+      "linkedEventIds": [
+        "ev-sunday-mass"
+      ],
+      "linkedTextIds": [
+        "txt-catechism-trinity"
+      ]
     },
     {
       "id": "med-3d-church-model",
@@ -1030,10 +1553,17 @@ const data = {
       "uri": "https://example.com/models/church.glb",
       "title": "3D Model of Parish Church",
       "description": "A 3D model asset representing a parish church building.",
-      "tags": ["3d", "church_building"],
-      "linkedEntityIds": ["ent-parish-local"],
+      "tags": [
+        "3d",
+        "church_building"
+      ],
+      "linkedEntityIds": [
+        "ent-parish-local"
+      ],
       "linkedPracticeIds": [],
-      "linkedEventIds": ["ev-sunday-mass"],
+      "linkedEventIds": [
+        "ev-sunday-mass"
+      ],
       "linkedTextIds": []
     }
   ],
@@ -1044,9 +1574,12 @@ const data = {
       "targetType": "Movement",
       "targetId": "mov-catholic",
       "author": "system",
-      "body": "This file is an illustrative example of the v3.3 schema applied to the Roman Catholic Church. It is not exhaustive or official doctrine, but highlights how texts, entities, practices, events, claims, rules, media, and relations can be structured.",
+      "body": "This file is an illustrative example of the v3.4 movement data model applied to the Roman Catholic Church. It is not exhaustive or official doctrine, but highlights how texts, entities, practices, events, claims, rules, media, and relations can be structured.",
       "context": "designer",
-      "tags": ["meta", "example"]
+      "tags": [
+        "meta",
+        "example"
+      ]
     },
     {
       "id": "note-mary-dogmas",
@@ -1056,7 +1589,11 @@ const data = {
       "author": "system",
       "body": "Catholic teaching includes several dogmas about Mary, such as her title Mother of God, her perpetual virginity, her Immaculate Conception, and her Assumption. Here we only summarize part of that teaching.",
       "context": "theological_note",
-      "tags": ["mary", "dogma", "summary"]
+      "tags": [
+        "mary",
+        "dogma",
+        "summary"
+      ]
     }
   ],
   "relations": [
@@ -1066,10 +1603,20 @@ const data = {
       "fromEntityId": "ent-virgin-mary",
       "toEntityId": "ent-jesus-christ",
       "relationType": "mother_of",
-      "tags": ["mary", "family"],
-      "supportingClaimIds": ["clm-mary-mother-of-god"],
-      "sourcesOfTruth": ["Bible", "Ecumenical councils"],
-      "sourceEntityIds": ["ent-bible-book"],
+      "tags": [
+        "mary",
+        "family"
+      ],
+      "supportingClaimIds": [
+        "clm-mary-mother-of-god"
+      ],
+      "sourcesOfTruth": [
+        "Bible",
+        "Ecumenical councils"
+      ],
+      "sourceEntityIds": [
+        "ent-bible-book"
+      ],
       "notes": "Expresses the relationship that underlies the Marian title Mother of God."
     },
     {
@@ -1078,10 +1625,20 @@ const data = {
       "fromEntityId": "ent-jesus-christ",
       "toEntityId": "ent-god-trinity",
       "relationType": "second_person_of_trinity",
-      "tags": ["christology", "trinity"],
-      "supportingClaimIds": ["clm-trinity-central"],
-      "sourcesOfTruth": ["Nicene Creed", "Catechism of the Catholic Church"],
-      "sourceEntityIds": ["ent-catechism"],
+      "tags": [
+        "christology",
+        "trinity"
+      ],
+      "supportingClaimIds": [
+        "clm-trinity-central"
+      ],
+      "sourcesOfTruth": [
+        "Nicene Creed",
+        "Catechism of the Catholic Church"
+      ],
+      "sourceEntityIds": [
+        "ent-catechism"
+      ],
       "notes": "Links the historical person of Jesus with the doctrinal statement about the Trinity."
     },
     {
@@ -1090,9 +1647,14 @@ const data = {
       "fromEntityId": "ent-parish-local",
       "toEntityId": "ent-diocese",
       "relationType": "part_of",
-      "tags": ["structure", "jurisdiction"],
+      "tags": [
+        "structure",
+        "jurisdiction"
+      ],
       "supportingClaimIds": [],
-      "sourcesOfTruth": ["Canon law"],
+      "sourcesOfTruth": [
+        "Canon law"
+      ],
       "sourceEntityIds": [],
       "notes": "Shows that the local parish is part of a larger diocesan structure."
     },
@@ -1102,9 +1664,14 @@ const data = {
       "fromEntityId": "ent-pope-office",
       "toEntityId": "ent-church-universal",
       "relationType": "leads",
-      "tags": ["governance"],
+      "tags": [
+        "governance"
+      ],
       "supportingClaimIds": [],
-      "sourcesOfTruth": ["Catholic tradition", "Canon law"],
+      "sourcesOfTruth": [
+        "Catholic tradition",
+        "Canon law"
+      ],
       "sourceEntityIds": [],
       "notes": "Expresses the Pope's role as visible head of the Catholic Church on earth."
     },
@@ -1114,10 +1681,19 @@ const data = {
       "fromEntityId": "ent-eucharist-host",
       "toEntityId": "ent-jesus-christ",
       "relationType": "sacramental_sign_of",
-      "tags": ["eucharist", "sacrament"],
-      "supportingClaimIds": ["clm-real-presence-eucharist"],
-      "sourcesOfTruth": ["Catechism of the Catholic Church"],
-      "sourceEntityIds": ["ent-catechism"],
+      "tags": [
+        "eucharist",
+        "sacrament"
+      ],
+      "supportingClaimIds": [
+        "clm-real-presence-eucharist"
+      ],
+      "sourcesOfTruth": [
+        "Catechism of the Catholic Church"
+      ],
+      "sourceEntityIds": [
+        "ent-catechism"
+      ],
       "notes": "The consecrated host is the sacramental sign and presence of Christ in the Eucharist."
     }
   ]
