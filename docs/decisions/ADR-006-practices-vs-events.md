@@ -5,7 +5,7 @@ Accepted
 
 ## Context
 
-Religions involve both **what** people do (rituals, prayers, acts of service, learning) and **when** they do them (daily, weekly, annual festivals, life‑cycle events).  We debated whether to fold these dimensions together into a single entity—e.g. a “Ritual” record with frequency attributes—or to handle timing entirely outside the schema.  However, we noticed that many practices occur in multiple contexts (a sacrament celebrated at a weekly service and on special feasts) and that events often involve multiple practices (an Easter vigil includes readings, sacraments and hymns).  Our design needed to express these many‑to‑many relationships clearly while keeping scheduling flexible.
+Movements involve both **what** people do (rituals, prayers, acts of service, learning) and **when** they do them (daily, weekly, annual festivals, life‑cycle events).  We debated whether to fold these dimensions together into a single entity—e.g. a “Ritual” record with frequency attributes—or to handle timing entirely outside the schema.  However, we noticed that many practices occur in multiple contexts (a sacrament celebrated at a weekly service and on special feasts) and that events often involve multiple practices (an Easter vigil includes readings, sacraments and hymns).  Our design needed to express these many‑to‑many relationships clearly while keeping scheduling flexible.
 
 ## Decision
 

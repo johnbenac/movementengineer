@@ -1,10 +1,10 @@
 /*
- * View Model builders for Religion Designer.
+ * View Model builders for Movement Engineer.
  *
  * These functions translate raw collection data (as described by data-model v3.4)
  * into derived shapes optimised for specific UI needs. Each builder expects a
  * `data` object containing arrays named after the collections:
- * religions, textCollections, texts, entities, practices, events,
+ * movements, textCollections, texts, entities, practices, events,
  * rules, claims, media, notes, relations.
  *
  * The output mirrors the canonical view models described in the project brief.
@@ -39,25 +39,25 @@ function histogram(items, keyAccessor) {
   }, {});
 }
 
-function filterByReligion(items, religionId, includeShared = false) {
+function filterByMovement(items, movementId, includeShared = false) {
   return normaliseArray(items).filter(item =>
-    item && (item.religionId === religionId || (includeShared && item.religionId == null))
+    item && (item.movementId === movementId || (includeShared && item.movementId == null))
   );
 }
 
-function buildReligionDashboardViewModel(data, input) {
-  const { religionId } = input;
-  const religions = buildLookup(data.religions);
-  const religion = religions.get(religionId) || null;
+function buildMovementDashboardViewModel(data, input) {
+  const { movementId } = input;
+  const movements = buildLookup(data.movements);
+  const movement = movements.get(movementId) || null;
 
-  const textCollections = filterByReligion(data.textCollections, religionId);
-  const texts = filterByReligion(data.texts, religionId);
-  const entities = filterByReligion(data.entities, religionId);
-  const practices = filterByReligion(data.practices, religionId);
-  const events = filterByReligion(data.events, religionId);
-  const rules = filterByReligion(data.rules, religionId);
-  const claims = filterByReligion(data.claims, religionId, true);
-  const media = filterByReligion(data.media, religionId, true);
+  const textCollections = filterByMovement(data.textCollections, movementId);
+  const texts = filterByMovement(data.texts, movementId);
+  const entities = filterByMovement(data.entities, movementId);
+  const practices = filterByMovement(data.practices, movementId);
+  const events = filterByMovement(data.events, movementId);
+  const rules = filterByMovement(data.rules, movementId);
+  const claims = filterByMovement(data.claims, movementId, true);
+  const media = filterByMovement(data.media, movementId, true);
 
   const textStats = {
     totalTexts: texts.length,
@@ -89,7 +89,7 @@ function buildReligionDashboardViewModel(data, input) {
   };
 
   return {
-    religion,
+    movement,
     textCollections,
     textStats,
     entityStats,
@@ -103,13 +103,13 @@ function buildReligionDashboardViewModel(data, input) {
 }
 
 function buildScriptureTreeViewModel(data, input) {
-  const { religionId, textCollectionId } = input;
+  const { movementId, textCollectionId } = input;
   const collections = buildLookup(data.textCollections);
   const collection = textCollectionId ? collections.get(textCollectionId) || null : null;
-  const texts = filterByReligion(data.texts, religionId);
-  const claims = filterByReligion(data.claims, religionId, true);
-  const events = filterByReligion(data.events, religionId);
-  const entities = buildLookup(filterByReligion(data.entities, religionId));
+  const texts = filterByMovement(data.texts, movementId);
+  const claims = filterByMovement(data.claims, movementId, true);
+  const events = filterByMovement(data.events, movementId);
+  const entities = buildLookup(filterByMovement(data.entities, movementId));
 
   const childrenByParent = new Map();
   texts.forEach(text => {
@@ -260,10 +260,10 @@ function buildEntityDetailViewModel(data, input) {
 }
 
 function buildEntityGraphViewModel(data, input) {
-  const { religionId, centerEntityId, depth, relationTypeFilter } = input;
+  const { movementId, centerEntityId, depth, relationTypeFilter } = input;
   const entityLookup = buildLookup(data.entities);
 
-  let relations = filterByReligion(data.relations, religionId, true);
+  let relations = filterByMovement(data.relations, movementId, true);
   if (Array.isArray(relationTypeFilter) && relationTypeFilter.length > 0) {
     relations = relations.filter(rel => relationTypeFilter.includes(rel.relationType));
   }
@@ -380,8 +380,8 @@ function buildPracticeDetailViewModel(data, input) {
 }
 
 function buildCalendarViewModel(data, input) {
-  const { religionId, recurrenceFilter } = input;
-  let events = filterByReligion(data.events, religionId);
+  const { movementId, recurrenceFilter } = input;
+  let events = filterByMovement(data.events, movementId);
   if (Array.isArray(recurrenceFilter) && recurrenceFilter.length > 0) {
     events = events.filter(event => recurrenceFilter.includes(event.recurrence));
   }
@@ -417,14 +417,14 @@ function buildCalendarViewModel(data, input) {
   }));
 
   return {
-    religionId,
+    movementId,
     events: eventCards
   };
 }
 
 function buildClaimsExplorerViewModel(data, input) {
-  const { religionId, categoryFilter, entityIdFilter } = input;
-  let claims = filterByReligion(data.claims, religionId, true);
+  const { movementId, categoryFilter, entityIdFilter } = input;
+  let claims = filterByMovement(data.claims, movementId, true);
   if (Array.isArray(categoryFilter) && categoryFilter.length > 0) {
     claims = claims.filter(claim => claim.category && categoryFilter.includes(claim.category));
   }
@@ -455,8 +455,8 @@ function buildClaimsExplorerViewModel(data, input) {
 }
 
 function buildRuleExplorerViewModel(data, input) {
-  const { religionId, kindFilter, domainFilter } = input;
-  let rules = filterByReligion(data.rules, religionId);
+  const { movementId, kindFilter, domainFilter } = input;
+  let rules = filterByMovement(data.rules, movementId);
   if (Array.isArray(kindFilter) && kindFilter.length > 0) {
     rules = rules.filter(rule => kindFilter.includes(rule.kind));
   }
@@ -495,12 +495,12 @@ function buildRuleExplorerViewModel(data, input) {
 }
 
 function buildAuthorityViewModel(data, input) {
-  const { religionId } = input;
-  const claims = filterByReligion(data.claims, religionId, true);
-  const rules = filterByReligion(data.rules, religionId);
-  const practices = filterByReligion(data.practices, religionId);
-  const entities = filterByReligion(data.entities, religionId);
-  const relations = filterByReligion(data.relations, religionId, true);
+  const { movementId } = input;
+  const claims = filterByMovement(data.claims, movementId, true);
+  const rules = filterByMovement(data.rules, movementId);
+  const practices = filterByMovement(data.practices, movementId);
+  const entities = filterByMovement(data.entities, movementId);
+  const relations = filterByMovement(data.relations, movementId, true);
 
   const sources = new Map();
   const addSourceUsage = (label, key, id) => {
@@ -574,8 +574,8 @@ function buildAuthorityViewModel(data, input) {
 }
 
 function buildMediaGalleryViewModel(data, input) {
-  const { religionId, entityIdFilter, practiceIdFilter, eventIdFilter, textIdFilter } = input;
-  let media = filterByReligion(data.media, religionId, true);
+  const { movementId, entityIdFilter, practiceIdFilter, eventIdFilter, textIdFilter } = input;
+  let media = filterByMovement(data.media, movementId, true);
 
   media = media.filter(asset => {
     if (entityIdFilter && !normaliseArray(asset.linkedEntityIds).includes(entityIdFilter)) return false;
@@ -619,8 +619,8 @@ function buildMediaGalleryViewModel(data, input) {
 }
 
 function buildRelationExplorerViewModel(data, input) {
-  const { religionId, relationTypeFilter, entityIdFilter } = input;
-  let relations = filterByReligion(data.relations, religionId, true);
+  const { movementId, relationTypeFilter, entityIdFilter } = input;
+  let relations = filterByMovement(data.relations, movementId, true);
 
   if (Array.isArray(relationTypeFilter) && relationTypeFilter.length > 0) {
     relations = relations.filter(rel => relationTypeFilter.includes(rel.relationType));
@@ -653,12 +653,12 @@ function buildRelationExplorerViewModel(data, input) {
 }
 
 function buildComparisonViewModel(data, input) {
-  const { religionIds } = input;
+  const { movementIds } = input;
 
-  const buildRow = religionId => {
-    const dashboard = buildReligionDashboardViewModel(data, { religionId });
+  const buildRow = movementId => {
+    const dashboard = buildMovementDashboardViewModel(data, { movementId });
     return {
-      religion: dashboard.religion,
+      movement: dashboard.movement,
       textCounts: {
         works: dashboard.textStats.works,
         totalTexts: dashboard.textStats.totalTexts
@@ -680,12 +680,12 @@ function buildComparisonViewModel(data, input) {
     };
   };
 
-  return { rows: normaliseArray(religionIds).map(buildRow) };
+  return { rows: normaliseArray(movementIds).map(buildRow) };
 }
 
 function buildNotesViewModel(data, input) {
-  const { religionId, targetTypeFilter, targetIdFilter } = input;
-  let notes = filterByReligion(data.notes, religionId, true);
+  const { movementId, targetTypeFilter, targetIdFilter } = input;
+  let notes = filterByMovement(data.notes, movementId, true);
   if (targetTypeFilter) {
     notes = notes.filter(note => note.targetType === targetTypeFilter);
   }
@@ -726,7 +726,7 @@ function buildNotesViewModel(data, input) {
 }
 
 const ViewModels = {
-  buildReligionDashboardViewModel,
+  buildMovementDashboardViewModel,
   buildScriptureTreeViewModel,
   buildEntityDetailViewModel,
   buildEntityGraphViewModel,

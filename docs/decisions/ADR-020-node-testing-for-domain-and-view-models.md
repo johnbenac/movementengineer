@@ -5,7 +5,7 @@ Accepted
 
 ## Context
 
-Our religion designer runs as a static SPA in the browser (ADR‑016) with core logic implemented as pure JavaScript functions (ADR‑017).  Before integrating a GUI or server, we need confidence that the domain model and view model builders behave correctly.  We considered testing in the browser using end‑to‑end frameworks or writing tests in the same environment as the SPA.  Browser testing adds overhead and complexity, especially when our functions have no DOM dependencies.  Node offers a lightweight environment for executing JavaScript and can run on CI without a GUI.  The question was whether to adopt a heavyweight test framework now or to keep tests simple and environment‑agnostic.
+Our movement engineer runs as a static SPA in the browser (ADR‑016) with core logic implemented as pure JavaScript functions (ADR‑017).  Before integrating a GUI or server, we need confidence that the domain model and view model builders behave correctly.  We considered testing in the browser using end‑to‑end frameworks or writing tests in the same environment as the SPA.  Browser testing adds overhead and complexity, especially when our functions have no DOM dependencies.  Node offers a lightweight environment for executing JavaScript and can run on CI without a GUI.  The question was whether to adopt a heavyweight test framework now or to keep tests simple and environment‑agnostic.
 
 ## Decision
 
@@ -28,4 +28,4 @@ Using Node for testing aligns with our pure function architecture (ADR‑017) an
 
 ### Mitigation
 - After the SPA is built, supplement unit tests with integration tests using a browser environment (e.g. Playwright or Cypress) to validate the complete stack.
-- Maintain a library of sample religion datasets and utilities to simplify test authoring.
+- Maintain a library of sample movement datasets and utilities to simplify test authoring.

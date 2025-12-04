@@ -39,9 +39,9 @@
     }
   },
   "entities": {
-    "Religion": {
-      "description": "A religion or spiritual system being designed or described.",
-      "collectionName": "religions",
+    "Movement": {
+      "description": "A movement or spiritual system being designed or described.",
+      "collectionName": "movements",
       "fields": {
         "id": { "type": "string", "format": "id", "required": true },
         "name": { "type": "string", "required": true },
@@ -60,10 +60,10 @@
       "collectionName": "textCollections",
       "fields": {
         "id": { "type": "string", "format": "id", "required": true },
-        "religionId": {
+        "movementId": {
           "type": "string",
           "format": "id",
-          "ref": "Religion",
+          "ref": "Movement",
           "required": true
         },
         "name": { "type": "string", "required": true },
@@ -85,10 +85,10 @@
       "collectionName": "texts",
       "fields": {
         "id": { "type": "string", "format": "id", "required": true },
-        "religionId": {
+        "movementId": {
           "type": "string",
           "format": "id",
-          "ref": "Religion",
+          "ref": "Movement",
           "required": true
         },
         "parentId": {
@@ -123,14 +123,14 @@
       }
     },
     "Entity": {
-      "description": "Anything that exists in the world of the religion: beings, places, objects, ideas. Relationships to other things are expressed via Relation records and one-way references from texts, practices, events, claims, and media.",
+      "description": "Anything that exists in the world of the movement: beings, places, objects, ideas. Relationships to other things are expressed via Relation records and one-way references from texts, practices, events, claims, and media.",
       "collectionName": "entities",
       "fields": {
         "id": { "type": "string", "format": "id", "required": true },
-        "religionId": {
+        "movementId": {
           "type": "string",
           "format": "id",
-          "ref": "Religion",
+          "ref": "Movement",
           "nullable": true
         },
         "name": { "type": "string", "required": true },
@@ -159,14 +159,14 @@
       }
     },
     "Practice": {
-      "description": "Things people do as part of the religion: rituals, disciplines, service, study. Practices point outward to entities, texts, and claims; the reverse links are not stored on those objects.",
+      "description": "Things people do as part of the movement: rituals, disciplines, service, study. Practices point outward to entities, texts, and claims; the reverse links are not stored on those objects.",
       "collectionName": "practices",
       "fields": {
         "id": { "type": "string", "format": "id", "required": true },
-        "religionId": {
+        "movementId": {
           "type": "string",
           "format": "id",
-          "ref": "Religion",
+          "ref": "Movement",
           "required": true
         },
         "name": { "type": "string", "required": true },
@@ -220,10 +220,10 @@
       "collectionName": "events",
       "fields": {
         "id": { "type": "string", "format": "id", "required": true },
-        "religionId": {
+        "movementId": {
           "type": "string",
           "format": "id",
-          "ref": "Religion",
+          "ref": "Movement",
           "required": true
         },
         "name": { "type": "string", "required": true },
@@ -267,10 +267,10 @@
       "collectionName": "rules",
       "fields": {
         "id": { "type": "string", "format": "id", "required": true },
-        "religionId": {
+        "movementId": {
           "type": "string",
           "format": "id",
-          "ref": "Religion",
+          "ref": "Movement",
           "required": true
         },
         "shortText": { "type": "string", "required": true },
@@ -327,10 +327,10 @@
       "collectionName": "claims",
       "fields": {
         "id": { "type": "string", "format": "id", "required": true },
-        "religionId": {
+        "movementId": {
           "type": "string",
           "format": "id",
-          "ref": "Religion",
+          "ref": "Movement",
           "nullable": true
         },
         "text": { "type": "string", "required": true },
@@ -364,14 +364,14 @@
       }
     },
     "MediaAsset": {
-      "description": "Image, icon, artwork, audio, video, etc., tied to religion content. MediaAssets point outward to the objects they depict or relate to.",
+      "description": "Image, icon, artwork, audio, video, etc., tied to movement content. MediaAssets point outward to the objects they depict or relate to.",
       "collectionName": "media",
       "fields": {
         "id": { "type": "string", "format": "id", "required": true },
-        "religionId": {
+        "movementId": {
           "type": "string",
           "format": "id",
-          "ref": "Religion",
+          "ref": "Movement",
           "nullable": true
         },
         "kind": {
@@ -414,10 +414,10 @@
       "collectionName": "notes",
       "fields": {
         "id": { "type": "string", "format": "id", "required": true },
-        "religionId": {
+        "movementId": {
           "type": "string",
           "format": "id",
-          "ref": "Religion",
+          "ref": "Movement",
           "nullable": true
         },
         "targetType": { "type": "string", "required": true },
@@ -437,10 +437,10 @@
       "collectionName": "relations",
       "fields": {
         "id": { "type": "string", "format": "id", "required": true },
-        "religionId": {
+        "movementId": {
           "type": "string",
           "format": "id",
-          "ref": "Religion",
+          "ref": "Movement",
           "nullable": true
         },
         "fromEntityId": {

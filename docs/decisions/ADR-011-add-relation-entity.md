@@ -24,7 +24,7 @@ Having a dedicated `Relation` entity lifts semantic connections to first‑class
 
 ### Negative
 - Data creators must create separate relation records instead of quickly adding IDs to an array.
-- Without a central vocabulary, relationType values may vary across religions; consistent naming conventions need to be agreed upon.
+- Without a central vocabulary, relationType values may vary across movements; consistent naming conventions need to be agreed upon.
 
 ### Mitigation
 - Provide a recommended list of common `relationType` values (e.g. parent_of, part_of, instance_of) and encourage consistent use.

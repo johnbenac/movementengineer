@@ -11,7 +11,7 @@ As the project grew from a single schema file into multiple layers of logic, we 
 
 We adopt a **file and module separation convention** based on layers:
 
-1. **Schema definitions** live in their own modules: `data-model.js` defines the core religion schema; `comparison-model.js` (ADR‑018) defines comparison and template meta‑models.  These files contain no logic, only declarative schemas.
+1. **Schema definitions** live in their own modules: `data-model.js` defines the core movement schema; `comparison-model.js` (ADR‑018) defines comparison and template meta‑models.  These files contain no logic, only declarative schemas.
 2. **Domain logic** lives in service modules: `view-models.js` contains pure projection functions (ADR‑019); future files like `comparison-services.js` will implement comparison and template operations (ADR‑018).
 3. **Tests** live alongside code or in a `tests` directory, and are executed via Node (ADR‑020).
 4. **Documentation** lives in `docs/decisions` as Architectural Decision Records and in other markdown files for usage notes.

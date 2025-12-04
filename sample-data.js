@@ -1,8 +1,8 @@
 const data = {
   "version": "3.4",
-  "religions": [
+  "movements": [
     {
-      "id": "rel-catholic",
+      "id": "mov-catholic",
       "name": "Roman Catholic Church",
       "shortName": "Catholic",
       "summary": "The Roman Catholic Church is a worldwide Christian church that teaches one God in three persons, centered on Jesus Christ, the sacraments, and a liturgical life ordered around the Eucharist.",
@@ -13,7 +13,7 @@ const data = {
   "textCollections": [
     {
       "id": "tc-catholic-bible",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "Sacred Scripture (Bible)",
       "description": "The collection of biblical books recognized and used in the Catholic Church.",
       "tags": ["scripture", "bible"],
@@ -21,7 +21,7 @@ const data = {
     },
     {
       "id": "tc-catholic-catechism",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "Catechism and Creeds",
       "description": "Key doctrinal summaries such as the Catechism of the Catholic Church and the Nicene Creed.",
       "tags": ["catechism", "creed", "doctrine"],
@@ -31,7 +31,7 @@ const data = {
   "texts": [
     {
       "id": "txt-bible-root",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "parentId": null,
       "level": "work",
       "title": "The Holy Bible",
@@ -45,7 +45,7 @@ const data = {
     },
     {
       "id": "txt-nt-gospels",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "parentId": "txt-bible-root",
       "level": "section",
       "title": "Gospels",
@@ -59,7 +59,7 @@ const data = {
     },
     {
       "id": "txt-luke-last-supper",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "parentId": "txt-nt-gospels",
       "level": "passage",
       "title": "Institution of the Eucharist (summary)",
@@ -73,7 +73,7 @@ const data = {
     },
     {
       "id": "txt-luke-last-supper-line1",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "parentId": "txt-luke-last-supper",
       "level": "line",
       "title": "Words over the bread (paraphrase)",
@@ -87,7 +87,7 @@ const data = {
     },
     {
       "id": "txt-catechism-root",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "parentId": null,
       "level": "work",
       "title": "Catechism of the Catholic Church (summary)",
@@ -101,7 +101,7 @@ const data = {
     },
     {
       "id": "txt-catechism-trinity",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "parentId": "txt-catechism-root",
       "level": "passage",
       "title": "On the Trinity (summary)",
@@ -115,7 +115,7 @@ const data = {
     },
     {
       "id": "txt-catechism-eucharist",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "parentId": "txt-catechism-root",
       "level": "passage",
       "title": "On the Eucharist (summary)",
@@ -129,7 +129,7 @@ const data = {
     },
     {
       "id": "txt-nicene-creed",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "parentId": null,
       "level": "work",
       "title": "Nicene Creed (summary)",
@@ -143,7 +143,7 @@ const data = {
     },
     {
       "id": "txt-our-father",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "parentId": null,
       "level": "work",
       "title": "The Lord's Prayer (Our Father) paraphrase",
@@ -157,7 +157,7 @@ const data = {
     },
     {
       "id": "txt-confession-instructions",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "parentId": null,
       "level": "passage",
       "title": "How to Receive the Sacrament of Reconciliation",
@@ -171,7 +171,7 @@ const data = {
     },
     {
       "id": "txt-saint-francis-story",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "parentId": null,
       "level": "passage",
       "title": "Story of Saint Francis of Assisi (short summary)",
@@ -185,7 +185,7 @@ const data = {
     },
     {
       "id": "txt-commentary-on-mary",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "parentId": "txt-catechism-root",
       "level": "passage",
       "title": "On Mary, Mother of God (commentary summary)",
@@ -199,7 +199,7 @@ const data = {
     },
     {
       "id": "txt-moral-rule-summary",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "parentId": null,
       "level": "passage",
       "title": "Summary of Christian Moral Life",
@@ -215,7 +215,7 @@ const data = {
   "entities": [
     {
       "id": "ent-god-trinity",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "The Holy Trinity",
       "kind": "being",
       "summary": "One God in three distinct persons: Father, Son, and Holy Spirit, the central mystery of Catholic faith and life.",
@@ -231,7 +231,7 @@ const data = {
     },
     {
       "id": "ent-god-father",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "God the Father",
       "kind": "being",
       "summary": "The first person of the Trinity, creator and source of all that exists.",
@@ -247,7 +247,7 @@ const data = {
     },
     {
       "id": "ent-god-son",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "God the Son",
       "kind": "being",
       "summary": "The second person of the Trinity, who became incarnate as Jesus Christ.",
@@ -263,7 +263,7 @@ const data = {
     },
     {
       "id": "ent-holy-spirit",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "The Holy Spirit",
       "kind": "being",
       "summary": "The third person of the Trinity, who gives life to the Church and dwells in believers.",
@@ -279,7 +279,7 @@ const data = {
     },
     {
       "id": "ent-jesus-christ",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "Jesus Christ",
       "kind": "being",
       "summary": "The incarnate Son of God, fully divine and fully human, whose life, death, and resurrection are at the center of Catholic faith.",
@@ -295,7 +295,7 @@ const data = {
     },
     {
       "id": "ent-virgin-mary",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "Mary, Mother of Jesus",
       "kind": "being",
       "summary": "The mother of Jesus, honored as Mother of God and model disciple in Catholic tradition.",
@@ -311,7 +311,7 @@ const data = {
     },
     {
       "id": "ent-saint-francis",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "Saint Francis of Assisi",
       "kind": "being",
       "summary": "A medieval Catholic saint known for his embrace of poverty and love of creation.",
@@ -327,7 +327,7 @@ const data = {
     },
     {
       "id": "ent-church-universal",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "The Catholic Church",
       "kind": "idea",
       "summary": "The worldwide community of believers united in faith, sacraments, and governance under the Pope and bishops.",
@@ -343,7 +343,7 @@ const data = {
     },
     {
       "id": "ent-parish-local",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "Local Parish",
       "kind": "being",
       "summary": "A local community of Catholics gathered around a church building under the care of a pastor.",
@@ -359,7 +359,7 @@ const data = {
     },
     {
       "id": "ent-diocese",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "Diocese",
       "kind": "being",
       "summary": "A regional grouping of parishes under the leadership of a bishop.",
@@ -375,7 +375,7 @@ const data = {
     },
     {
       "id": "ent-pope-office",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "The Pope",
       "kind": "being",
       "summary": "The bishop of Rome and visible head of the Catholic Church on earth.",
@@ -391,7 +391,7 @@ const data = {
     },
     {
       "id": "ent-heaven",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "Heaven",
       "kind": "place",
       "summary": "The state of eternal life in union with God and the saints.",
@@ -407,7 +407,7 @@ const data = {
     },
     {
       "id": "ent-hell",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "Hell",
       "kind": "place",
       "summary": "The state of definitive self-exclusion from communion with God and the blessed.",
@@ -423,7 +423,7 @@ const data = {
     },
     {
       "id": "ent-purgatory",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "Purgatory",
       "kind": "place",
       "summary": "A state of purification for those who die in God's grace but are not yet fully perfected.",
@@ -439,7 +439,7 @@ const data = {
     },
     {
       "id": "ent-bible-book",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "Sacred Scripture (Bible)",
       "kind": "object",
       "summary": "The collection of inspired writings of the Old and New Testaments used in Catholic worship and teaching.",
@@ -455,7 +455,7 @@ const data = {
     },
     {
       "id": "ent-catechism",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "Catechism of the Catholic Church",
       "kind": "object",
       "summary": "A reference text that systematically presents Catholic doctrine, morals, and worship.",
@@ -471,7 +471,7 @@ const data = {
     },
     {
       "id": "ent-eucharist-sacrament",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "Sacrament of the Eucharist",
       "kind": "idea",
       "summary": "The sacrament in which Christ becomes present under the appearances of bread and wine and the faithful receive his body and blood.",
@@ -487,7 +487,7 @@ const data = {
     },
     {
       "id": "ent-eucharist-host",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "Consecrated Host",
       "kind": "object",
       "summary": "The consecrated bread which Catholics believe is the body of Christ in the Eucharist.",
@@ -503,7 +503,7 @@ const data = {
     },
     {
       "id": "ent-altar",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "Altar",
       "kind": "object",
       "summary": "The table in a church on which the Eucharistic sacrifice is offered.",
@@ -519,7 +519,7 @@ const data = {
     },
     {
       "id": "ent-lent-season",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "Lent",
       "kind": "idea",
       "summary": "A liturgical season of forty days of prayer, fasting, and almsgiving in preparation for Easter.",
@@ -535,7 +535,7 @@ const data = {
     },
     {
       "id": "ent-easter-sunday",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "Easter Sunday",
       "kind": "idea",
       "summary": "The principal feast of the liturgical year, celebrating the resurrection of Jesus from the dead.",
@@ -551,7 +551,7 @@ const data = {
     },
     {
       "id": "ent-crucifix-object",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "Crucifix",
       "kind": "object",
       "summary": "A cross bearing the figure of the crucified Christ, used as a devotional and liturgical symbol.",
@@ -567,7 +567,7 @@ const data = {
     },
     {
       "id": "ent-rosary-object",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "Rosary Beads",
       "kind": "object",
       "summary": "A string of beads used to count prayers in the devotion known as the Rosary.",
@@ -585,7 +585,7 @@ const data = {
   "practices": [
     {
       "id": "pr-sunday-mass",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "Sunday Mass",
       "kind": "ritual",
       "description": "The main weekly gathering where Catholics celebrate the Eucharist, hear Scripture, and pray together.",
@@ -601,7 +601,7 @@ const data = {
     },
     {
       "id": "pr-daily-mass",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "Daily Mass",
       "kind": "ritual",
       "description": "A weekday celebration of the Eucharist for those who are able to attend.",
@@ -617,7 +617,7 @@ const data = {
     },
     {
       "id": "pr-reconciliation",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "Sacrament of Reconciliation (Confession)",
       "kind": "ritual",
       "description": "The sacrament in which Catholics confess sins to a priest, receive absolution, and perform a penance.",
@@ -633,7 +633,7 @@ const data = {
     },
     {
       "id": "pr-daily-rosary",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "Daily Rosary",
       "kind": "discipline",
       "description": "A devotional practice of meditative prayer using rosary beads, reflecting on events in the life of Christ and Mary.",
@@ -649,7 +649,7 @@ const data = {
     },
     {
       "id": "pr-lenten-fasting",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "Lenten Fasting and Abstinence",
       "kind": "discipline",
       "description": "Fasting and abstaining from meat on certain days during Lent as an act of penance.",
@@ -665,7 +665,7 @@ const data = {
     },
     {
       "id": "pr-charity-service",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "Acts of Charity and Service",
       "kind": "service",
       "description": "Helping the poor, visiting the sick, and serving the community as expressions of love of neighbor.",
@@ -681,7 +681,7 @@ const data = {
     },
     {
       "id": "pr-bible-study-group",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "Parish Bible Study",
       "kind": "study",
       "description": "A group that meets regularly to read and reflect on Scripture and Church teaching.",
@@ -699,7 +699,7 @@ const data = {
   "events": [
     {
       "id": "ev-sunday-mass",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "Sunday Mass at Parish",
       "description": "Weekly parish celebration of the Eucharist on Sunday, the day of the Lord's resurrection.",
       "recurrence": "weekly",
@@ -713,7 +713,7 @@ const data = {
     },
     {
       "id": "ev-daily-mass",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "Daily Mass",
       "description": "Daily celebration of the Eucharist in some parishes or communities.",
       "recurrence": "daily",
@@ -727,7 +727,7 @@ const data = {
     },
     {
       "id": "ev-easter-sunday",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "Easter Sunday",
       "description": "The chief feast of the Church year, celebrating the resurrection of Jesus.",
       "recurrence": "yearly",
@@ -741,7 +741,7 @@ const data = {
     },
     {
       "id": "ev-christmas-day",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "Christmas Day",
       "description": "Feast celebrating the birth of Jesus Christ.",
       "recurrence": "yearly",
@@ -755,7 +755,7 @@ const data = {
     },
     {
       "id": "ev-ash-wednesday",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "Ash Wednesday",
       "description": "The first day of Lent, marked by receiving ashes on the forehead as a sign of repentance.",
       "recurrence": "yearly",
@@ -769,7 +769,7 @@ const data = {
     },
     {
       "id": "ev-first-friday-devotion",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "First Friday Devotion",
       "description": "Monthly devotion to the Sacred Heart of Jesus, often including Mass and adoration on the first Friday of each month.",
       "recurrence": "monthly",
@@ -783,7 +783,7 @@ const data = {
     },
     {
       "id": "ev-ordination-example",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "Ordination of a Priest (example)",
       "description": "A one-time celebration of the sacrament of Holy Orders for a specific candidate.",
       "recurrence": "once",
@@ -797,7 +797,7 @@ const data = {
     },
     {
       "id": "ev-lent-season",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "name": "Season of Lent",
       "description": "The liturgical season of prayer, fasting, and almsgiving leading up to Easter.",
       "recurrence": "other",
@@ -813,7 +813,7 @@ const data = {
   "rules": [
     {
       "id": "rl-sunday-mass-obligation",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "shortText": "Catholics must attend Mass on Sundays and holy days of obligation.",
       "kind": "must_do",
       "details": "Missing Mass on these days without a serious reason is considered a grave matter.",
@@ -828,7 +828,7 @@ const data = {
     },
     {
       "id": "rl-no-meat-fridays-lent",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "shortText": "Abstain from meat on Fridays in Lent.",
       "kind": "must_not_do",
       "details": "On Fridays during Lent, Catholics of appropriate age are asked not to eat meat as a small act of penance.",
@@ -843,7 +843,7 @@ const data = {
     },
     {
       "id": "rl-annual-confession",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "shortText": "Catholics should confess serious sins at least once a year.",
       "kind": "should_do",
       "details": "The Church encourages regular use of the Sacrament of Reconciliation, especially when conscious of serious sin.",
@@ -858,7 +858,7 @@ const data = {
     },
     {
       "id": "rl-daily-prayer-ideal",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "shortText": "Daily personal prayer is an ideal for every Catholic.",
       "kind": "ideal",
       "details": "Catholics are encouraged to set aside time each day for prayer, reading Scripture, and conversation with God.",
@@ -875,7 +875,7 @@ const data = {
   "claims": [
     {
       "id": "clm-trinity-central",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "text": "The mystery of the Most Holy Trinity—one God in three persons—is the central mystery of Catholic faith and life.",
       "category": "theology",
       "tags": ["trinity", "core_belief"],
@@ -887,7 +887,7 @@ const data = {
     },
     {
       "id": "clm-real-presence-eucharist",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "text": "In the Eucharist, the consecrated bread and wine truly become the body and blood of Christ, while remaining under the appearances of bread and wine.",
       "category": "sacramental_theology",
       "tags": ["eucharist", "real_presence"],
@@ -899,7 +899,7 @@ const data = {
     },
     {
       "id": "clm-seven-sacraments",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "text": "The Catholic Church recognizes seven sacraments instituted by Christ as effective signs of grace: Baptism, Confirmation, Eucharist, Penance, Anointing of the Sick, Holy Orders, and Matrimony.",
       "category": "sacramental_theology",
       "tags": ["sacraments", "seven"],
@@ -911,7 +911,7 @@ const data = {
     },
     {
       "id": "clm-mary-mother-of-god",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "text": "Mary is honored as Mother of God because the one she bore is truly God the Son made man.",
       "category": "mariology",
       "tags": ["mary", "mother_of_god"],
@@ -923,7 +923,7 @@ const data = {
     },
     {
       "id": "clm-grace-participation",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "text": "Grace is a participation in the life of God, given through Christ by the Holy Spirit.",
       "category": "grace",
       "tags": ["grace"],
@@ -935,7 +935,7 @@ const data = {
     },
     {
       "id": "clm-sunday-obligation",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "text": "Sunday, the day of the Lord’s resurrection, is the principal day for the celebration of the Eucharist and a day of obligation for Catholics to participate in Mass.",
       "category": "worship",
       "tags": ["sunday", "obligation"],
@@ -947,7 +947,7 @@ const data = {
     },
     {
       "id": "clm-lent-penance",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "text": "Lent is a season of special prayer, fasting, and works of charity in preparation for Easter.",
       "category": "penance",
       "tags": ["lent", "penance"],
@@ -959,7 +959,7 @@ const data = {
     },
     {
       "id": "clm-communion-of-saints",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "text": "Catholics believe in the communion of saints, a spiritual solidarity among the faithful on earth, the souls in purification, and the saints in heaven.",
       "category": "ecclesiology",
       "tags": ["communion_of_saints"],
@@ -973,7 +973,7 @@ const data = {
   "media": [
     {
       "id": "med-crucifix-photo",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "kind": "image",
       "uri": "https://example.com/images/crucifix.jpg",
       "title": "Crucifix in Parish Church",
@@ -986,7 +986,7 @@ const data = {
     },
     {
       "id": "med-gregorian-chant",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "kind": "audio",
       "uri": "https://example.com/audio/gregorian-chant.mp3",
       "title": "Gregorian Chant Kyrie",
@@ -999,7 +999,7 @@ const data = {
     },
     {
       "id": "med-mass-video",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "kind": "video",
       "uri": "https://example.com/video/sunday-mass.mp4",
       "title": "Recorded Sunday Mass",
@@ -1012,7 +1012,7 @@ const data = {
     },
     {
       "id": "med-hymn-text",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "kind": "text",
       "uri": "https://example.com/text/hymn.txt",
       "title": "Hymn Text Excerpt",
@@ -1025,7 +1025,7 @@ const data = {
     },
     {
       "id": "med-3d-church-model",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "kind": "other",
       "uri": "https://example.com/models/church.glb",
       "title": "3D Model of Parish Church",
@@ -1039,10 +1039,10 @@ const data = {
   ],
   "notes": [
     {
-      "id": "note-rel-catholic-meta",
-      "religionId": "rel-catholic",
-      "targetType": "Religion",
-      "targetId": "rel-catholic",
+      "id": "note-mov-catholic-meta",
+      "movementId": "mov-catholic",
+      "targetType": "Movement",
+      "targetId": "mov-catholic",
       "author": "system",
       "body": "This file is an illustrative example of the v3.3 schema applied to the Roman Catholic Church. It is not exhaustive or official doctrine, but highlights how texts, entities, practices, events, claims, rules, media, and relations can be structured.",
       "context": "designer",
@@ -1050,7 +1050,7 @@ const data = {
     },
     {
       "id": "note-mary-dogmas",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "targetType": "Entity",
       "targetId": "ent-virgin-mary",
       "author": "system",
@@ -1062,7 +1062,7 @@ const data = {
   "relations": [
     {
       "id": "rel-mary-mother-of-jesus",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "fromEntityId": "ent-virgin-mary",
       "toEntityId": "ent-jesus-christ",
       "relationType": "mother_of",
@@ -1074,7 +1074,7 @@ const data = {
     },
     {
       "id": "rel-jesus-second-person-of-trinity",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "fromEntityId": "ent-jesus-christ",
       "toEntityId": "ent-god-trinity",
       "relationType": "second_person_of_trinity",
@@ -1086,7 +1086,7 @@ const data = {
     },
     {
       "id": "rel-parish-part-of-diocese",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "fromEntityId": "ent-parish-local",
       "toEntityId": "ent-diocese",
       "relationType": "part_of",
@@ -1098,7 +1098,7 @@ const data = {
     },
     {
       "id": "rel-pope-leads-church",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "fromEntityId": "ent-pope-office",
       "toEntityId": "ent-church-universal",
       "relationType": "leads",
@@ -1110,7 +1110,7 @@ const data = {
     },
     {
       "id": "rel-eucharist-host-sign-of-christ",
-      "religionId": "rel-catholic",
+      "movementId": "mov-catholic",
       "fromEntityId": "ent-eucharist-host",
       "toEntityId": "ent-jesus-christ",
       "relationType": "sacramental_sign_of",

@@ -2,7 +2,7 @@
   "version": "1.0",
   "enums": {
     "ComparisonValueKind": {
-      "description": "Shape/type of the value held in a comparison cell for a given dimension and religion.",
+      "description": "Shape/type of the value held in a comparison cell for a given dimension and movement.",
       "values": [
         "text",
         "number",
@@ -19,7 +19,7 @@
       ]
     },
     "ComparisonSourceKind": {
-      "description": "How a comparison value can be derived automatically from a religion dataset.",
+      "description": "How a comparison value can be derived automatically from a movement dataset.",
       "values": [
         "none",
         "collection_count",
@@ -27,7 +27,7 @@
       ]
     },
     "TemplateCopyMode": {
-      "description": "How to copy objects when applying a ReligionTemplate.",
+      "description": "How to copy objects when applying a MovementTemplate.",
       "values": [
         "copy_all_fields",
         "copy_structure_only",
@@ -38,7 +38,7 @@
   },
   "entities": {
     "ComparisonSchema": {
-      "description": "Definition of a set of dimensions (aspects) used to compare multiple religions.",
+      "description": "Definition of a set of dimensions (aspects) used to compare multiple movements.",
       "collectionName": "comparisonSchemas",
       "fields": {
         "id": { "type": "string", "format": "id", "required": true },
@@ -58,7 +58,7 @@
       }
     },
     "ComparisonBinding": {
-      "description": "Matrix of values for a specific ComparisonSchema and a chosen set of religions.",
+      "description": "Matrix of values for a specific ComparisonSchema and a chosen set of movements.",
       "collectionName": "comparisonBindings",
       "fields": {
         "id": { "type": "string", "format": "id", "required": true },
@@ -75,26 +75,26 @@
           "items": { "type": "string" },
           "required": true
         },
-        "religionIds": {
+        "movementIds": {
           "type": "array",
           "items": {
             "type": "string",
             "format": "id",
-            "ref": "Religion"
+            "ref": "Movement"
           },
           "required": true
         },
         "cells": {
-          "description": "Array of cell objects { dimensionId, religionId, value, notes? }",
+          "description": "Array of cell objects { dimensionId, movementId, value, notes? }",
           "type": "array",
           "items": { "type": "object" },
           "required": true
         }
       }
     },
-    "ReligionTemplate": {
-      "description": "Instructions for deriving a new skeleton religion from an existing one.",
-      "collectionName": "religionTemplates",
+    "MovementTemplate": {
+      "description": "Instructions for deriving a new skeleton movement from an existing one.",
+      "collectionName": "movementTemplates",
       "fields": {
         "id": { "type": "string", "format": "id", "required": true },
         "name": { "type": "string", "required": true },
@@ -104,10 +104,10 @@
           "items": { "type": "string" },
           "required": true
         },
-        "sourceReligionId": {
+        "sourceMovementId": {
           "type": "string",
           "format": "id",
-          "ref": "Religion",
+          "ref": "Movement",
           "nullable": true
         },
         "rules": {

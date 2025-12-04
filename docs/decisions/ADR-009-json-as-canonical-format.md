@@ -5,11 +5,11 @@ Accepted
 
 ## Context
 
-We discussed multiple serialisation formats for storing and sharing religion data, including RDF triples, JSON‑LD, YAML and plain JSON.  RDF/JSON‑LD provides strong semantics and interoperability with linked data but requires complex tooling and adds noise (`@context`, `@id`, `@type`) that is unnecessary for internal use.  YAML is human‑friendly but non‑strict, which can lead to subtle parsing differences across implementations.  Our priority is to support an easy‑to‑understand, stable data format for our religion designer and for future analysis, not to publish linked open data immediately.  The data will live in Git repositories and be consumed by our own tools rather than by generic RDF processors.
+We discussed multiple serialisation formats for storing and sharing movement data, including RDF triples, JSON‑LD, YAML and plain JSON.  RDF/JSON‑LD provides strong semantics and interoperability with linked data but requires complex tooling and adds noise (`@context`, `@id`, `@type`) that is unnecessary for internal use.  YAML is human‑friendly but non‑strict, which can lead to subtle parsing differences across implementations.  Our priority is to support an easy‑to‑understand, stable data format for our movement engineer and for future analysis, not to publish linked open data immediately.  The data will live in Git repositories and be consumed by our own tools rather than by generic RDF processors.
 
 ## Decision
 
-We chose **plain JSON** as the canonical storage and interchange format for religion data.  Each religion snapshot is represented as a JSON object with top‑level arrays for each collection (`religions`, `textCollections`, `texts`, `entities`, `practices`, `events`, `rules`, `claims`, `media`, `notes`, `relations`).  The meta‑schema (defining entities, fields, types and enums) is itself expressed in JSON (e.g. `version`, `enums`, `entities`).  We treat JSON‑LD and RDF as optional export formats that can be generated from our canonical JSON but are not part of our daily workflow.
+We chose **plain JSON** as the canonical storage and interchange format for movement data.  Each movement snapshot is represented as a JSON object with top‑level arrays for each collection (`movements`, `textCollections`, `texts`, `entities`, `practices`, `events`, `rules`, `claims`, `media`, `notes`, `relations`).  The meta‑schema (defining entities, fields, types and enums) is itself expressed in JSON (e.g. `version`, `enums`, `entities`).  We treat JSON‑LD and RDF as optional export formats that can be generated from our canonical JSON but are not part of our daily workflow.
 
 ## Rationale
 

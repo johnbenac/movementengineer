@@ -5,7 +5,7 @@ Accepted
 
 ## Context
 
-When modelling religions, we realised that sacred and instructional writings come in wildly different formats.  Some religions have canonical books with chapters and verses, others have oral recitations transcribed in scrolls, and some use single prayers or hymns as primary texts.  Our goal was to support any religion without embedding a particular book–chapter–verse pattern.  We also wanted to group related works into collections (like “Bible”, “Main Scriptures”, or “Ritual Handbook”) without forcing every text to belong to a collection.  The decision had to account for nested structures (books contain chapters, which contain passages) and stand‑alone pieces (a one‑line prayer).  The model needed to be flexible enough to represent both long narratives and single instructions while remaining simple for implementers.
+When modelling movements, we realised that sacred and instructional writings come in wildly different formats.  Some movements have canonical books with chapters and verses, others have oral recitations transcribed in scrolls, and some use single prayers or hymns as primary texts.  Our goal was to support any movement without embedding a particular book–chapter–verse pattern.  We also wanted to group related works into collections (like “Bible”, “Main Scriptures”, or “Ritual Handbook”) without forcing every text to belong to a collection.  The decision had to account for nested structures (books contain chapters, which contain passages) and stand‑alone pieces (a one‑line prayer).  The model needed to be flexible enough to represent both long narratives and single instructions while remaining simple for implementers.
 
 ## Decision
 
@@ -13,7 +13,7 @@ We defined `TextNode` as a generic hierarchical node with a parent reference and
 
 ## Rationale
 
-By choosing a generic tree with a small set of levels, we avoided hard‑wiring any one religion’s canon structure.  Developers can model Torah scrolls, Vedic hymns, sutras, letters or modern pamphlets using the same API.  Allowing texts outside of collections supports adhoc prayers or instructions.  The flexible `mainFunction` and `tags` fields give downstream tools hints about how to display or process a text without requiring schema changes.  This decision reflects a trade‑off between precision and simplicity: we lose some fidelity about unusual text structures but gain a uniform representation across traditions.
+By choosing a generic tree with a small set of levels, we avoided hard‑wiring any one movement’s canon structure.  Developers can model Torah scrolls, Vedic hymns, sutras, letters or modern pamphlets using the same API.  Allowing texts outside of collections supports adhoc prayers or instructions.  The flexible `mainFunction` and `tags` fields give downstream tools hints about how to display or process a text without requiring schema changes.  This decision reflects a trade‑off between precision and simplicity: we lose some fidelity about unusual text structures but gain a uniform representation across traditions.
 
 ## Consequences
 
