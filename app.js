@@ -5,41 +5,15 @@
  * This file just handles DOM, localStorage, import/export, and wiring.
  */
 
-/* global ViewModels */
+/* global DomainService, StorageService, ViewModels */
 
 (function () {
   'use strict';
 
-  // ---- Storage & snapshot management ----
+  // ---- Snapshot management ----
 
-  const STORAGE_KEY = 'movementDesigner.v3.snapshot';
-
-  const COLLECTION_NAMES = [
-    'movements',
-    'textCollections',
-    'texts',
-    'entities',
-    'practices',
-    'events',
-    'rules',
-    'claims',
-    'media',
-    'notes',
-    'relations'
-  ];
-
-  const COLLECTIONS_WITH_MOVEMENT_ID = new Set([
-    'textCollections',
-    'texts',
-    'entities',
-    'practices',
-    'events',
-    'rules',
-    'claims',
-    'media',
-    'notes',
-    'relations'
-  ]);
+  const COLLECTION_NAMES = DomainService.COLLECTION_NAMES;
+  const COLLECTIONS_WITH_MOVEMENT_ID = DomainService.COLLECTIONS_WITH_MOVEMENT_ID;
 
   let snapshot = null;
   let currentMovementId = null;
@@ -48,46 +22,13 @@
   let navigationStack = [];
   let navigationIndex = -1;
 
-  function createEmptySnapshot() {
-    const base = {};
-    COLLECTION_NAMES.forEach(name => {
-      base[name] = [];
-    });
-    return base;
-  }
-
-  function ensureAllCollections(data) {
-    const obj = data || {};
-    COLLECTION_NAMES.forEach(name => {
-      if (!Array.isArray(obj[name])) obj[name] = [];
-    });
-    return obj;
-  }
-
-  function loadSnapshot() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return createEmptySnapshot();
-      const parsed = JSON.parse(raw);
-      return ensureAllCollections(parsed);
-    } catch (e) {
-      console.warn(
-        'Failed to load snapshot from localStorage, using empty:',
-        e
-      );
-      return createEmptySnapshot();
-    }
-  }
-
-  function saveSnapshot(show = true) {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
-      if (show) setStatus('Saved ✓');
-    } catch (e) {
-      console.error('Failed to save snapshot:', e);
+  function persistSnapshot({ showStatus = true, statusText } = {}) {
+    const result = StorageService.saveSnapshot(snapshot);
+    if (!result.ok) {
       setStatus('Save failed');
+    } else if (showStatus) {
+      setStatus(statusText || 'Saved ✓');
     }
-    // Re-render current views to reflect changes
     renderMovementList();
     renderActiveTab();
   }
@@ -195,13 +136,6 @@
     updateNavigationButtons();
   }
 
-  // ---- ID generation ----
-
-  function generateId(prefix) {
-    const base = prefix || 'id-';
-    return base + Math.random().toString(36).substr(2, 9);
-  }
-
   // ---- Movement helpers ----
 
   function getMovementById(id) {
@@ -216,22 +150,15 @@
   }
 
   function addMovement() {
-    const movement = {
-      id: generateId('mov-'),
-      name: 'New Movement',
-      shortName: 'New',
-      summary: '',
-      notes: null,
-      tags: []
-    };
-    snapshot.movements.push(movement);
+    const movement = DomainService.addMovement();
+    snapshot = DomainService.getSnapshot();
     selectMovement(movement.id);
-    saveSnapshot();
+    persistSnapshot();
   }
 
   function deleteMovement(id) {
     if (!id) return;
-    const movement = getMovementById(id);
+    const movement = DomainService.getMovementById(id);
     if (!movement) return;
 
     const confirmed = window.confirm(
@@ -242,165 +169,15 @@
     if (!confirmed) return;
 
     // Remove movement itself
-    snapshot.movements = snapshot.movements.filter(r => r.id !== id);
-
-    // Cascade delete on movement-scoped collections
-    COLLECTIONS_WITH_MOVEMENT_ID.forEach(collName => {
-      snapshot[collName] = snapshot[collName].filter(
-        item => item.movementId !== id
-      );
-    });
+    DomainService.deleteMovement(id);
+    snapshot = DomainService.getSnapshot();
 
     currentMovementId = snapshot.movements[0]
       ? snapshot.movements[0].id
       : null;
     currentItemId = null;
     resetNavigationHistory();
-    saveSnapshot();
-  }
-
-  // ---- Skeleton creators for new items ----
-
-  function createSkeletonItem(collectionName) {
-    const rid = currentMovementId || null;
-
-    switch (collectionName) {
-      case 'entities':
-        return {
-          id: generateId('ent-'),
-          movementId: rid,
-          name: 'New entity',
-          kind: null,
-          summary: '',
-          notes: null,
-          tags: [],
-          sourcesOfTruth: [],
-          sourceEntityIds: []
-        };
-      case 'practices':
-        return {
-          id: generateId('prc-'),
-          movementId: rid,
-          name: 'New practice',
-          kind: null,
-          description: '',
-          frequency: 'weekly',
-          isPublic: true,
-          notes: null,
-          tags: [],
-          involvedEntityIds: [],
-          instructionsTextIds: [],
-          supportingClaimIds: [],
-          sourcesOfTruth: [],
-          sourceEntityIds: []
-        };
-      case 'events':
-        return {
-          id: generateId('evt-'),
-          movementId: rid,
-          name: 'New event',
-          description: '',
-          recurrence: 'yearly',
-          timingRule: 'TBD',
-          notes: null,
-          tags: [],
-          mainPracticeIds: [],
-          mainEntityIds: [],
-          readingTextIds: [],
-          supportingClaimIds: []
-        };
-      case 'rules':
-        return {
-          id: generateId('rul-'),
-          movementId: rid,
-          shortText: 'New rule',
-          kind: 'must_do',
-          details: null,
-          appliesTo: [],
-          domain: [],
-          tags: [],
-          supportingTextIds: [],
-          supportingClaimIds: [],
-          relatedPracticeIds: [],
-          sourcesOfTruth: [],
-          sourceEntityIds: []
-        };
-      case 'claims':
-        return {
-          id: generateId('clm-'),
-          movementId: rid,
-          text: 'New claim',
-          category: null,
-          tags: [],
-          sourceTextIds: [],
-          aboutEntityIds: [],
-          sourcesOfTruth: [],
-          sourceEntityIds: [],
-          notes: null
-        };
-      case 'textCollections':
-        return {
-          id: generateId('tc-'),
-          movementId: rid,
-          name: 'New text collection',
-          description: null,
-          tags: [],
-          rootTextIds: []
-        };
-      case 'texts':
-        return {
-          id: generateId('txt-'),
-          movementId: rid,
-          parentId: null,
-          level: 'work',
-          title: 'New text',
-          label: '1',
-          content: '',
-          mainFunction: null,
-          tags: [],
-          mentionsEntityIds: []
-        };
-      case 'media':
-        return {
-          id: generateId('med-'),
-          movementId: rid,
-          kind: 'image',
-          uri: '',
-          title: 'New media asset',
-          description: null,
-          tags: [],
-          linkedEntityIds: [],
-          linkedPracticeIds: [],
-          linkedEventIds: [],
-          linkedTextIds: []
-        };
-      case 'notes':
-        return {
-          id: generateId('note-'),
-          movementId: rid,
-          targetType: 'Entity',
-          targetId: '',
-          author: null,
-          body: '',
-          context: null,
-          tags: []
-        };
-      case 'relations':
-        return {
-          id: generateId('rel-'),
-          movementId: rid,
-          fromEntityId: '',
-          toEntityId: '',
-          relationType: 'related_to',
-          tags: [],
-          supportingClaimIds: [],
-          sourcesOfTruth: [],
-          sourceEntityIds: [],
-          notes: null
-        };
-      default:
-        return { id: generateId('id-') };
-    }
+    persistSnapshot();
   }
 
   // ---- DOM helpers ----
@@ -551,15 +328,18 @@
     const summaryInput = document.getElementById('movement-summary');
     const tagsInput = document.getElementById('movement-tags');
 
-    movement.name = nameInput.value.trim() || 'Untitled movement';
-    movement.shortName = shortInput.value.trim() || movement.name;
-    movement.summary = summaryInput.value.trim();
-    movement.tags = tagsInput.value
-      .split(',')
-      .map(s => s.trim())
-      .filter(Boolean);
+    DomainService.updateMovement(currentMovementId, {
+      name: nameInput.value.trim() || 'Untitled movement',
+      shortName: shortInput.value.trim() || movement.name,
+      summary: summaryInput.value.trim(),
+      tags: tagsInput.value
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean)
+    });
 
-    saveSnapshot();
+    snapshot = DomainService.getSnapshot();
+    persistSnapshot();
   }
 
   // ---- Movement explorer (view-model-driven views) ----
@@ -2745,14 +2525,15 @@
       return;
     }
 
-    const idx = coll.findIndex(it => it.id === obj.id);
-    if (idx >= 0) {
-      coll[idx] = obj;
-    } else {
-      coll.push(obj);
+    const saved = DomainService.upsertItem(collName, obj);
+    if (!saved) {
+      alert('Failed to save item.');
+      return;
     }
+
+    snapshot = DomainService.getSnapshot();
     currentItemId = obj.id;
-    saveSnapshot();
+    persistSnapshot();
     pushNavigationState(collName, currentItemId);
   }
 
@@ -2764,10 +2545,15 @@
       return;
     }
 
-    const skeleton = createSkeletonItem(collName);
-    coll.push(skeleton);
+    const skeleton = DomainService.createItem(collName, currentMovementId);
+    if (!skeleton) {
+      alert('Could not create item.');
+      return;
+    }
+
+    snapshot = DomainService.getSnapshot();
     currentItemId = skeleton.id;
-    saveSnapshot(false); // we'll call setStatus manually
+    persistSnapshot({ showStatus: false }); // we'll call setStatus manually
     setStatus('New item created');
     setCollectionAndItem(collName, skeleton.id);
   }
@@ -2784,10 +2570,11 @@
     );
     if (!ok) return;
 
-    snapshot[collName] = coll.filter(it => it.id !== currentItemId);
+    DomainService.deleteItem(collName, currentItemId);
+    snapshot = DomainService.getSnapshot();
     pruneNavigationState(collName, currentItemId);
     currentItemId = null;
-    saveSnapshot();
+    persistSnapshot();
   }
 
   // ---- Comparison tab ----
@@ -2946,13 +2733,13 @@
           );
           return;
         }
-        snapshot = ensureAllCollections(data);
+        snapshot = DomainService.importSnapshot(data);
         currentMovementId = snapshot.movements[0]
           ? snapshot.movements[0].id
           : null;
         currentItemId = null;
         resetNavigationHistory();
-        saveSnapshot();
+        persistSnapshot();
         setStatus('Imported JSON');
       } catch (e) {
         alert('Failed to import: ' + e.message);
@@ -3023,13 +2810,13 @@
     if (!confirmReset) return;
 
     // Clone to avoid mutating the global sample reference
-    snapshot = ensureAllCollections(JSON.parse(JSON.stringify(sample)));
+    snapshot = DomainService.loadSample(JSON.parse(JSON.stringify(sample)));
     currentMovementId = snapshot.movements[0]
       ? snapshot.movements[0].id
       : null;
     currentItemId = null;
     resetNavigationHistory();
-    saveSnapshot();
+    persistSnapshot();
     setStatus('Loaded sample');
   }
 
@@ -3038,18 +2825,19 @@
       'Start a new, empty snapshot?\n\nThis will clear all current data in the browser.'
     );
     if (!ok) return;
-    snapshot = createEmptySnapshot();
+    snapshot = DomainService.resetSnapshot();
     currentMovementId = null;
     currentItemId = null;
     resetNavigationHistory();
-    saveSnapshot();
+    persistSnapshot();
     setStatus('New snapshot created');
   }
 
   // ---- Init ----
 
   function init() {
-    snapshot = loadSnapshot();
+    DomainService.setSnapshot(StorageService.loadSnapshot());
+    snapshot = DomainService.getSnapshot();
     currentMovementId = snapshot.movements[0]
       ? snapshot.movements[0].id
       : null;
