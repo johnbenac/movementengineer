@@ -5,7 +5,7 @@
  * This file just handles DOM, localStorage, import/export, and wiring.
  */
 
-/* global DomainService, StorageService, ViewModels */
+/* global DomainService, StorageService, ViewModels, EntityGraphView */
 
 (function () {
   'use strict';
@@ -18,6 +18,7 @@
   let currentItemId = null;
   let navigationStack = [];
   let navigationIndex = -1;
+  let entityGraphView = null;
 
   function saveSnapshot(show = true) {
     try {
@@ -768,51 +769,21 @@
       relationTypeFilter
     });
 
-    const nodesById = new Map();
-    graphVm.nodes.forEach(n => nodesById.set(n.id, n));
-
-    const nodesTitle = document.createElement('div');
-    nodesTitle.className = 'section-heading small';
-    nodesTitle.textContent = `Nodes (${graphVm.nodes.length})`;
-    graphContainer.appendChild(nodesTitle);
-
-    const nodeRow = document.createElement('div');
-    nodeRow.className = 'chip-row';
-    graphVm.nodes.forEach(n => {
-      const chip = document.createElement('span');
-      chip.className =
-        'chip' + (n.id === graphVm.centerEntityId ? ' clickable' : '');
-      chip.textContent =
-        (n.id === graphVm.centerEntityId ? '★ ' : '') +
-        (n.name || n.id);
-      chip.title = n.kind || '';
-      chip.addEventListener('click', () => {
-        if (n.id) {
-          document.getElementById('entity-select').value = n.id;
+    if (!entityGraphView) {
+      entityGraphView = new EntityGraphView({
+        onNodeClick: id => {
+          if (!id) return;
+          document.getElementById('entity-select').value = id;
           renderEntitiesView();
         }
       });
-      nodeRow.appendChild(chip);
-    });
-    graphContainer.appendChild(nodeRow);
+    }
 
-    const edgesTitle = document.createElement('div');
-    edgesTitle.className = 'section-heading small';
-    edgesTitle.textContent = `Edges (${graphVm.edges.length})`;
-    graphContainer.appendChild(edgesTitle);
-
-    const edgesList = document.createElement('ul');
-    edgesList.style.fontSize = '0.8rem';
-    graphVm.edges.forEach(e => {
-      const li = document.createElement('li');
-      const from = nodesById.get(e.fromId);
-      const to = nodesById.get(e.toId);
-      li.textContent = `${from ? from.name : e.fromId} — ${
-        e.relationType
-      } → ${to ? to.name : e.toId}`;
-      edgesList.appendChild(li);
+    entityGraphView.render(graphContainer, graphVm, {
+      centerEntityId: graphVm.centerEntityId,
+      width: graphContainer.clientWidth || undefined,
+      height: 440
     });
-    graphContainer.appendChild(edgesList);
   }
 
   // ---- Practices (buildPracticeDetailViewModel) ----

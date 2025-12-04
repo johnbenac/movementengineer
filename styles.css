@@ -737,3 +737,77 @@ a.event-link:hover,
 a.text-link:hover {
   text-decoration: underline;
 }
+
+/* Entity graph */
+.entity-graph-wrapper {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.entity-graph-canvas {
+  flex: 1 1 620px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 0.5rem;
+  box-shadow: 0 2px 6px rgba(17, 24, 39, 0.08);
+}
+
+.entity-graph-canvas svg {
+  width: 100%;
+  height: 100%;
+}
+
+.entity-graph-summary {
+  flex: 0 0 260px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 0.75rem;
+  box-shadow: 0 2px 6px rgba(17, 24, 39, 0.08);
+}
+
+.chip-row.wrap {
+  flex-wrap: wrap;
+}
+
+.edge-list {
+  margin: 0;
+  padding-left: 1.05rem;
+  font-size: 0.8rem;
+  color: #374151;
+}
+
+.graph-edges line {
+  stroke: #9ca3af;
+  stroke-width: 1.5;
+}
+
+.graph-edge-label {
+  fill: #4b5563;
+  font-size: 0.7rem;
+  pointer-events: none;
+}
+
+.graph-node circle {
+  transition: transform 0.15s ease, stroke 0.15s ease;
+}
+
+.graph-node:hover circle {
+  transform: scale(1.05);
+  stroke: #111827;
+}
+
+.graph-node-label {
+  fill: #111827;
+  font-size: 0.78rem;
+  pointer-events: none;
+}
+
+.chip-strong {
+  background: #dbeafe;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
