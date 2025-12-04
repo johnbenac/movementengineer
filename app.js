@@ -45,6 +45,8 @@
   let currentMovementId = null;
   let currentCollectionName = 'entities';
   let currentItemId = null;
+  let navigationStack = [];
+  let navigationIndex = -1;
 
   function createEmptySnapshot() {
     const base = {};
@@ -101,6 +103,96 @@
         el.textContent = '';
       }
     }, 2500);
+  }
+
+  function activateTab(name) {
+    const current = getActiveTabName();
+    if (current === name) return;
+    document
+      .querySelectorAll('.tab')
+      .forEach(btn => btn.classList.toggle('active', btn.dataset.tab === name));
+    document
+      .querySelectorAll('.tab-panel')
+      .forEach(panel =>
+        panel.classList.toggle('active', panel.id === 'tab-' + name)
+      );
+    renderActiveTab();
+  }
+
+  function focusDataTab() {
+    if (getActiveTabName() !== 'data') activateTab('data');
+  }
+
+  function updateNavigationButtons() {
+    const backBtn = document.getElementById('btn-preview-back');
+    const fwdBtn = document.getElementById('btn-preview-forward');
+    if (!backBtn || !fwdBtn) return;
+    backBtn.disabled = navigationIndex <= 0;
+    fwdBtn.disabled =
+      navigationIndex < 0 || navigationIndex >= navigationStack.length - 1;
+  }
+
+  function resetNavigationHistory() {
+    navigationStack = [];
+    navigationIndex = -1;
+    updateNavigationButtons();
+  }
+
+  function pushNavigationState(collectionName, itemId) {
+    if (!collectionName || !itemId) {
+      updateNavigationButtons();
+      return;
+    }
+
+    const current = navigationStack[navigationIndex];
+    if (
+      current &&
+      current.collectionName === collectionName &&
+      current.itemId === itemId
+    ) {
+      updateNavigationButtons();
+      return;
+    }
+
+    navigationStack = navigationStack.slice(0, navigationIndex + 1);
+    navigationStack.push({ collectionName, itemId });
+    navigationIndex = navigationStack.length - 1;
+    updateNavigationButtons();
+  }
+
+  function pruneNavigationState(collectionName, itemId) {
+    if (!navigationStack.length) return;
+    const filtered = [];
+    navigationStack.forEach((entry, idx) => {
+      if (entry.collectionName === collectionName && entry.itemId === itemId) {
+        if (idx <= navigationIndex) navigationIndex -= 1;
+        return;
+      }
+      filtered.push(entry);
+    });
+    navigationStack = filtered;
+    if (!navigationStack.length) {
+      navigationIndex = -1;
+    } else {
+      navigationIndex = Math.max(
+        Math.min(navigationIndex, navigationStack.length - 1),
+        0
+      );
+    }
+    updateNavigationButtons();
+  }
+
+  function navigateHistory(direction) {
+    if (!navigationStack.length) return;
+    const target = navigationIndex + direction;
+    if (target < 0 || target >= navigationStack.length) return;
+    navigationIndex = target;
+    const state = navigationStack[navigationIndex];
+    setCollectionAndItem(state.collectionName, state.itemId, {
+      addToHistory: false,
+      fromHistory: true
+    });
+    updateNavigationButtons();
   }
 
   // ---- ID generation ----
@@ -163,6 +255,7 @@
       ? snapshot.movements[0].id
       : null;
     currentItemId = null;
+    resetNavigationHistory();
     saveSnapshot();
   }
 
@@ -2241,9 +2334,7 @@
       li.appendChild(primary);
       li.appendChild(secondary);
       li.addEventListener('click', () => {
-        currentItemId = item.id;
-        renderCollectionList();
-        renderItemDetail();
+        setCollectionAndItem(collName, item.id);
       });
       list.appendChild(li);
     });
@@ -2260,6 +2351,68 @@
     const coll = snapshot[collectionName] || [];
     const item = coll.find(it => it.id === id);
     return item ? getLabelForItem(item) : id;
+  }
+
+  function setCollectionAndItem(collectionName, itemId, options = {}) {
+    const { addToHistory = true, fromHistory = false } = options;
+
+    if (!COLLECTION_NAMES.includes(collectionName)) {
+      setStatus('Unknown collection: ' + collectionName);
+      return;
+    }
+
+    currentCollectionName = collectionName;
+    const select = document.getElementById('collection-select');
+    if (select && select.value !== collectionName) select.value = collectionName;
+
+    const coll = snapshot[collectionName] || [];
+    const foundItem = itemId ? coll.find(it => it.id === itemId) : null;
+
+    const movementFilter = document.getElementById('collection-filter-by-movement');
+    if (
+      movementFilter &&
+      movementFilter.checked &&
+      foundItem &&
+      COLLECTIONS_WITH_MOVEMENT_ID.has(collectionName) &&
+      foundItem.movementId &&
+      currentMovementId &&
+      foundItem.movementId !== currentMovementId
+    ) {
+      movementFilter.checked = false;
+    }
+
+    currentItemId = foundItem ? foundItem.id : null;
+
+    focusDataTab();
+
+    renderCollectionList();
+    renderItemDetail();
+
+    if (addToHistory && currentItemId && !fromHistory) {
+      pushNavigationState(collectionName, currentItemId);
+    } else {
+      updateNavigationButtons();
+    }
+  }
+
+  function jumpToReferencedItem(collectionName, itemId) {
+    if (!collectionName || !itemId) return;
+    if (collectionName === 'movements') {
+      selectMovement(itemId);
+      activateTab('movement');
+      return;
+    }
+    const coll = snapshot[collectionName];
+    if (!Array.isArray(coll)) {
+      setStatus('Unknown collection: ' + collectionName);
+      return;
+    }
+    const exists = coll.find(it => it.id === itemId);
+    if (!exists) {
+      setStatus('Referenced item not found');
+      return;
+    }
+    setCollectionAndItem(collectionName, itemId);
   }
 
   function renderPreviewValue(container, value, type, refCollection) {
@@ -2288,8 +2441,14 @@
       case 'id': {
         if (!value) return placeholder();
         const chip = document.createElement('span');
-        chip.className = 'chip';
+        chip.className = 'chip clickable';
         chip.textContent = mapIdToLabel(refCollection, value);
+        chip.title = 'Open ' + value;
+        if (refCollection) {
+          chip.addEventListener('click', () =>
+            jumpToReferencedItem(refCollection, value)
+          );
+        }
         container.appendChild(chip);
         return;
       }
@@ -2300,8 +2459,14 @@
         row.className = 'chip-row';
         ids.forEach(id => {
           const chip = document.createElement('span');
-          chip.className = 'chip';
+          chip.className = 'chip clickable';
           chip.textContent = mapIdToLabel(refCollection, id);
+          chip.title = 'Open ' + id;
+          if (refCollection) {
+            chip.addEventListener('click', () =>
+              jumpToReferencedItem(refCollection, id)
+            );
+          }
           row.appendChild(chip);
         });
         container.appendChild(row);
@@ -2588,6 +2753,7 @@
     }
     currentItemId = obj.id;
     saveSnapshot();
+    pushNavigationState(collName, currentItemId);
   }
 
   function addNewItem() {
@@ -2603,8 +2769,7 @@
     currentItemId = skeleton.id;
     saveSnapshot(false); // we'll call setStatus manually
     setStatus('New item created');
-    renderCollectionList();
-    renderItemDetail();
+    setCollectionAndItem(collName, skeleton.id);
   }
 
   function deleteCurrentItem() {
@@ -2620,6 +2785,7 @@
     if (!ok) return;
 
     snapshot[collName] = coll.filter(it => it.id !== currentItemId);
+    pruneNavigationState(collName, currentItemId);
     currentItemId = null;
     saveSnapshot();
   }
@@ -2785,6 +2951,7 @@
           ? snapshot.movements[0].id
           : null;
         currentItemId = null;
+        resetNavigationHistory();
         saveSnapshot();
         setStatus('Imported JSON');
       } catch (e) {
@@ -2861,6 +3028,7 @@
       ? snapshot.movements[0].id
       : null;
     currentItemId = null;
+    resetNavigationHistory();
     saveSnapshot();
     setStatus('Loaded sample');
   }
@@ -2873,6 +3041,7 @@
     snapshot = createEmptySnapshot();
     currentMovementId = null;
     currentItemId = null;
+    resetNavigationHistory();
     saveSnapshot();
     setStatus('New snapshot created');
   }
@@ -2884,6 +3053,7 @@
     currentMovementId = snapshot.movements[0]
       ? snapshot.movements[0].id
       : null;
+    resetNavigationHistory();
 
     // Sidebar
     document
@@ -3061,10 +3231,7 @@
     document
       .getElementById('collection-select')
       .addEventListener('change', e => {
-        currentCollectionName = e.target.value;
-        currentItemId = null;
-        renderCollectionList();
-        renderItemDetail();
+        setCollectionAndItem(e.target.value, null, { addToHistory: false });
       });
 
     document
@@ -3083,6 +3250,11 @@
     document
       .getElementById('btn-save-item')
       .addEventListener('click', saveItemFromEditor);
+
+    const navBack = document.getElementById('btn-preview-back');
+    const navForward = document.getElementById('btn-preview-forward');
+    if (navBack) navBack.addEventListener('click', () => navigateHistory(-1));
+    if (navForward) navForward.addEventListener('click', () => navigateHistory(1));
 
     // Initial render
     renderMovementList();

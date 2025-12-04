@@ -368,6 +368,31 @@ button.danger:hover {
   margin-bottom: 0.5rem;
 }
 
+.preview-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.preview-nav {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+
+.preview-nav button {
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  color: #111827;
+  border-radius: 4px;
+  padding: 0.15rem 0.45rem;
+  line-height: 1.2;
+}
+
+.preview-nav button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .eyebrow {
   font-size: 0.7rem;
   text-transform: uppercase;
