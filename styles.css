@@ -737,3 +737,80 @@ a.event-link:hover,
 a.text-link:hover {
   text-decoration: underline;
 }
+
+/* Relation graph */
+
+.graph-wrapper {
+  margin-top: 0.35rem;
+  padding: 0.6rem 0.6rem 0.4rem;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+}
+
+.graph-wrapper .hint {
+  margin: 0.2rem 0 0.4rem;
+}
+
+.graph-canvas {
+  width: 100%;
+  height: 420px;
+  background: radial-gradient(circle at 50% 50%, #f8fafc, #f3f4f6 65%);
+  border-radius: 6px;
+}
+
+.graph-edge line {
+  stroke: #cbd5e1;
+  stroke-width: 2;
+}
+
+.graph-edge-label {
+  fill: #475569;
+  font-size: 0.65rem;
+  text-anchor: middle;
+}
+
+.graph-node circle {
+  fill: #e0f2fe;
+  stroke: #0284c7;
+  stroke-width: 2;
+}
+
+.graph-node.is-center circle {
+  fill: #fef9c3;
+  stroke: #f59e0b;
+}
+
+.graph-node text {
+  font-size: 0.75rem;
+  fill: #0f172a;
+  pointer-events: none;
+}
+
+.graph-legend {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  font-size: 0.8rem;
+  margin-top: 0.35rem;
+  color: #475569;
+}
+
+.graph-legend .legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.graph-legend .swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid #0284c7;
+  background: #e0f2fe;
+}
+
+.graph-legend .swatch.center {
+  border-color: #f59e0b;
+  background: #fef9c3;
+}

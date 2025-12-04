@@ -771,9 +771,56 @@
     const nodesById = new Map();
     graphVm.nodes.forEach(n => nodesById.set(n.id, n));
 
+    const visualHeading = document.createElement('div');
+    visualHeading.className = 'section-heading small';
+    visualHeading.textContent = 'Visual graph view';
+    graphContainer.appendChild(visualHeading);
+
+    const graphWrapper = document.createElement('div');
+    graphWrapper.className = 'graph-wrapper';
+
+    const visualHint = document.createElement('p');
+    visualHint.className = 'hint';
+    visualHint.textContent =
+      'Click a node to re-center the graph. Depth and relation type filters above shape the neighbourhood.';
+    graphWrapper.appendChild(visualHint);
+
+    const svgHost = document.createElement('div');
+    graphWrapper.appendChild(svgHost);
+
+    if (typeof GraphRenderer !== 'undefined') {
+      GraphRenderer.renderGraph(svgHost, graphVm, {
+        onNodeClick: node => {
+          if (node.id) {
+            document.getElementById('entity-select').value = node.id;
+            renderEntitiesView();
+          }
+        }
+      });
+    } else {
+      const p = document.createElement('p');
+      p.className = 'hint';
+      p.textContent = 'Graph renderer not available.';
+      graphWrapper.appendChild(p);
+    }
+
+    const legend = document.createElement('div');
+    legend.className = 'graph-legend';
+    const nodeLegend = document.createElement('span');
+    nodeLegend.className = 'legend-item';
+    nodeLegend.innerHTML = '<span class="swatch"></span>Entity';
+    const centerLegend = document.createElement('span');
+    centerLegend.className = 'legend-item';
+    centerLegend.innerHTML = '<span class="swatch center"></span>Selected entity';
+    legend.appendChild(nodeLegend);
+    legend.appendChild(centerLegend);
+    graphWrapper.appendChild(legend);
+
+    graphContainer.appendChild(graphWrapper);
+
     const nodesTitle = document.createElement('div');
     nodesTitle.className = 'section-heading small';
-    nodesTitle.textContent = `Nodes (${graphVm.nodes.length})`;
+    nodesTitle.textContent = `List view — Nodes (${graphVm.nodes.length})`;
     graphContainer.appendChild(nodesTitle);
 
     const nodeRow = document.createElement('div');
@@ -798,7 +845,7 @@
 
     const edgesTitle = document.createElement('div');
     edgesTitle.className = 'section-heading small';
-    edgesTitle.textContent = `Edges (${graphVm.edges.length})`;
+    edgesTitle.textContent = `List view — Edges (${graphVm.edges.length})`;
     graphContainer.appendChild(edgesTitle);
 
     const edgesList = document.createElement('ul');
