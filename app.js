@@ -45,6 +45,8 @@
   let currentMovementId = null;
   let currentCollectionName = 'entities';
   let currentItemId = null;
+  let navigationStack = [];
+  let navigationIndex = -1;
 
   function createEmptySnapshot() {
     const base = {};
@@ -101,6 +103,96 @@
         el.textContent = '';
       }
     }, 2500);
+  }
+
+  function activateTab(name) {
+    const current = getActiveTabName();
+    if (current === name) return;
+    document
+      .querySelectorAll('.tab')
+      .forEach(btn => btn.classList.toggle('active', btn.dataset.tab === name));
+    document
+      .querySelectorAll('.tab-panel')
+      .forEach(panel =>
+        panel.classList.toggle('active', panel.id === 'tab-' + name)
+      );
+    renderActiveTab();
+  }
+
+  function focusDataTab() {
+    if (getActiveTabName() !== 'data') activateTab('data');
+  }
+
+  function updateNavigationButtons() {
+    const backBtn = document.getElementById('btn-preview-back');
+    const fwdBtn = document.getElementById('btn-preview-forward');
+    if (!backBtn || !fwdBtn) return;
+    backBtn.disabled = navigationIndex <= 0;
+    fwdBtn.disabled =
+      navigationIndex < 0 || navigationIndex >= navigationStack.length - 1;
+  }
+
+  function resetNavigationHistory() {
+    navigationStack = [];
+    navigationIndex = -1;
+    updateNavigationButtons();
+  }
+
+  function pushNavigationState(collectionName, itemId) {
+    if (!collectionName || !itemId) {
+      updateNavigationButtons();
+      return;
+    }
+
+    const current = navigationStack[navigationIndex];
+    if (
+      current &&
+      current.collectionName === collectionName &&
+      current.itemId === itemId
+    ) {
+      updateNavigationButtons();
+      return;
+    }
+
+    navigationStack = navigationStack.slice(0, navigationIndex + 1);
+    navigationStack.push({ collectionName, itemId });
+    navigationIndex = navigationStack.length - 1;
+    updateNavigationButtons();
+  }
+
+  function pruneNavigationState(collectionName, itemId) {
+    if (!navigationStack.length) return;
+    const filtered = [];
+    navigationStack.forEach((entry, idx) => {
+      if (entry.collectionName === collectionName && entry.itemId === itemId) {
+        if (idx <= navigationIndex) navigationIndex -= 1;
+        return;
+      }
+      filtered.push(entry);
+    });
+    navigationStack = filtered;
+    if (!navigationStack.length) {
+      navigationIndex = -1;
+    } else {
+      navigationIndex = Math.max(
+        Math.min(navigationIndex, navigationStack.length - 1),
+        0
+      );
+    }
+    updateNavigationButtons();
+  }
+
+  function navigateHistory(direction) {
+    if (!navigationStack.length) return;
+    const target = navigationIndex + direction;
+    if (target < 0 || target >= navigationStack.length) return;
+    navigationIndex = target;
+    const state = navigationStack[navigationIndex];
+    setCollectionAndItem(state.collectionName, state.itemId, {
+      addToHistory: false,
+      fromHistory: true
+    });
+    updateNavigationButtons();
   }
 
   // ---- ID generation ----
@@ -163,6 +255,7 @@
       ? snapshot.movements[0].id
       : null;
     currentItemId = null;
+    resetNavigationHistory();
     saveSnapshot();
   }
 
@@ -360,7 +453,7 @@
         break;
       case 'data':
         renderCollectionList();
-        renderItemEditor();
+        renderItemDetail();
         break;
       case 'comparison':
         renderComparison();
@@ -2241,14 +2334,353 @@
       li.appendChild(primary);
       li.appendChild(secondary);
       li.addEventListener('click', () => {
-        currentItemId = item.id;
-        renderCollectionList();
-        renderItemEditor();
+        setCollectionAndItem(collName, item.id);
       });
       list.appendChild(li);
     });
 
     document.getElementById('btn-delete-item').disabled = !currentItemId;
+  }
+
+  function mapIdToLabel(collectionName, id) {
+    if (!id) return '—';
+    if (collectionName === 'movements') {
+      const movement = getMovementById(id);
+      return movement ? movement.name || movement.id : id;
+    }
+    const coll = snapshot[collectionName] || [];
+    const item = coll.find(it => it.id === id);
+    return item ? getLabelForItem(item) : id;
+  }
+
+  function setCollectionAndItem(collectionName, itemId, options = {}) {
+    const { addToHistory = true, fromHistory = false } = options;
+
+    if (!COLLECTION_NAMES.includes(collectionName)) {
+      setStatus('Unknown collection: ' + collectionName);
+      return;
+    }
+
+    currentCollectionName = collectionName;
+    const select = document.getElementById('collection-select');
+    if (select && select.value !== collectionName) select.value = collectionName;
+
+    const coll = snapshot[collectionName] || [];
+    const foundItem = itemId ? coll.find(it => it.id === itemId) : null;
+
+    const movementFilter = document.getElementById('collection-filter-by-movement');
+    if (
+      movementFilter &&
+      movementFilter.checked &&
+      foundItem &&
+      COLLECTIONS_WITH_MOVEMENT_ID.has(collectionName) &&
+      foundItem.movementId &&
+      currentMovementId &&
+      foundItem.movementId !== currentMovementId
+    ) {
+      movementFilter.checked = false;
+    }
+
+    currentItemId = foundItem ? foundItem.id : null;
+
+    focusDataTab();
+
+    renderCollectionList();
+    renderItemDetail();
+
+    if (addToHistory && currentItemId && !fromHistory) {
+      pushNavigationState(collectionName, currentItemId);
+    } else {
+      updateNavigationButtons();
+    }
+  }
+
+  function jumpToReferencedItem(collectionName, itemId) {
+    if (!collectionName || !itemId) return;
+    if (collectionName === 'movements') {
+      selectMovement(itemId);
+      activateTab('movement');
+      return;
+    }
+    const coll = snapshot[collectionName];
+    if (!Array.isArray(coll)) {
+      setStatus('Unknown collection: ' + collectionName);
+      return;
+    }
+    const exists = coll.find(it => it.id === itemId);
+    if (!exists) {
+      setStatus('Referenced item not found');
+      return;
+    }
+    setCollectionAndItem(collectionName, itemId);
+  }
+
+  function renderPreviewValue(container, value, type, refCollection) {
+    const placeholder = () => {
+      const span = document.createElement('span');
+      span.className = 'muted';
+      span.textContent = '—';
+      container.appendChild(span);
+    };
+
+    switch (type) {
+      case 'chips': {
+        const arr = Array.isArray(value) ? value.filter(Boolean) : [];
+        if (!arr.length) return placeholder();
+        const row = document.createElement('div');
+        row.className = 'chip-row';
+        arr.forEach(v => {
+          const chip = document.createElement('span');
+          chip.className = 'chip';
+          chip.textContent = v;
+          row.appendChild(chip);
+        });
+        container.appendChild(row);
+        return;
+      }
+      case 'id': {
+        if (!value) return placeholder();
+        const chip = document.createElement('span');
+        chip.className = 'chip clickable';
+        chip.textContent = mapIdToLabel(refCollection, value);
+        chip.title = 'Open ' + value;
+        if (refCollection) {
+          chip.addEventListener('click', () =>
+            jumpToReferencedItem(refCollection, value)
+          );
+        }
+        container.appendChild(chip);
+        return;
+      }
+      case 'idList': {
+        const ids = Array.isArray(value) ? value.filter(Boolean) : [];
+        if (!ids.length) return placeholder();
+        const row = document.createElement('div');
+        row.className = 'chip-row';
+        ids.forEach(id => {
+          const chip = document.createElement('span');
+          chip.className = 'chip clickable';
+          chip.textContent = mapIdToLabel(refCollection, id);
+          chip.title = 'Open ' + id;
+          if (refCollection) {
+            chip.addEventListener('click', () =>
+              jumpToReferencedItem(refCollection, id)
+            );
+          }
+          row.appendChild(chip);
+        });
+        container.appendChild(row);
+        return;
+      }
+      case 'paragraph': {
+        if (!value) return placeholder();
+        const p = document.createElement('p');
+        p.textContent = value;
+        container.appendChild(p);
+        return;
+      }
+      case 'boolean': {
+        if (typeof value !== 'boolean') return placeholder();
+        const span = document.createElement('span');
+        span.textContent = value ? 'Yes' : 'No';
+        container.appendChild(span);
+        return;
+      }
+      case 'link': {
+        if (!value) return placeholder();
+        const a = document.createElement('a');
+        a.href = value;
+        a.target = '_blank';
+        a.rel = 'noreferrer';
+        a.textContent = value;
+        container.appendChild(a);
+        return;
+      }
+      case 'code': {
+        if (!value) return placeholder();
+        const pre = document.createElement('pre');
+        pre.textContent = value;
+        container.appendChild(pre);
+        return;
+      }
+      default: {
+        if (value === undefined || value === null || value === '')
+          return placeholder();
+        const span = document.createElement('span');
+        span.textContent = value;
+        container.appendChild(span);
+      }
+    }
+  }
+
+  function renderPreviewRow(container, label, value, type, refCollection) {
+    const row = document.createElement('div');
+    row.className = 'preview-row';
+    const lbl = document.createElement('div');
+    lbl.className = 'preview-label';
+    lbl.textContent = label;
+    const val = document.createElement('div');
+    val.className = 'preview-value';
+    renderPreviewValue(val, value, type, refCollection);
+    row.appendChild(lbl);
+    row.appendChild(val);
+    container.appendChild(row);
+  }
+
+  const PREVIEW_FIELDS = {
+    entities: [
+      { label: 'Kind', key: 'kind' },
+      { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
+      { label: 'Summary', key: 'summary', type: 'paragraph' },
+      { label: 'Tags', key: 'tags', type: 'chips' },
+      { label: 'Sources of truth', key: 'sourcesOfTruth', type: 'chips' },
+      { label: 'Source entities', key: 'sourceEntityIds', type: 'idList', ref: 'entities' },
+      { label: 'Notes', key: 'notes', type: 'paragraph' }
+    ],
+    practices: [
+      { label: 'Kind', key: 'kind' },
+      { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
+      { label: 'Description', key: 'description', type: 'paragraph' },
+      { label: 'Frequency', key: 'frequency' },
+      { label: 'Public', key: 'isPublic', type: 'boolean' },
+      { label: 'Tags', key: 'tags', type: 'chips' },
+      { label: 'Involved entities', key: 'involvedEntityIds', type: 'idList', ref: 'entities' },
+      { label: 'Instructions texts', key: 'instructionsTextIds', type: 'idList', ref: 'texts' },
+      { label: 'Supporting claims', key: 'supportingClaimIds', type: 'idList', ref: 'claims' },
+      { label: 'Sources of truth', key: 'sourcesOfTruth', type: 'chips' },
+      { label: 'Source entities', key: 'sourceEntityIds', type: 'idList', ref: 'entities' },
+      { label: 'Notes', key: 'notes', type: 'paragraph' }
+    ],
+    events: [
+      { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
+      { label: 'Description', key: 'description', type: 'paragraph' },
+      { label: 'Recurrence', key: 'recurrence' },
+      { label: 'Timing rule', key: 'timingRule' },
+      { label: 'Tags', key: 'tags', type: 'chips' },
+      { label: 'Main practices', key: 'mainPracticeIds', type: 'idList', ref: 'practices' },
+      { label: 'Main entities', key: 'mainEntityIds', type: 'idList', ref: 'entities' },
+      { label: 'Readings', key: 'readingTextIds', type: 'idList', ref: 'texts' },
+      { label: 'Supporting claims', key: 'supportingClaimIds', type: 'idList', ref: 'claims' }
+    ],
+    rules: [
+      { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
+      { label: 'Kind', key: 'kind' },
+      { label: 'Details', key: 'details', type: 'paragraph' },
+      { label: 'Applies to', key: 'appliesTo', type: 'chips' },
+      { label: 'Domain', key: 'domain', type: 'chips' },
+      { label: 'Tags', key: 'tags', type: 'chips' },
+      { label: 'Supporting texts', key: 'supportingTextIds', type: 'idList', ref: 'texts' },
+      { label: 'Supporting claims', key: 'supportingClaimIds', type: 'idList', ref: 'claims' },
+      { label: 'Related practices', key: 'relatedPracticeIds', type: 'idList', ref: 'practices' },
+      { label: 'Sources of truth', key: 'sourcesOfTruth', type: 'chips' },
+      { label: 'Source entities', key: 'sourceEntityIds', type: 'idList', ref: 'entities' }
+    ],
+    claims: [
+      { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
+      { label: 'Category', key: 'category' },
+      { label: 'Text', key: 'text', type: 'paragraph' },
+      { label: 'Tags', key: 'tags', type: 'chips' },
+      { label: 'About entities', key: 'aboutEntityIds', type: 'idList', ref: 'entities' },
+      { label: 'Source texts', key: 'sourceTextIds', type: 'idList', ref: 'texts' },
+      { label: 'Sources of truth', key: 'sourcesOfTruth', type: 'chips' },
+      { label: 'Source entities', key: 'sourceEntityIds', type: 'idList', ref: 'entities' },
+      { label: 'Notes', key: 'notes', type: 'paragraph' }
+    ],
+    textCollections: [
+      { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
+      { label: 'Description', key: 'description', type: 'paragraph' },
+      { label: 'Tags', key: 'tags', type: 'chips' },
+      { label: 'Root texts', key: 'rootTextIds', type: 'idList', ref: 'texts' }
+    ],
+    texts: [
+      { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
+      { label: 'Level', key: 'level' },
+      { label: 'Label', key: 'label' },
+      { label: 'Parent text', key: 'parentId', type: 'id', ref: 'texts' },
+      { label: 'Content', key: 'content', type: 'paragraph' },
+      { label: 'Main function', key: 'mainFunction' },
+      { label: 'Tags', key: 'tags', type: 'chips' },
+      { label: 'Mentions entities', key: 'mentionsEntityIds', type: 'idList', ref: 'entities' }
+    ],
+    media: [
+      { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
+      { label: 'Kind', key: 'kind' },
+      { label: 'URI', key: 'uri', type: 'link' },
+      { label: 'Title', key: 'title' },
+      { label: 'Description', key: 'description', type: 'paragraph' },
+      { label: 'Tags', key: 'tags', type: 'chips' },
+      { label: 'Linked entities', key: 'linkedEntityIds', type: 'idList', ref: 'entities' },
+      { label: 'Linked practices', key: 'linkedPracticeIds', type: 'idList', ref: 'practices' },
+      { label: 'Linked events', key: 'linkedEventIds', type: 'idList', ref: 'events' },
+      { label: 'Linked texts', key: 'linkedTextIds', type: 'idList', ref: 'texts' }
+    ],
+    notes: [
+      { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
+      { label: 'Target type', key: 'targetType' },
+      { label: 'Target', key: 'targetId' },
+      { label: 'Author', key: 'author' },
+      { label: 'Context', key: 'context', type: 'paragraph' },
+      { label: 'Body', key: 'body', type: 'paragraph' },
+      { label: 'Tags', key: 'tags', type: 'chips' }
+    ],
+    relations: [
+      { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
+      { label: 'From', key: 'fromEntityId', type: 'id', ref: 'entities' },
+      { label: 'To', key: 'toEntityId', type: 'id', ref: 'entities' },
+      { label: 'Type', key: 'relationType' },
+      { label: 'Tags', key: 'tags', type: 'chips' },
+      { label: 'Supporting claims', key: 'supportingClaimIds', type: 'idList', ref: 'claims' },
+      { label: 'Sources of truth', key: 'sourcesOfTruth', type: 'chips' },
+      { label: 'Source entities', key: 'sourceEntityIds', type: 'idList', ref: 'entities' },
+      { label: 'Notes', key: 'notes', type: 'paragraph' }
+    ]
+  };
+
+  function renderItemPreview() {
+    const titleEl = document.getElementById('item-preview-title');
+    const subtitleEl = document.getElementById('item-preview-subtitle');
+    const body = document.getElementById('item-preview-body');
+    const badge = document.getElementById('item-preview-collection');
+    if (!titleEl || !subtitleEl || !body || !badge) return;
+
+    clearElement(body);
+    badge.textContent = currentCollectionName;
+
+    if (!currentItemId) {
+      titleEl.textContent = 'Select an item';
+      subtitleEl.textContent = 'Preview will appear here';
+      const p = document.createElement('p');
+      p.className = 'muted';
+      p.textContent = 'Pick an item on the left to see a human-friendly summary.';
+      body.appendChild(p);
+      return;
+    }
+
+    const coll = snapshot[currentCollectionName] || [];
+    const item = coll.find(it => it.id === currentItemId);
+    if (!item) {
+      titleEl.textContent = 'Not found';
+      subtitleEl.textContent = '';
+      const p = document.createElement('p');
+      p.className = 'muted';
+      p.textContent = 'The selected item could not be loaded.';
+      body.appendChild(p);
+      return;
+    }
+
+    titleEl.textContent = getLabelForItem(item);
+    subtitleEl.textContent = `${currentCollectionName.slice(0, -1)} · ${item.id}`;
+
+    const fields = PREVIEW_FIELDS[currentCollectionName];
+    if (!fields) {
+      renderPreviewRow(body, 'Details', JSON.stringify(item, null, 2), 'code');
+      return;
+    }
+
+    fields.forEach(field => {
+      const value = item[field.key];
+      renderPreviewRow(body, field.label, value, field.type, field.ref);
+    });
   }
 
   function renderItemEditor() {
@@ -2261,6 +2693,7 @@
       editor.value = '';
       editor.disabled = coll.length === 0;
       deleteBtn.disabled = true;
+      renderItemPreview();
       return;
     }
 
@@ -2269,12 +2702,19 @@
       editor.value = '';
       editor.disabled = true;
       deleteBtn.disabled = true;
+      renderItemPreview();
       return;
     }
 
     editor.disabled = false;
     deleteBtn.disabled = false;
     editor.value = JSON.stringify(item, null, 2);
+    renderItemPreview();
+  }
+
+  function renderItemDetail() {
+    renderItemPreview();
+    renderItemEditor();
   }
 
   function saveItemFromEditor() {
@@ -2313,6 +2753,7 @@
     }
     currentItemId = obj.id;
     saveSnapshot();
+    pushNavigationState(collName, currentItemId);
   }
 
   function addNewItem() {
@@ -2328,8 +2769,7 @@
     currentItemId = skeleton.id;
     saveSnapshot(false); // we'll call setStatus manually
     setStatus('New item created');
-    renderCollectionList();
-    renderItemEditor();
+    setCollectionAndItem(collName, skeleton.id);
   }
 
   function deleteCurrentItem() {
@@ -2345,6 +2785,7 @@
     if (!ok) return;
 
     snapshot[collName] = coll.filter(it => it.id !== currentItemId);
+    pruneNavigationState(collName, currentItemId);
     currentItemId = null;
     saveSnapshot();
   }
@@ -2510,6 +2951,7 @@
           ? snapshot.movements[0].id
           : null;
         currentItemId = null;
+        resetNavigationHistory();
         saveSnapshot();
         setStatus('Imported JSON');
       } catch (e) {
@@ -2586,6 +3028,7 @@
       ? snapshot.movements[0].id
       : null;
     currentItemId = null;
+    resetNavigationHistory();
     saveSnapshot();
     setStatus('Loaded sample');
   }
@@ -2598,6 +3041,7 @@
     snapshot = createEmptySnapshot();
     currentMovementId = null;
     currentItemId = null;
+    resetNavigationHistory();
     saveSnapshot();
     setStatus('New snapshot created');
   }
@@ -2609,6 +3053,7 @@
     currentMovementId = snapshot.movements[0]
       ? snapshot.movements[0].id
       : null;
+    resetNavigationHistory();
 
     // Sidebar
     document
@@ -2786,17 +3231,14 @@
     document
       .getElementById('collection-select')
       .addEventListener('change', e => {
-        currentCollectionName = e.target.value;
-        currentItemId = null;
-        renderCollectionList();
-        renderItemEditor();
+        setCollectionAndItem(e.target.value, null, { addToHistory: false });
       });
 
     document
       .getElementById('collection-filter-by-movement')
       .addEventListener('change', () => {
         renderCollectionList();
-        renderItemEditor();
+        renderItemDetail();
       });
 
     document
@@ -2808,6 +3250,11 @@
     document
       .getElementById('btn-save-item')
       .addEventListener('click', saveItemFromEditor);
+
+    const navBack = document.getElementById('btn-preview-back');
+    const navForward = document.getElementById('btn-preview-forward');
+    if (navBack) navBack.addEventListener('click', () => navigateHistory(-1));
+    if (navForward) navForward.addEventListener('click', () => navigateHistory(1));
 
     // Initial render
     renderMovementList();
