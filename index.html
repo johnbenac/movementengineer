@@ -1,265 +1,175 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Religion Designer</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <title>Religion Designer v3</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-  <div class="app-container">
-    <header>
-      <h1>Religion Designer</h1>
-      <div class="controls">
-        <button id="newBtn">New</button>
-        <button id="saveBtn" title="Save the current religion">Save</button>
-        <button id="saveAsBtn" title="Save as a new religion">Save&nbsp;As</button>
-        <button id="forkBtn" title="Fork the current religion into a new copy">Fork</button>
-        <button id="exportBtn" title="Export religion to a JSON file">Export</button>
-        <button id="importBtn" title="Import religion from a JSON file">Import</button>
-        <button id="compareBtn" title="Compare current religion with preloaded ones">Compare</button>
-        <input type="file" id="importFile" accept="application/json" hidden>
-      </div>
-    </header>
-    <main>
-      <aside class="sidebar">
-        <h2>My Religions</h2>
-        <ul id="savedList"></ul>
-        <h2>Preloaded Religions</h2>
-        <ul id="preloadedList"></ul>
-      </aside>
-      <section class="editor">
-        <div id="tabs" class="tabs">
-          <button class="tab active" data-tab="info">Overview</button>
-          <button class="tab" data-tab="world">World‑Story</button>
-          <button class="tab" data-tab="path">Path &amp; Practice</button>
-          <button class="tab" data-tab="people">People &amp; Structures</button>
-          <button class="tab" data-tab="symbol">Symbols &amp; Media</button>
-          <button class="tab" data-tab="meta">Meta‑Layer</button>
-        </div>
-        <form id="religionForm">
-          <!-- Overview Tab -->
-          <div class="tab-content active" id="tab-info">
-            <div class="form-group">
-              <label for="name">Religion Name</label>
-              <input type="text" id="name" name="name" required>
-            </div>
-            <div class="form-group">
-              <label for="description">Short Description</label>
-              <textarea id="description" name="description" rows="3" placeholder="Describe the essence of this religion"></textarea>
-            </div>
-          </div>
-          <!-- World‑Story Tab -->
-          <div class="tab-content" id="tab-world">
-            <h3>Creation &amp; Cosmology</h3>
-            <div class="form-group">
-              <label for="creation">Origin of the world/universe</label>
-              <select id="creation" name="creation">
-                <option value="">Select…</option>
-                <option value="No creation">No specific creation (eternal or cyclic universe)</option>
-                <option value="Created by one god">Created by one God</option>
-                <option value="Created by multiple gods">Created by multiple gods</option>
-                <option value="Emerged spontaneously">Emerged spontaneously</option>
-                <option value="Other">Other…</option>
-              </select>
-              <input type="text" id="creationOther" name="creationOther" class="other-input" placeholder="Describe other origin">
-            </div>
-            <div class="form-group">
-              <label for="purpose">Purpose of life / ultimate goal</label>
-              <select id="purpose" name="purpose">
-                <option value="">Select…</option>
-                <option value="End suffering and attain enlightenment">End suffering and attain enlightenment</option>
-                <option value="Salvation through faith">Salvation through faith</option>
-                <option value="Harmony with nature/spirits">Harmony with nature or spirits</option>
-                <option value="Submission to divine will">Submission to divine will</option>
-                <option value="Other">Other…</option>
-              </select>
-              <input type="text" id="purposeOther" name="purposeOther" class="other-input" placeholder="Describe other purpose">
-            </div>
-            <div class="form-group">
-              <label for="afterlife">Afterlife / Continuity</label>
-              <select id="afterlife" name="afterlife">
-                <option value="">Select…</option>
-                <option value="Rebirth / reincarnation">Rebirth / reincarnation</option>
-                <option value="Heaven and/or hell">Heaven and/or hell</option>
-                <option value="No specific afterlife">No specific afterlife (focus on this life)</option>
-                <option value="Unknown / mystical union">Unknown or mystical union</option>
-                <option value="Other">Other…</option>
-              </select>
-              <input type="text" id="afterlifeOther" name="afterlifeOther" class="other-input" placeholder="Describe other afterlife concept">
-            </div>
-          </div>
-          <!-- Path & Practice Tab -->
-          <div class="tab-content" id="tab-path">
-            <h3>Key Beliefs &amp; Practices</h3>
-            <div class="form-group">
-              <label>Major beliefs (choose any)</label>
-              <div class="options-list" id="beliefs">
-                <label><input type="checkbox" value="Impermanence and suffering"> Impermanence &amp; suffering</label>
-                <label><input type="checkbox" value="Karma and rebirth"> Karma &amp; rebirth</label>
-                <label><input type="checkbox" value="Monotheism"> Monotheism</label>
-                <label><input type="checkbox" value="Polytheism"> Polytheism</label>
-                <label><input type="checkbox" value="Ancestor veneration"> Ancestor veneration</label>
-                <label><input type="checkbox" value="Salvation through faith"> Salvation through faith</label>
-                <label><input type="checkbox" value="Five Pillars"> Five pillars of faith</label>
-                <label><input type="checkbox" value="Trinity"> Trinity</label>
-                <label><input type="checkbox" value="Spirit world"> Spirit world / kami</label>
-                <label><input type="checkbox" value="Other"> Other (add below)</label>
-              </div>
-              <input type="text" id="beliefsOther" name="beliefsOther" class="other-input" placeholder="Other belief">
-            </div>
-            <div class="form-group">
-              <label>Primary practices (choose any)</label>
-              <div class="options-list" id="practices">
-                <label><input type="checkbox" value="Prayer"> Prayer</label>
-                <label><input type="checkbox" value="Meditation"> Meditation</label>
-                <label><input type="checkbox" value="Sacraments / Rituals"> Sacraments / Rituals</label>
-                <label><input type="checkbox" value="Charity / Almsgiving"> Charity / Almsgiving</label>
-                <label><input type="checkbox" value="Fasting"> Fasting</label>
-                <label><input type="checkbox" value="Pilgrimage"> Pilgrimage</label>
-                <label><input type="checkbox" value="Purification rituals"> Purification rituals</label>
-                <label><input type="checkbox" value="Festivals"> Festivals</label>
-                <label><input type="checkbox" value="Ethical living"> Ethical living</label>
-                <label><input type="checkbox" value="Other"> Other (add below)</label>
-              </div>
-              <input type="text" id="practicesOther" name="practicesOther" class="other-input" placeholder="Other practice">
-            </div>
-            <div class="form-group">
-              <label for="ethics">Ethical framework / law</label>
-              <select id="ethics" name="ethics">
-                <option value="">Select…</option>
-                <option value="Virtue ethics / Noble path">Virtue ethics / Noble path</option>
-                <option value="Divine law / Commandments">Divine law / Commandments</option>
-                <option value="Karma">Karma (intent matters)</option>
-                <option value="Sharia / Religious law">Religious law / Sharia</option>
-                <option value="Ethics of harmony with nature">Harmony with nature</option>
-                <option value="Other">Other…</option>
-              </select>
-              <input type="text" id="ethicsOther" name="ethicsOther" class="other-input" placeholder="Describe other ethical framework">
-            </div>
-          </div>
-          <!-- People & Structures Tab -->
-          <div class="tab-content" id="tab-people">
-            <h3>Community &amp; Leadership</h3>
-            <div class="form-group">
-              <label for="leadership">Leadership structure</label>
-              <select id="leadership" name="leadership">
-                <option value="">Select…</option>
-                <option value="Hierarchical (pope, priests, bishops etc.)">Hierarchical</option>
-                <option value="Monastic community / Sangha">Monastic community / Sangha</option>
-                <option value="Council of elders / scholars">Council of elders / scholars</option>
-                <option value="Local shrine priests">Local shrine priests</option>
-                <option value="No formal leadership">No formal leadership / decentralized</option>
-                <option value="Other">Other…</option>
-              </select>
-              <input type="text" id="leadershipOther" name="leadershipOther" class="other-input" placeholder="Describe other leadership">
-            </div>
-            <div class="form-group">
-              <label for="community">Community organization</label>
-              <select id="community" name="community">
-                <option value="">Select…</option>
-                <option value="Congregational (local community based)">Congregational / local community</option>
-                <option value="Global church / ummah">Global church / ummah</option>
-                <option value="Monastic orders">Monastic orders</option>
-                <option value="Clan / family shrine">Clan / family shrine</option>
-                <option value="Individual practice">Individual practice</option>
-                <option value="Other">Other…</option>
-              </select>
-              <input type="text" id="communityOther" name="communityOther" class="other-input" placeholder="Describe other community organization">
-            </div>
-          </div>
-          <!-- Symbols & Media Tab -->
-          <div class="tab-content" id="tab-symbol">
-            <h3>Symbols &amp; Media</h3>
-            <div class="form-group">
-              <label for="texts">Sacred texts / media</label>
-              <select id="texts" name="texts" multiple>
-                <option value="None">No formal scriptures</option>
-                <option value="Written scriptures">Written scriptures / holy books</option>
-                <option value="Oral tradition">Oral tradition</option>
-                <option value="Mythic epics">Mythic epics</option>
-                <option value="Philosophical treatises">Philosophical treatises</option>
-                <option value="Ritual manuals">Ritual manuals</option>
-                <option value="Other">Other (describe below)</option>
-              </select>
-              <input type="text" id="textsOther" name="textsOther" class="other-input" placeholder="Other texts or media">
-            </div>
-            <div class="form-group">
-              <label for="symbols">Key symbols (comma-separated)</label>
-              <input type="text" id="symbols" name="symbols" placeholder="e.g. Dharma Wheel, Cross, Crescent, Torii gate">
-            </div>
-            <div class="form-group">
-              <label for="arts">Art &amp; expressions (choose any)</label>
-              <div class="options-list" id="arts">
-                <label><input type="checkbox" value="Art & Iconography"> Art &amp; iconography</label>
-                <label><input type="checkbox" value="Music & Chanting"> Music &amp; chanting</label>
-                <label><input type="checkbox" value="Dance & Performance"> Dance &amp; performance</label>
-                <label><input type="checkbox" value="Architecture & Sacred spaces"> Architecture &amp; sacred spaces</label>
-                <label><input type="checkbox" value="Myth and Storytelling"> Myth &amp; storytelling</label>
-                <label><input type="checkbox" value="Other"> Other (add below)</label>
-              </div>
-              <input type="text" id="artsOther" name="artsOther" class="other-input" placeholder="Other art / expression">
-            </div>
-          </div>
-          <!-- Meta‑Layer Tab -->
-          <div class="tab-content" id="tab-meta">
-            <h3>Meta‑Layer &amp; Philosophy</h3>
-            <div class="form-group">
-              <label for="truth">Epistemology (how truth is known)</label>
-              <select id="truth" name="truth">
-                <option value="">Select…</option>
-                <option value="Revelation / divine inspiration">Revelation / divine inspiration</option>
-                <option value="Personal experience & intuition">Personal experience & intuition</option>
-                <option value="Reason & philosophy">Reason & philosophy</option>
-                <option value="Empirical observation">Empirical observation</option>
-                <option value="Tradition & lineage">Tradition & lineage</option>
-                <option value="Multiple sources">Multiple sources</option>
-                <option value="Other">Other…</option>
-              </select>
-              <input type="text" id="truthOther" name="truthOther" class="other-input" placeholder="Describe other epistemology">
-            </div>
-            <div class="form-group">
-              <label for="change">Change &amp; adaptation</label>
-              <select id="change" name="change">
-                <option value="">Select…</option>
-                <option value="Fixed canon">Fixed canon</option>
-                <option value="Open canon / new revelations">Open canon / new revelations</option>
-                <option value="Interpreted through commentary">Interpreted through commentary</option>
-                <option value="Experimental / evolving">Experimental / evolving</option>
-                <option value="Other">Other…</option>
-              </select>
-              <input type="text" id="changeOther" name="changeOther" class="other-input" placeholder="Describe other change approach">
-            </div>
-            <div class="form-group">
-              <label for="techStance">Relationship to technology</label>
-              <select id="techStance" name="techStance">
-                <option value="">Select…</option>
-                <option value="Embraces technology for human flourishing">Embraces technology for human flourishing</option>
-                <option value="Balanced (useful but cautious)">Balanced (useful but cautious)</option>
-                <option value="Restricts technology to preserve purity">Restricts technology to preserve purity</option>
-                <option value="Opposes modern technology">Opposes modern technology</option>
-                <option value="Other">Other…</option>
-              </select>
-              <input type="text" id="techOther" name="techOther" class="other-input" placeholder="Describe other tech stance">
-            </div>
-          </div>
-        </form>
-      </section>
-    </main>
-
-    <div id="compareModal" class="modal">
-      <div class="modal-content">
-        <span class="close">&times;</span>
-        <h2>Comparison View</h2>
-        <p>Select preloaded religions to compare with the current one:</p>
-        <div id="compareSelection"></div>
-        <button id="generateComparison">Generate Table</button>
-        <div id="comparisonTableWrapper"></div>
-      </div>
+  <header class="top-bar">
+    <div class="top-bar-left">
+      <h1>Religion Designer v3</h1>
+      <span class="schema-version">Schema v3.4</span>
     </div>
+    <div class="top-bar-right">
+      <button id="btn-new-snapshot" title="Clear everything and start from an empty dataset">
+        New snapshot
+      </button>
+      <button id="btn-load-sample" title="Load the small Test Faith sample">
+        Load sample
+      </button>
+      <button id="btn-export-snapshot" title="Download current snapshot as JSON">
+        Export JSON
+      </button>
+      <button id="btn-import-snapshot" title="Load a snapshot JSON from disk">
+        Import JSON
+      </button>
+      <input id="file-input" type="file" accept="application/json" hidden />
+      <span id="status" class="status"></span>
+    </div>
+  </header>
 
-  </div>
-  <script src="data-model.js"></script>
-  <script src="script.js"></script>
+  <main class="layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2>Religions</h2>
+        <button id="btn-add-religion" title="Create a new religion">+</button>
+      </div>
+      <ul id="religion-list" class="item-list"></ul>
+    </aside>
+
+    <section class="content">
+      <nav class="tabs">
+        <button class="tab active" data-tab="dashboard">Dashboard</button>
+        <button class="tab" data-tab="religion">Religion</button>
+        <button class="tab" data-tab="data">Collections</button>
+        <button class="tab" data-tab="comparison">Comparison</button>
+      </nav>
+
+      <!-- Dashboard tab -->
+      <section id="tab-dashboard" class="tab-panel active">
+        <div id="dashboard-content" class="panel-body"></div>
+      </section>
+
+      <!-- Single religion details -->
+      <section id="tab-religion" class="tab-panel">
+        <div class="panel-body">
+          <h2>Religion details</h2>
+          <p class="hint">
+            Choose a religion in the sidebar, then edit its core fields here.
+          </p>
+          <form id="religion-form" autocomplete="off">
+            <div class="form-row">
+              <label>ID</label>
+              <span id="religion-id-label" class="code-pill">—</span>
+            </div>
+
+            <div class="form-row">
+              <label for="religion-name">Name</label>
+              <input id="religion-name" type="text" required />
+            </div>
+
+            <div class="form-row">
+              <label for="religion-shortName">Short name</label>
+              <input id="religion-shortName" type="text" />
+            </div>
+
+            <div class="form-row">
+              <label for="religion-summary">Summary</label>
+              <textarea id="religion-summary" rows="4"></textarea>
+            </div>
+
+            <div class="form-row">
+              <label for="religion-tags">Tags (comma‑separated)</label>
+              <input id="religion-tags" type="text" placeholder="test, catholic, etc." />
+            </div>
+
+            <div class="form-actions">
+              <button id="btn-save-religion" type="button">Save religion</button>
+              <button id="btn-delete-religion" type="button" class="danger">
+                Delete religion & related data
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- Generic collection editor -->
+      <section id="tab-data" class="tab-panel">
+        <div class="panel-body">
+          <h2>Collections</h2>
+          <p class="hint">
+            Edit any collection as JSON. For religion‑scoped collections, you can filter by the
+            currently selected religion.
+          </p>
+
+          <div class="collection-toolbar">
+            <label>
+              Collection:
+              <select id="collection-select">
+                <option value="entities">entities</option>
+                <option value="practices">practices</option>
+                <option value="events">events</option>
+                <option value="rules">rules</option>
+                <option value="claims">claims</option>
+                <option value="textCollections">textCollections</option>
+                <option value="texts">texts</option>
+                <option value="media">media</option>
+                <option value="notes">notes</option>
+                <option value="relations">relations</option>
+              </select>
+            </label>
+
+            <label class="inline">
+              <input id="collection-filter-by-religion" type="checkbox" checked />
+              Filter by current religion (including shared)
+            </label>
+
+            <div class="collection-actions">
+              <button id="btn-add-item" type="button">New item</button>
+              <button id="btn-delete-item" type="button" class="danger" disabled>
+                Delete item
+              </button>
+            </div>
+          </div>
+
+          <div class="split">
+            <div class="list-pane">
+              <ul id="collection-items" class="item-list"></ul>
+            </div>
+            <div class="detail-pane">
+              <textarea id="item-editor" rows="24" spellcheck="false" placeholder="{ ... }"></textarea>
+              <div class="editor-actions">
+                <button id="btn-save-item" type="button">Save item</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Comparison tab -->
+      <section id="tab-comparison" class="tab-panel">
+        <div class="panel-body">
+          <h2>Comparison</h2>
+          <p class="hint">
+            Pick religions to compare. The table uses
+            <code>buildComparisonViewModel</code> under the hood.
+          </p>
+
+          <div id="comparison-selector" class="comparison-selector"></div>
+          <div id="comparison-table-wrapper" class="comparison-table-wrapper"></div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <!-- Domain / view-model layers -->
+  <script src="./view-models.js"></script>
+  <!-- comparison-services.js is not required for this UI, but harmless to include if you like -->
+  <!-- <script src="./comparison-services.js"></script> -->
+
+  <!-- UI layer -->
+  <script src="./app.js"></script>
 </body>
 </html>
