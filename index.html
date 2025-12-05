@@ -126,7 +126,28 @@
                     Delete movement & related data
                   </button>
                   <input id="file-input" type="file" accept="application/json" hidden />
+                  <input
+                    id="project-file-input"
+                    type="file"
+                    accept="application/json,.zip,application/zip"
+                    hidden
+                  />
                 </div>
+
+                <div class="form-actions">
+                  <button id="btn-export-project-zip" type="button">
+                    Export project (.zip)
+                  </button>
+                  <button id="btn-export-project-json" type="button">
+                    Export project (.json)
+                  </button>
+                  <button id="btn-import-project" type="button">
+                    Import project (.zip or .json)
+                  </button>
+                </div>
+                <p class="hint muted">
+                  Zip exports include media and per-item files. JSON exports include structure only for quick seeding.
+                </p>
               </form>
             </section>
 
@@ -599,6 +620,8 @@
   <script src="./movements/manifest.js"></script>
   <script src="./movement-data.js"></script>
   <script src="./storage.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="./project-io.js"></script>
   <script src="./domain-service.js"></script>
   <script src="./graph-view.js"></script>
   <!-- comparison-services.js is not required for this UI, but harmless to include if you like -->

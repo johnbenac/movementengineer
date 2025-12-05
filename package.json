@@ -1,0 +1,11 @@
+{
+  "name": "movementengineer",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "node comparison-services.test.js && node view-models.test.js && node project-io.test.js"
+  },
+  "dependencies": {
+    "jszip": "^3.10.1"
+  }
+}
