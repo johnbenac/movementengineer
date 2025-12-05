@@ -580,7 +580,7 @@
         row.className = 'chip-row';
         node.tags.forEach(tag => {
           const chip = document.createElement('span');
-          chip.className = 'chip';
+          chip.className = 'chip chip-tag';
           chip.textContent = tag;
           row.appendChild(chip);
         });
@@ -597,7 +597,7 @@
         row.className = 'chip-row';
         node.mentionsEntities.forEach(ent => {
           const chip = document.createElement('span');
-          chip.className = 'chip clickable';
+          chip.className = 'chip chip-entity clickable';
           chip.textContent = ent.name || ent.id;
           chip.title = ent.kind || '';
           chip.addEventListener('click', () => jumpToEntity(ent.id));
@@ -927,14 +927,14 @@
       mkSection('Involves entities', section => {
         const row = document.createElement('div');
         row.className = 'chip-row';
-        vm.entities.forEach(e => {
-          const chip = document.createElement('span');
-          chip.className = 'chip clickable';
-          chip.textContent = e.name || e.id;
-          chip.title = e.kind || '';
-          chip.addEventListener('click', () => jumpToEntity(e.id));
-          row.appendChild(chip);
-        });
+          vm.entities.forEach(e => {
+            const chip = document.createElement('span');
+            chip.className = 'chip chip-entity clickable';
+            chip.textContent = e.name || e.id;
+            chip.title = e.kind || '';
+            chip.addEventListener('click', () => jumpToEntity(e.id));
+            row.appendChild(chip);
+          });
         section.appendChild(row);
       });
     }
@@ -1061,7 +1061,7 @@
         row.className = 'chip-row';
         e.tags.forEach(tag => {
           const chip = document.createElement('span');
-          chip.className = 'chip';
+          chip.className = 'chip chip-tag';
           chip.textContent = tag;
           row.appendChild(chip);
         });
@@ -1096,7 +1096,7 @@
         row.className = 'chip-row';
         e.mainEntities.forEach(ent => {
           const chip = document.createElement('span');
-          chip.className = 'chip clickable';
+          chip.className = 'chip chip-entity clickable';
           chip.textContent = ent.name || ent.id;
           chip.addEventListener('click', () => jumpToEntity(ent.id));
           row.appendChild(chip);
@@ -1236,7 +1236,7 @@
         row.className = 'chip-row';
         c.aboutEntities.forEach(e => {
           const chip = document.createElement('span');
-          chip.className = 'chip clickable';
+          chip.className = 'chip chip-entity clickable';
           chip.textContent = e.name || e.id;
           chip.addEventListener('click', () => jumpToEntity(e.id));
           row.appendChild(chip);
@@ -1571,7 +1571,7 @@
         row.className = 'chip-row';
         m.tags.forEach(tag => {
           const chip = document.createElement('span');
-          chip.className = 'chip';
+          chip.className = 'chip chip-tag';
           chip.textContent = tag;
           row.appendChild(chip);
         });
@@ -1588,7 +1588,7 @@
         row.className = 'chip-row';
         m.entities.forEach(e => {
           const chip = document.createElement('span');
-          chip.className = 'chip clickable';
+          chip.className = 'chip chip-entity clickable';
           chip.textContent = e.name || e.id;
           chip.addEventListener('click', () => jumpToEntity(e.id));
           row.appendChild(chip);

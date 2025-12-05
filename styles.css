@@ -585,6 +585,21 @@ button.danger:hover {
   padding: 0.15rem 0.4rem;
   border-radius: 999px;
   background: #e5e7eb;
+  color: #111827;
+  border: 1px solid #d1d5db;
+}
+
+.chip-tag {
+  background: #f3f4f6;
+  border-color: #e5e7eb;
+  color: #374151;
+}
+
+.chip-entity {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+  color: #3730a3;
+  box-shadow: 0 1px 0 rgba(55, 48, 163, 0.08);
 }
 
 .chip.clickable {
@@ -593,6 +608,11 @@ button.danger:hover {
 
 .chip.clickable:hover {
   background: #d1d5db;
+}
+
+.chip-entity.clickable:hover {
+  background: #e0e7ff;
+  border-color: #a5b4fc;
 }
 
 /* Comparison */
