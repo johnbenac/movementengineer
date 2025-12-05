@@ -46,6 +46,28 @@ Bundled datasets live in `movements/*-data.js`. The manifest at `movements/manif
 node scripts/generate-movement-manifest.js
 ```
 
+#### Canonical JSON shape
+All movement data—bundled files in `movements/`, `snapshot.json` inside zip exports, and the "Export project (.json)" flow—uses one **Movement Snapshot** format:
+
+```jsonc
+{
+  "version": "3.4",
+  "movements": [],
+  "textCollections": [],
+  "texts": [],
+  "entities": [],
+  "practices": [],
+  "events": [],
+  "rules": [],
+  "claims": [],
+  "media": [],
+  "notes": [],
+  "relations": []
+}
+```
+
+Packaging may add metadata (for example `manifest.json` in zip exports), but the persisted data itself always matches the snapshot shape above. See [docs/movement-snapshot-format.md](docs/movement-snapshot-format.md) for details and guidance on templating or designer flows without inventing new JSON dialects.
+
 ### Testing
 Domain logic tests use simple Node scripts:
 

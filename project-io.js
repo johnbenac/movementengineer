@@ -70,15 +70,7 @@
 
   function exportSnapshotAsJson(snapshot) {
     const normalized = normalizeSnapshot(snapshot);
-    const payload = JSON.stringify(
-      {
-        format: 'json',
-        schemaVersion: normalized.version || '3.4',
-        data: normalized
-      },
-      null,
-      2
-    );
+    const payload = JSON.stringify(normalized, null, 2);
     return jsonBlobFromString(payload);
   }
 
