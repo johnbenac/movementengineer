@@ -61,6 +61,30 @@ body {
   gap: 0.5rem;
 }
 
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 6px;
+  border: 1px solid #374151;
+  color: #f9fafb;
+  background: #111827;
+  text-decoration: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.icon-button:hover {
+  background: #1f2937;
+  border-color: #4b5563;
+}
+
+.icon-button svg {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
 .sidebar-toggle {
   display: none;
   align-items: center;
