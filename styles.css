@@ -584,15 +584,21 @@ button.danger:hover {
   font-size: 0.75rem;
   padding: 0.15rem 0.4rem;
   border-radius: 999px;
-  background: #e5e7eb;
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #e5e7eb;
 }
 
 .chip.clickable {
+  background: #e0f2fe;
+  color: #0f172a;
+  border-color: #bae6fd;
   cursor: pointer;
 }
 
 .chip.clickable:hover {
-  background: #d1d5db;
+  background: #dbeafe;
+  border-color: #93c5fd;
 }
 
 /* Comparison */
