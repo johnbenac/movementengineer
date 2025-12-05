@@ -2367,6 +2367,16 @@
       { label: 'Level', key: 'level' },
       { label: 'Label', key: 'label' },
       { label: 'Parent text', key: 'parentId', type: 'id', ref: 'texts' },
+      {
+        label: 'Child texts (derived)',
+        key: 'derivedChildIds',
+        type: 'idList',
+        ref: 'texts',
+        value: (item, data) =>
+          (data.texts || [])
+            .filter(text => text.parentId === item.id)
+            .map(text => text.id)
+      },
       { label: 'Content', key: 'content', type: 'paragraph' },
       { label: 'Main function', key: 'mainFunction' },
       { label: 'Tags', key: 'tags', type: 'chips' },
@@ -2448,7 +2458,10 @@
     }
 
     fields.forEach(field => {
-      const value = item[field.key];
+      const value =
+        typeof field.value === 'function'
+          ? field.value(item, snapshot)
+          : item[field.key];
       renderPreviewRow(body, field.label, value, field.type, field.ref);
     });
   }
