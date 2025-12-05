@@ -20,15 +20,26 @@
   let navigationIndex = -1;
   let entityGraphView = null;
   let isDirty = false;
+  let snapshotDirty = false;
   let movementFormDirty = false;
   let itemEditorDirty = false;
   let isPopulatingMovementForm = false;
   let isPopulatingEditor = false;
 
-  function saveSnapshot(show = true) {
+  function updateDirtyState() {
+    isDirty = snapshotDirty || movementFormDirty || itemEditorDirty;
+    renderSaveBanner();
+  }
+
+  function saveSnapshot(options = {}) {
+    const {
+      show = true,
+      clearMovementDirty = false,
+      clearItemDirty = false
+    } = options;
     try {
       StorageService.saveSnapshot(snapshot);
-      markSaved();
+      markSaved({ movement: clearMovementDirty, item: clearItemDirty });
       if (show) setStatus('Saved ✓');
     } catch (e) {
       setStatus('Save failed');
@@ -55,17 +66,19 @@
   }
 
   function markDirty(source) {
-    if (source === 'movement') movementFormDirty = true;
+    if (source === 'movement') {
+      movementFormDirty = true;
+      snapshotDirty = true;
+    }
     if (source === 'item') itemEditorDirty = true;
-    isDirty = true;
-    renderSaveBanner();
+    updateDirtyState();
   }
 
-  function markSaved() {
-    isDirty = false;
-    movementFormDirty = false;
-    itemEditorDirty = false;
-    renderSaveBanner();
+  function markSaved({ movement = false, item = false } = {}) {
+    snapshotDirty = false;
+    if (movement) movementFormDirty = false;
+    if (item) itemEditorDirty = false;
+    updateDirtyState();
   }
 
   function renderSaveBanner() {
@@ -91,7 +104,7 @@
       if (!saved) return;
     }
 
-    saveSnapshot();
+    saveSnapshot({ clearMovementDirty: true, clearItemDirty: true });
   }
 
   function activateTab(name) {
@@ -391,7 +404,7 @@
   function saveMovementFromForm() {
     applyMovementFormToSnapshot();
 
-    saveSnapshot();
+    saveSnapshot({ clearMovementDirty: true });
   }
 
   // ---- Movement explorer (view-model-driven views) ----
@@ -2557,7 +2570,10 @@
     try {
       DomainService.upsertItem(snapshot, collName, obj);
       currentItemId = obj.id;
-      if (persist) saveSnapshot();
+      itemEditorDirty = false;
+      snapshotDirty = true;
+      updateDirtyState();
+      if (persist) saveSnapshot({ clearItemDirty: true });
       pushNavigationState(collName, currentItemId);
     } catch (e) {
       alert(e.message);
@@ -2575,7 +2591,7 @@
         currentMovementId
       );
       currentItemId = skeleton.id;
-      saveSnapshot(false); // we'll call setStatus manually
+      saveSnapshot({ show: false }); // we'll call setStatus manually
       setStatus('New item created');
       setCollectionAndItem(collName, skeleton.id);
     } catch (e) {
@@ -2834,7 +2850,7 @@
     currentMovementId = snapshot.movements[0]?.id || null;
     currentItemId = null;
     resetNavigationHistory();
-    saveSnapshot();
+    saveSnapshot({ clearMovementDirty: true, clearItemDirty: true });
     setStatus('Reset to default');
   }
 
