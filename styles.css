@@ -177,6 +177,10 @@ button.danger:hover {
   display: flex;
   border-bottom: 1px solid #e5e7eb;
   background: #f9fafb;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  padding: 0.25rem 0.75rem 0;
+  overflow-x: auto;
 }
 
 .tab {
@@ -204,6 +208,13 @@ button.danger:hover {
 
 .panel-body {
   padding: 0.9rem 1.1rem 1.2rem;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 0.9rem;
+  align-items: start;
 }
 
 /* Forms */
@@ -269,43 +280,7 @@ button.danger:hover {
   border-top: 1px solid #e5e7eb;
 }
 
-/* Movement explorer subtabs */
-
-.movement-explorer h3 {
-  margin: 0 0 0.25rem;
-  font-size: 1rem;
-}
-
-.subtabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
-  border-bottom: 1px solid #e5e7eb;
-  padding-bottom: 0.3rem;
-  margin-bottom: 0.4rem;
-}
-
-.subtab {
-  padding: 0.35rem 0.7rem;
-  border-radius: 999px;
-  border: 1px solid transparent;
-  background: #e5e7eb;
-  font-size: 0.78rem;
-}
-
-.subtab.active {
-  background: #111827;
-  color: #f9fafb;
-}
-
-.subtab-panel {
-  display: none;
-  padding-top: 0.4rem;
-}
-
-.subtab-panel.active {
-  display: block;
-}
+/* Explorer toolbars */
 
 .subtab-toolbar {
   display: flex;
