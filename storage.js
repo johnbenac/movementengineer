@@ -102,7 +102,7 @@
     }
   }
 
-  window.StorageService = {
+  const api = {
     STORAGE_KEY,
     COLLECTION_NAMES,
     COLLECTIONS_WITH_MOVEMENT_ID,
@@ -112,4 +112,11 @@
     loadSnapshot,
     saveSnapshot
   };
+
+  if (typeof module !== 'undefined') {
+    module.exports = api;
+  }
+  if (typeof window !== 'undefined') {
+    window.StorageService = api;
+  }
 })();

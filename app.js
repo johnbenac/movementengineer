@@ -5,7 +5,7 @@
  * This file just handles DOM, localStorage, import/export, and wiring.
  */
 
-/* global DomainService, StorageService, ViewModels, EntityGraphView */
+/* global DomainService, StorageService, ViewModels, EntityGraphView, ProjectIO */
 
 (function () {
   'use strict';
@@ -3182,6 +3182,30 @@
 
   // ---- Import / export / reset ----
 
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function replaceSnapshot(newSnapshot, statusText) {
+    snapshot = StorageService.ensureAllCollections(newSnapshot);
+    currentMovementId = snapshot.movements[0]
+      ? snapshot.movements[0].id
+      : null;
+    currentItemId = null;
+    currentTextId = null;
+    resetNavigationHistory();
+    saveSnapshot({ clearMovementDirty: true, clearItemDirty: true });
+    markSaved();
+    if (statusText) setStatus(statusText);
+  }
+
   function exportCurrentMovement() {
     if (!currentMovementId) {
       alert('Select a movement to export.');
@@ -3204,15 +3228,26 @@
 
     const dataStr = JSON.stringify(data, null, 2);
     const blob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${movement.shortName || movement.id}-movement.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    downloadBlob(blob, `${movement.shortName || movement.id}-movement.json`);
     setStatus('Exported movement JSON');
+  }
+
+  function buildProjectFilename(format) {
+    const today = new Date().toISOString().slice(0, 10);
+    if (format === 'json') return `movement-project-${today}.json`;
+    return `movement-project-${today}.zip`;
+  }
+
+  async function exportProject(format) {
+    try {
+      const blob = await ProjectIO.exportSnapshot(snapshot, { format });
+      downloadBlob(blob, buildProjectFilename(format));
+      setStatus(
+        format === 'zip' ? 'Exported project zip with collections' : 'Exported project JSON'
+      );
+    } catch (e) {
+      alert('Failed to export project: ' + e.message);
+    }
   }
 
   function importMovementFromFile(file) {
@@ -3268,6 +3303,15 @@
       }
     };
     reader.readAsText(file);
+  }
+
+  async function importProjectFromFile(file) {
+    try {
+      const imported = await ProjectIO.importSnapshot(file);
+      replaceSnapshot(imported, 'Imported project');
+    } catch (e) {
+      alert('Failed to import project: ' + e.message);
+    }
   }
 
   function resetToDefaults() {
@@ -3328,6 +3372,13 @@
     );
     addListenerById('btn-export-movement', 'click', exportCurrentMovement);
 
+    addListenerById('btn-export-project-zip', 'click', () =>
+      exportProject('zip')
+    );
+    addListenerById('btn-export-project-json', 'click', () =>
+      exportProject('json')
+    );
+
     addListenerById('btn-import-movement', 'click', () => {
       const input = document.getElementById('file-input');
       if (!input) return;
@@ -3339,6 +3390,19 @@
       const file = e.target.files && e.target.files[0];
       if (!file) return;
       importMovementFromFile(file);
+    });
+
+    addListenerById('btn-import-project', 'click', () => {
+      const input = document.getElementById('project-file-input');
+      if (!input) return;
+      input.value = '';
+      input.click();
+    });
+
+    addListenerById('project-file-input', 'change', e => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      importProjectFromFile(file);
     });
 
     ['movement-name', 'movement-shortName', 'movement-summary', 'movement-tags']
