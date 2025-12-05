@@ -4,7 +4,7 @@ Movement Engineer is a fully client-side tool for exploring, authoring, and comp
 
 ## Features
 - Browse, edit, and compare movements, entities, practices, events, rules, claims, and sources.
-- Persist your work in the browser or export/import JSON snapshots for sharing and backups.
+- Persist your work in the browser, or export/import full-fidelity zip projects (with room for media assets) and lightweight JSON snapshots for quick scripting.
 - Visualize relationships through the embedded entity graph view.
 - Auto-load bundled movement datasets from the `movements/` directory via the generated manifest.
 - Lightweight domain and view-model layers decoupled from the UI for easy testing.

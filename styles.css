@@ -61,6 +61,16 @@ body {
   gap: 0.5rem;
 }
 
+.project-io-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.project-io-controls button {
+  white-space: nowrap;
+}
+
 .icon-button {
   display: inline-flex;
   align-items: center;

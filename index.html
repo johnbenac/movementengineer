@@ -28,6 +28,17 @@
         <button id="btn-reset-defaults" title="Clear all data and reload the default movement">
           Clear & reset
         </button>
+        <div class="project-io-controls">
+          <button id="btn-export-project-zip" type="button">Export project (.zip)</button>
+          <button id="btn-export-project-json" type="button">Export project (.json)</button>
+          <button id="btn-import-project" type="button">Import project</button>
+          <input
+            id="project-file-input"
+            type="file"
+            accept=".zip,.movement,application/json"
+            hidden
+          />
+        </div>
         <a
           class="icon-button"
           href="https://github.com/johnbenac/movementengineer"
@@ -600,6 +611,8 @@
   <script src="./movement-data.js"></script>
   <script src="./storage.js"></script>
   <script src="./domain-service.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="./project-io.js"></script>
   <script src="./graph-view.js"></script>
   <!-- comparison-services.js is not required for this UI, but harmless to include if you like -->
   <!-- <script src="./comparison-services.js"></script> -->

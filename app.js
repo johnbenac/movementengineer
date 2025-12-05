@@ -11,6 +11,7 @@
   'use strict';
 
   const { COLLECTION_NAMES, COLLECTIONS_WITH_MOVEMENT_ID } = DomainService;
+  const ProjectIO = window.ProjectIO;
 
   let snapshot = null;
   let currentMovementId = null;
@@ -65,6 +66,17 @@
         el.textContent = '';
       }
     }, 2500);
+  }
+
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 
   function markDirty(source) {
@@ -3215,6 +3227,35 @@
     setStatus('Exported movement JSON');
   }
 
+  async function exportProject(format) {
+    try {
+      const blob = await ProjectIO.exportProject(snapshot, format);
+      const date = new Date().toISOString().slice(0, 10);
+      const suffix = format === 'json' ? 'json' : 'zip';
+      downloadBlob(blob, `movement-project-${date}.${suffix}`);
+      setStatus(`Exported project as ${suffix}`);
+    } catch (e) {
+      alert('Failed to export project: ' + e.message);
+    }
+  }
+
+  async function importProjectFile(file) {
+    try {
+      const imported = await ProjectIO.importProject(file);
+      snapshot = StorageService.ensureAllCollections(imported);
+      currentMovementId = snapshot.movements[0]?.id || null;
+      currentItemId = null;
+      currentTextId = null;
+      resetNavigationHistory();
+      saveSnapshot({ clearMovementDirty: true, clearItemDirty: true });
+      renderMovementList();
+      renderActiveTab();
+      setStatus('Imported project');
+    } catch (e) {
+      alert('Failed to import project: ' + e.message);
+    }
+  }
+
   function importMovementFromFile(file) {
     const reader = new FileReader();
     reader.onload = () => {
@@ -3320,6 +3361,23 @@
 
     // Top bar actions
     addListenerById('btn-reset-defaults', 'click', resetToDefaults);
+    addListenerById('btn-export-project-zip', 'click', () =>
+      exportProject('zip')
+    );
+    addListenerById('btn-export-project-json', 'click', () =>
+      exportProject('json')
+    );
+    addListenerById('btn-import-project', 'click', () => {
+      const input = document.getElementById('project-file-input');
+      if (!input) return;
+      input.value = '';
+      input.click();
+    });
+    addListenerById('project-file-input', 'change', e => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      importProjectFile(file);
+    });
 
     // Movement form
     addListenerById('btn-save-movement', 'click', saveMovementFromForm);
