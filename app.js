@@ -2854,9 +2854,16 @@
     setStatus('Reset to default');
   }
 
-  // ---- Init ----
+    function addListenerById(id, event, handler) {
+      const el = document.getElementById(id);
+      if (!el) return null;
+      el.addEventListener(event, handler);
+      return el;
+    }
 
-  function init() {
+    // ---- Init ----
+
+    function init() {
     snapshot = loadSnapshot();
     currentMovementId = snapshot.movements[0]
       ? snapshot.movements[0].id
@@ -2865,39 +2872,26 @@
     markSaved();
 
     // Sidebar
-    document
-      .getElementById('btn-add-movement')
-      .addEventListener('click', () => addMovement());
+      addListenerById('btn-add-movement', 'click', () => addMovement());
 
     // Top bar actions
-    document
-      .getElementById('btn-reset-defaults')
-      .addEventListener('click', resetToDefaults);
+      addListenerById('btn-reset-defaults', 'click', resetToDefaults);
 
     // Movement form
-    document
-      .getElementById('btn-save-movement')
-      .addEventListener('click', saveMovementFromForm);
-    document
-      .getElementById('btn-delete-movement')
-      .addEventListener('click', () =>
+      addListenerById('btn-save-movement', 'click', saveMovementFromForm);
+      addListenerById('btn-delete-movement', 'click', () =>
         deleteMovement(currentMovementId)
       );
-    document
-      .getElementById('btn-export-movement')
-      .addEventListener('click', exportCurrentMovement);
+      addListenerById('btn-export-movement', 'click', exportCurrentMovement);
 
-    document
-      .getElementById('btn-import-movement')
-      .addEventListener('click', () => {
+      addListenerById('btn-import-movement', 'click', () => {
         const input = document.getElementById('file-input');
+        if (!input) return;
         input.value = '';
         input.click();
       });
 
-    document
-      .getElementById('file-input')
-      .addEventListener('change', e => {
+      addListenerById('file-input', 'change', e => {
         const file = e.target.files && e.target.files[0];
         if (!file) return;
         importMovementFromFile(file);
@@ -3043,37 +3037,25 @@
     }
 
     // Collections tab
-    document
-      .getElementById('collection-select')
-      .addEventListener('change', e => {
+      addListenerById('collection-select', 'change', e => {
         setCollectionAndItem(e.target.value, null, { addToHistory: false });
       });
 
-    document
-      .getElementById('collection-filter-by-movement')
-      .addEventListener('change', () => {
+      addListenerById('collection-filter-by-movement', 'change', () => {
         renderCollectionList();
         renderItemDetail();
       });
 
-    document
-      .getElementById('btn-add-item')
-      .addEventListener('click', addNewItem);
-    document
-      .getElementById('btn-delete-item')
-      .addEventListener('click', deleteCurrentItem);
-    document
-      .getElementById('btn-save-item')
-      .addEventListener('click', saveItemFromEditor);
+      addListenerById('btn-add-item', 'click', addNewItem);
+      addListenerById('btn-delete-item', 'click', deleteCurrentItem);
+      addListenerById('btn-save-item', 'click', saveItemFromEditor);
 
     const navBack = document.getElementById('btn-preview-back');
     const navForward = document.getElementById('btn-preview-forward');
     if (navBack) navBack.addEventListener('click', () => navigateHistory(-1));
     if (navForward) navForward.addEventListener('click', () => navigateHistory(1));
 
-    document
-      .getElementById('btn-save-banner')
-      .addEventListener('click', () => persistDirtyChanges());
+      addListenerById('btn-save-banner', 'click', () => persistDirtyChanges());
 
     const itemEditor = document.getElementById('item-editor');
     if (itemEditor) {
@@ -3090,3 +3072,4 @@
 
   document.addEventListener('DOMContentLoaded', init);
 })();
+
