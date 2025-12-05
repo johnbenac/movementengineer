@@ -185,6 +185,244 @@
     while (el.firstChild) el.removeChild(el.firstChild);
   }
 
+  function layoutRelationGraph(graphVm, { width, height }) {
+    const padding = 28;
+    const nodes = graphVm.nodes.map((node, idx) => ({
+      ...node,
+      x: width / 2 + Math.cos(idx) * (width / 3) + (Math.random() - 0.5) * 30,
+      y: height / 2 + Math.sin(idx) * (height / 3) + (Math.random() - 0.5) * 30,
+      vx: 0,
+      vy: 0
+    }));
+
+    const nodeLookup = new Map(nodes.map(n => [n.id, n]));
+    const edges = graphVm.edges
+      .map(edge => ({
+        ...edge,
+        from: nodeLookup.get(edge.fromId),
+        to: nodeLookup.get(edge.toId)
+      }))
+      .filter(edge => edge.from && edge.to);
+
+    const iterations = 260;
+    const springLength = 140;
+    const springStrength = 0.015;
+    const repulsionStrength = 6500;
+    const damping = 0.85;
+
+    const centerTarget = { x: width / 2, y: height / 2 };
+    const centerNode = graphVm.centerEntityId
+      ? nodeLookup.get(graphVm.centerEntityId)
+      : null;
+
+    for (let i = 0; i < iterations; i += 1) {
+      // Repel
+      for (let a = 0; a < nodes.length; a += 1) {
+        for (let b = a + 1; b < nodes.length; b += 1) {
+          const n1 = nodes[a];
+          const n2 = nodes[b];
+          const dx = n1.x - n2.x;
+          const dy = n1.y - n2.y;
+          const distSq = Math.max(dx * dx + dy * dy, 0.01);
+          const force = repulsionStrength / distSq;
+          const fx = (force * dx) / Math.sqrt(distSq);
+          const fy = (force * dy) / Math.sqrt(distSq);
+          n1.vx += fx;
+          n1.vy += fy;
+          n2.vx -= fx;
+          n2.vy -= fy;
+        }
+      }
+
+      // Attract along edges
+      edges.forEach(edge => {
+        const dx = edge.to.x - edge.from.x;
+        const dy = edge.to.y - edge.from.y;
+        const dist = Math.max(Math.sqrt(dx * dx + dy * dy), 0.01);
+        const force = (dist - springLength) * springStrength;
+        const fx = (force * dx) / dist;
+        const fy = (force * dy) / dist;
+        edge.from.vx += fx;
+        edge.from.vy += fy;
+        edge.to.vx -= fx;
+        edge.to.vy -= fy;
+      });
+
+      // Gentle pull to centre to avoid drift
+      nodes.forEach(node => {
+        node.vx += (centerTarget.x - node.x) * 0.0025;
+        node.vy += (centerTarget.y - node.y) * 0.0025;
+      });
+
+      // Integrate
+      nodes.forEach(node => {
+        node.x += node.vx * damping;
+        node.y += node.vy * damping;
+        node.vx *= damping * 0.9;
+        node.vy *= damping * 0.9;
+
+        // Keep nodes in bounds
+        node.x = Math.min(Math.max(node.x, padding), width - padding);
+        node.y = Math.min(Math.max(node.y, padding), height - padding);
+      });
+
+      if (centerNode) {
+        centerNode.x = centerTarget.x;
+        centerNode.y = centerTarget.y;
+        centerNode.vx = 0;
+        centerNode.vy = 0;
+      }
+    }
+
+    return { nodes, edges };
+  }
+
+  function renderRelationGraph(graphVm, { container, onNodeSelect }) {
+    clearElement(container);
+
+    const heading = document.createElement('div');
+    heading.className = 'section-heading small';
+    heading.textContent = `Relation graph (${graphVm.nodes.length} nodes, ${graphVm.edges.length} edges)`;
+    container.appendChild(heading);
+
+    if (!graphVm.nodes.length) {
+      const p = document.createElement('p');
+      p.className = 'hint';
+      p.textContent = 'No related entities found at this depth. Try broadening the filter above.';
+      container.appendChild(p);
+      return;
+    }
+
+    const surfaceWrapper = document.createElement('div');
+    surfaceWrapper.className = 'entity-graph-wrapper';
+    container.appendChild(surfaceWrapper);
+
+    const rect = surfaceWrapper.getBoundingClientRect();
+    const width = Math.max(rect.width || 720, 480);
+    const height = 420;
+
+    const { nodes, edges } = layoutRelationGraph(graphVm, { width, height });
+    const nodeLookup = new Map(nodes.map(n => [n.id, n]));
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.classList.add('entity-graph-surface');
+    svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+    svg.setAttribute('role', 'img');
+    svg.setAttribute('aria-label', 'Entity relation graph');
+    surfaceWrapper.appendChild(svg);
+
+    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+    marker.setAttribute('id', 'arrowhead');
+    marker.setAttribute('viewBox', '0 0 10 10');
+    marker.setAttribute('refX', '6');
+    marker.setAttribute('refY', '5');
+    marker.setAttribute('markerWidth', '6');
+    marker.setAttribute('markerHeight', '6');
+    marker.setAttribute('orient', 'auto-start-reverse');
+    const markerPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    markerPath.setAttribute('d', 'M 0 0 L 10 5 L 0 10 z');
+    marker.appendChild(markerPath);
+    defs.appendChild(marker);
+    svg.appendChild(defs);
+
+    const edgesGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    edgesGroup.classList.add('entity-graph-edges');
+    svg.appendChild(edgesGroup);
+
+    edges.forEach(edge => {
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.classList.add('entity-graph-edge');
+      line.setAttribute('x1', edge.from.x);
+      line.setAttribute('y1', edge.from.y);
+      line.setAttribute('x2', edge.to.x);
+      line.setAttribute('y2', edge.to.y);
+      line.setAttribute('marker-end', 'url(#arrowhead)');
+      edgesGroup.appendChild(line);
+
+      const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      label.classList.add('entity-graph-edge-label');
+      const midX = (edge.from.x + edge.to.x) / 2;
+      const midY = (edge.from.y + edge.to.y) / 2;
+      label.setAttribute('x', midX);
+      label.setAttribute('y', midY);
+      label.textContent = edge.relationType;
+      edgesGroup.appendChild(label);
+    });
+
+    const nodesGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    nodesGroup.classList.add('entity-graph-nodes');
+    svg.appendChild(nodesGroup);
+
+    nodes.forEach(node => {
+      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      g.classList.add('entity-graph-node');
+      if (node.id === graphVm.centerEntityId) g.classList.add('is-center');
+      g.setAttribute('transform', `translate(${node.x}, ${node.y})`);
+      g.style.cursor = 'pointer';
+      g.addEventListener('click', () => {
+        if (onNodeSelect) onNodeSelect(node.id);
+      });
+
+      const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      circle.setAttribute('r', '18');
+      g.appendChild(circle);
+
+      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      text.classList.add('entity-graph-label');
+      text.setAttribute('y', '4');
+      text.textContent = node.name || node.id;
+      g.appendChild(text);
+
+      const subtitle = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      subtitle.classList.add('entity-graph-subtitle');
+      subtitle.setAttribute('y', '20');
+      subtitle.textContent = node.kind || '';
+      g.appendChild(subtitle);
+
+      nodesGroup.appendChild(g);
+    });
+
+    const summary = document.createElement('div');
+    summary.className = 'entity-graph-summary';
+    const nodeListTitle = document.createElement('div');
+    nodeListTitle.className = 'section-heading small';
+    nodeListTitle.textContent = 'Nodes';
+    summary.appendChild(nodeListTitle);
+
+    const nodeRow = document.createElement('div');
+    nodeRow.className = 'chip-row';
+    nodes.forEach(n => {
+      const chip = document.createElement('span');
+      chip.className = 'chip clickable';
+      chip.textContent = (n.id === graphVm.centerEntityId ? '★ ' : '') + (n.name || n.id);
+      chip.title = n.kind || '';
+      chip.addEventListener('click', () => {
+        if (onNodeSelect) onNodeSelect(n.id);
+      });
+      nodeRow.appendChild(chip);
+    });
+    summary.appendChild(nodeRow);
+
+    const edgesTitle = document.createElement('div');
+    edgesTitle.className = 'section-heading small';
+    edgesTitle.textContent = 'Edges';
+    summary.appendChild(edgesTitle);
+
+    const list = document.createElement('ul');
+    list.className = 'entity-graph-edge-list';
+    edges.forEach(e => {
+      const li = document.createElement('li');
+      const from = nodeLookup.get(e.fromId);
+      const to = nodeLookup.get(e.toId);
+      li.textContent = `${from ? from.name : e.fromId} — ${e.relationType} → ${to ? to.name : e.toId}`;
+      list.appendChild(li);
+    });
+    summary.appendChild(list);
+
+    container.appendChild(summary);
+  }
+
   function getActiveTabName() {
     const btn = document.querySelector('.tab.active');
     return btn ? btn.dataset.tab : 'dashboard';
@@ -768,51 +1006,15 @@
       relationTypeFilter
     });
 
-    const nodesById = new Map();
-    graphVm.nodes.forEach(n => nodesById.set(n.id, n));
-
-    const nodesTitle = document.createElement('div');
-    nodesTitle.className = 'section-heading small';
-    nodesTitle.textContent = `Nodes (${graphVm.nodes.length})`;
-    graphContainer.appendChild(nodesTitle);
-
-    const nodeRow = document.createElement('div');
-    nodeRow.className = 'chip-row';
-    graphVm.nodes.forEach(n => {
-      const chip = document.createElement('span');
-      chip.className =
-        'chip' + (n.id === graphVm.centerEntityId ? ' clickable' : '');
-      chip.textContent =
-        (n.id === graphVm.centerEntityId ? '★ ' : '') +
-        (n.name || n.id);
-      chip.title = n.kind || '';
-      chip.addEventListener('click', () => {
-        if (n.id) {
-          document.getElementById('entity-select').value = n.id;
+    renderRelationGraph(graphVm, {
+      container: graphContainer,
+      onNodeSelect: id => {
+        if (id) {
+          document.getElementById('entity-select').value = id;
           renderEntitiesView();
         }
-      });
-      nodeRow.appendChild(chip);
+      }
     });
-    graphContainer.appendChild(nodeRow);
-
-    const edgesTitle = document.createElement('div');
-    edgesTitle.className = 'section-heading small';
-    edgesTitle.textContent = `Edges (${graphVm.edges.length})`;
-    graphContainer.appendChild(edgesTitle);
-
-    const edgesList = document.createElement('ul');
-    edgesList.style.fontSize = '0.8rem';
-    graphVm.edges.forEach(e => {
-      const li = document.createElement('li');
-      const from = nodesById.get(e.fromId);
-      const to = nodesById.get(e.toId);
-      li.textContent = `${from ? from.name : e.fromId} — ${
-        e.relationType
-      } → ${to ? to.name : e.toId}`;
-      edgesList.appendChild(li);
-    });
-    graphContainer.appendChild(edgesList);
   }
 
   // ---- Practices (buildPracticeDetailViewModel) ----

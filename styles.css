@@ -669,6 +669,84 @@ button.danger:hover {
   font-size: 0.9rem;
 }
 
+/* Entity relation graph */
+
+.entity-graph-wrapper {
+  margin: 0.4rem 0 0.6rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #ffffff;
+  padding: 0.4rem;
+}
+
+.entity-graph-surface {
+  width: 100%;
+  height: 420px;
+  display: block;
+}
+
+.entity-graph-edge {
+  stroke: #d1d5db;
+  stroke-width: 1.6;
+}
+
+marker#arrowhead path {
+  fill: #d1d5db;
+}
+
+.entity-graph-edge-label {
+  font-size: 0.65rem;
+  fill: #6b7280;
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke: #ffffff;
+  stroke-width: 4px;
+}
+
+.entity-graph-node circle {
+  fill: #ffffff;
+  stroke: #111827;
+  stroke-width: 1.5;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.06));
+}
+
+.entity-graph-node.is-center circle {
+  fill: #111827;
+  stroke: #111827;
+}
+
+.entity-graph-label {
+  text-anchor: middle;
+  font-size: 0.75rem;
+  font-weight: 600;
+  fill: #111827;
+  dominant-baseline: middle;
+}
+
+.entity-graph-subtitle {
+  text-anchor: middle;
+  font-size: 0.62rem;
+  fill: #6b7280;
+}
+
+.entity-graph-node.is-center .entity-graph-label {
+  fill: #f9fafb;
+}
+
+.entity-graph-node.is-center .entity-graph-subtitle {
+  fill: #e5e7eb;
+}
+
+.entity-graph-summary {
+  margin-top: 0.75rem;
+  font-size: 0.82rem;
+}
+
+.entity-graph-edge-list {
+  margin: 0.15rem 0 0.4rem;
+  padding-left: 1.1rem;
+}
+
 /* Card grid */
 
 .card-grid {
