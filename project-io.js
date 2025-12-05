@@ -70,15 +70,7 @@
 
   function exportSnapshotAsJson(snapshot) {
     const normalized = normalizeSnapshot(snapshot);
-    const payload = JSON.stringify(
-      {
-        format: 'json',
-        schemaVersion: normalized.version || '3.4',
-        data: normalized
-      },
-      null,
-      2
-    );
+    const payload = JSON.stringify(normalized, null, 2);
     return jsonBlobFromString(payload);
   }
 
@@ -159,6 +151,8 @@
   }
 
   function normalizeImportedSnapshot(raw) {
+    // Backward compatibility for the legacy wrapped JSON export shape
+    // { format: 'json', schemaVersion: '3.4', data: { ...snapshot } }
     if (raw && raw.format === 'json' && raw.data) {
       return StorageService.ensureAllCollections(raw.data);
     }

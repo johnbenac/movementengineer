@@ -33,6 +33,34 @@ A few design convictions show up everywhere:
 
 If you’re building your own dataset, start with a Movement, stub a TextCollection and a few TextNodes, define your key Entities, and only then add Practices, Events, Rules, and Claims. The model rewards incremental layering: sketch the worldview first, then hang behavior, norms, and evidence on top.
 
+## Canonical data shape: Movement Snapshot
+Everything persisted or exchanged by Movement Engineer is a **Movement Snapshot**: a single JSON object with top-level arrays for each collection.
+
+```json
+{
+  "version": "3.4",
+  "movements": [],
+  "textCollections": [],
+  "texts": [],
+  "entities": [],
+  "practices": [],
+  "events": [],
+  "rules": [],
+  "claims": [],
+  "media": [],
+  "notes": [],
+  "relations": []
+}
+```
+
+`data-model.js` is the normative schema for those collections. Static datasets in `movements/*-data.js`, the Me Too dataset, `snapshot.json` inside exported ZIPs, and the **Export project (.json)** action all share this exact shape. Packaging layers (ZIP manifests, `.movement` archives, JS wrappers) may add metadata alongside the snapshot, but the snapshot itself is never wrapped or re-schemed.
+
+When designing new movements, keep everything flowing through this one shape:
+
+- Designer/wizard UIs may use friendlier view models internally, but they should **compile into a Movement Snapshot** before saving or exporting.
+- To fork or scaffold movements, use `applyTemplateToMovement` from `comparison-services.js` with the `MovementTemplate` definitions in `comparison-model.js`; the result is still just a snapshot with new IDs and records.
+- If you introduce new meta collections later (e.g., `movementTemplates`), add them as additional top-level arrays on the same snapshot rather than creating a separate format.
+
 ## Getting started
 This repository is static; you can open `index.html` directly in a browser or serve the directory with any static file host.
 
