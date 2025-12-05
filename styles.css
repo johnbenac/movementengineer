@@ -84,6 +84,23 @@ button.danger:hover {
   opacity: 0.8;
 }
 
+.save-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 1.25rem;
+  background: #e0f2fe;
+  color: #0f172a;
+  border-bottom: 1px solid #bae6fd;
+}
+
+.save-banner.saved {
+  background: #ecfdf3;
+  border-color: #bbf7d0;
+  color: #0f172a;
+}
+
 /* Main layout */
 
 .layout {
@@ -221,6 +238,8 @@ button.danger:hover {
 .form-actions {
   display: flex;
   gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
   margin-top: 0.5rem;
 }
 

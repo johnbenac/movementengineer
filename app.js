@@ -19,10 +19,27 @@
   let navigationStack = [];
   let navigationIndex = -1;
   let entityGraphView = null;
+  let isDirty = false;
+  let snapshotDirty = false;
+  let movementFormDirty = false;
+  let itemEditorDirty = false;
+  let isPopulatingMovementForm = false;
+  let isPopulatingEditor = false;
 
-  function saveSnapshot(show = true) {
+  function updateDirtyState() {
+    isDirty = snapshotDirty || movementFormDirty || itemEditorDirty;
+    renderSaveBanner();
+  }
+
+  function saveSnapshot(options = {}) {
+    const {
+      show = true,
+      clearMovementDirty = false,
+      clearItemDirty = false
+    } = options;
     try {
       StorageService.saveSnapshot(snapshot);
+      markSaved({ movement: clearMovementDirty, item: clearItemDirty });
       if (show) setStatus('Saved ✓');
     } catch (e) {
       setStatus('Save failed');
@@ -46,6 +63,48 @@
         el.textContent = '';
       }
     }, 2500);
+  }
+
+  function markDirty(source) {
+    if (source === 'movement') {
+      movementFormDirty = true;
+      snapshotDirty = true;
+    }
+    if (source === 'item') itemEditorDirty = true;
+    updateDirtyState();
+  }
+
+  function markSaved({ movement = false, item = false } = {}) {
+    snapshotDirty = false;
+    if (movement) movementFormDirty = false;
+    if (item) itemEditorDirty = false;
+    updateDirtyState();
+  }
+
+  function renderSaveBanner() {
+    const banner = document.getElementById('save-banner');
+    const text = document.getElementById('save-banner-text');
+    const saveBtn = document.getElementById('btn-save-banner');
+    if (!banner || !text || !saveBtn) return;
+
+    banner.classList.toggle('saved', !isDirty);
+    saveBtn.disabled = !isDirty;
+    text.textContent = isDirty
+      ? 'Changes have not been saved to disk.'
+      : 'All changes are saved to this browser.';
+  }
+
+  function persistDirtyChanges() {
+    if (movementFormDirty) {
+      applyMovementFormToSnapshot();
+    }
+
+    if (itemEditorDirty) {
+      const saved = saveItemFromEditor({ persist: false });
+      if (!saved) return;
+    }
+
+    saveSnapshot({ clearMovementDirty: true, clearItemDirty: true });
   }
 
   function activateTab(name) {
@@ -304,6 +363,7 @@
       }
     );
 
+    isPopulatingMovementForm = true;
     idLabel.textContent = movement.id;
     nameInput.value = movement.name || '';
     shortInput.value = movement.shortName || '';
@@ -311,9 +371,10 @@
     tagsInput.value = Array.isArray(movement.tags)
       ? movement.tags.join(', ')
       : '';
+    isPopulatingMovementForm = false;
   }
 
-  function saveMovementFromForm() {
+  function applyMovementFormToSnapshot() {
     if (!currentMovementId) return;
     if (!getMovementById(currentMovementId)) return;
 
@@ -337,7 +398,13 @@
       tags
     });
 
-    saveSnapshot();
+    renderMovementList();
+  }
+
+  function saveMovementFromForm() {
+    applyMovementFormToSnapshot();
+
+    saveSnapshot({ clearMovementDirty: true });
   }
 
   // ---- Movement explorer (view-model-driven views) ----
@@ -2438,7 +2505,9 @@
     const deleteBtn = document.getElementById('btn-delete-item');
 
     if (!currentItemId) {
+      isPopulatingEditor = true;
       editor.value = '';
+      isPopulatingEditor = false;
       editor.disabled = coll.length === 0;
       deleteBtn.disabled = true;
       renderItemPreview();
@@ -2447,7 +2516,9 @@
 
     const item = coll.find(it => it.id === currentItemId);
     if (!item) {
+      isPopulatingEditor = true;
       editor.value = '';
+      isPopulatingEditor = false;
       editor.disabled = true;
       deleteBtn.disabled = true;
       renderItemPreview();
@@ -2456,7 +2527,9 @@
 
     editor.disabled = false;
     deleteBtn.disabled = false;
+    isPopulatingEditor = true;
     editor.value = JSON.stringify(item, null, 2);
+    isPopulatingEditor = false;
     renderItemPreview();
   }
 
@@ -2465,19 +2538,20 @@
     renderItemEditor();
   }
 
-  function saveItemFromEditor() {
+  function saveItemFromEditor(options = {}) {
+    const { persist = true } = options;
     const collName = currentCollectionName;
     const coll = snapshot[collName];
     if (!Array.isArray(coll)) {
       alert('Unknown collection: ' + collName);
-      return;
+      return false;
     }
 
     const editor = document.getElementById('item-editor');
     const raw = editor.value.trim();
     if (!raw) {
       alert('Editor is empty. Nothing to save.');
-      return;
+      return false;
     }
 
     let obj;
@@ -2485,22 +2559,27 @@
       obj = JSON.parse(raw);
     } catch (e) {
       alert('Invalid JSON: ' + e.message);
-      return;
+      return false;
     }
 
     if (!obj.id) {
       alert('Object must have an "id" field.');
-      return;
+      return false;
     }
 
     try {
       DomainService.upsertItem(snapshot, collName, obj);
       currentItemId = obj.id;
-      saveSnapshot();
+      itemEditorDirty = false;
+      snapshotDirty = true;
+      updateDirtyState();
+      if (persist) saveSnapshot({ clearItemDirty: true });
       pushNavigationState(collName, currentItemId);
     } catch (e) {
       alert(e.message);
+      return false;
     }
+    return true;
   }
 
   function addNewItem() {
@@ -2512,7 +2591,7 @@
         currentMovementId
       );
       currentItemId = skeleton.id;
-      saveSnapshot(false); // we'll call setStatus manually
+      saveSnapshot({ show: false }); // we'll call setStatus manually
       setStatus('New item created');
       setCollectionAndItem(collName, skeleton.id);
     } catch (e) {
@@ -2672,41 +2751,89 @@
     wrapper.appendChild(table);
   }
 
-  // ---- Import / export / sample ----
+  // ---- Import / export / reset ----
 
-  function exportSnapshot() {
-    const dataStr = JSON.stringify(snapshot, null, 2);
+  function exportCurrentMovement() {
+    if (!currentMovementId) {
+      alert('Select a movement to export.');
+      return;
+    }
+    const movement = getMovementById(currentMovementId);
+    if (!movement) {
+      alert('Movement not found.');
+      return;
+    }
+
+    const data = StorageService.createEmptySnapshot();
+    if (snapshot.version) data.version = snapshot.version;
+    data.movements = [movement];
+    COLLECTIONS_WITH_MOVEMENT_ID.forEach(collName => {
+      data[collName] = (snapshot[collName] || []).filter(
+        item => item.movementId === movement.id
+      );
+    });
+
+    const dataStr = JSON.stringify(data, null, 2);
     const blob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'movement-snapshot.json';
+    a.download = `${movement.shortName || movement.id}-movement.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    setStatus('Exported JSON');
+    setStatus('Exported movement JSON');
   }
 
-  function importSnapshotFromFile(file) {
+  function importMovementFromFile(file) {
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const data = JSON.parse(reader.result);
-        if (!data || !Array.isArray(data.movements)) {
-          alert(
-            'Invalid snapshot file: missing top-level "movements" array.'
-          );
+        const data = StorageService.ensureAllCollections(
+          JSON.parse(reader.result)
+        );
+        const incomingMovements = data.movements || [];
+        if (!incomingMovements.length) {
+          alert('No movements found in the imported file.');
           return;
         }
-        snapshot = StorageService.ensureAllCollections(data);
-        currentMovementId = snapshot.movements[0]
-          ? snapshot.movements[0].id
-          : null;
+
+        const incomingIds = new Set(incomingMovements.map(m => m.id));
+        const conflicts = incomingMovements.filter(m =>
+          Boolean(getMovementById(m.id))
+        );
+
+        if (conflicts.length) {
+          const names = conflicts
+            .map(m => m.name || m.id)
+            .slice(0, 3)
+            .join(', ');
+          const ok = window.confirm(
+            `Replace existing movement data for: ${names}? This will overwrite matching IDs.`
+          );
+          if (!ok) return;
+        }
+
+        snapshot.movements = snapshot.movements.filter(m => !incomingIds.has(m.id));
+        snapshot.movements.push(...incomingMovements);
+
+        COLLECTIONS_WITH_MOVEMENT_ID.forEach(collName => {
+          const existing = snapshot[collName] || [];
+          const filteredExisting = existing.filter(
+            item => !incomingIds.has(item.movementId)
+          );
+          const incoming = (data[collName] || []).filter(item =>
+            incomingIds.has(item.movementId)
+          );
+          snapshot[collName] = filteredExisting.concat(incoming);
+        });
+
+        currentMovementId = incomingMovements[0]?.id || currentMovementId;
         currentItemId = null;
         resetNavigationHistory();
         saveSnapshot();
-        setStatus('Imported JSON');
+        setStatus('Imported movement JSON');
       } catch (e) {
         alert('Failed to import: ' + e.message);
       }
@@ -2714,91 +2841,17 @@
     reader.readAsText(file);
   }
 
-  // Optional: sample dataset roughly matching sample-data.js
-  function loadSampleSnapshot() {
-    const sample =
-      (typeof window !== 'undefined' && window.sampleData) || {
-        movements: [
-          {
-            id: 'mov-test',
-            name: 'Test Faith',
-            shortName: 'TF',
-            summary: 'A tiny test movement.',
-            notes: null,
-            tags: ['test']
-          }
-        ],
-        textCollections: [],
-        texts: [],
-        entities: [
-          {
-            id: 'ent-god',
-            movementId: 'mov-test',
-            name: 'Test God',
-            kind: 'being',
-            summary: 'The primary deity of Test Faith.',
-            notes: null,
-            tags: ['deity'],
-            sourcesOfTruth: ['tradition'],
-            sourceEntityIds: []
-          }
-        ],
-        practices: [
-          {
-            id: 'pr-weekly',
-            movementId: 'mov-test',
-            name: 'Weekly Gathering',
-            kind: 'ritual',
-            description: 'People meet once a week.',
-            frequency: 'weekly',
-            isPublic: true,
-            notes: null,
-            tags: ['weekly', 'gathering'],
-            involvedEntityIds: ['ent-god'],
-            instructionsTextIds: [],
-            supportingClaimIds: [],
-            sourcesOfTruth: ['tradition'],
-            sourceEntityIds: []
-          }
-        ],
-        events: [],
-        rules: [],
-        claims: [],
-        media: [],
-        notes: [],
-        relations: []
-      };
-
-    const name = sample.movements?.[0]?.name || 'the sample dataset';
-    const confirmReset = window.confirm(
-      `Replace the current snapshot with ${name}? This will overwrite all current data.`
-    );
-    if (!confirmReset) return;
-
-    // Clone to avoid mutating the global sample reference
-    snapshot = StorageService.ensureAllCollections(
-      JSON.parse(JSON.stringify(sample))
-    );
-    currentMovementId = snapshot.movements[0]
-      ? snapshot.movements[0].id
-      : null;
-    currentItemId = null;
-    resetNavigationHistory();
-    saveSnapshot();
-    setStatus('Loaded sample');
-  }
-
-  function newSnapshot() {
+  function resetToDefaults() {
     const ok = window.confirm(
-      'Start a new, empty snapshot?\n\nThis will clear all current data in the browser.'
+      'Clear all data and reset to the default sample?\n\nThis will overwrite any changes.'
     );
     if (!ok) return;
-    snapshot = StorageService.createEmptySnapshot();
-    currentMovementId = null;
+    snapshot = StorageService.getDefaultSnapshot();
+    currentMovementId = snapshot.movements[0]?.id || null;
     currentItemId = null;
     resetNavigationHistory();
-    saveSnapshot();
-    setStatus('New snapshot created');
+    saveSnapshot({ clearMovementDirty: true, clearItemDirty: true });
+    setStatus('Reset to default');
   }
 
   // ---- Init ----
@@ -2809,6 +2862,7 @@
       ? snapshot.movements[0].id
       : null;
     resetNavigationHistory();
+    markSaved();
 
     // Sidebar
     document
@@ -2817,11 +2871,24 @@
 
     // Top bar actions
     document
-      .getElementById('btn-export-snapshot')
-      .addEventListener('click', exportSnapshot);
+      .getElementById('btn-reset-defaults')
+      .addEventListener('click', resetToDefaults);
+
+    // Movement form
+    document
+      .getElementById('btn-save-movement')
+      .addEventListener('click', saveMovementFromForm);
+    document
+      .getElementById('btn-delete-movement')
+      .addEventListener('click', () =>
+        deleteMovement(currentMovementId)
+      );
+    document
+      .getElementById('btn-export-movement')
+      .addEventListener('click', exportCurrentMovement);
 
     document
-      .getElementById('btn-import-snapshot')
+      .getElementById('btn-import-movement')
       .addEventListener('click', () => {
         const input = document.getElementById('file-input');
         input.value = '';
@@ -2833,26 +2900,19 @@
       .addEventListener('change', e => {
         const file = e.target.files && e.target.files[0];
         if (!file) return;
-        importSnapshotFromFile(file);
+        importMovementFromFile(file);
       });
 
-    document
-      .getElementById('btn-load-sample')
-      .addEventListener('click', loadSampleSnapshot);
-
-    document
-      .getElementById('btn-new-snapshot')
-      .addEventListener('click', newSnapshot);
-
-    // Movement form
-    document
-      .getElementById('btn-save-movement')
-      .addEventListener('click', saveMovementFromForm);
-    document
-      .getElementById('btn-delete-movement')
-      .addEventListener('click', () =>
-        deleteMovement(currentMovementId)
-      );
+    ['movement-name', 'movement-shortName', 'movement-summary', 'movement-tags']
+      .map(id => document.getElementById(id))
+      .forEach(input => {
+        if (!input) return;
+        input.addEventListener('input', () => {
+          if (isPopulatingMovementForm) return;
+          applyMovementFormToSnapshot();
+          markDirty('movement');
+        });
+      });
 
     // Tabs
     document.querySelectorAll('.tab').forEach(btn => {
@@ -3010,6 +3070,18 @@
     const navForward = document.getElementById('btn-preview-forward');
     if (navBack) navBack.addEventListener('click', () => navigateHistory(-1));
     if (navForward) navForward.addEventListener('click', () => navigateHistory(1));
+
+    document
+      .getElementById('btn-save-banner')
+      .addEventListener('click', () => persistDirtyChanges());
+
+    const itemEditor = document.getElementById('item-editor');
+    if (itemEditor) {
+      itemEditor.addEventListener('input', () => {
+        if (isPopulatingEditor) return;
+        markDirty('item');
+      });
+    }
 
     // Initial render
     renderMovementList();
