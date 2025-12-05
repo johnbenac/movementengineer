@@ -109,7 +109,7 @@ function buildMovementDashboardViewModel(data, input) {
   };
 }
 
-function buildScriptureTreeViewModel(data, input) {
+function buildCanonTreeViewModel(data, input) {
   const { movementId, textCollectionId } = input;
   const collections = buildLookup(data.textCollections);
   const collection = textCollectionId
@@ -884,7 +884,7 @@ function buildNotesViewModel(data, input) {
 
 const ViewModels = {
   buildMovementDashboardViewModel,
-  buildScriptureTreeViewModel,
+  buildCanonTreeViewModel,
   buildEntityDetailViewModel,
   buildEntityGraphViewModel,
   buildPracticeDetailViewModel,

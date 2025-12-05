@@ -19,11 +19,12 @@ const dataset = {
     {
       "id": "tc-suffrage-key-texts",
       "movementId": "mov-womens-suffrage",
-      "name": "Key Statements and Laws",
-      "description": "Foundational declarations and legal milestones that defined the suffrage cause.",
+      "name": "Canonical Statements and Laws",
+      "description": "Foundational canonical declarations and legal milestones that defined the suffrage cause.",
       "tags": [
         "declaration",
-        "law"
+        "law",
+        "canon"
       ],
       "rootTextIds": [
         "txt-seneca-falls-declaration",

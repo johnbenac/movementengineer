@@ -5,11 +5,11 @@ Accepted
 
 ## Context
 
-We needed to define a single data model capable of describing movements with wildly different beliefs, practices and structures.  The designer tool must support real traditions (e.g. Sunni Islam, Catholicism, Confucianism) and invented systems (e.g. Aggie football).  Existing schemas for world movements often bake in assumptions about gods, scripture, or particular cosmologies.  Our goal was to avoid those biases and provide a flexible foundation.  Developers requested a uniform set of entities that would cover everything from gods and saints to ceremonies and sacred texts without hard‑coding denominational logic.
+We needed to define a single data model capable of describing movements with wildly different beliefs, practices and structures.  The designer tool must support real traditions (e.g. Sunni Islam, Catholicism, Confucianism) and invented systems (e.g. Aggie football).  Existing schemas for world movements often bake in assumptions about gods, canon, or particular cosmologies.  Our goal was to avoid those biases and provide a flexible foundation.  Developers requested a uniform set of entities that would cover everything from gods and saints to ceremonies and sacred texts without hard‑coding denominational logic.
 
 ## Decision
 
-We adopted a core model consisting of a handful of generic entities: `Movement`, `TextCollection`, `TextNode`, `Entity`, `Practice`, `Event`, `Rule`, `Claim`, `MediaAsset`, `Note` and (in later revisions) `Relation`.  Each object captures a different facet of a religious system: narratives and canon (`TextNode`), things in the world (`Entity`), actions (`Practice`), times (`Event`), norms (`Rule`), beliefs (`Claim`), media and commentary.  These entities are movement‑agnostic; nothing in the schema dictates that a movement must have a deity, scripture or an afterlife.
+We adopted a core model consisting of a handful of generic entities: `Movement`, `TextCollection`, `TextNode`, `Entity`, `Practice`, `Event`, `Rule`, `Claim`, `MediaAsset`, `Note` and (in later revisions) `Relation`.  Each object captures a different facet of a religious system: narratives and canon (`TextNode`), things in the world (`Entity`), actions (`Practice`), times (`Event`), norms (`Rule`), beliefs (`Claim`), media and commentary.  These entities are movement‑agnostic; nothing in the schema dictates that a movement must have a deity, canon or an afterlife.
 
 ## Rationale
 

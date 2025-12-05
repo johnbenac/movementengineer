@@ -56,7 +56,7 @@
       }
     },
     "TextCollection": {
-      "description": "A named set of texts (e.g. 'Main Scriptures', 'Ritual Handbook').",
+      "description": "A named set of texts (e.g. 'Main Canon', 'Ritual Handbook').",
       "collectionName": "textCollections",
       "fields": {
         "id": { "type": "string", "format": "id", "required": true },

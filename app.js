@@ -26,7 +26,7 @@
   let itemEditorDirty = false;
   let isPopulatingMovementForm = false;
   let isPopulatingEditor = false;
-  let isPopulatingScriptureForms = false;
+  let isPopulatingCanonForms = false;
 
   function updateDirtyState() {
     isDirty = snapshotDirty || movementFormDirty || itemEditorDirty;
@@ -261,7 +261,7 @@
         renderMovementForm();
         renderDashboard();
         break;
-      case 'scripture':
+      case 'canon':
       case 'entities':
       case 'practices':
       case 'calendar':
@@ -434,7 +434,7 @@
     if (!currentMovementId) {
       // Show a simple message in each container
       const containers = {
-        scripture: $('#scripture-tree'),
+        canon: $('#canon-tree'),
         entities: $('#entity-detail'),
         practices: $('#practice-detail'),
         calendar: $('#calendar-view'),
@@ -458,8 +458,8 @@
     }
 
     switch (name) {
-      case 'scripture':
-        renderScriptureView();
+      case 'canon':
+        renderCanonView();
         break;
       case 'entities':
         renderEntitiesView();
@@ -493,7 +493,7 @@
     }
   }
 
-  // ---- Scripture (buildScriptureTreeViewModel) ----
+  // ---- Canon (buildCanonTreeViewModel) ----
 
   function parseCsvInput(value) {
     return (value || '')
@@ -503,7 +503,7 @@
   }
 
   function getActiveTextCollection() {
-    const select = document.getElementById('scripture-collection-select');
+    const select = document.getElementById('canon-collection-select');
     if (!select) return null;
     return (snapshot.textCollections || []).find(tc => tc.id === select.value);
   }
@@ -548,11 +548,11 @@
     return false;
   }
 
-  function renderScriptureForms(vm) {
+  function renderCanonForms(vm) {
     const collection = vm.collection;
-    const nameInput = document.getElementById('scripture-collection-name');
-    const descInput = document.getElementById('scripture-collection-description');
-    const tagsInput = document.getElementById('scripture-collection-tags');
+    const nameInput = document.getElementById('canon-collection-name');
+    const descInput = document.getElementById('canon-collection-description');
+    const tagsInput = document.getElementById('canon-collection-tags');
     const saveCollectionBtn = document.getElementById('btn-save-text-collection');
     const deleteCollectionBtn = document.getElementById(
       'btn-delete-text-collection'
@@ -560,7 +560,7 @@
 
     if (!nameInput || !descInput || !tagsInput) return;
 
-    isPopulatingScriptureForms = true;
+    isPopulatingCanonForms = true;
     if (collection) {
       nameInput.value = collection.name || '';
       descInput.value = collection.description || '';
@@ -580,20 +580,20 @@
       if (saveCollectionBtn) saveCollectionBtn.disabled = true;
       if (deleteCollectionBtn) deleteCollectionBtn.disabled = true;
     }
-    isPopulatingScriptureForms = false;
+    isPopulatingCanonForms = false;
 
-    const textHint = document.getElementById('scripture-text-hint');
-    const titleInput = document.getElementById('scripture-text-title');
-    const labelInput = document.getElementById('scripture-text-label');
-    const levelSelect = document.getElementById('scripture-text-level');
+    const textHint = document.getElementById('canon-text-hint');
+    const titleInput = document.getElementById('canon-text-title');
+    const labelInput = document.getElementById('canon-text-label');
+    const levelSelect = document.getElementById('canon-text-level');
     const mainFunctionInput = document.getElementById(
-      'scripture-text-main-function'
+      'canon-text-main-function'
     );
-    const parentSelect = document.getElementById('scripture-text-parent');
-    const tagsField = document.getElementById('scripture-text-tags');
-    const mentionsField = document.getElementById('scripture-text-mentions');
-    const contentInput = document.getElementById('scripture-text-content');
-    const rootCheckbox = document.getElementById('scripture-text-root');
+    const parentSelect = document.getElementById('canon-text-parent');
+    const tagsField = document.getElementById('canon-text-tags');
+    const mentionsField = document.getElementById('canon-text-mentions');
+    const contentInput = document.getElementById('canon-text-content');
+    const rootCheckbox = document.getElementById('canon-text-root');
     const saveTextBtn = document.getElementById('btn-save-text');
     const deleteTextBtn = document.getElementById('btn-delete-text');
     const addChildBtn = document.getElementById('btn-add-child-text');
@@ -639,11 +639,11 @@
     };
 
     parentSelect.onchange = () => {
-      if (isPopulatingScriptureForms) return;
+      if (isPopulatingCanonForms) return;
       syncRootCheckboxWithParent();
     };
 
-    isPopulatingScriptureForms = true;
+    isPopulatingCanonForms = true;
     if (!activeText) {
       textHint.textContent =
         'Select a text from the tree or create a new one to edit its details.';
@@ -662,7 +662,7 @@
       if (saveTextBtn) saveTextBtn.disabled = true;
       if (deleteTextBtn) deleteTextBtn.disabled = true;
       if (addChildBtn) addChildBtn.disabled = true;
-      isPopulatingScriptureForms = false;
+      isPopulatingCanonForms = false;
       return;
     }
 
@@ -699,16 +699,16 @@
     if (saveTextBtn) saveTextBtn.disabled = false;
     if (deleteTextBtn) deleteTextBtn.disabled = false;
     if (addChildBtn) addChildBtn.disabled = false;
-    isPopulatingScriptureForms = false;
+    isPopulatingCanonForms = false;
     syncRootCheckboxWithParent();
   }
 
-  function renderScriptureView() {
-    const treeContainer = document.getElementById('scripture-tree');
+  function renderCanonView() {
+    const treeContainer = document.getElementById('canon-tree');
     if (!treeContainer) return;
     clearElement(treeContainer);
 
-    const select = document.getElementById('scripture-collection-select');
+    const select = document.getElementById('canon-collection-select');
     if (!select) return;
 
     const allCollections = snapshot.textCollections || [];
@@ -726,7 +726,7 @@
       ? ownCollections.find(tc => tc.id === textCollectionId)
       : null;
 
-    const vm = ViewModels.buildScriptureTreeViewModel(snapshot, {
+    const vm = ViewModels.buildCanonTreeViewModel(snapshot, {
       movementId: currentMovementId,
       textCollectionId: textCollectionId || null
     });
@@ -745,7 +745,7 @@
       p.className = 'hint';
       p.textContent = 'No texts found for this movement.';
       treeContainer.appendChild(p);
-      renderScriptureForms({ collection: activeCollection, roots: [], nodesById: {} });
+      renderCanonForms({ collection: activeCollection, roots: [], nodesById: {} });
       return;
     }
 
@@ -778,7 +778,7 @@
 
       header.addEventListener('click', () => {
         currentTextId = node.id;
-        renderScriptureView();
+        renderCanonView();
       });
 
       li.appendChild(header);
@@ -855,7 +855,7 @@
     });
     treeContainer.appendChild(ul);
 
-    renderScriptureForms({
+    renderCanonForms({
       collection: activeCollection,
       roots: vm.roots,
       nodesById: vm.nodesById
@@ -875,24 +875,24 @@
       );
       saveSnapshot({ show: false });
       setStatus('Text collection created');
-      const select = document.getElementById('scripture-collection-select');
+      const select = document.getElementById('canon-collection-select');
       if (select) {
         select.value = collection.id;
       }
-      renderScriptureView();
+      renderCanonView();
     } catch (e) {
       alert(e.message);
     }
   }
 
   function saveTextCollection() {
-    if (isPopulatingScriptureForms) return;
+    if (isPopulatingCanonForms) return;
     const collection = getActiveTextCollection();
     if (!collection) return;
 
-    const nameInput = document.getElementById('scripture-collection-name');
-    const descInput = document.getElementById('scripture-collection-description');
-    const tagsInput = document.getElementById('scripture-collection-tags');
+    const nameInput = document.getElementById('canon-collection-name');
+    const descInput = document.getElementById('canon-collection-description');
+    const tagsInput = document.getElementById('canon-collection-tags');
 
     const updated = {
       ...collection,
@@ -904,7 +904,7 @@
     DomainService.upsertItem(snapshot, 'textCollections', updated);
     saveSnapshot({ show: false });
     setStatus('Collection saved');
-    renderScriptureView();
+    renderCanonView();
   }
 
   function deleteTextCollection() {
@@ -916,10 +916,10 @@
     if (!ok) return;
 
     DomainService.deleteItem(snapshot, 'textCollections', collection.id);
-    const select = document.getElementById('scripture-collection-select');
+    const select = document.getElementById('canon-collection-select');
     if (select) select.value = '';
     saveSnapshot();
-    renderScriptureView();
+    renderCanonView();
   }
 
   function addRootTextNode() {
@@ -939,7 +939,7 @@
       currentTextId = text.id;
       saveSnapshot({ show: false });
       setStatus('Text created');
-      renderScriptureView();
+      renderCanonView();
     } catch (e) {
       alert(e.message);
     }
@@ -960,32 +960,32 @@
       currentTextId = text.id;
       saveSnapshot({ show: false });
       setStatus('Child text created');
-      renderScriptureView();
+      renderCanonView();
     } catch (e) {
       alert(e.message);
     }
   }
 
   function saveCurrentTextNode() {
-    if (isPopulatingScriptureForms) return;
+    if (isPopulatingCanonForms) return;
     if (!currentTextId) return;
     const text = (snapshot.texts || []).find(t => t.id === currentTextId);
     if (!text) return;
 
-    const titleInput = document.getElementById('scripture-text-title');
-    const labelInput = document.getElementById('scripture-text-label');
-    const levelSelect = document.getElementById('scripture-text-level');
+    const titleInput = document.getElementById('canon-text-title');
+    const labelInput = document.getElementById('canon-text-label');
+    const levelSelect = document.getElementById('canon-text-level');
     const mainFunctionInput = document.getElementById(
-      'scripture-text-main-function'
+      'canon-text-main-function'
     );
-    const parentSelect = document.getElementById('scripture-text-parent');
-    const tagsField = document.getElementById('scripture-text-tags');
-    const mentionsField = document.getElementById('scripture-text-mentions');
-    const contentInput = document.getElementById('scripture-text-content');
-    const rootCheckbox = document.getElementById('scripture-text-root');
+    const parentSelect = document.getElementById('canon-text-parent');
+    const tagsField = document.getElementById('canon-text-tags');
+    const mentionsField = document.getElementById('canon-text-mentions');
+    const contentInput = document.getElementById('canon-text-content');
+    const rootCheckbox = document.getElementById('canon-text-root');
 
     const parentId = parentSelect.value || null;
-    const vm = ViewModels.buildScriptureTreeViewModel(snapshot, {
+    const vm = ViewModels.buildCanonTreeViewModel(snapshot, {
       movementId: currentMovementId,
       textCollectionId: null
     });
@@ -1022,12 +1022,12 @@
 
     saveSnapshot({ show: false });
     setStatus('Text saved');
-    renderScriptureView();
+    renderCanonView();
   }
 
   function deleteCurrentTextNode() {
     if (!currentTextId) return;
-    const vm = ViewModels.buildScriptureTreeViewModel(snapshot, {
+    const vm = ViewModels.buildCanonTreeViewModel(snapshot, {
       movementId: currentMovementId,
       textCollectionId: null
     });
@@ -1050,7 +1050,7 @@
     });
     currentTextId = null;
     saveSnapshot();
-    renderScriptureView();
+    renderCanonView();
   }
 
   // ---- Entities (buildEntityDetailViewModel + buildEntityGraphViewModel) ----
@@ -2314,9 +2314,9 @@
 
   function jumpToText(textId) {
     if (!textId) return;
-    activateTab('scripture');
+    activateTab('canon');
     currentTextId = textId;
-    renderScriptureView();
+    renderCanonView();
   }
 
   // ---- Dashboard (ViewModels) ----
@@ -3427,13 +3427,13 @@
     if (practiceSelect) {
       practiceSelect.addEventListener('change', renderPracticesView);
     }
-    const scriptureCollectionSelect = document.getElementById(
-      'scripture-collection-select'
+    const canonCollectionSelect = document.getElementById(
+      'canon-collection-select'
     );
-    if (scriptureCollectionSelect) {
-      scriptureCollectionSelect.addEventListener(
+    if (canonCollectionSelect) {
+      canonCollectionSelect.addEventListener(
         'change',
-        renderScriptureView
+        renderCanonView
       );
     }
     addListenerById('btn-add-text-collection', 'click', addTextCollection);

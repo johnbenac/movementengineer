@@ -13,7 +13,7 @@ We introduced a `Claim` entity representing an atomic statement believed or asse
 
 ## Rationale
 
-Extracting beliefs into discrete claim records allows us to decouple doctrine from scripture and narrative.  It becomes possible to list all statements about the afterlife, to see which texts underpin a belief, and to compare claims across traditions.  By attaching authority metadata at the claim level, we can differentiate between competing interpretations of the same passage.  Keeping claims atomic means each record can be individually referenced, superseded or patched in future versions.  Rules are kept separate to avoid conflating descriptive and prescriptive content, yet they can reference claims for justification.
+Extracting beliefs into discrete claim records allows us to decouple doctrine from canon and narrative.  It becomes possible to list all statements about the afterlife, to see which texts underpin a belief, and to compare claims across traditions.  By attaching authority metadata at the claim level, we can differentiate between competing interpretations of the same passage.  Keeping claims atomic means each record can be individually referenced, superseded or patched in future versions.  Rules are kept separate to avoid conflating descriptive and prescriptive content, yet they can reference claims for justification.
 
 ## Consequences
 

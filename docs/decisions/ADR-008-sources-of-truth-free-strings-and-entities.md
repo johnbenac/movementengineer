@@ -24,7 +24,7 @@ By adopting free text for sources of truth we avoid imposing theological categor
 
 ### Negative
 - Lack of structured categorisation makes cross‑movement comparison of authority types harder.
-- Without guidelines, designers might record sources inconsistently (e.g. "Bible" vs "Holy Scripture").
+- Without guidelines, designers might record sources inconsistently (e.g. "Bible" vs "Holy Canon").
 
 ### Mitigation
 - Provide documentation encouraging consistent labelling and recommending linking to entities where appropriate.
