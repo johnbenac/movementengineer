@@ -234,16 +234,24 @@
         transform: `translate(${pos.x}, ${pos.y})`
       });
 
+      if (onNodeClick) {
+        nodeGroup.style.cursor = 'pointer';
+        nodeGroup.addEventListener('click', () => onNodeClick(node.id));
+      }
+
+      const hit = createSvgElement('circle', {
+        r: NODE_RADIUS + 10,
+        fill: 'transparent',
+        stroke: 'transparent'
+      });
+      hit.setAttribute('pointer-events', onNodeClick ? 'all' : 'none');
+
       const circle = createSvgElement('circle', {
         r: NODE_RADIUS,
         fill: hashToColor(node.kind),
         stroke: node.id === centerEntityId ? '#111827' : '#f3f4f6',
         'stroke-width': node.id === centerEntityId ? 3 : 2
       });
-      if (onNodeClick) {
-        circle.style.cursor = 'pointer';
-        circle.addEventListener('click', () => onNodeClick(node.id));
-      }
 
       const initials = (node.name || node.id)
         .split(/\s+/)
@@ -260,6 +268,7 @@
       });
       text.textContent = initials;
 
+      nodeGroup.appendChild(hit);
       nodeGroup.appendChild(circle);
       nodeGroup.appendChild(text);
       g.appendChild(nodeGroup);
