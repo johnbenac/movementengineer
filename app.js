@@ -211,6 +211,7 @@
     currentTextId = null;
     renderMovementList();
     renderActiveTab();
+    closeSidebarOnMobile();
   }
 
   function addMovement() {
@@ -283,6 +284,27 @@
       default:
         break;
     }
+  }
+
+  function isMobileViewport() {
+    return window.matchMedia('(max-width: 960px)').matches;
+  }
+
+  function setSidebarOpen(open) {
+    const body = document.body;
+    const toggle = document.getElementById('btn-toggle-sidebar');
+    if (!body) return;
+
+    body.classList.toggle('sidebar-open', open);
+    if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+
+  function syncSidebarToViewport() {
+    setSidebarOpen(!isMobileViewport());
+  }
+
+  function closeSidebarOnMobile() {
+    if (isMobileViewport()) setSidebarOpen(false);
   }
 
   // ---- Movement list & form ----
@@ -3283,6 +3305,18 @@
 
     // Sidebar
     addListenerById('btn-add-movement', 'click', () => addMovement());
+    addListenerById('btn-toggle-sidebar', 'click', () => {
+      const isOpen = document.body.classList.contains('sidebar-open');
+      setSidebarOpen(!isOpen);
+    });
+
+    const sidebarScrim = document.getElementById('sidebar-scrim');
+    if (sidebarScrim) {
+      sidebarScrim.addEventListener('click', () => closeSidebarOnMobile());
+    }
+
+    window.addEventListener('resize', syncSidebarToViewport);
+    syncSidebarToViewport();
 
     // Top bar actions
     addListenerById('btn-reset-defaults', 'click', resetToDefaults);

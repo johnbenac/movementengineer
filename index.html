@@ -9,8 +9,20 @@
   <body>
     <header class="top-bar">
       <div class="top-bar-left">
-        <h1>Movement Engineer v3</h1>
-        <span class="schema-version">Schema v3.4</span>
+        <button
+          id="btn-toggle-sidebar"
+          class="sidebar-toggle"
+          aria-label="Toggle movement list"
+          aria-controls="movement-sidebar"
+          aria-expanded="false"
+          type="button"
+        >
+          ☰
+        </button>
+        <div class="top-bar-title">
+          <h1>Movement Engineer v3</h1>
+          <span class="schema-version">Schema v3.4</span>
+        </div>
       </div>
       <div class="top-bar-right">
         <button id="btn-reset-defaults" title="Clear all data and reload the default movement">
@@ -26,13 +38,15 @@
     </div>
 
     <main class="layout">
-      <aside class="sidebar">
+      <aside id="movement-sidebar" class="sidebar">
         <div class="sidebar-header">
           <h2>Movements</h2>
           <button id="btn-add-movement" title="Create a new movement">+</button>
         </div>
         <ul id="movement-list" class="item-list"></ul>
       </aside>
+
+      <div id="sidebar-scrim" class="sidebar-scrim" aria-hidden="true"></div>
 
       <section class="content">
       <nav class="tabs">
