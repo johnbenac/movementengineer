@@ -2058,6 +2058,13 @@
     );
   }
 
+  function isMovementFilterEnabled() {
+    const filterCheckbox = document.getElementById(
+      'collection-filter-by-movement'
+    );
+    return Boolean(filterCheckbox && filterCheckbox.checked);
+  }
+
   function renderCollectionList() {
     const list = document.getElementById('collection-items');
     if (!list) return;
@@ -2065,9 +2072,7 @@
 
     const collName = currentCollectionName;
     const coll = snapshot[collName] || [];
-    const filterByMovement = document.getElementById(
-      'collection-filter-by-movement'
-    ).checked;
+    const filterByMovement = isMovementFilterEnabled();
 
     let items = coll;
     if (
@@ -2451,6 +2456,26 @@
       const value = item[field.key];
       renderPreviewRow(body, field.label, value, field.type, field.ref);
     });
+
+    if (currentCollectionName === 'texts') {
+      const applyMovementFilter = isMovementFilterEnabled();
+      const children = (snapshot.texts || [])
+        .filter(text => text.parentId === item.id)
+        .filter(text => {
+          if (!applyMovementFilter || !currentMovementId) return true;
+          return (
+            text.movementId === currentMovementId || text.movementId == null
+          );
+        })
+        .sort((a, b) =>
+          getLabelForItem(a).localeCompare(getLabelForItem(b), undefined, {
+            sensitivity: 'base'
+          })
+        )
+        .map(text => text.id);
+
+      renderPreviewRow(body, 'Child texts', children, 'idList', 'texts');
+    }
   }
 
   function renderItemEditor() {
