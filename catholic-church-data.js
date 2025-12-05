@@ -1702,5 +1702,6 @@ const data = {
 if (typeof module !== 'undefined') {
   module.exports = data;
 } else if (typeof window !== 'undefined') {
-  window.sampleData = data;
+  window.movementDataSources = window.movementDataSources || [];
+  window.movementDataSources.push(data);
 }

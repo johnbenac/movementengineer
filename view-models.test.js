@@ -1,5 +1,5 @@
 const ViewModels = require('./view-models');
-const data = require('./sample-data');
+const data = require('./standard-data');
 
 function assert(condition, message) {
   if (!condition) {

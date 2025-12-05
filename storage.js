@@ -49,13 +49,13 @@
   }
 
   function getBundledSample() {
-    if (typeof window !== 'undefined' && window.sampleData) {
-      return window.sampleData;
+    if (typeof window !== 'undefined' && window.standardData) {
+      return window.standardData;
     }
     if (typeof module !== 'undefined') {
       try {
         // eslint-disable-next-line global-require
-        return require('./sample-data');
+        return require('./standard-data');
       } catch (e) {
         return null;
       }

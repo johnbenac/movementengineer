@@ -1,5 +1,5 @@
 const ComparisonServices = require('./comparison-services');
-const baseData = require('./sample-data');
+const baseData = require('./standard-data');
 
 function assert(condition, message) {
   if (!condition) {
@@ -144,11 +144,11 @@ function testBuildComparisonMatrixAutoCounts() {
 
   assert(
     entityRow.cells[0].value === 23,
-    'Auto-derived entity count should be 23 for sample-data'
+    'Auto-derived entity count should be 23 for standard data'
   );
   assert(
     practiceRow.cells[0].value === 7,
-    'Auto-derived practice count should be 7 for sample-data'
+    'Auto-derived practice count should be 7 for standard data'
   );
 
   // Now override the entity count in the binding and ensure override wins
