@@ -681,6 +681,15 @@ button.danger:hover {
   font-size: 0.8rem;
 }
 
+#tab-canon .list-pane {
+  padding: 0.4rem;
+}
+
+#tab-canon .tree-container {
+  flex: 1;
+  min-height: 100%;
+}
+
 .text-tree {
   list-style: none;
   margin: 0;
