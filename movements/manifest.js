@@ -4,6 +4,7 @@
     './movements/american-revolution-data.js',
     './movements/abolition-of-slavery-data.js',
     './movements/catholic-church-data.js',
+    './movements/me-too-data.js',
     './movements/upside-data.js',
     './movements/womens-suffrage-data.js'
   ];
