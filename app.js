@@ -27,6 +27,7 @@
   let isPopulatingMovementForm = false;
   let isPopulatingEditor = false;
   let isPopulatingCanonForms = false;
+  const movementAssetStore = new Map();
 
   function updateDirtyState() {
     isDirty = snapshotDirty || movementFormDirty || itemEditorDirty;
@@ -3182,27 +3183,94 @@
 
   // ---- Import / export / reset ----
 
-  function exportCurrentMovement() {
+  function createMovementSnapshot(movementId, fullSnapshot) {
+    const source =
+      StorageService.ensureAllCollections(fullSnapshot) ||
+      StorageService.createEmptySnapshot();
+    const movement = (source.movements || []).find(m => m.id === movementId);
+    if (!movement) return null;
+
+    const data = StorageService.createEmptySnapshot();
+    if (source.version) data.version = source.version;
+    data.movements = [movement];
+    COLLECTIONS_WITH_MOVEMENT_ID.forEach(collName => {
+      data[collName] = (source[collName] || []).filter(
+        item => item.movementId === movement.id
+      );
+    });
+    return data;
+  }
+
+  function mergeMovementSnapshotIntoExisting(fullSnapshot, movementSnapshot) {
+    const incomingMovements = movementSnapshot?.movements || [];
+    if (!incomingMovements.length) return;
+    StorageService.ensureAllCollections(fullSnapshot);
+
+    const incomingIds = new Set(incomingMovements.map(m => m.id));
+    fullSnapshot.movements = (fullSnapshot.movements || []).filter(
+      m => !incomingIds.has(m.id)
+    );
+    fullSnapshot.movements.push(...incomingMovements);
+
+    COLLECTIONS_WITH_MOVEMENT_ID.forEach(collName => {
+      const existing = fullSnapshot[collName] || [];
+      const filteredExisting = existing.filter(
+        item => !incomingIds.has(item.movementId)
+      );
+      const incoming = (movementSnapshot[collName] || []).filter(item =>
+        incomingIds.has(item.movementId)
+      );
+      fullSnapshot[collName] = filteredExisting.concat(incoming);
+    });
+  }
+
+  function importMovementSnapshot(movementSnapshot) {
+    if (!movementSnapshot?.movements?.length) {
+      alert('No movements found in the imported data.');
+      return;
+    }
+
+    const fullSnapshot = StorageService.ensureAllCollections(loadSnapshot());
+    const incomingMovements = movementSnapshot.movements;
+    const existingMovements = fullSnapshot.movements || [];
+    const conflicts = incomingMovements.filter(m =>
+      existingMovements.some(existing => existing.id === m.id)
+    );
+
+    if (conflicts.length) {
+      const names = conflicts
+        .map(m => m.name || m.id)
+        .slice(0, 3)
+        .join(', ');
+      const ok = window.confirm(
+        `Replace existing movement data for: ${names}? This will overwrite matching IDs.`
+      );
+      if (!ok) return;
+    }
+
+    mergeMovementSnapshotIntoExisting(fullSnapshot, movementSnapshot);
+
+    snapshot = fullSnapshot;
+    currentMovementId = movementSnapshot.movements[0]?.id || currentMovementId;
+    currentItemId = null;
+    resetNavigationHistory();
+    saveSnapshot({ show: false, clearMovementDirty: true, clearItemDirty: true });
+    renderMovementList();
+    renderActiveTab();
+  }
+
+  function exportCurrentMovementAsJson() {
     if (!currentMovementId) {
       alert('Select a movement to export.');
       return;
     }
-    const movement = getMovementById(currentMovementId);
-    if (!movement) {
+    const movementSnapshot = createMovementSnapshot(currentMovementId, snapshot);
+    if (!movementSnapshot) {
       alert('Movement not found.');
       return;
     }
-
-    const data = StorageService.createEmptySnapshot();
-    if (snapshot.version) data.version = snapshot.version;
-    data.movements = [movement];
-    COLLECTIONS_WITH_MOVEMENT_ID.forEach(collName => {
-      data[collName] = (snapshot[collName] || []).filter(
-        item => item.movementId === movement.id
-      );
-    });
-
-    const dataStr = JSON.stringify(data, null, 2);
+    const movement = movementSnapshot.movements[0];
+    const dataStr = JSON.stringify(movementSnapshot, null, 2);
     const blob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -3215,59 +3283,151 @@
     setStatus('Exported movement JSON');
   }
 
-  function importMovementFromFile(file) {
+  function importMovementFromJsonFile(file) {
     const reader = new FileReader();
     reader.onload = () => {
       try {
         const data = StorageService.ensureAllCollections(
           JSON.parse(reader.result)
         );
-        const incomingMovements = data.movements || [];
-        if (!incomingMovements.length) {
-          alert('No movements found in the imported file.');
-          return;
-        }
-
-        const incomingIds = new Set(incomingMovements.map(m => m.id));
-        const conflicts = incomingMovements.filter(m =>
-          Boolean(getMovementById(m.id))
-        );
-
-        if (conflicts.length) {
-          const names = conflicts
-            .map(m => m.name || m.id)
-            .slice(0, 3)
-            .join(', ');
-          const ok = window.confirm(
-            `Replace existing movement data for: ${names}? This will overwrite matching IDs.`
-          );
-          if (!ok) return;
-        }
-
-        snapshot.movements = snapshot.movements.filter(m => !incomingIds.has(m.id));
-        snapshot.movements.push(...incomingMovements);
-
-        COLLECTIONS_WITH_MOVEMENT_ID.forEach(collName => {
-          const existing = snapshot[collName] || [];
-          const filteredExisting = existing.filter(
-            item => !incomingIds.has(item.movementId)
-          );
-          const incoming = (data[collName] || []).filter(item =>
-            incomingIds.has(item.movementId)
-          );
-          snapshot[collName] = filteredExisting.concat(incoming);
-        });
-
-        currentMovementId = incomingMovements[0]?.id || currentMovementId;
-        currentItemId = null;
-        resetNavigationHistory();
-        saveSnapshot();
+        importMovementSnapshot(data);
         setStatus('Imported movement JSON');
       } catch (e) {
         alert('Failed to import: ' + e.message);
       }
     };
     reader.readAsText(file);
+  }
+
+  function buildAssetPathForMedia(media) {
+    const base = 'media';
+    if (media.mimeType?.startsWith('audio/')) {
+      return `${base}/audio/${media.id || media.slug || 'audio'}`;
+    }
+    if (media.mimeType?.startsWith('image/')) {
+      return `${base}/images/${media.id || media.slug || 'image'}`;
+    }
+    if (media.mimeType === 'text/csv') {
+      return `${base}/csv/${media.id || media.slug || 'data'}.csv`;
+    }
+    return `${base}/other/${media.id || media.slug || 'asset'}`;
+  }
+
+  function buildZipManifest(movementSnapshot) {
+    const clone = JSON.parse(JSON.stringify(movementSnapshot || {}));
+    if (Array.isArray(clone.texts)) {
+      clone.texts = clone.texts.map(t => {
+        const { body, ...rest } = t;
+        return {
+          ...rest,
+          bodyPath: `texts/${t.id || t.slug || 'text'}.md`
+        };
+      });
+    }
+    if (Array.isArray(clone.media)) {
+      clone.media = clone.media.map(m => ({
+        ...m,
+        assetPath: m.assetPath || buildAssetPathForMedia(m)
+      }));
+    }
+    return clone;
+  }
+
+  function addTextsToZip(zip, movementSnapshot) {
+    if (!Array.isArray(movementSnapshot?.texts)) return;
+    movementSnapshot.texts.forEach(t => {
+      const id = t.id || t.slug || 'text';
+      const filePath = `texts/${id}.md`;
+      const content = t.body || '';
+      zip.file(filePath, content);
+    });
+  }
+
+  async function addAssetsToZip(zip, movementSnapshot) {
+    if (!Array.isArray(movementSnapshot?.media)) return;
+    const movementId = movementSnapshot.movements?.[0]?.id;
+    if (!movementId) return;
+
+    for (const m of movementSnapshot.media) {
+      const assetPath = m.assetPath || buildAssetPathForMedia(m);
+      const key = `${movementId}:${assetPath}`;
+      const blob = movementAssetStore.get(key);
+      if (!blob) continue;
+      zip.file(assetPath, blob);
+    }
+  }
+
+  async function exportCurrentMovementAsZip() {
+    if (!currentMovementId) {
+      alert('Select a movement to export.');
+      return;
+    }
+    const movementSnapshot = createMovementSnapshot(currentMovementId, snapshot);
+    if (!movementSnapshot) {
+      alert('Movement not found.');
+      return;
+    }
+    const movement = movementSnapshot.movements[0];
+    const zip = new JSZip();
+    const manifest = buildZipManifest(movementSnapshot);
+    zip.file('manifest.json', JSON.stringify(manifest, null, 2));
+    addTextsToZip(zip, movementSnapshot);
+    await addAssetsToZip(zip, movementSnapshot);
+
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${movement.shortName || movement.id}.movement.zip`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setStatus('Exported movement ZIP');
+  }
+
+  async function hydrateTextsFromZip(zip, movementSnapshot) {
+    if (!Array.isArray(movementSnapshot?.texts)) return;
+    for (const t of movementSnapshot.texts) {
+      if (!t.bodyPath) continue;
+      const file = zip.file(t.bodyPath);
+      if (!file) continue;
+      t.body = await file.async('string');
+    }
+  }
+
+  async function hydrateAssetsFromZip(zip, movementSnapshot) {
+    if (!Array.isArray(movementSnapshot?.media)) return;
+    const movementId = movementSnapshot.movements?.[0]?.id;
+    if (!movementId) return;
+
+    for (const m of movementSnapshot.media) {
+      const assetPath = m.assetPath;
+      if (!assetPath) continue;
+      const file = zip.file(assetPath);
+      if (!file) continue;
+      const blob = await file.async('blob');
+      const key = `${movementId}:${assetPath}`;
+      movementAssetStore.set(key, blob);
+    }
+  }
+
+  async function importMovementFromZipFile(file) {
+    try {
+      const zip = await JSZip.loadAsync(file);
+      const manifestFile = zip.file('manifest.json');
+      if (!manifestFile) throw new Error('manifest.json not found');
+      const manifestText = await manifestFile.async('string');
+      const manifest = JSON.parse(manifestText);
+
+      await hydrateTextsFromZip(zip, manifest);
+      await hydrateAssetsFromZip(zip, manifest);
+      importMovementSnapshot(manifest);
+      setStatus('Imported movement ZIP');
+    } catch (e) {
+      console.error(e);
+      alert('Failed to import ZIP: ' + e.message);
+    }
   }
 
   function resetToDefaults() {
@@ -3326,19 +3486,38 @@
     addListenerById('btn-delete-movement', 'click', () =>
       deleteMovement(currentMovementId)
     );
-    addListenerById('btn-export-movement', 'click', exportCurrentMovement);
+    addListenerById(
+      'btn-export-movement-json',
+      'click',
+      exportCurrentMovementAsJson
+    );
 
-    addListenerById('btn-import-movement', 'click', () => {
-      const input = document.getElementById('file-input');
+    addListenerById('btn-import-movement-json', 'click', () => {
+      const input = document.getElementById('file-input-json');
       if (!input) return;
       input.value = '';
       input.click();
     });
 
-    addListenerById('file-input', 'change', e => {
+    addListenerById('file-input-json', 'change', e => {
       const file = e.target.files && e.target.files[0];
       if (!file) return;
-      importMovementFromFile(file);
+      importMovementFromJsonFile(file);
+    });
+
+    addListenerById('btn-export-movement-zip', 'click', exportCurrentMovementAsZip);
+
+    addListenerById('btn-import-movement-zip', 'click', () => {
+      const input = document.getElementById('file-input-zip');
+      if (!input) return;
+      input.value = '';
+      input.click();
+    });
+
+    addListenerById('file-input-zip', 'change', e => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      importMovementFromZipFile(file);
     });
 
     ['movement-name', 'movement-shortName', 'movement-summary', 'movement-tags']
