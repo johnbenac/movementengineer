@@ -2864,44 +2864,52 @@
     resetNavigationHistory();
     markSaved();
 
-    // Sidebar
-    document
-      .getElementById('btn-add-movement')
-      .addEventListener('click', () => addMovement());
+      // Sidebar
+      const addMovementButton = document.getElementById('btn-add-movement');
+      if (addMovementButton) {
+        addMovementButton.addEventListener('click', () => addMovement());
+      }
 
-    // Top bar actions
-    document
-      .getElementById('btn-reset-defaults')
-      .addEventListener('click', resetToDefaults);
+      // Top bar actions
+      const resetDefaultsButton = document.getElementById('btn-reset-defaults');
+      if (resetDefaultsButton) {
+        resetDefaultsButton.addEventListener('click', resetToDefaults);
+      }
 
-    // Movement form
-    document
-      .getElementById('btn-save-movement')
-      .addEventListener('click', saveMovementFromForm);
-    document
-      .getElementById('btn-delete-movement')
-      .addEventListener('click', () =>
-        deleteMovement(currentMovementId)
-      );
-    document
-      .getElementById('btn-export-movement')
-      .addEventListener('click', exportCurrentMovement);
+      // Movement form
+      const saveMovementButton = document.getElementById('btn-save-movement');
+      if (saveMovementButton) {
+        saveMovementButton.addEventListener('click', saveMovementFromForm);
+      }
+      const deleteMovementButton = document.getElementById('btn-delete-movement');
+      if (deleteMovementButton) {
+        deleteMovementButton.addEventListener('click', () =>
+          deleteMovement(currentMovementId)
+        );
+      }
+      const exportMovementButton = document.getElementById('btn-export-movement');
+      if (exportMovementButton) {
+        exportMovementButton.addEventListener('click', exportCurrentMovement);
+      }
 
-    document
-      .getElementById('btn-import-movement')
-      .addEventListener('click', () => {
-        const input = document.getElementById('file-input');
-        input.value = '';
-        input.click();
-      });
+      const importMovementButton = document.getElementById('btn-import-movement');
+      if (importMovementButton) {
+        importMovementButton.addEventListener('click', () => {
+          const input = document.getElementById('file-input');
+          if (!input) return;
+          input.value = '';
+          input.click();
+        });
+      }
 
-    document
-      .getElementById('file-input')
-      .addEventListener('change', e => {
-        const file = e.target.files && e.target.files[0];
-        if (!file) return;
-        importMovementFromFile(file);
-      });
+      const fileInput = document.getElementById('file-input');
+      if (fileInput) {
+        fileInput.addEventListener('change', e => {
+          const file = e.target.files && e.target.files[0];
+          if (!file) return;
+          importMovementFromFile(file);
+        });
+      }
 
     ['movement-name', 'movement-shortName', 'movement-summary', 'movement-tags']
       .map(id => document.getElementById(id))
@@ -3042,29 +3050,36 @@
       );
     }
 
-    // Collections tab
-    document
-      .getElementById('collection-select')
-      .addEventListener('change', e => {
-        setCollectionAndItem(e.target.value, null, { addToHistory: false });
-      });
+      // Collections tab
+      const collectionSelect = document.getElementById('collection-select');
+      if (collectionSelect) {
+        collectionSelect.addEventListener('change', e => {
+          setCollectionAndItem(e.target.value, null, { addToHistory: false });
+        });
+      }
 
-    document
-      .getElementById('collection-filter-by-movement')
-      .addEventListener('change', () => {
-        renderCollectionList();
-        renderItemDetail();
-      });
+      const collectionFilter = document.getElementById(
+        'collection-filter-by-movement'
+      );
+      if (collectionFilter) {
+        collectionFilter.addEventListener('change', () => {
+          renderCollectionList();
+          renderItemDetail();
+        });
+      }
 
-    document
-      .getElementById('btn-add-item')
-      .addEventListener('click', addNewItem);
-    document
-      .getElementById('btn-delete-item')
-      .addEventListener('click', deleteCurrentItem);
-    document
-      .getElementById('btn-save-item')
-      .addEventListener('click', saveItemFromEditor);
+      const addItemButton = document.getElementById('btn-add-item');
+      if (addItemButton) {
+        addItemButton.addEventListener('click', addNewItem);
+      }
+      const deleteItemButton = document.getElementById('btn-delete-item');
+      if (deleteItemButton) {
+        deleteItemButton.addEventListener('click', deleteCurrentItem);
+      }
+      const saveItemButton = document.getElementById('btn-save-item');
+      if (saveItemButton) {
+        saveItemButton.addEventListener('click', saveItemFromEditor);
+      }
 
     const navBack = document.getElementById('btn-preview-back');
     const navForward = document.getElementById('btn-preview-forward');
