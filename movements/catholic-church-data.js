@@ -1,5 +1,5 @@
 (function () {
-const data = {
+const dataset = {
   "version": "3.4",
   "movements": [
     {
@@ -1701,9 +1701,9 @@ const data = {
 };
 
 if (typeof module !== 'undefined') {
-  module.exports = data;
+  module.exports = dataset;
 } else if (typeof window !== 'undefined') {
   window.movementDatasets = window.movementDatasets || [];
-  window.movementDatasets.push(data);
+  window.movementDatasets.push(dataset);
 }
 })();
