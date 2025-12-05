@@ -55,7 +55,7 @@
     if (typeof module !== 'undefined') {
       try {
         // eslint-disable-next-line global-require
-        return require('./sample-data');
+        return require('./movement-data');
       } catch (e) {
         return null;
       }

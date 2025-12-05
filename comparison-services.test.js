@@ -1,5 +1,5 @@
 const ComparisonServices = require('./comparison-services');
-const baseData = require('./sample-data');
+const baseData = require('./movement-data');
 
 function assert(condition, message) {
   if (!condition) {
@@ -144,11 +144,11 @@ function testBuildComparisonMatrixAutoCounts() {
 
   assert(
     entityRow.cells[0].value === 23,
-    'Auto-derived entity count should be 23 for sample-data'
+    'Auto-derived entity count should be 23 for the Catholic dataset'
   );
   assert(
     practiceRow.cells[0].value === 7,
-    'Auto-derived practice count should be 7 for sample-data'
+    'Auto-derived practice count should be 7 for the Catholic dataset'
   );
 
   // Now override the entity count in the binding and ensure override wins
@@ -200,7 +200,14 @@ function testApplyTemplateToMovement() {
   });
 
   // Original data should be unchanged
-  assert(baseData.movements.length === 1, 'Base data should still have 1 movement');
+  assert(
+    baseData.movements.some(movement => movement.id === 'mov-catholic'),
+    'Base data should include the Catholic movement'
+  );
+  assert(
+    baseData.movements.some(movement => movement.id === 'mov-womens-suffrage'),
+    'Base data should include the women\'s suffrage movement'
+  );
 
   assert(
     newData.movements.length === 2,
@@ -219,8 +226,11 @@ function testApplyTemplateToMovement() {
   );
 
   // Entities: base has 23, new data should have base + copied skeleton(s)
+  const catholicEntities = baseData.entities.filter(
+    entity => entity.movementId === 'mov-catholic'
+  );
   assert(
-    newData.entities.length === baseData.entities.length * 2,
+    newData.entities.length === baseData.entities.length + catholicEntities.length,
     'Skeleton entities should be added for the new movement'
   );
 
