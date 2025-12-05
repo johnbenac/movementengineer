@@ -116,16 +116,28 @@
 
                 <div class="form-actions">
                   <button id="btn-save-movement" type="button">Save movement</button>
-                  <button id="btn-export-movement" type="button">
+                  <button id="btn-export-movement-json" type="button">
                     Export movement JSON
                   </button>
-                  <button id="btn-import-movement" type="button">
+                  <button id="btn-import-movement-json" type="button">
                     Import movement JSON
+                  </button>
+                  <button id="btn-export-movement-zip" type="button">
+                    Export movement ZIP
+                  </button>
+                  <button id="btn-import-movement-zip" type="button">
+                    Import movement ZIP
                   </button>
                   <button id="btn-delete-movement" type="button" class="danger">
                     Delete movement & related data
                   </button>
-                  <input id="file-input" type="file" accept="application/json" hidden />
+                  <input id="file-input-json" type="file" accept="application/json" hidden />
+                  <input
+                    id="file-input-zip"
+                    type="file"
+                    accept=".zip,application/zip"
+                    hidden
+                  />
                 </div>
               </form>
             </section>
@@ -598,6 +610,7 @@
   <script src="./view-models.js"></script>
   <script src="./movements/manifest.js"></script>
   <script src="./movement-data.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="./storage.js"></script>
   <script src="./domain-service.js"></script>
   <script src="./graph-view.js"></script>
