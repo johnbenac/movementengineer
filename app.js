@@ -25,6 +25,9 @@
   let itemEditorDirty = false;
   let isPopulatingMovementForm = false;
   let isPopulatingEditor = false;
+  let currentCollectionId = null;
+  let currentTextId = null;
+  let isPopulatingScriptureForms = false;
 
   function updateDirtyState() {
     isDirty = snapshotDirty || movementFormDirty || itemEditorDirty;
@@ -206,6 +209,8 @@
   function selectMovement(id) {
     currentMovementId = id || null;
     currentItemId = null; // reset item selection in collection editor
+    currentCollectionId = null;
+    currentTextId = null;
     renderMovementList();
     renderActiveTab();
   }
@@ -510,17 +515,26 @@
     ensureSelectOptions(select, options, 'All texts (no collection filter)');
 
     const textCollectionId = select.value || null;
+    currentCollectionId = textCollectionId;
 
     const vm = ViewModels.buildScriptureTreeViewModel(snapshot, {
       movementId: currentMovementId,
       textCollectionId: textCollectionId || null
     });
 
+    if (currentTextId && !vm.nodesById[currentTextId]) {
+      currentTextId = null;
+    }
+    if (!currentTextId && vm.roots && vm.roots.length) {
+      currentTextId = vm.roots[0].id;
+    }
+
     if (!vm.roots || vm.roots.length === 0) {
       const p = document.createElement('p');
       p.className = 'hint';
       p.textContent = 'No texts found for this movement.';
       treeContainer.appendChild(p);
+      renderScriptureEditor(vm);
       return;
     }
 
@@ -530,6 +544,10 @@
     const renderNode = node => {
       const li = document.createElement('li');
       li.className = 'text-node';
+      li.dataset.id = node.id;
+      if (currentTextId === node.id) {
+        li.classList.add('selected');
+      }
 
       const header = document.createElement('div');
       header.className = 'text-node-header';
@@ -551,6 +569,13 @@
       header.appendChild(metaSpan);
 
       li.appendChild(header);
+      header.addEventListener('click', () => {
+        currentTextId = node.id;
+        renderScriptureEditor(vm);
+        document
+          .querySelectorAll('#scripture-tree .text-node')
+          .forEach(el => el.classList.toggle('selected', el.dataset.id === node.id));
+      });
 
       const body = document.createElement('div');
       body.className = 'text-node-body';
@@ -623,6 +648,338 @@
       ul.appendChild(renderNode(root));
     });
     treeContainer.appendChild(ul);
+
+    renderScriptureEditor(vm);
+  }
+
+  function getCurrentCollection() {
+    if (!currentCollectionId) return null;
+    return (snapshot.textCollections || []).find(
+      tc => tc.id === currentCollectionId
+    );
+  }
+
+  function renderScriptureEditor(vm) {
+    const collectionForm = document.getElementById('scripture-collection-form');
+    const textForm = document.getElementById('scripture-text-form');
+    const collectionHint = document.getElementById('scripture-collection-hint');
+    const textHint = document.getElementById('scripture-text-hint');
+
+    if (!collectionForm || !textForm) return;
+
+    const collection = getCurrentCollection();
+    const collectionNameInput = document.getElementById('scripture-collection-name');
+    const collectionDescription = document.getElementById(
+      'scripture-collection-description'
+    );
+    const collectionTags = document.getElementById('scripture-collection-tags');
+    const collectionIdLabel = document.getElementById('scripture-collection-id');
+    const rootCheckbox = document.getElementById('scripture-root-toggle');
+
+    const textIdLabel = document.getElementById('scripture-text-id');
+    const textTitle = document.getElementById('scripture-text-title');
+    const textLabel = document.getElementById('scripture-text-label');
+    const textLevel = document.getElementById('scripture-text-level');
+    const textFunction = document.getElementById('scripture-text-mainFunction');
+    const textParent = document.getElementById('scripture-text-parent');
+    const textTags = document.getElementById('scripture-text-tags');
+    const textMentions = document.getElementById('scripture-text-mentions');
+    const textContent = document.getElementById('scripture-text-content');
+
+    const saveCollectionBtn = document.getElementById('btn-save-collection');
+    const deleteCollectionBtn = document.getElementById('btn-delete-collection');
+    const saveTextBtn = document.getElementById('btn-save-text');
+    const deleteTextBtn = document.getElementById('btn-delete-text');
+
+    isPopulatingScriptureForms = true;
+
+    if (collection) {
+      collectionForm.classList.remove('disabled');
+      collectionHint.style.display = 'none';
+      collectionNameInput.value = collection.name || '';
+      collectionDescription.value = collection.description || '';
+      collectionTags.value = Array.isArray(collection.tags)
+        ? collection.tags.join(', ')
+        : '';
+      collectionIdLabel.textContent = collection.id;
+      saveCollectionBtn.disabled = false;
+      deleteCollectionBtn.disabled = false;
+    } else {
+      collectionForm.classList.add('disabled');
+      collectionHint.style.display = 'block';
+      collectionNameInput.value = '';
+      collectionDescription.value = '';
+      collectionTags.value = '';
+      collectionIdLabel.textContent = '—';
+      saveCollectionBtn.disabled = true;
+      deleteCollectionBtn.disabled = true;
+    }
+
+    const movementTexts = (snapshot.texts || []).filter(
+      t => t.movementId === currentMovementId
+    );
+
+    ensureSelectOptions(
+      textParent,
+      movementTexts
+        .filter(t => t.id !== currentTextId)
+        .map(t => ({ value: t.id, label: t.title || t.id })),
+      '— Root —'
+    );
+
+    const text = currentTextId
+      ? movementTexts.find(t => t.id === currentTextId)
+      : null;
+
+    if (text) {
+      textHint.style.display = 'none';
+      textForm.classList.remove('disabled');
+      textIdLabel.textContent = text.id;
+      textTitle.value = text.title || '';
+      textLabel.value = text.label || '';
+      textLevel.value = text.level || 'work';
+      textFunction.value = text.mainFunction || '';
+      textParent.value = text.parentId || '';
+      textTags.value = Array.isArray(text.tags) ? text.tags.join(', ') : '';
+      textMentions.value = Array.isArray(text.mentionsEntityIds)
+        ? text.mentionsEntityIds.join(', ')
+        : '';
+      textContent.value = text.content || '';
+
+      if (rootCheckbox) {
+        const isRoot = !text.parentId;
+        const collectionHasRoot = Boolean(
+          collection && Array.isArray(collection.rootTextIds)
+            ? collection.rootTextIds.includes(text.id)
+            : false
+        );
+        rootCheckbox.checked = isRoot ? collectionHasRoot : false;
+        rootCheckbox.disabled = !collection || !isRoot;
+      }
+
+      saveTextBtn.disabled = false;
+      deleteTextBtn.disabled = false;
+    } else {
+      textHint.style.display = 'block';
+      textForm.classList.add('disabled');
+      textIdLabel.textContent = '—';
+      textTitle.value = '';
+      textLabel.value = '';
+      textLevel.value = 'work';
+      textFunction.value = '';
+      textParent.value = '';
+      textTags.value = '';
+      textMentions.value = '';
+      textContent.value = '';
+      if (rootCheckbox) {
+        rootCheckbox.checked = false;
+        rootCheckbox.disabled = true;
+      }
+      saveTextBtn.disabled = true;
+      deleteTextBtn.disabled = true;
+    }
+
+    isPopulatingScriptureForms = false;
+  }
+
+  function readCommaSeparated(value) {
+    return value
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+  }
+
+  function saveCurrentCollection() {
+    const collection = getCurrentCollection();
+    if (!collection) return;
+
+    const nameInput = document.getElementById('scripture-collection-name');
+    const descriptionInput = document.getElementById(
+      'scripture-collection-description'
+    );
+    const tagsInput = document.getElementById('scripture-collection-tags');
+
+    collection.name = nameInput.value.trim() || 'Untitled collection';
+    collection.description = descriptionInput.value.trim() || null;
+    collection.tags = readCommaSeparated(tagsInput.value);
+
+    snapshotDirty = true;
+    updateDirtyState();
+    saveSnapshot({ show: false });
+    setStatus('Collection saved');
+    renderScriptureView();
+  }
+
+  function addCollection() {
+    try {
+      const skeleton = DomainService.addNewItem(
+        snapshot,
+        'textCollections',
+        currentMovementId
+      );
+      currentCollectionId = skeleton.id;
+      snapshotDirty = true;
+      updateDirtyState();
+      saveSnapshot({ show: false });
+      renderScriptureView();
+      setStatus('New text collection created');
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+
+  function deleteCurrentCollection() {
+    const collection = getCurrentCollection();
+    if (!collection) return;
+
+    const ok = window.confirm(
+      `Delete collection "${collection.name}"?\n\nTexts will remain in the movement, but this grouping will be removed.`
+    );
+    if (!ok) return;
+
+    try {
+      DomainService.deleteItem(snapshot, 'textCollections', collection.id);
+      currentCollectionId = null;
+      currentTextId = null;
+      snapshotDirty = true;
+      updateDirtyState();
+      saveSnapshot({ show: false });
+      renderScriptureView();
+      setStatus('Collection deleted');
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+
+  function persistTextToSnapshot({ keepSelection = true } = {}) {
+    const text = currentTextId
+      ? (snapshot.texts || []).find(t => t.id === currentTextId)
+      : null;
+    const titleInput = document.getElementById('scripture-text-title');
+    const labelInput = document.getElementById('scripture-text-label');
+    const levelSelect = document.getElementById('scripture-text-level');
+    const functionSelect = document.getElementById('scripture-text-mainFunction');
+    const parentSelect = document.getElementById('scripture-text-parent');
+    const tagsInput = document.getElementById('scripture-text-tags');
+    const mentionsInput = document.getElementById('scripture-text-mentions');
+    const contentInput = document.getElementById('scripture-text-content');
+    const rootCheckbox = document.getElementById('scripture-root-toggle');
+
+    const payload = {
+      id: text ? text.id : DomainService.generateId('txt-'),
+      movementId: currentMovementId,
+      parentId: parentSelect.value || null,
+      level: levelSelect.value,
+      title: titleInput.value.trim() || 'Untitled text',
+      label: labelInput.value.trim() || '1',
+      content: contentInput.value,
+      mainFunction: functionSelect.value || null,
+      tags: readCommaSeparated(tagsInput.value),
+      mentionsEntityIds: readCommaSeparated(mentionsInput.value)
+    };
+
+    DomainService.upsertItem(snapshot, 'texts', payload);
+    currentTextId = keepSelection ? payload.id : null;
+
+    const collection = getCurrentCollection();
+    if (collection) {
+      const roots = Array.isArray(collection.rootTextIds)
+        ? collection.rootTextIds.slice()
+        : [];
+      const idx = roots.indexOf(payload.id);
+      if (!payload.parentId && rootCheckbox && rootCheckbox.checked) {
+        if (idx === -1) roots.push(payload.id);
+      } else if (idx !== -1) {
+        roots.splice(idx, 1);
+      }
+      collection.rootTextIds = roots;
+    }
+
+    snapshotDirty = true;
+    updateDirtyState();
+    saveSnapshot({ show: false });
+    renderScriptureView();
+    setStatus('Text saved');
+  }
+
+  function addRootText() {
+    if (!currentMovementId) return;
+    const payload = DomainService.addNewItem(
+      snapshot,
+      'texts',
+      currentMovementId
+    );
+    payload.parentId = null;
+    currentTextId = payload.id;
+    const collection = getCurrentCollection();
+    if (collection) {
+      const roots = Array.isArray(collection.rootTextIds)
+        ? collection.rootTextIds
+        : [];
+      if (!roots.includes(payload.id)) roots.push(payload.id);
+    }
+    snapshotDirty = true;
+    updateDirtyState();
+    saveSnapshot({ show: false });
+    renderScriptureView();
+    setStatus('Root text created');
+  }
+
+  function addChildText() {
+    if (!currentTextId) {
+      alert('Select a text node to add a child beneath it.');
+      return;
+    }
+    const payload = DomainService.addNewItem(
+      snapshot,
+      'texts',
+      currentMovementId
+    );
+    payload.parentId = currentTextId;
+    currentTextId = payload.id;
+    snapshotDirty = true;
+    updateDirtyState();
+    saveSnapshot({ show: false });
+    renderScriptureView();
+    setStatus('Child text created');
+  }
+
+  function deleteCurrentText() {
+    if (!currentTextId) return;
+    const text = (snapshot.texts || []).find(t => t.id === currentTextId);
+    if (!text) return;
+
+    const ok = window.confirm(
+      `Delete text "${text.title}" and detach its children?\n\nChildren will move to the root level.`
+    );
+    if (!ok) return;
+
+    const children = (snapshot.texts || []).filter(
+      t => t.parentId === currentTextId
+    );
+    children.forEach(child => {
+      child.parentId = null;
+    });
+
+    const collection = getCurrentCollection();
+    if (collection && Array.isArray(collection.rootTextIds)) {
+      collection.rootTextIds = collection.rootTextIds.filter(
+        id => id !== currentTextId
+      );
+      children.forEach(child => {
+        if (!collection.rootTextIds.includes(child.id)) {
+          collection.rootTextIds.push(child.id);
+        }
+      });
+    }
+
+    DomainService.deleteItem(snapshot, 'texts', currentTextId);
+    currentTextId = null;
+    snapshotDirty = true;
+    updateDirtyState();
+    saveSnapshot({ show: false });
+    renderScriptureView();
+    setStatus('Text deleted');
   }
 
   // ---- Entities (buildEntityDetailViewModel + buildEntityGraphViewModel) ----
@@ -3006,6 +3363,60 @@
         renderScriptureView
       );
     }
+
+    addListenerById('btn-add-collection', 'click', addCollection);
+    addListenerById('btn-save-collection', 'click', saveCurrentCollection);
+    addListenerById('btn-delete-collection', 'click', deleteCurrentCollection);
+    addListenerById('btn-add-root-text', 'click', addRootText);
+    addListenerById('btn-add-child-text', 'click', addChildText);
+    addListenerById('btn-save-text', 'click', () => persistTextToSnapshot());
+    addListenerById('btn-delete-text', 'click', deleteCurrentText);
+
+    [
+      'scripture-collection-name',
+      'scripture-collection-description',
+      'scripture-collection-tags'
+    ].forEach(id => {
+      addListenerById(id, 'input', () => {
+        if (isPopulatingScriptureForms) return;
+        snapshotDirty = true;
+        updateDirtyState();
+      });
+    });
+
+    [
+      'scripture-text-title',
+      'scripture-text-label',
+      'scripture-text-level',
+      'scripture-text-mainFunction',
+      'scripture-text-parent',
+      'scripture-text-tags',
+      'scripture-text-mentions',
+      'scripture-text-content',
+      'scripture-root-toggle'
+    ].forEach(id => {
+      addListenerById(id, 'input', () => {
+        if (isPopulatingScriptureForms) return;
+        snapshotDirty = true;
+        updateDirtyState();
+      });
+      addListenerById(id, 'change', () => {
+        if (isPopulatingScriptureForms) return;
+        snapshotDirty = true;
+        updateDirtyState();
+      });
+    });
+
+    addListenerById('scripture-text-parent', 'change', () => {
+      if (isPopulatingScriptureForms) return;
+      const rootCheckbox = document.getElementById('scripture-root-toggle');
+      if (!rootCheckbox) return;
+      const hasParent = Boolean(
+        document.getElementById('scripture-text-parent').value
+      );
+      rootCheckbox.disabled = hasParent || !getCurrentCollection();
+      if (hasParent) rootCheckbox.checked = false;
+    });
 
     // Collections tab
       addListenerById('collection-select', 'change', e => {

@@ -667,6 +667,12 @@ button.danger:hover {
   margin-top: 0.15rem;
 }
 
+.text-node.selected > .text-node-header {
+  background: #e0f2fe;
+  border-radius: 4px;
+  padding: 0.15rem 0.25rem;
+}
+
 /* Detail sections / cards */
 
 .detail-section {
@@ -697,6 +703,73 @@ button.danger:hover {
   border: 1px solid #e5e7eb;
   background: #f9fafb;
   padding: 0.5rem 0.6rem;
+}
+
+.stacked-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.stacked-form.disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.5rem;
+}
+
+.form-footer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.muted {
+  color: #6b7280;
+}
+
+.grow {
+  flex: 1;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.scripture-layout {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.scripture-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.tree-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.tree-actions-row {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.toolbar-spacer {
+  flex: 1;
 }
 
 .card h4 {

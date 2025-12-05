@@ -116,13 +116,139 @@
           <p class="hint">
             Browse text collections and passages for the selected movement.
           </p>
-          <div class="subtab-toolbar">
-            <label>
-              Text collection:
-              <select id="scripture-collection-select"></select>
-            </label>
+          <div class="scripture-layout">
+            <div class="scripture-column">
+              <div class="subtab-toolbar">
+                <label>
+                  Text collection:
+                  <select id="scripture-collection-select"></select>
+                </label>
+                <span class="toolbar-spacer"></span>
+                <button id="btn-add-collection" type="button">New collection</button>
+                <button id="btn-delete-collection" type="button" class="danger">
+                  Delete collection
+                </button>
+              </div>
+
+              <div class="tree-actions">
+                <div class="hint" id="scripture-collection-hint">
+                  Select or create a collection to manage its texts.
+                </div>
+                <div class="tree-actions-row">
+                  <button id="btn-add-root-text" type="button">Add root text</button>
+                  <button id="btn-add-child-text" type="button">Add child text</button>
+                </div>
+              </div>
+
+              <div id="scripture-tree" class="tree-container"></div>
+            </div>
+
+            <div class="scripture-column">
+              <div class="card">
+                <h3>Collection details</h3>
+                <form id="scripture-collection-form" class="stacked-form">
+                  <label>
+                    Name
+                    <input id="scripture-collection-name" type="text" placeholder="Main scriptures" />
+                  </label>
+                  <label>
+                    Description
+                    <textarea
+                      id="scripture-collection-description"
+                      rows="2"
+                      placeholder="Canonical or thematic grouping"
+                    ></textarea>
+                  </label>
+                  <label>
+                    Tags (comma separated)
+                    <input id="scripture-collection-tags" type="text" placeholder="canon, liturgy" />
+                  </label>
+                  <div class="form-footer">
+                    <span class="muted">ID: <span id="scripture-collection-id">—</span></span>
+                    <span class="grow"></span>
+                    <button id="btn-save-collection" type="button">Save collection</button>
+                  </div>
+                </form>
+              </div>
+
+              <div class="card">
+                <h3>Text node</h3>
+                <div class="hint" id="scripture-text-hint">
+                  Select or create a text node to edit its details.
+                </div>
+                <form id="scripture-text-form" class="stacked-form">
+                  <div class="form-grid">
+                    <label>
+                      Title
+                      <input id="scripture-text-title" type="text" placeholder="Passage title" />
+                    </label>
+                    <label>
+                      Label
+                      <input id="scripture-text-label" type="text" placeholder="1.1" />
+                    </label>
+                  </div>
+                  <div class="form-grid">
+                    <label>
+                      Level
+                      <select id="scripture-text-level">
+                        <option value="work">work</option>
+                        <option value="section">section</option>
+                        <option value="passage">passage</option>
+                        <option value="line">line</option>
+                      </select>
+                    </label>
+                    <label>
+                      Main function
+                      <select id="scripture-text-mainFunction">
+                        <option value="">—</option>
+                        <option value="story">story</option>
+                        <option value="rule">rule</option>
+                        <option value="instructions">instructions</option>
+                        <option value="teaching">teaching</option>
+                        <option value="prayer_or_song">prayer_or_song</option>
+                        <option value="commentary">commentary</option>
+                        <option value="other">other</option>
+                      </select>
+                    </label>
+                  </div>
+                  <label>
+                    Parent
+                    <select id="scripture-text-parent"></select>
+                  </label>
+                  <div class="form-grid">
+                    <label>
+                      Tags (comma separated)
+                      <input id="scripture-text-tags" type="text" placeholder="ritual, law" />
+                    </label>
+                    <label>
+                      Mentions entity IDs (comma separated)
+                      <input
+                        id="scripture-text-mentions"
+                        type="text"
+                        placeholder="ent-god, ent-saint"
+                      />
+                    </label>
+                  </div>
+                  <label class="checkbox-row">
+                    <input id="scripture-root-toggle" type="checkbox" />
+                    Treat as root text for this collection (only when no parent)
+                  </label>
+                  <label>
+                    Content
+                    <textarea id="scripture-text-content" rows="4" placeholder="Optional excerpt"></textarea>
+                  </label>
+                  <div class="form-footer">
+                    <span class="muted">ID: <span id="scripture-text-id">—</span></span>
+                    <span class="grow"></span>
+                    <button id="btn-delete-text" type="button" class="danger">
+                      Delete text
+                    </button>
+                    <button id="btn-save-text" type="button">Save text</button>
+                  </div>
+                </form>
+              </div>
+            </div>
           </div>
-          <div id="scripture-tree" class="tree-container"></div>
         </div>
       </section>
 
