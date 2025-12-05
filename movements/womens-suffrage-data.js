@@ -1,3 +1,4 @@
+(function () {
 const data = {
   "version": "3.4",
   "movements": [
@@ -397,3 +398,4 @@ if (typeof module !== 'undefined') {
   window.movementDatasets = window.movementDatasets || [];
   window.movementDatasets.push(data);
 }
+})();
