@@ -14,6 +14,7 @@ body {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: #111827;
   background: #f3f4f6;
+  overflow-x: hidden;
 }
 
 body {
@@ -30,6 +31,7 @@ body {
   padding: 0.75rem 1.25rem;
   background: #111827;
   color: #f9fafb;
+  gap: 0.75rem;
 }
 
 .top-bar h1 {
@@ -39,8 +41,13 @@ body {
 
 .top-bar-left {
   display: flex;
-  align-items: baseline;
-  gap: 0.75rem;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.top-bar-title {
+  display: flex;
+  flex-direction: column;
 }
 
 .schema-version {
@@ -52,6 +59,23 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.sidebar-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  font-size: 1.1rem;
+  border-radius: 6px;
+  background: #111827;
+  color: #f9fafb;
+  border: 1px solid #374151;
+}
+
+.sidebar-toggle:hover {
+  background: #1f2937;
 }
 
 button {
@@ -107,6 +131,7 @@ button.danger:hover {
   flex: 1;
   display: flex;
   min-height: 0; /* allow flex children to scroll */
+  position: relative;
 }
 
 /* Sidebar */
@@ -117,6 +142,17 @@ button.danger:hover {
   background: #f9fafb;
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
+}
+
+.sidebar-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 19;
 }
 
 .sidebar-header {
@@ -181,6 +217,7 @@ button.danger:hover {
   flex-wrap: wrap;
   padding: 0.25rem 0.75rem 0;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .tab {
@@ -188,6 +225,7 @@ button.danger:hover {
   border-radius: 0;
   border-bottom: 2px solid transparent;
   background: transparent;
+  flex: 0 0 auto;
 }
 
 .tab.active {
@@ -212,7 +250,7 @@ button.danger:hover {
 
 .dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 0.9rem;
   align-items: start;
 }
@@ -321,6 +359,7 @@ button.danger:hover {
   gap: 0.75rem;
   margin-top: 0.75rem;
   min-height: 300px;
+  flex-wrap: wrap;
 }
 
 .list-pane {
@@ -341,7 +380,7 @@ button.danger:hover {
 
 .item-detail-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 0.75rem;
   flex: 1;
 }
@@ -837,4 +876,119 @@ a.text-link:hover {
   background: #dbeafe;
   color: #1d4ed8;
   border: 1px solid #bfdbfe;
+}
+
+/* Responsive tweaks */
+@media (max-width: 1100px) {
+  .save-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .status {
+    min-width: 0;
+    text-align: left;
+  }
+}
+
+@media (max-width: 960px) {
+  .top-bar {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .top-bar-left {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .top-bar-title h1 {
+    font-size: 1rem;
+  }
+
+  .top-bar-right {
+    width: 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .sidebar-toggle {
+    display: inline-flex;
+  }
+
+  .layout {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    height: 100vh;
+    max-width: 320px;
+    width: min(320px, 85vw);
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    z-index: 20;
+    box-shadow: 0 10px 35px rgba(0, 0, 0, 0.2);
+  }
+
+  body.sidebar-open .sidebar {
+    transform: translateX(0);
+  }
+
+  body.sidebar-open .sidebar-scrim {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .content {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .split {
+    flex-direction: column;
+  }
+
+  .list-pane,
+  .detail-pane {
+    width: 100%;
+    flex: 1 1 auto;
+  }
+
+  .preview-row {
+    grid-template-columns: 1fr;
+  }
+
+  .collection-toolbar {
+    gap: 0.5rem;
+  }
+}
+
+@media (max-width: 720px) {
+  .tabs {
+    gap: 0.15rem;
+  }
+
+  .tab {
+    padding: 0.45rem 0.7rem;
+  }
+
+  .form-row {
+    max-width: 100%;
+  }
+
+  .preview-label {
+    font-size: 0.82rem;
+  }
+
+  .preview-value {
+    font-size: 0.83rem;
+  }
 }
