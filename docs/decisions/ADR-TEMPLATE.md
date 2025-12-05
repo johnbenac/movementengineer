@@ -1,8 +1,5 @@
 # ADR-XXXX: [Title in Active Voice]
 
-## Status
-Proposed | Accepted | Deprecated | Superseded by [ADR-YYYY-descriptive-slug]
-
 ## Context
 
 2-3 paragraphs explaining:

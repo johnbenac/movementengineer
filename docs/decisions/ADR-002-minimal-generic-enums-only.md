@@ -1,8 +1,5 @@
 # ADR-002: Use Minimal Generic Enums Only
 
-## Status
-Accepted
-
 ## Context
 
 Early iterations of the movement data model tried to enumerate every conceivable classification.  We sketched axes for metaphysics, eschatology, ritual density and dozens of other theology‑centric distinctions.  While comprehensive in theory, this proliferation of enums made the schema heavy, biased toward particular traditions, and intimidating for users.  Each new movement or sect would inevitably demand more categories, leading to an explosion of special cases.  At the same time the user audience for our designer tool was broader than professional theologians; we needed something intuitive.

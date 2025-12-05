@@ -1,8 +1,5 @@
 # ADR-013: Remove `isGeneric` and Infer Generality via Relations
 
-## Status
-Accepted
-
 ## Context
 
 Earlier iterations of the `Entity` schema included an `isGeneric` boolean to distinguish archetypal or class-like entities (“Sacrament of Eucharist”, “Angel”) from particular instances (“Saint Francis of Assisi”, “The Pope”).  In practice, designers struggled to decide whether certain entities (e.g. “The Pope” as an office) were generic or specific.  The boolean offered no guidance on how to treat generic entities when multiple instances existed or how they related to specific instances.  We realised that a binary flag could not capture the nuances of type–instance relationships or category hierarchies.

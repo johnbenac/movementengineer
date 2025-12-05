@@ -1,8 +1,5 @@
 # ADR-001: Establish a Movement-Agnostic Core Model
 
-## Status
-Accepted
-
 ## Context
 
 We needed to define a single data model capable of describing movements with wildly different beliefs, practices and structures.  The designer tool must support real traditions (e.g. Sunni Islam, Catholicism, Confucianism) and invented systems (e.g. Aggie football).  Existing schemas for world movements often bake in assumptions about gods, canon, or particular cosmologies.  Our goal was to avoid those biases and provide a flexible foundation.  Developers requested a uniform set of entities that would cover everything from gods and saints to ceremonies and sacred texts without hard‑coding denominational logic.

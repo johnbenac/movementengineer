@@ -1,8 +1,5 @@
 # ADR-005: Claims as First‑Class Atomic Statements
 
-## Status
-Accepted
-
 ## Context
 
 Movement designers needed a way to capture statements about reality, gods, people, afterlife, ethics and cosmology.  We initially considered storing these as annotations on texts or as notes on entities.  However, such an approach would bury doctrinal content inside narrative or descriptive fields, making it difficult to query or attach authority metadata.  We wanted to separate the presentation of text from the extraction of meaning.  Furthermore, movements may hold multiple competing interpretations of a passage, or scholars may want to record summary beliefs that are not identical to any one verse.  A dedicated mechanism was required to capture these “truth claims” in a structured and traceable way.

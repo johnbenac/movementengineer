@@ -1,8 +1,5 @@
 # ADR-009: Use JSON as the Canonical Format
 
-## Status
-Accepted
-
 ## Context
 
 We discussed multiple serialisation formats for storing and sharing movement data, including RDF triples, JSON‑LD, YAML and plain JSON.  RDF/JSON‑LD provides strong semantics and interoperability with linked data but requires complex tooling and adds noise (`@context`, `@id`, `@type`) that is unnecessary for internal use.  YAML is human‑friendly but non‑strict, which can lead to subtle parsing differences across implementations.  Our priority is to support an easy‑to‑understand, stable data format for our movement engineer and for future analysis, not to publish linked open data immediately.  The data will live in Git repositories and be consumed by our own tools rather than by generic RDF processors.

@@ -1,8 +1,5 @@
 # ADR-021: Maintain Clear File and Module Separation
 
-## Status
-Accepted
-
 ## Context
 
 As the project grew from a single schema file into multiple layers of logic, we began to accumulate various concerns—core data modelling, view model projections, comparison meta‑models and domain services.  Early prototypes placed everything in one or two large files, mixing entity definitions with utility functions and tests.  This made it difficult to reason about dependencies and to on‑board new contributors.  Without clear boundaries, domain logic risked creeping into the view layer or vice versa.  We needed a consistent structure to organise files and modules in a way that reflects their roles and dependencies.  Several conventions exist in the JavaScript ecosystem (index files, barrelling, etc.), but we wanted a pattern tailored to our project’s needs.
