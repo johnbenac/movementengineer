@@ -272,6 +272,10 @@ button.danger:hover {
   color: #6b7280;
 }
 
+.muted {
+  color: #6b7280;
+}
+
 /* Divider */
 
 .section-divider {

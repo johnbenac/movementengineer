@@ -518,6 +518,36 @@
     return acc;
   }
 
+  function isTextInActiveTree(textId, vm) {
+    if (
+      !textId ||
+      !vm ||
+      !Array.isArray(vm.roots) ||
+      vm.roots.length === 0
+    ) {
+      return false;
+    }
+
+    const visited = new Set();
+    const stack = vm.roots.map(root => root.id);
+
+    while (stack.length) {
+      const id = stack.pop();
+      if (visited.has(id)) continue;
+      visited.add(id);
+      if (id === textId) return true;
+
+      const node = vm.nodesById[id];
+      if (node && Array.isArray(node.childIds)) {
+        node.childIds.forEach(childId => {
+          if (!visited.has(childId)) stack.push(childId);
+        });
+      }
+    }
+
+    return false;
+  }
+
   function renderScriptureForms(vm) {
     const collection = vm.collection;
     const nameInput = document.getElementById('scripture-collection-name');
@@ -599,6 +629,20 @@
 
     ensureSelectOptions(parentSelect, availableParents, '— Root (no parent)');
 
+    const syncRootCheckboxWithParent = () => {
+      const collectionForRoot = getActiveTextCollection();
+      const hasParent = !!parentSelect.value;
+      rootCheckbox.disabled = !collectionForRoot || hasParent;
+      if (hasParent) {
+        rootCheckbox.checked = false;
+      }
+    };
+
+    parentSelect.onchange = () => {
+      if (isPopulatingScriptureForms) return;
+      syncRootCheckboxWithParent();
+    };
+
     isPopulatingScriptureForms = true;
     if (!activeText) {
       textHint.textContent =
@@ -648,10 +692,15 @@
       ? collectionRoots.includes(activeText.id)
       : false;
 
+    if (parentSelect.value) {
+      rootCheckbox.checked = false;
+    }
+
     if (saveTextBtn) saveTextBtn.disabled = false;
     if (deleteTextBtn) deleteTextBtn.disabled = false;
     if (addChildBtn) addChildBtn.disabled = false;
     isPopulatingScriptureForms = false;
+    syncRootCheckboxWithParent();
   }
 
   function renderScriptureView() {
@@ -682,11 +731,16 @@
       textCollectionId: textCollectionId || null
     });
 
-    if (currentTextId && !vm.nodesById[currentTextId]) {
+    if (
+      currentTextId &&
+      textCollectionId &&
+      !isTextInActiveTree(currentTextId, vm)
+    ) {
       currentTextId = null;
     }
 
     if (!vm.roots || vm.roots.length === 0) {
+      currentTextId = null;
       const p = document.createElement('p');
       p.className = 'hint';
       p.textContent = 'No texts found for this movement.';
@@ -987,13 +1041,12 @@
     );
     if (!ok) return;
 
-    snapshot.texts = (snapshot.texts || []).filter(
-      t => !descendants.includes(t.id)
-    );
+    const descendantSet = new Set(descendants);
+    descendants.forEach(id => {
+      DomainService.deleteItem(snapshot, 'texts', id);
+    });
     (snapshot.textCollections || []).forEach(tc => {
-      tc.rootTextIds = (tc.rootTextIds || []).filter(id =>
-        !descendants.includes(id)
-      );
+      tc.rootTextIds = (tc.rootTextIds || []).filter(id => !descendantSet.has(id));
     });
     currentTextId = null;
     saveSnapshot();
