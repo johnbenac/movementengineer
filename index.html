@@ -37,18 +37,22 @@
     <section class="content">
       <nav class="tabs">
         <button class="tab active" data-tab="dashboard">Dashboard</button>
-        <button class="tab" data-tab="movement">Movement</button>
+        <button class="tab" data-tab="scripture">Scripture</button>
+        <button class="tab" data-tab="entities">Entities</button>
+        <button class="tab" data-tab="practices">Practices</button>
+        <button class="tab" data-tab="calendar">Calendar</button>
+        <button class="tab" data-tab="claims">Claims</button>
+        <button class="tab" data-tab="rules">Rules</button>
+        <button class="tab" data-tab="authority">Authority</button>
+        <button class="tab" data-tab="media">Media</button>
+        <button class="tab" data-tab="relations">Relations</button>
+        <button class="tab" data-tab="notes">Notes</button>
         <button class="tab" data-tab="data">Collections</button>
         <button class="tab" data-tab="comparison">Comparison</button>
       </nav>
 
       <!-- Dashboard tab -->
       <section id="tab-dashboard" class="tab-panel active">
-        <div id="dashboard-content" class="panel-body"></div>
-      </section>
-
-      <!-- Single movement details + explorer -->
-      <section id="tab-movement" class="tab-panel">
         <div class="panel-body">
           <h2>Movement details</h2>
           <p class="hint">
@@ -97,222 +101,272 @@
 
           <hr class="section-divider" />
 
-          <div class="movement-explorer">
-            <h3>Explore this movement</h3>
-            <p class="hint">
-              Read‑only explorers driven by the view‑model builders. Switch sections to browse
-              texts, entities, practices, calendar, claims, rules, authority, media, relations and notes.
-            </p>
+          <div id="dashboard-content"></div>
+        </div>
+      </section>
 
-            <div class="subtabs" id="movement-subtabs">
-              <button class="subtab active" data-subtab="scripture">Scripture</button>
-              <button class="subtab" data-subtab="entities">Entities</button>
-              <button class="subtab" data-subtab="practices">Practices</button>
-              <button class="subtab" data-subtab="calendar">Calendar</button>
-              <button class="subtab" data-subtab="claims">Claims</button>
-              <button class="subtab" data-subtab="rules">Rules</button>
-              <button class="subtab" data-subtab="authority">Authority</button>
-              <button class="subtab" data-subtab="media">Media</button>
-              <button class="subtab" data-subtab="relations">Relations</button>
-              <button class="subtab" data-subtab="notes">Notes</button>
+      <!-- Scripture -->
+      <section id="tab-scripture" class="tab-panel">
+        <div class="panel-body">
+          <h2>Scripture</h2>
+          <p class="hint">
+            Read‑only explorer driven by the view‑model builders. Browse text collections and drill
+            into their structure.
+          </p>
+          <section id="movement-subtab-scripture" class="subtab-panel active">
+            <div class="subtab-toolbar">
+              <label>
+                Text collection:
+                <select id="scripture-collection-select"></select>
+              </label>
             </div>
+            <div id="scripture-tree" class="tree-container"></div>
+          </section>
+        </div>
+      </section>
 
-            <!-- Scripture -->
-            <section id="movement-subtab-scripture" class="subtab-panel active">
-              <div class="subtab-toolbar">
-                <label>
-                  Text collection:
-                  <select id="scripture-collection-select"></select>
-                </label>
-              </div>
-              <div id="scripture-tree" class="tree-container"></div>
-            </section>
+      <!-- Entities -->
+      <section id="tab-entities" class="tab-panel">
+        <div class="panel-body">
+          <h2>Entities</h2>
+          <p class="hint">
+            Examine entities and their relations for the selected movement.
+          </p>
+          <section id="movement-subtab-entities" class="subtab-panel active">
+            <div class="subtab-toolbar">
+              <label>
+                Entity:
+                <select id="entity-select"></select>
+              </label>
+            </div>
+            <div id="entity-detail" class="detail-section"></div>
 
-            <!-- Entities -->
-            <section id="movement-subtab-entities" class="subtab-panel">
-              <div class="subtab-toolbar">
-                <label>
-                  Entity:
-                  <select id="entity-select"></select>
-                </label>
-              </div>
-              <div id="entity-detail" class="detail-section"></div>
+            <div class="section-heading small">Relation graph (list view)</div>
+            <div class="subtab-toolbar">
+              <label>
+                Depth:
+                <select id="entity-graph-depth">
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                </select>
+              </label>
+              <label class="grow">
+                Relation types (comma‑separated, optional):
+                <input
+                  id="entity-graph-relation-types"
+                  type="text"
+                  placeholder="mother_of, part_of, instance_of"
+                />
+              </label>
+              <button id="btn-refresh-entity-graph" type="button">Refresh graph</button>
+            </div>
+            <div id="entity-graph" class="detail-section"></div>
+          </section>
+        </div>
+      </section>
 
-              <div class="section-heading small">Relation graph (list view)</div>
-              <div class="subtab-toolbar">
-                <label>
-                  Depth:
-                  <select id="entity-graph-depth">
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                  </select>
-                </label>
-                <label class="grow">
-                  Relation types (comma‑separated, optional):
-                  <input
-                    id="entity-graph-relation-types"
-                    type="text"
-                    placeholder="mother_of, part_of, instance_of"
-                  />
-                </label>
-                <button id="btn-refresh-entity-graph" type="button">Refresh graph</button>
-              </div>
-              <div id="entity-graph" class="detail-section"></div>
-            </section>
+      <!-- Practices -->
+      <section id="tab-practices" class="tab-panel">
+        <div class="panel-body">
+          <h2>Practices</h2>
+          <p class="hint">Survey practices associated with this movement.</p>
+          <section id="movement-subtab-practices" class="subtab-panel active">
+            <div class="subtab-toolbar">
+              <label>
+                Practice:
+                <select id="practice-select"></select>
+              </label>
+            </div>
+            <div id="practice-detail" class="detail-section"></div>
+          </section>
+        </div>
+      </section>
 
-            <!-- Practices -->
-            <section id="movement-subtab-practices" class="subtab-panel">
-              <div class="subtab-toolbar">
-                <label>
-                  Practice:
-                  <select id="practice-select"></select>
-                </label>
-              </div>
-              <div id="practice-detail" class="detail-section"></div>
-            </section>
+      <!-- Calendar -->
+      <section id="tab-calendar" class="tab-panel">
+        <div class="panel-body">
+          <h2>Calendar</h2>
+          <p class="hint">Browse observances filtered by recurrence.</p>
+          <section id="movement-subtab-calendar" class="subtab-panel active">
+            <div class="subtab-toolbar">
+              <label>
+                Recurrence:
+                <select id="calendar-recurrence-filter">
+                  <option value="">All</option>
+                  <option value="once">once</option>
+                  <option value="daily">daily</option>
+                  <option value="weekly">weekly</option>
+                  <option value="monthly">monthly</option>
+                  <option value="yearly">yearly</option>
+                  <option value="other">other</option>
+                </select>
+              </label>
+            </div>
+            <div id="calendar-view" class="card-grid"></div>
+          </section>
+        </div>
+      </section>
 
-            <!-- Calendar -->
-            <section id="movement-subtab-calendar" class="subtab-panel">
-              <div class="subtab-toolbar">
-                <label>
-                  Recurrence:
-                  <select id="calendar-recurrence-filter">
-                    <option value="">All</option>
-                    <option value="once">once</option>
-                    <option value="daily">daily</option>
-                    <option value="weekly">weekly</option>
-                    <option value="monthly">monthly</option>
-                    <option value="yearly">yearly</option>
-                    <option value="other">other</option>
-                  </select>
-                </label>
-              </div>
-              <div id="calendar-view" class="card-grid"></div>
-            </section>
+      <!-- Claims -->
+      <section id="tab-claims" class="tab-panel">
+        <div class="panel-body">
+          <h2>Claims</h2>
+          <p class="hint">Filter and review claims connected to this movement.</p>
+          <section id="movement-subtab-claims" class="subtab-panel active">
+            <div class="subtab-toolbar">
+              <label>
+                Category:
+                <select id="claims-category-filter">
+                  <option value="">All</option>
+                  <option value="belief">belief</option>
+                  <option value="tradition">tradition</option>
+                  <option value="guideline">guideline</option>
+                  <option value="doctrine">doctrine</option>
+                </select>
+              </label>
+              <label>
+                About entity:
+                <select id="claims-entity-filter">
+                  <option value="">Any</option>
+                </select>
+              </label>
+            </div>
+            <div id="claims-table-wrapper" class="table-wrapper"></div>
+          </section>
+        </div>
+      </section>
 
-            <!-- Claims -->
-            <section id="movement-subtab-claims" class="subtab-panel">
-              <div class="subtab-toolbar">
-                <label>
-                  Category:
-                  <select id="claims-category-filter">
-                    <option value="">All</option>
-                  </select>
-                </label>
-                <label>
-                  About entity:
-                  <select id="claims-entity-filter">
-                    <option value="">Any</option>
-                  </select>
-                </label>
-              </div>
-              <div id="claims-table-wrapper" class="table-wrapper"></div>
-            </section>
+      <!-- Rules -->
+      <section id="tab-rules" class="tab-panel">
+        <div class="panel-body">
+          <h2>Rules</h2>
+          <p class="hint">Filter rules by category and related entity kind.</p>
+          <section id="movement-subtab-rules" class="subtab-panel active">
+            <div class="subtab-toolbar">
+              <label>
+                Kind:
+                <select id="rules-kind-filter">
+                  <option value="">All</option>
+                  <option value="must_do">must_do</option>
+                  <option value="must_not_do">must_not_do</option>
+                  <option value="should_do">should_do</option>
+                  <option value="ideal">ideal</option>
+                </select>
+              </label>
+              <label class="grow">
+                Domain filter (comma‑separated):
+                <input
+                  id="rules-domain-filter"
+                  type="text"
+                  placeholder="worship, diet, penance"
+                />
+              </label>
+            </div>
+            <div id="rules-table-wrapper" class="table-wrapper"></div>
+          </section>
+        </div>
+      </section>
 
-            <!-- Rules -->
-            <section id="movement-subtab-rules" class="subtab-panel">
-              <div class="subtab-toolbar">
-                <label>
-                  Kind:
-                  <select id="rules-kind-filter">
-                    <option value="">All</option>
-                    <option value="must_do">must_do</option>
-                    <option value="must_not_do">must_not_do</option>
-                    <option value="should_do">should_do</option>
-                    <option value="ideal">ideal</option>
-                  </select>
-                </label>
-                <label class="grow">
-                  Domain filter (comma‑separated):
-                  <input
-                    id="rules-domain-filter"
-                    type="text"
-                    placeholder="worship, diet, penance"
-                  />
-                </label>
-              </div>
-              <div id="rules-table-wrapper" class="table-wrapper"></div>
-            </section>
+      <!-- Authority -->
+      <section id="tab-authority" class="tab-panel">
+        <div class="panel-body">
+          <h2>Authority</h2>
+          <p class="hint">See authority sources tied to the movement.</p>
+          <section id="movement-subtab-authority" class="subtab-panel active">
+            <div class="section-heading">Sources of truth</div>
+            <div id="authority-sources" class="card-grid"></div>
 
-            <!-- Authority -->
-            <section id="movement-subtab-authority" class="subtab-panel">
-              <div class="section-heading">Sources of truth</div>
-              <div id="authority-sources" class="card-grid"></div>
+            <div class="section-heading">Authority entities</div>
+            <div id="authority-entities" class="card-grid"></div>
+          </section>
+        </div>
+      </section>
 
-              <div class="section-heading">Authority entities</div>
-              <div id="authority-entities" class="card-grid"></div>
-            </section>
+      <!-- Media -->
+      <section id="tab-media" class="tab-panel">
+        <div class="panel-body">
+          <h2>Media</h2>
+          <p class="hint">Filter and browse media linked to movement data.</p>
+          <section id="movement-subtab-media" class="subtab-panel active">
+            <div class="subtab-toolbar">
+              <label>
+                Entity:
+                <select id="media-entity-filter">
+                  <option value="">Any</option>
+                </select>
+              </label>
+              <label>
+                Practice:
+                <select id="media-practice-filter">
+                  <option value="">Any</option>
+                </select>
+              </label>
+              <label>
+                Event:
+                <select id="media-event-filter">
+                  <option value="">Any</option>
+                </select>
+              </label>
+              <label>
+                Text:
+                <select id="media-text-filter">
+                  <option value="">Any</option>
+                </select>
+              </label>
+            </div>
+            <div id="media-gallery" class="card-grid"></div>
+          </section>
+        </div>
+      </section>
 
-            <!-- Media -->
-            <section id="movement-subtab-media" class="subtab-panel">
-              <div class="subtab-toolbar">
-                <label>
-                  Entity:
-                  <select id="media-entity-filter">
-                    <option value="">Any</option>
-                  </select>
-                </label>
-                <label>
-                  Practice:
-                  <select id="media-practice-filter">
-                    <option value="">Any</option>
-                  </select>
-                </label>
-                <label>
-                  Event:
-                  <select id="media-event-filter">
-                    <option value="">Any</option>
-                  </select>
-                </label>
-                <label>
-                  Text:
-                  <select id="media-text-filter">
-                    <option value="">Any</option>
-                  </select>
-                </label>
-              </div>
-              <div id="media-gallery" class="card-grid"></div>
-            </section>
+      <!-- Relations -->
+      <section id="tab-relations" class="tab-panel">
+        <div class="panel-body">
+          <h2>Relations</h2>
+          <p class="hint">Inspect relations and directionality among entities.</p>
+          <section id="movement-subtab-relations" class="subtab-panel active">
+            <div class="subtab-toolbar">
+              <label>
+                Relation type:
+                <select id="relations-type-filter">
+                  <option value="">All</option>
+                </select>
+              </label>
+              <label>
+                Entity:
+                <select id="relations-entity-filter">
+                  <option value="">Any</option>
+                </select>
+              </label>
+            </div>
+            <div id="relations-table-wrapper" class="table-wrapper"></div>
+          </section>
+        </div>
+      </section>
 
-            <!-- Relations -->
-            <section id="movement-subtab-relations" class="subtab-panel">
-              <div class="subtab-toolbar">
-                <label>
-                  Relation type:
-                  <select id="relations-type-filter">
-                    <option value="">All</option>
-                  </select>
-                </label>
-                <label>
-                  Entity:
-                  <select id="relations-entity-filter">
-                    <option value="">Any</option>
-                  </select>
-                </label>
-              </div>
-              <div id="relations-table-wrapper" class="table-wrapper"></div>
-            </section>
-
-            <!-- Notes -->
-            <section id="movement-subtab-notes" class="subtab-panel">
-              <div class="subtab-toolbar">
-                <label>
-                  Target type:
-                  <select id="notes-target-type-filter">
-                    <option value="">All</option>
-                  </select>
-                </label>
-                <label>
-                  Target:
-                  <select id="notes-target-id-filter">
-                    <option value="">Any</option>
-                  </select>
-                </label>
-              </div>
-              <div id="notes-table-wrapper" class="table-wrapper"></div>
-            </section>
-          </div>
+      <!-- Notes -->
+      <section id="tab-notes" class="tab-panel">
+        <div class="panel-body">
+          <h2>Notes</h2>
+          <p class="hint">Filter and read notes tied to movement resources.</p>
+          <section id="movement-subtab-notes" class="subtab-panel active">
+            <div class="subtab-toolbar">
+              <label>
+                Target type:
+                <select id="notes-target-type-filter">
+                  <option value="">All</option>
+                </select>
+              </label>
+              <label>
+                Target:
+                <select id="notes-target-id-filter">
+                  <option value="">Any</option>
+                </select>
+              </label>
+            </div>
+            <div id="notes-table-wrapper" class="table-wrapper"></div>
+          </section>
         </div>
       </section>
 
