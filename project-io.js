@@ -70,15 +70,7 @@
 
   function exportSnapshotAsJson(snapshot) {
     const normalized = normalizeSnapshot(snapshot);
-    const payload = JSON.stringify(
-      {
-        format: 'json',
-        schemaVersion: normalized.version || '3.4',
-        data: normalized
-      },
-      null,
-      2
-    );
+    const payload = JSON.stringify(normalized, null, 2);
     return jsonBlobFromString(payload);
   }
 
@@ -160,6 +152,7 @@
 
   function normalizeImportedSnapshot(raw) {
     if (raw && raw.format === 'json' && raw.data) {
+      // Backwards compatibility for the wrapped export format
       return StorageService.ensureAllCollections(raw.data);
     }
     return StorageService.ensureAllCollections(raw);

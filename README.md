@@ -46,6 +46,8 @@ Bundled datasets live in `movements/*-data.js`. The manifest at `movements/manif
 node scripts/generate-movement-manifest.js
 ```
 
+All movement data—bundled samples, localStorage saves, movement exports, and project exports—use the same **Movement Snapshot** JSON shape documented in [`docs/movement-snapshot.md`](docs/movement-snapshot.md). There is no alternative project JSON wrapper; anything “fancier” must compile down to that snapshot.
+
 ### Testing
 Domain logic tests use simple Node scripts:
 

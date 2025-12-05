@@ -61,10 +61,31 @@ function createSampleSnapshot() {
 async function testJsonRoundTrip() {
   const snapshot = createSampleSnapshot();
   const blob = ProjectIO.exportSnapshotAsJson(snapshot);
+  const asString = typeof blob === 'string' ? blob : blob.toString('utf8');
+  const parsed = JSON.parse(asString);
+
+  assert(!parsed.format && !parsed.data, 'Exported JSON should be the bare snapshot');
+  assert(deepEqual(parsed, snapshot), 'Exported JSON should match the snapshot shape');
+
   const imported = await ProjectIO.importProject(blob);
   assert(
     deepEqual(imported, snapshot),
     'JSON export/import should preserve snapshot structure'
+  );
+}
+
+async function testLegacyWrappedImport() {
+  const snapshot = createSampleSnapshot();
+  const wrapped = JSON.stringify({
+    format: 'json',
+    schemaVersion: '3.4',
+    data: snapshot
+  });
+
+  const imported = await ProjectIO.importProject(wrapped);
+  assert(
+    deepEqual(imported, snapshot),
+    'Importer should accept legacy wrapped JSON projects'
   );
 }
 
@@ -90,6 +111,7 @@ async function testZipRoundTrip() {
 async function runTests() {
   console.log('Running project-io tests...');
   await testJsonRoundTrip();
+  await testLegacyWrappedImport();
   await testZipRoundTrip();
   console.log('All project-io tests passed ✅');
 }
