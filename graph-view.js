@@ -180,20 +180,17 @@
     return aside;
   }
 
-  function renderLabels(svg, nodes, positions, onNodeClick) {
+  function renderLabels(svg, nodes, positions) {
     nodes.forEach(node => {
       const pos = positions.get(node.id);
       if (!pos) return;
       const label = createSvgElement('text', {
         x: pos.x,
         y: pos.y + NODE_RADIUS + 12,
-        class: 'graph-node-label' + (onNodeClick ? ' graph-node-label-clickable' : ''),
+        class: 'graph-node-label',
         'text-anchor': 'middle'
       });
       label.textContent = node.name || node.id;
-      if (onNodeClick) {
-        label.addEventListener('click', () => onNodeClick(node.id));
-      }
       svg.appendChild(label);
     });
   }
@@ -237,27 +234,16 @@
         transform: `translate(${pos.x}, ${pos.y})`
       });
 
-      if (onNodeClick) {
-        nodeGroup.style.cursor = 'pointer';
-        nodeGroup.addEventListener('click', () => onNodeClick(node.id));
-      }
-
-      const hit = createSvgElement('circle', {
-        r: NODE_RADIUS + 10,
-        fill: 'transparent',
-        stroke: 'transparent'
-      });
-
-      if (onNodeClick) {
-        hit.setAttribute('pointer-events', 'all');
-      }
-
       const circle = createSvgElement('circle', {
         r: NODE_RADIUS,
         fill: hashToColor(node.kind),
         stroke: node.id === centerEntityId ? '#111827' : '#f3f4f6',
         'stroke-width': node.id === centerEntityId ? 3 : 2
       });
+      if (onNodeClick) {
+        circle.style.cursor = 'pointer';
+        circle.addEventListener('click', () => onNodeClick(node.id));
+      }
 
       const initials = (node.name || node.id)
         .split(/\s+/)
@@ -274,7 +260,6 @@
       });
       text.textContent = initials;
 
-      nodeGroup.appendChild(hit);
       nodeGroup.appendChild(circle);
       nodeGroup.appendChild(text);
       g.appendChild(nodeGroup);
@@ -337,7 +322,7 @@
 
       renderEdges(svg, vm.edges, positions);
       renderNodes(svg, vm.nodes, positions, options.centerEntityId, this.onNodeClick);
-      renderLabels(svg, vm.nodes, positions, this.onNodeClick);
+      renderLabels(svg, vm.nodes, positions);
 
       canvas.appendChild(svg);
       wrapper.appendChild(canvas);
