@@ -2058,29 +2058,33 @@
     );
   }
 
+  function getCollectionItemsWithFilter(collectionName) {
+    const coll = snapshot[collectionName] || [];
+    const filterByMovementEl = document.getElementById(
+      'collection-filter-by-movement'
+    );
+    const filterByMovement = Boolean(filterByMovementEl?.checked);
+
+    if (
+      filterByMovement &&
+      currentMovementId &&
+      COLLECTIONS_WITH_MOVEMENT_ID.has(collectionName)
+    ) {
+      return coll.filter(
+        item => item.movementId === currentMovementId || item.movementId == null
+      );
+    }
+
+    return coll;
+  }
+
   function renderCollectionList() {
     const list = document.getElementById('collection-items');
     if (!list) return;
     clearElement(list);
 
     const collName = currentCollectionName;
-    const coll = snapshot[collName] || [];
-    const filterByMovement = document.getElementById(
-      'collection-filter-by-movement'
-    ).checked;
-
-    let items = coll;
-    if (
-      filterByMovement &&
-      currentMovementId &&
-      COLLECTIONS_WITH_MOVEMENT_ID.has(collName)
-    ) {
-      items = coll.filter(
-        item =>
-          item.movementId === currentMovementId ||
-          item.movementId == null
-      );
-    }
+    const items = getCollectionItemsWithFilter(collName);
 
     if (!items.length) {
       const li = document.createElement('li');
@@ -2426,7 +2430,7 @@
       return;
     }
 
-    const coll = snapshot[currentCollectionName] || [];
+    const coll = getCollectionItemsWithFilter(currentCollectionName);
     const item = coll.find(it => it.id === currentItemId);
     if (!item) {
       titleEl.textContent = 'Not found';
@@ -2451,6 +2455,14 @@
       const value = item[field.key];
       renderPreviewRow(body, field.label, value, field.type, field.ref);
     });
+
+    if (currentCollectionName === 'texts') {
+      const texts = getCollectionItemsWithFilter('texts');
+      const childIds = texts
+        .filter(text => text.parentId === item.id)
+        .map(text => text.id);
+      renderPreviewRow(body, 'Child texts', childIds, 'idList', 'texts');
+    }
   }
 
   function renderItemEditor() {
