@@ -637,6 +637,21 @@ button.danger:hover {
   font-size: 0.8rem;
 }
 
+.scripture-layout {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 0.6rem;
+  align-items: start;
+}
+
+.scripture-tree-pane {
+  min-height: 260px;
+}
+
+.scripture-editor-pane {
+  min-height: 260px;
+}
+
 .text-tree {
   list-style: none;
   margin: 0;
@@ -645,6 +660,12 @@ button.danger:hover {
 
 .text-node {
   margin: 0.15rem 0;
+}
+
+.text-node.selected > .text-node-header {
+  background: #eef2ff;
+  border-radius: 4px;
+  padding: 0.15rem 0.25rem;
 }
 
 .text-node-header {
@@ -683,6 +704,34 @@ button.danger:hover {
   font-size: 0.9rem;
 }
 
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.5rem 0.6rem;
+  margin-bottom: 0.4rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.85rem;
+}
+
+.field input,
+.field select,
+.field textarea {
+  padding: 0.35rem 0.4rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: white;
+  font-size: 0.9rem;
+}
+
+.field textarea {
+  resize: vertical;
+}
+
 /* Card grid */
 
 .card-grid {
@@ -697,6 +746,13 @@ button.danger:hover {
   border: 1px solid #e5e7eb;
   background: #f9fafb;
   padding: 0.5rem 0.6rem;
+}
+
+.button-row {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.45rem;
 }
 
 .card h4 {

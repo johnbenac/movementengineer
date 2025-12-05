@@ -19,6 +19,8 @@
   let navigationStack = [];
   let navigationIndex = -1;
   let entityGraphView = null;
+  let selectedTextId = null;
+  let textEditorDraft = null;
   let isDirty = false;
   let snapshotDirty = false;
   let movementFormDirty = false;
@@ -511,28 +513,47 @@
 
     const textCollectionId = select.value || null;
 
+    const validTextIds = new Set(
+      (snapshot.texts || [])
+        .filter(t => t.movementId === currentMovementId)
+        .map(t => t.id)
+    );
+    if (selectedTextId && !validTextIds.has(selectedTextId)) {
+      selectedTextId = null;
+      textEditorDraft = null;
+    }
+
     const vm = ViewModels.buildScriptureTreeViewModel(snapshot, {
       movementId: currentMovementId,
       textCollectionId: textCollectionId || null
     });
+    const layout = document.createElement('div');
+    layout.className = 'scripture-layout';
+    treeContainer.appendChild(layout);
 
-    if (!vm.roots || vm.roots.length === 0) {
-      const p = document.createElement('p');
-      p.className = 'hint';
-      p.textContent = 'No texts found for this movement.';
-      treeContainer.appendChild(p);
-      return;
-    }
+    const treePane = document.createElement('div');
+    treePane.className = 'scripture-tree-pane';
+    layout.appendChild(treePane);
 
     const ul = document.createElement('ul');
     ul.className = 'text-tree';
+    treePane.appendChild(ul);
 
     const renderNode = node => {
       const li = document.createElement('li');
       li.className = 'text-node';
+      li.dataset.id = node.id;
+      if (selectedTextId === node.id) {
+        li.classList.add('selected');
+      }
 
       const header = document.createElement('div');
       header.className = 'text-node-header';
+      header.addEventListener('click', () => {
+        selectedTextId = node.id;
+        populateTextEditor();
+        renderScriptureView();
+      });
 
       const titleSpan = document.createElement('span');
       titleSpan.className = 'text-node-title';
@@ -619,10 +640,287 @@
       return li;
     };
 
-    vm.roots.forEach(root => {
-      ul.appendChild(renderNode(root));
+    if (vm.roots && vm.roots.length) {
+      vm.roots.forEach(root => {
+        const li = renderNode(root);
+        ul.appendChild(li);
+      });
+    } else {
+      const p = document.createElement('p');
+      p.className = 'hint';
+      p.textContent = 'No texts found for this movement.';
+      treePane.appendChild(p);
+    }
+
+    const editorPane = document.createElement('div');
+    editorPane.className = 'scripture-editor-pane';
+    layout.appendChild(editorPane);
+
+    const editorCard = document.createElement('div');
+    editorCard.className = 'detail-section';
+    editorPane.appendChild(editorCard);
+
+    const heading = document.createElement('div');
+    heading.className = 'section-heading';
+    heading.textContent = 'Manage texts';
+    editorCard.appendChild(heading);
+
+    const toolbar = document.createElement('div');
+    toolbar.className = 'button-row';
+
+    const addRootBtn = document.createElement('button');
+    addRootBtn.type = 'button';
+    addRootBtn.textContent = 'New root text';
+    addRootBtn.addEventListener('click', () => createTextNode({ parentId: null }));
+    toolbar.appendChild(addRootBtn);
+
+    const addChildBtn = document.createElement('button');
+    addChildBtn.type = 'button';
+    addChildBtn.textContent = 'New child';
+    addChildBtn.disabled = !selectedTextId;
+    addChildBtn.addEventListener('click', () =>
+      createTextNode({ parentId: selectedTextId || null })
+    );
+    toolbar.appendChild(addChildBtn);
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.type = 'button';
+    deleteBtn.textContent = 'Delete';
+    deleteBtn.disabled = !selectedTextId;
+    deleteBtn.addEventListener('click', () => deleteTextNode());
+    toolbar.appendChild(deleteBtn);
+
+    editorCard.appendChild(toolbar);
+
+    const form = document.createElement('div');
+    form.className = 'form-grid';
+    editorCard.appendChild(form);
+
+    const currentText =
+      (snapshot.texts || []).find(t => t.id === selectedTextId) || null;
+    if (currentText && (!textEditorDraft || textEditorDraft.id !== currentText.id)) {
+      textEditorDraft = { ...currentText };
+    }
+
+    const makeInput = (labelText, value, onChange, options = {}) => {
+      const wrapper = document.createElement('label');
+      wrapper.className = 'field';
+      const lbl = document.createElement('div');
+      lbl.className = 'field-label';
+      lbl.textContent = labelText;
+      wrapper.appendChild(lbl);
+
+      let control;
+      if (options.type === 'textarea') {
+        control = document.createElement('textarea');
+        control.rows = options.rows || 4;
+      } else if (options.type === 'select') {
+        control = document.createElement('select');
+        (options.choices || []).forEach(choice => {
+          const opt = document.createElement('option');
+          opt.value = choice.value;
+          opt.textContent = choice.label;
+          control.appendChild(opt);
+        });
+      } else {
+        control = document.createElement('input');
+        control.type = options.type || 'text';
+      }
+      control.value = value || '';
+      control.disabled = !selectedTextId;
+      control.addEventListener('input', e => {
+        if (!selectedTextId) return;
+        onChange(e.target.value);
+      });
+      wrapper.appendChild(control);
+      return wrapper;
+    };
+
+    const parentChoices = [{ value: '', label: 'No parent (root)' }];
+    (snapshot.texts || [])
+      .filter(t => t.movementId === currentMovementId)
+      .forEach(t => {
+        parentChoices.push({ value: t.id, label: t.title || t.id });
+      });
+
+    form.appendChild(
+      makeInput('Parent', textEditorDraft?.parentId || '', value => {
+        textEditorDraft = { ...textEditorDraft, parentId: value || null };
+      }, { type: 'select', choices: parentChoices })
+    );
+
+    form.appendChild(
+      makeInput('Label', textEditorDraft?.label || '', value => {
+        textEditorDraft = { ...textEditorDraft, label: value };
+      })
+    );
+
+    form.appendChild(
+      makeInput('Title', textEditorDraft?.title || '', value => {
+        textEditorDraft = { ...textEditorDraft, title: value };
+      })
+    );
+
+    const levelChoices = ['work', 'section', 'passage', 'line', 'other'].map(
+      value => ({ value, label: value })
+    );
+    form.appendChild(
+      makeInput('Level', textEditorDraft?.level || 'work', value => {
+        textEditorDraft = { ...textEditorDraft, level: value };
+      }, { type: 'select', choices: levelChoices })
+    );
+
+    form.appendChild(
+      makeInput(
+        'Main function',
+        textEditorDraft?.mainFunction || '',
+        value => {
+          textEditorDraft = { ...textEditorDraft, mainFunction: value || null };
+        }
+      )
+    );
+
+    form.appendChild(
+      makeInput(
+        'Tags (comma separated)',
+        (textEditorDraft?.tags || []).join(', '),
+        value => {
+          const tags = value
+            .split(',')
+            .map(t => t.trim())
+            .filter(Boolean);
+          textEditorDraft = { ...textEditorDraft, tags };
+        }
+      )
+    );
+
+    form.appendChild(
+      makeInput(
+        'Content',
+        textEditorDraft?.content || '',
+        value => {
+          textEditorDraft = { ...textEditorDraft, content: value };
+        },
+        { type: 'textarea', rows: 6 }
+      )
+    );
+
+    const saveBtn = document.createElement('button');
+    saveBtn.type = 'button';
+    saveBtn.textContent = 'Save changes';
+    saveBtn.disabled = !selectedTextId || !textEditorDraft;
+    saveBtn.addEventListener('click', () => saveTextNode(textCollectionId));
+    editorCard.appendChild(saveBtn);
+
+    if (!selectedTextId) {
+      const hint = document.createElement('p');
+      hint.className = 'hint';
+      hint.textContent =
+        'Select a text from the tree or create a new one to edit details.';
+      editorCard.appendChild(hint);
+    }
+  }
+
+  function populateTextEditor() {
+    if (!selectedTextId) {
+      textEditorDraft = null;
+      return;
+    }
+    const current = (snapshot.texts || []).find(t => t.id === selectedTextId);
+    textEditorDraft = current ? { ...current } : null;
+  }
+
+  function ensureRootMapping(textId, textCollectionId) {
+    if (!textId || !textCollectionId) return;
+    const coll = (snapshot.textCollections || []).find(
+      tc => tc.id === textCollectionId
+    );
+    if (!coll) return;
+    if (!Array.isArray(coll.rootTextIds)) coll.rootTextIds = [];
+    if (!coll.rootTextIds.includes(textId)) {
+      coll.rootTextIds.push(textId);
+    }
+  }
+
+  function createTextNode({ parentId }) {
+    try {
+      const skeleton = DomainService.addNewItem(
+        snapshot,
+        'texts',
+        currentMovementId
+      );
+      skeleton.parentId = parentId || null;
+      skeleton.movementId = currentMovementId;
+      selectedTextId = skeleton.id;
+      textEditorDraft = { ...skeleton };
+      ensureRootMapping(
+        skeleton.id,
+        document.getElementById('scripture-collection-select')?.value || null
+      );
+      snapshotDirty = true;
+      updateDirtyState();
+      saveSnapshot({ show: false });
+      renderScriptureView();
+      setStatus('New text created');
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+
+  function saveTextNode(textCollectionId) {
+    if (!textEditorDraft || !selectedTextId) return;
+    const clean = {
+      ...textEditorDraft,
+      id: selectedTextId,
+      movementId: currentMovementId,
+      parentId: textEditorDraft.parentId || null,
+      tags: Array.isArray(textEditorDraft.tags) ? textEditorDraft.tags : []
+    };
+
+    try {
+      DomainService.upsertItem(snapshot, 'texts', clean);
+      ensureRootMapping(clean.id, textCollectionId || null);
+      snapshotDirty = true;
+      updateDirtyState();
+      saveSnapshot({ show: false });
+      setStatus('Text saved');
+      renderScriptureView();
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+
+  function deleteTextNode() {
+    if (!selectedTextId) return;
+    const text = (snapshot.texts || []).find(t => t.id === selectedTextId);
+    const label = text ? text.title || text.id : selectedTextId;
+    const ok = window.confirm(
+      `Delete this text?\n\n${label}\n\nChildren will be kept but detached.`
+    );
+    if (!ok) return;
+
+    (snapshot.texts || []).forEach(t => {
+      if (t.parentId === selectedTextId) {
+        t.parentId = null;
+      }
     });
-    treeContainer.appendChild(ul);
+
+    (snapshot.textCollections || []).forEach(tc => {
+      tc.rootTextIds = (tc.rootTextIds || []).filter(id => id !== selectedTextId);
+    });
+
+    try {
+      DomainService.deleteItem(snapshot, 'texts', selectedTextId);
+      selectedTextId = null;
+      textEditorDraft = null;
+      snapshotDirty = true;
+      updateDirtyState();
+      saveSnapshot({ show: false });
+      renderScriptureView();
+      setStatus('Text deleted');
+    } catch (e) {
+      alert(e.message);
+    }
   }
 
   // ---- Entities (buildEntityDetailViewModel + buildEntityGraphViewModel) ----
