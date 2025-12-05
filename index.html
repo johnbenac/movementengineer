@@ -121,8 +121,100 @@
               Text collection:
               <select id="scripture-collection-select"></select>
             </label>
+            <div class="collection-actions">
+              <button id="btn-add-text-collection" type="button">New collection</button>
+              <button id="btn-save-text-collection" type="button">Save collection</button>
+              <button
+                id="btn-delete-text-collection"
+                type="button"
+                class="danger"
+              >
+                Delete collection
+              </button>
+            </div>
           </div>
-          <div id="scripture-tree" class="tree-container"></div>
+          <div class="split">
+            <div class="list-pane">
+              <div id="scripture-tree" class="tree-container"></div>
+            </div>
+            <div class="detail-pane">
+              <section class="card">
+                <div class="section-heading small">Collection metadata</div>
+                <div class="form-row">
+                  <label for="scripture-collection-name">Name</label>
+                  <input id="scripture-collection-name" type="text" />
+                </div>
+                <div class="form-row">
+                  <label for="scripture-collection-description">Description</label>
+                  <textarea id="scripture-collection-description" rows="3"></textarea>
+                </div>
+                <div class="form-row">
+                  <label for="scripture-collection-tags">Tags (comma‑separated)</label>
+                  <input id="scripture-collection-tags" type="text" />
+                </div>
+              </section>
+
+              <section class="card">
+                <div class="section-heading small">Text editor</div>
+                <p id="scripture-text-hint" class="muted"></p>
+
+                <div class="form-row">
+                  <label for="scripture-text-title">Title</label>
+                  <input id="scripture-text-title" type="text" />
+                </div>
+                <div class="form-row two-col">
+                  <div>
+                    <label for="scripture-text-label">Label</label>
+                    <input id="scripture-text-label" type="text" />
+                  </div>
+                  <div>
+                    <label for="scripture-text-level">Level</label>
+                    <select id="scripture-text-level">
+                      <option value="work">work</option>
+                      <option value="section">section</option>
+                      <option value="passage">passage</option>
+                      <option value="line">line</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-row">
+                  <label for="scripture-text-main-function">Main function</label>
+                  <input id="scripture-text-main-function" type="text" />
+                </div>
+                <div class="form-row">
+                  <label for="scripture-text-parent">Parent text</label>
+                  <select id="scripture-text-parent"></select>
+                </div>
+                <div class="form-row">
+                  <label for="scripture-text-tags">Tags (comma‑separated)</label>
+                  <input id="scripture-text-tags" type="text" />
+                </div>
+                <div class="form-row">
+                  <label for="scripture-text-mentions">Mentions entity IDs (comma‑separated)</label>
+                  <input id="scripture-text-mentions" type="text" />
+                </div>
+                <div class="form-row">
+                  <label for="scripture-text-content">Content</label>
+                  <textarea id="scripture-text-content" rows="5"></textarea>
+                </div>
+                <div class="form-row">
+                  <label class="inline">
+                    <input id="scripture-text-root" type="checkbox" />
+                    Root of selected collection
+                  </label>
+                </div>
+
+                <div class="form-actions">
+                  <button id="btn-add-root-text" type="button">Add root text</button>
+                  <button id="btn-add-child-text" type="button">Add child text</button>
+                  <button id="btn-save-text" type="button">Save text</button>
+                  <button id="btn-delete-text" type="button" class="danger">
+                    Delete text
+                  </button>
+                </div>
+              </section>
+            </div>
+          </div>
         </div>
       </section>
 
