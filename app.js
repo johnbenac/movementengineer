@@ -2451,6 +2451,20 @@
       const value = item[field.key];
       renderPreviewRow(body, field.label, value, field.type, field.ref);
     });
+
+    if (currentCollectionName === 'texts') {
+      const childIds = (snapshot.texts || [])
+        .filter(text => text && text.parentId === item.id)
+        .map(text => text.id);
+
+      renderPreviewRow(
+        body,
+        'Child texts (derived)',
+        childIds,
+        'idList',
+        'texts'
+      );
+    }
   }
 
   function renderItemEditor() {
