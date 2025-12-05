@@ -54,6 +54,38 @@ body {
   gap: 0.5rem;
 }
 
+.save-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 1.25rem;
+  background: #e0f2fe;
+  color: #075985;
+  border-bottom: 1px solid #bae6fd;
+}
+
+.save-banner.dirty {
+  background: #fff7ed;
+  color: #9a3412;
+  border-color: #fed7aa;
+}
+
+.save-banner button {
+  background: #0ea5e9;
+  color: #f8fafc;
+  padding: 0.4rem 0.7rem;
+}
+
+.save-banner.dirty button:hover {
+  background: #0284c7;
+}
+
+.save-banner button:disabled {
+  background: #e5e7eb;
+  color: #6b7280;
+  cursor: not-allowed;
+}
+
 button {
   border: none;
   border-radius: 4px;
@@ -220,6 +252,8 @@ button.danger:hover {
 
 .form-actions {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 0.5rem;
   margin-top: 0.5rem;
 }

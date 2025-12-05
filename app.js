@@ -19,14 +19,36 @@
   let navigationStack = [];
   let navigationIndex = -1;
   let entityGraphView = null;
+  let isDirty = false;
 
-  function saveSnapshot(show = true) {
+  function renderSaveBanner() {
+    const banner = document.getElementById('save-banner');
+    const message = document.getElementById('save-banner-message');
+    const btn = document.getElementById('btn-save-changes');
+    if (!banner || !message || !btn) return;
+    banner.classList.toggle('dirty', isDirty);
+    message.textContent = isDirty
+      ? 'Unsaved changes. Save to browser storage.'
+      : 'All changes saved to browser storage.';
+    btn.disabled = !isDirty;
+  }
+
+  function persistSnapshot(show = true) {
     try {
       StorageService.saveSnapshot(snapshot);
+      isDirty = false;
       if (show) setStatus('Saved ✓');
     } catch (e) {
       setStatus('Save failed');
     }
+    renderSaveBanner();
+    renderMovementList();
+    renderActiveTab();
+  }
+
+  function noteSnapshotChange() {
+    isDirty = true;
+    renderSaveBanner();
     renderMovementList();
     renderActiveTab();
   }
@@ -154,7 +176,8 @@
   function addMovement() {
     const movement = DomainService.addMovement(snapshot);
     selectMovement(movement.id);
-    saveSnapshot();
+    noteSnapshotChange();
+    setStatus('Movement added. Save changes to persist.');
   }
 
   function deleteMovement(id) {
@@ -172,7 +195,8 @@
     currentMovementId = DomainService.deleteMovement(snapshot, id);
     currentItemId = null;
     resetNavigationHistory();
-    saveSnapshot();
+    noteSnapshotChange();
+    setStatus('Movement deleted. Save changes to persist.');
   }
 
   // ---- DOM helpers ----
@@ -275,6 +299,7 @@
     const tagsInput = document.getElementById('movement-tags');
     const deleteBtn = document.getElementById('btn-delete-movement');
     const saveBtn = document.getElementById('btn-save-movement');
+    const exportBtn = document.getElementById('btn-export-movement');
 
     if (!currentMovementId) {
       idLabel.textContent = '—';
@@ -282,7 +307,15 @@
       shortInput.value = '';
       summaryInput.value = '';
       tagsInput.value = '';
-      [nameInput, shortInput, summaryInput, tagsInput, deleteBtn, saveBtn].forEach(
+      [
+        nameInput,
+        shortInput,
+        summaryInput,
+        tagsInput,
+        deleteBtn,
+        saveBtn,
+        exportBtn
+      ].forEach(
         el => {
           el.disabled = true;
         }
@@ -298,11 +331,17 @@
       return;
     }
 
-    [nameInput, shortInput, summaryInput, tagsInput, deleteBtn, saveBtn].forEach(
-      el => {
-        el.disabled = false;
-      }
-    );
+    [
+      nameInput,
+      shortInput,
+      summaryInput,
+      tagsInput,
+      deleteBtn,
+      saveBtn,
+      exportBtn
+    ].forEach(el => {
+      el.disabled = false;
+    });
 
     idLabel.textContent = movement.id;
     nameInput.value = movement.name || '';
@@ -337,7 +376,8 @@
       tags
     });
 
-    saveSnapshot();
+    noteSnapshotChange();
+    setStatus('Movement updated. Save changes to persist.');
   }
 
   // ---- Movement explorer (view-model-driven views) ----
@@ -2496,7 +2536,7 @@
     try {
       DomainService.upsertItem(snapshot, collName, obj);
       currentItemId = obj.id;
-      saveSnapshot();
+      noteSnapshotChange();
       pushNavigationState(collName, currentItemId);
     } catch (e) {
       alert(e.message);
@@ -2512,7 +2552,7 @@
         currentMovementId
       );
       currentItemId = skeleton.id;
-      saveSnapshot(false); // we'll call setStatus manually
+      noteSnapshotChange();
       setStatus('New item created');
       setCollectionAndItem(collName, skeleton.id);
     } catch (e) {
@@ -2540,7 +2580,8 @@
     }
     pruneNavigationState(collName, currentItemId);
     currentItemId = null;
-    saveSnapshot();
+    noteSnapshotChange();
+    setStatus('Item deleted. Save changes to persist.');
   }
 
   // ---- Comparison tab ----
@@ -2672,133 +2713,125 @@
     wrapper.appendChild(table);
   }
 
-  // ---- Import / export / sample ----
+  // ---- Import / export / reset ----
 
-  function exportSnapshot() {
-    const dataStr = JSON.stringify(snapshot, null, 2);
+  function buildMovementBundle(movementId) {
+    const movement = getMovementById(movementId);
+    if (!movement) return null;
+
+    const bundle = {
+      version: snapshot.version || '3.4',
+      movements: [movement]
+    };
+
+    StorageService.COLLECTION_NAMES.forEach(name => {
+      if (name === 'movements') return;
+      const coll = snapshot[name] || [];
+      if (StorageService.COLLECTIONS_WITH_MOVEMENT_ID.has(name)) {
+        bundle[name] = coll.filter(item => item.movementId === movementId);
+      } else {
+        bundle[name] = coll;
+      }
+    });
+
+    return bundle;
+  }
+
+  function exportMovement() {
+    if (!currentMovementId) {
+      alert('Select a movement to export.');
+      return;
+    }
+
+    const bundle = buildMovementBundle(currentMovementId);
+    if (!bundle) {
+      alert('Movement not found.');
+      return;
+    }
+
+    const dataStr = JSON.stringify(bundle, null, 2);
     const blob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'movement-snapshot.json';
+    const movement = getMovementById(currentMovementId);
+    const fileSafeName = (movement?.shortName || movement?.name || movement?.id || 'movement')
+      .toLowerCase()
+      .replace(/\s+/g, '-');
+    a.download = `${fileSafeName}-movement.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    setStatus('Exported JSON');
+    setStatus('Exported movement JSON');
   }
 
-  function importSnapshotFromFile(file) {
+  function mergeMovementBundle(bundle) {
+    const movement = bundle.movements?.[0];
+    if (!movement) throw new Error('Invalid file: missing movement data.');
+
+    const existing = getMovementById(movement.id);
+    if (existing) {
+      const ok = window.confirm(
+        `Replace existing movement "${existing.name}" and its related data?`
+      );
+      if (!ok) return false;
+      DomainService.deleteMovement(snapshot, movement.id);
+    }
+
+    snapshot.movements.push(movement);
+    StorageService.COLLECTION_NAMES.forEach(name => {
+      if (name === 'movements') return;
+      const incoming = bundle[name] || [];
+      if (!Array.isArray(incoming) || !incoming.length) return;
+      snapshot[name] = snapshot[name] || [];
+      snapshot[name] = snapshot[name].concat(incoming);
+    });
+    currentMovementId = movement.id;
+    currentItemId = null;
+    resetNavigationHistory();
+    noteSnapshotChange();
+    setStatus('Movement imported. Save changes to persist.');
+    return true;
+  }
+
+  function importMovementFromFile(file) {
     const reader = new FileReader();
     reader.onload = () => {
       try {
         const data = JSON.parse(reader.result);
-        if (!data || !Array.isArray(data.movements)) {
-          alert(
-            'Invalid snapshot file: missing top-level "movements" array.'
-          );
-          return;
+        let normalized;
+        if (Array.isArray(data.movements)) {
+          normalized = StorageService.ensureAllCollections(data);
+        } else if (data.movement) {
+          normalized = StorageService.ensureAllCollections({
+            ...data,
+            movements: [data.movement]
+          });
+        } else {
+          throw new Error('Invalid movement file: missing movements array.');
         }
-        snapshot = StorageService.ensureAllCollections(data);
-        currentMovementId = snapshot.movements[0]
-          ? snapshot.movements[0].id
-          : null;
-        currentItemId = null;
-        resetNavigationHistory();
-        saveSnapshot();
-        setStatus('Imported JSON');
+        mergeMovementBundle(normalized);
       } catch (e) {
-        alert('Failed to import: ' + e.message);
+        alert('Failed to import movement: ' + e.message);
       }
     };
     reader.readAsText(file);
   }
 
-  // Optional: sample dataset roughly matching sample-data.js
-  function loadSampleSnapshot() {
-    const sample =
-      (typeof window !== 'undefined' && window.sampleData) || {
-        movements: [
-          {
-            id: 'mov-test',
-            name: 'Test Faith',
-            shortName: 'TF',
-            summary: 'A tiny test movement.',
-            notes: null,
-            tags: ['test']
-          }
-        ],
-        textCollections: [],
-        texts: [],
-        entities: [
-          {
-            id: 'ent-god',
-            movementId: 'mov-test',
-            name: 'Test God',
-            kind: 'being',
-            summary: 'The primary deity of Test Faith.',
-            notes: null,
-            tags: ['deity'],
-            sourcesOfTruth: ['tradition'],
-            sourceEntityIds: []
-          }
-        ],
-        practices: [
-          {
-            id: 'pr-weekly',
-            movementId: 'mov-test',
-            name: 'Weekly Gathering',
-            kind: 'ritual',
-            description: 'People meet once a week.',
-            frequency: 'weekly',
-            isPublic: true,
-            notes: null,
-            tags: ['weekly', 'gathering'],
-            involvedEntityIds: ['ent-god'],
-            instructionsTextIds: [],
-            supportingClaimIds: [],
-            sourcesOfTruth: ['tradition'],
-            sourceEntityIds: []
-          }
-        ],
-        events: [],
-        rules: [],
-        claims: [],
-        media: [],
-        notes: [],
-        relations: []
-      };
-
-    const name = sample.movements?.[0]?.name || 'the sample dataset';
-    const confirmReset = window.confirm(
-      `Replace the current snapshot with ${name}? This will overwrite all current data.`
+  function clearAndReset() {
+    const ok = window.confirm(
+      'Reset to the default Roman Catholic sample? This will overwrite all current data.'
     );
-    if (!confirmReset) return;
-
-    // Clone to avoid mutating the global sample reference
-    snapshot = StorageService.ensureAllCollections(
-      JSON.parse(JSON.stringify(sample))
-    );
+    if (!ok) return;
+    snapshot = StorageService.createDefaultSnapshot();
     currentMovementId = snapshot.movements[0]
       ? snapshot.movements[0].id
       : null;
     currentItemId = null;
     resetNavigationHistory();
-    saveSnapshot();
-    setStatus('Loaded sample');
-  }
-
-  function newSnapshot() {
-    const ok = window.confirm(
-      'Start a new, empty snapshot?\n\nThis will clear all current data in the browser.'
-    );
-    if (!ok) return;
-    snapshot = StorageService.createEmptySnapshot();
-    currentMovementId = null;
-    currentItemId = null;
-    resetNavigationHistory();
-    saveSnapshot();
-    setStatus('New snapshot created');
+    persistSnapshot(false);
+    setStatus('Reset to default sample');
   }
 
   // ---- Init ----
@@ -2809,40 +2842,23 @@
       ? snapshot.movements[0].id
       : null;
     resetNavigationHistory();
+    isDirty = false;
+    renderSaveBanner();
 
     // Sidebar
     document
       .getElementById('btn-add-movement')
       .addEventListener('click', () => addMovement());
 
-    // Top bar actions
-    document
-      .getElementById('btn-export-snapshot')
-      .addEventListener('click', exportSnapshot);
+    const clearResetBtn = document.getElementById('btn-clear-reset');
+    if (clearResetBtn) {
+      clearResetBtn.addEventListener('click', clearAndReset);
+    }
 
-    document
-      .getElementById('btn-import-snapshot')
-      .addEventListener('click', () => {
-        const input = document.getElementById('file-input');
-        input.value = '';
-        input.click();
-      });
-
-    document
-      .getElementById('file-input')
-      .addEventListener('change', e => {
-        const file = e.target.files && e.target.files[0];
-        if (!file) return;
-        importSnapshotFromFile(file);
-      });
-
-    document
-      .getElementById('btn-load-sample')
-      .addEventListener('click', loadSampleSnapshot);
-
-    document
-      .getElementById('btn-new-snapshot')
-      .addEventListener('click', newSnapshot);
+    const saveChangesBtn = document.getElementById('btn-save-changes');
+    if (saveChangesBtn) {
+      saveChangesBtn.addEventListener('click', () => persistSnapshot());
+    }
 
     // Movement form
     document
@@ -2853,6 +2869,23 @@
       .addEventListener('click', () =>
         deleteMovement(currentMovementId)
       );
+    document
+      .getElementById('btn-export-movement')
+      .addEventListener('click', exportMovement);
+    document
+      .getElementById('btn-import-movement')
+      .addEventListener('click', () => {
+        const input = document.getElementById('file-input-movement');
+        input.value = '';
+        input.click();
+      });
+    document
+      .getElementById('file-input-movement')
+      .addEventListener('change', e => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        importMovementFromFile(file);
+      });
 
     // Tabs
     document.querySelectorAll('.tab').forEach(btn => {

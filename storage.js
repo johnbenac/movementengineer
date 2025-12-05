@@ -36,12 +36,25 @@
     'relations'
   ]);
 
+  function cloneData(data) {
+    return JSON.parse(JSON.stringify(data || {}));
+  }
+
   function createEmptySnapshot() {
     const base = {};
     COLLECTION_NAMES.forEach(name => {
       base[name] = [];
     });
     return base;
+  }
+
+  function createDefaultSnapshot() {
+    const sample =
+      (typeof window !== 'undefined' && window.sampleData) || null;
+    if (sample) {
+      return ensureAllCollections(cloneData(sample));
+    }
+    return createEmptySnapshot();
   }
 
   function ensureAllCollections(data) {
@@ -55,7 +68,15 @@
   function loadSnapshot() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return createEmptySnapshot();
+      if (!raw) {
+        const fallback = createDefaultSnapshot();
+        try {
+          saveSnapshot(fallback);
+        } catch (e) {
+          console.warn('Failed to persist default snapshot:', e);
+        }
+        return fallback;
+      }
       const parsed = JSON.parse(raw);
       return ensureAllCollections(parsed);
     } catch (e) {
@@ -78,6 +99,7 @@
     COLLECTION_NAMES,
     COLLECTIONS_WITH_MOVEMENT_ID,
     createEmptySnapshot,
+    createDefaultSnapshot,
     ensureAllCollections,
     loadSnapshot,
     saveSnapshot

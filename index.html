@@ -13,22 +13,17 @@
       <span class="schema-version">Schema v3.4</span>
     </div>
     <div class="top-bar-right">
-      <button id="btn-new-snapshot" title="Clear everything and start from an empty dataset">
-        New snapshot
+      <button id="btn-clear-reset" title="Reset to the default Roman Catholic sample">
+        Clear &amp; reset
       </button>
-      <button id="btn-load-sample" title="Load the bundled Catholic example dataset">
-        Load sample
-      </button>
-      <button id="btn-export-snapshot" title="Download current snapshot as JSON">
-        Export JSON
-      </button>
-      <button id="btn-import-snapshot" title="Load a snapshot JSON from disk">
-        Import JSON
-      </button>
-      <input id="file-input" type="file" accept="application/json" hidden />
       <span id="status" class="status"></span>
     </div>
   </header>
+
+  <div id="save-banner" class="save-banner">
+    <span id="save-banner-message">All changes saved to browser storage.</span>
+    <button id="btn-save-changes" type="button">Save changes</button>
+  </div>
 
   <main class="layout">
     <aside class="sidebar">
@@ -87,6 +82,9 @@
 
             <div class="form-actions">
               <button id="btn-save-movement" type="button">Save movement</button>
+              <button id="btn-export-movement" type="button">Export movement</button>
+              <button id="btn-import-movement" type="button">Import movement</button>
+              <input id="file-input-movement" type="file" accept="application/json" hidden />
               <button id="btn-delete-movement" type="button" class="danger">
                 Delete movement & related data
               </button>
