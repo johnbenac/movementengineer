@@ -589,10 +589,13 @@ button.danger:hover {
 
 .chip.clickable {
   cursor: pointer;
+  background: #dbeafe;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
 }
 
 .chip.clickable:hover {
-  background: #d1d5db;
+  background: #bfdbfe;
 }
 
 /* Comparison */
