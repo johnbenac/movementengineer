@@ -54,6 +54,26 @@ body {
   gap: 0.5rem;
 }
 
+.save-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.6rem 1.25rem;
+  background: #ecfdf3;
+  color: #065f46;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.save-banner.dirty {
+  background: #fef9c3;
+  color: #854d0e;
+}
+
+.save-banner button {
+  flex-shrink: 0;
+}
+
 button {
   border: none;
   border-radius: 4px;

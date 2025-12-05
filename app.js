@@ -19,10 +19,26 @@
   let navigationStack = [];
   let navigationIndex = -1;
   let entityGraphView = null;
+  let unsavedChanges = false;
+  let lastSavedJson = '';
+  let pendingMovementEdits = false;
+  let pendingItemEdits = false;
+
+  function markDirty() {
+    unsavedChanges = true;
+    updateSaveBanner();
+  }
+
+  function markSaved() {
+    lastSavedJson = JSON.stringify(snapshot);
+    unsavedChanges = false;
+    updateSaveBanner();
+  }
 
   function saveSnapshot(show = true) {
     try {
       StorageService.saveSnapshot(snapshot);
+      markSaved();
       if (show) setStatus('Saved ✓');
     } catch (e) {
       setStatus('Save failed');
@@ -32,7 +48,9 @@
   }
 
   function loadSnapshot() {
-    return StorageService.loadSnapshot();
+    const loaded = StorageService.loadSnapshot();
+    lastSavedJson = JSON.stringify(loaded);
+    return loaded;
   }
 
   function setStatus(text) {
@@ -46,6 +64,21 @@
         el.textContent = '';
       }
     }, 2500);
+  }
+
+  function updateSaveBanner() {
+    const banner = document.getElementById('save-banner');
+    const message = document.getElementById('save-banner-message');
+    const saveBtn = document.getElementById('btn-save-changes');
+    if (!banner || !message || !saveBtn) return;
+
+    const hasUnsaved =
+      unsavedChanges || pendingMovementEdits || pendingItemEdits;
+    banner.classList.toggle('dirty', hasUnsaved);
+    saveBtn.disabled = !hasUnsaved;
+    message.textContent = hasUnsaved
+      ? 'Changes have not been saved to disk. Save to persist them in this browser.'
+      : 'All changes have been saved to this browser.';
   }
 
   function activateTab(name) {
@@ -311,6 +344,9 @@
     tagsInput.value = Array.isArray(movement.tags)
       ? movement.tags.join(', ')
       : '';
+
+    pendingMovementEdits = false;
+    updateSaveBanner();
   }
 
   function saveMovementFromForm() {
@@ -337,6 +373,7 @@
       tags
     });
 
+    pendingMovementEdits = false;
     saveSnapshot();
   }
 
@@ -2442,6 +2479,8 @@
       editor.disabled = coll.length === 0;
       deleteBtn.disabled = true;
       renderItemPreview();
+      pendingItemEdits = false;
+      updateSaveBanner();
       return;
     }
 
@@ -2451,6 +2490,8 @@
       editor.disabled = true;
       deleteBtn.disabled = true;
       renderItemPreview();
+      pendingItemEdits = false;
+      updateSaveBanner();
       return;
     }
 
@@ -2458,6 +2499,9 @@
     deleteBtn.disabled = false;
     editor.value = JSON.stringify(item, null, 2);
     renderItemPreview();
+
+    pendingItemEdits = false;
+    updateSaveBanner();
   }
 
   function renderItemDetail() {
@@ -2496,6 +2540,7 @@
     try {
       DomainService.upsertItem(snapshot, collName, obj);
       currentItemId = obj.id;
+      pendingItemEdits = false;
       saveSnapshot();
       pushNavigationState(collName, currentItemId);
     } catch (e) {
@@ -2674,39 +2719,105 @@
 
   // ---- Import / export / sample ----
 
-  function exportSnapshot() {
-    const dataStr = JSON.stringify(snapshot, null, 2);
-    const blob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'movement-snapshot.json';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    setStatus('Exported JSON');
+  function buildMovementBundle(movementId) {
+    const movement = getMovementById(movementId);
+    if (!movement) throw new Error('Movement not found.');
+
+    const bundle = { version: snapshot.version || '3.4', movements: [] };
+    bundle.movements.push(JSON.parse(JSON.stringify(movement)));
+
+    const movementIds = new Set([movementId]);
+    COLLECTION_NAMES.filter(name => name !== 'movements').forEach(collName => {
+      const coll = snapshot[collName] || [];
+      bundle[collName] = coll
+        .filter(item => movementIds.has(item.movementId))
+        .map(item => JSON.parse(JSON.stringify(item)));
+    });
+
+    return bundle;
   }
 
-  function importSnapshotFromFile(file) {
+  function exportCurrentMovement() {
+    if (!currentMovementId) {
+      alert('Select a movement before exporting.');
+      return;
+    }
+
+    try {
+      const bundle = buildMovementBundle(currentMovementId);
+      const dataStr = JSON.stringify(bundle, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const movement = getMovementById(currentMovementId);
+      const safeName = (movement?.shortName || movement?.name || 'movement')
+        .toLowerCase()
+        .replace(/\s+/g, '-');
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${safeName || 'movement'}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setStatus('Exported movement JSON');
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+
+  function importMovementFromFile(file) {
     const reader = new FileReader();
     reader.onload = () => {
       try {
         const data = JSON.parse(reader.result);
-        if (!data || !Array.isArray(data.movements)) {
-          alert(
-            'Invalid snapshot file: missing top-level "movements" array.'
-          );
+        const ensured = StorageService.ensureAllCollections(data || {});
+        if (!ensured.movements.length) {
+          alert('Invalid movement file: no "movements" found.');
           return;
         }
-        snapshot = StorageService.ensureAllCollections(data);
-        currentMovementId = snapshot.movements[0]
-          ? snapshot.movements[0].id
-          : null;
+
+        const incomingIds = new Set(ensured.movements.map(m => m.id));
+        const clashes = ensured.movements
+          .map(m => m.name || m.id)
+          .filter((_, idx) => {
+            const id = ensured.movements[idx].id;
+            return snapshot.movements.some(existing => existing.id === id);
+          });
+
+        if (clashes.length) {
+          const confirmReplace = window.confirm(
+            `Replace existing movement data for ${clashes.join(', ')}?`
+          );
+          if (!confirmReplace) return;
+          incomingIds.forEach(id => {
+            if (snapshot.movements.some(m => m.id === id)) {
+              DomainService.deleteMovement(snapshot, id);
+            }
+          });
+        }
+
+        ensured.movements.forEach(m => snapshot.movements.push(m));
+
+        COLLECTION_NAMES.filter(name => name !== 'movements').forEach(
+          collName => {
+            const incoming = ensured[collName] || [];
+            let target = snapshot[collName] || [];
+            const filtered = incoming.filter(item =>
+              incomingIds.has(item.movementId)
+            );
+            filtered.forEach(item => {
+              target = target.filter(existing => existing.id !== item.id);
+              target.push(item);
+            });
+            snapshot[collName] = target;
+          }
+        );
+
+        currentMovementId = ensured.movements[0]?.id || currentMovementId;
         currentItemId = null;
         resetNavigationHistory();
         saveSnapshot();
-        setStatus('Imported JSON');
+        setStatus('Imported movement');
       } catch (e) {
         alert('Failed to import: ' + e.message);
       }
@@ -2714,91 +2825,31 @@
     reader.readAsText(file);
   }
 
-  // Optional: sample dataset roughly matching sample-data.js
-  function loadSampleSnapshot() {
-    const sample =
-      (typeof window !== 'undefined' && window.sampleData) || {
-        movements: [
-          {
-            id: 'mov-test',
-            name: 'Test Faith',
-            shortName: 'TF',
-            summary: 'A tiny test movement.',
-            notes: null,
-            tags: ['test']
-          }
-        ],
-        textCollections: [],
-        texts: [],
-        entities: [
-          {
-            id: 'ent-god',
-            movementId: 'mov-test',
-            name: 'Test God',
-            kind: 'being',
-            summary: 'The primary deity of Test Faith.',
-            notes: null,
-            tags: ['deity'],
-            sourcesOfTruth: ['tradition'],
-            sourceEntityIds: []
-          }
-        ],
-        practices: [
-          {
-            id: 'pr-weekly',
-            movementId: 'mov-test',
-            name: 'Weekly Gathering',
-            kind: 'ritual',
-            description: 'People meet once a week.',
-            frequency: 'weekly',
-            isPublic: true,
-            notes: null,
-            tags: ['weekly', 'gathering'],
-            involvedEntityIds: ['ent-god'],
-            instructionsTextIds: [],
-            supportingClaimIds: [],
-            sourcesOfTruth: ['tradition'],
-            sourceEntityIds: []
-          }
-        ],
-        events: [],
-        rules: [],
-        claims: [],
-        media: [],
-        notes: [],
-        relations: []
-      };
+  function applyDefaultSample() {
+    if (snapshot.movements.length) return;
+    if (typeof window === 'undefined' || !window.sampleData) return;
 
-    const name = sample.movements?.[0]?.name || 'the sample dataset';
-    const confirmReset = window.confirm(
-      `Replace the current snapshot with ${name}? This will overwrite all current data.`
-    );
-    if (!confirmReset) return;
-
-    // Clone to avoid mutating the global sample reference
     snapshot = StorageService.ensureAllCollections(
-      JSON.parse(JSON.stringify(sample))
+      JSON.parse(JSON.stringify(window.sampleData))
     );
-    currentMovementId = snapshot.movements[0]
-      ? snapshot.movements[0].id
-      : null;
-    currentItemId = null;
-    resetNavigationHistory();
-    saveSnapshot();
-    setStatus('Loaded sample');
+    currentMovementId = snapshot.movements[0]?.id || null;
+    saveSnapshot(false);
   }
 
-  function newSnapshot() {
+  function clearAndReset() {
     const ok = window.confirm(
-      'Start a new, empty snapshot?\n\nThis will clear all current data in the browser.'
+      'Clear all custom data and restore the default Catholic sample?\n\nThis will overwrite current changes.'
     );
     if (!ok) return;
-    snapshot = StorageService.createEmptySnapshot();
-    currentMovementId = null;
+
+    snapshot = StorageService.ensureAllCollections(
+      JSON.parse(JSON.stringify(window.sampleData || {}))
+    );
+    currentMovementId = snapshot.movements[0]?.id || null;
     currentItemId = null;
     resetNavigationHistory();
     saveSnapshot();
-    setStatus('New snapshot created');
+    setStatus('Reset to default sample');
   }
 
   // ---- Init ----
@@ -2808,7 +2859,9 @@
     currentMovementId = snapshot.movements[0]
       ? snapshot.movements[0].id
       : null;
+    applyDefaultSample();
     resetNavigationHistory();
+    updateSaveBanner();
 
     // Sidebar
     document
@@ -2817,42 +2870,71 @@
 
     // Top bar actions
     document
-      .getElementById('btn-export-snapshot')
-      .addEventListener('click', exportSnapshot);
-
-    document
-      .getElementById('btn-import-snapshot')
-      .addEventListener('click', () => {
-        const input = document.getElementById('file-input');
-        input.value = '';
-        input.click();
-      });
-
-    document
-      .getElementById('file-input')
-      .addEventListener('change', e => {
-        const file = e.target.files && e.target.files[0];
-        if (!file) return;
-        importSnapshotFromFile(file);
-      });
-
-    document
-      .getElementById('btn-load-sample')
-      .addEventListener('click', loadSampleSnapshot);
-
-    document
-      .getElementById('btn-new-snapshot')
-      .addEventListener('click', newSnapshot);
+      .getElementById('btn-clear-reset')
+      .addEventListener('click', clearAndReset);
 
     // Movement form
     document
       .getElementById('btn-save-movement')
       .addEventListener('click', saveMovementFromForm);
     document
+      .getElementById('btn-export-movement')
+      .addEventListener('click', exportCurrentMovement);
+    document
+      .getElementById('btn-import-movement')
+      .addEventListener('click', () => {
+        const input = document.getElementById('movement-file-input');
+        input.value = '';
+        input.click();
+      });
+    document
+      .getElementById('movement-file-input')
+      .addEventListener('change', e => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        importMovementFromFile(file);
+      });
+    document
       .getElementById('btn-delete-movement')
       .addEventListener('click', () =>
         deleteMovement(currentMovementId)
       );
+
+    ['movement-name', 'movement-shortName', 'movement-summary', 'movement-tags'].forEach(
+      id => {
+        const input = document.getElementById(id);
+        if (input) {
+          input.addEventListener('input', () => {
+            if (!currentMovementId) return;
+            pendingMovementEdits = true;
+            updateSaveBanner();
+          });
+        }
+      }
+    );
+
+    const itemEditor = document.getElementById('item-editor');
+    if (itemEditor) {
+      itemEditor.addEventListener('input', () => {
+        pendingItemEdits = true;
+        updateSaveBanner();
+      });
+    }
+
+    const saveBannerBtn = document.getElementById('btn-save-changes');
+    if (saveBannerBtn) {
+      saveBannerBtn.addEventListener('click', () => {
+        if (pendingMovementEdits) {
+          saveMovementFromForm();
+          return;
+        }
+        if (pendingItemEdits) {
+          saveItemFromEditor();
+          return;
+        }
+        saveSnapshot();
+      });
+    }
 
     // Tabs
     document.querySelectorAll('.tab').forEach(btn => {
