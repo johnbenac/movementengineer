@@ -20,10 +20,10 @@ const dataset = {
     {
       "id": "tc-catholic-bible",
       "movementId": "mov-catholic",
-      "name": "Sacred Scripture (Bible)",
+      "name": "Sacred Canon (Bible)",
       "description": "The collection of biblical books recognized and used in the Catholic Church.",
       "tags": [
-        "scripture",
+        "canon",
         "bible"
       ],
       "rootTextIds": [
@@ -57,7 +57,7 @@ const dataset = {
       "content": null,
       "mainFunction": null,
       "tags": [
-        "scripture",
+        "canon",
         "collection"
       ],
       "mentionsEntityIds": [
@@ -560,13 +560,13 @@ const dataset = {
     {
       "id": "ent-bible-book",
       "movementId": "mov-catholic",
-      "name": "Sacred Scripture (Bible)",
+      "name": "Sacred Canon (Bible)",
       "kind": "object",
       "summary": "The collection of inspired writings of the Old and New Testaments used in Catholic worship and teaching.",
       "notes": null,
       "tags": [
         "bible",
-        "scripture"
+        "canon"
       ],
       "sourcesOfTruth": [
         "Catholic tradition"
@@ -714,7 +714,7 @@ const dataset = {
       "movementId": "mov-catholic",
       "name": "Sunday Mass",
       "kind": "ritual",
-      "description": "The main weekly gathering where Catholics celebrate the Eucharist, hear Scripture, and pray together.",
+      "description": "The main weekly gathering where Catholics celebrate the Eucharist, hear canonical readings, and pray together.",
       "frequency": "weekly",
       "isPublic": true,
       "notes": null,
@@ -896,13 +896,13 @@ const dataset = {
       "movementId": "mov-catholic",
       "name": "Parish Bible Study",
       "kind": "study",
-      "description": "A group that meets regularly to read and reflect on Scripture and Church teaching.",
+      "description": "A group that meets regularly to read and reflect on canon and Church teaching.",
       "frequency": "monthly",
       "isPublic": true,
       "notes": null,
       "tags": [
         "study",
-        "scripture"
+        "canon"
       ],
       "involvedEntityIds": [
         "ent-bible-book",
@@ -1226,7 +1226,7 @@ const dataset = {
       "movementId": "mov-catholic",
       "shortText": "Daily personal prayer is an ideal for every Catholic.",
       "kind": "ideal",
-      "details": "Catholics are encouraged to set aside time each day for prayer, reading Scripture, and conversation with God.",
+      "details": "Catholics are encouraged to set aside time each day for prayer, reading canon, and conversation with God.",
       "appliesTo": [
         "Catholic faithful"
       ],

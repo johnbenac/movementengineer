@@ -43,7 +43,7 @@ const preloadedMovements = [
       community: 'Monastic orders'
     },
     symbol: {
-      texts: ['Written scriptures', 'Philosophical treatises', 'Ritual manuals'],
+      texts: ['Canonical writings', 'Philosophical treatises', 'Ritual manuals'],
       symbols: ['Dharma Wheel'],
       arts: ['Art & Iconography', 'Music & Chanting', 'Dance & Performance', 'Myth and Storytelling']
     },
@@ -56,7 +56,7 @@ const preloadedMovements = [
   {
     name: 'Catholicism',
     description:
-      'Catholicism teaches belief in one God who exists eternally in three persons – the Father, Son and Holy Spirit – and that faith is required for salvation【174035901826850†L139-L153】. Church teaching derives from both Scripture and Sacred Tradition, and sacraments play a central role.',
+      'Catholicism teaches belief in one God who exists eternally in three persons – the Father, Son and Holy Spirit – and that faith is required for salvation【174035901826850†L139-L153】. Church teaching derives from both canon and Sacred Tradition, and sacraments play a central role.',
     world: {
       creation: 'Created by one god',
       purpose: 'Salvation through faith',
@@ -72,7 +72,7 @@ const preloadedMovements = [
       community: 'Global church / ummah'
     },
     symbol: {
-      texts: ['Written scriptures', 'Philosophical treatises', 'Ritual manuals'],
+      texts: ['Canonical writings', 'Philosophical treatises', 'Ritual manuals'],
       symbols: ['Cross'],
       arts: ['Art & Iconography', 'Music & Chanting', 'Architecture & Sacred spaces', 'Myth and Storytelling']
     },
@@ -101,7 +101,7 @@ const preloadedMovements = [
       community: 'Global church / ummah'
     },
     symbol: {
-      texts: ['Written scriptures', 'Oral tradition', 'Ritual manuals'],
+      texts: ['Canonical writings', 'Oral tradition', 'Ritual manuals'],
       symbols: ['Crescent Moon'],
       arts: ['Music & Chanting', 'Architecture & Sacred spaces', 'Myth and Storytelling']
     },

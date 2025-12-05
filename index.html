@@ -37,7 +37,7 @@
       <section class="content">
       <nav class="tabs">
         <button class="tab active" data-tab="dashboard">Dashboard</button>
-        <button class="tab" data-tab="scripture">Scripture</button>
+        <button class="tab" data-tab="canon">Canon</button>
         <button class="tab" data-tab="entities">Entities</button>
         <button class="tab" data-tab="practices">Practices</button>
         <button class="tab" data-tab="calendar">Calendar</button>
@@ -109,21 +109,21 @@
         </div>
       </section>
 
-      <!-- Scripture -->
-      <section id="tab-scripture" class="tab-panel">
+      <!-- Canon -->
+      <section id="tab-canon" class="tab-panel">
         <div class="panel-body">
-          <h2>Scripture</h2>
+          <h2>Canon</h2>
           <p class="hint">
             Browse text collections and passages for the selected movement.
           </p>
           <p class="hint muted">
-            Scripture edits are saved with the buttons in this section; the Save changes
+            Canon edits are saved with the buttons in this section; the Save changes
             banner tracks other tabs.
           </p>
           <div class="subtab-toolbar">
             <label>
               Text collection:
-              <select id="scripture-collection-select"></select>
+              <select id="canon-collection-select"></select>
             </label>
             <div class="collection-actions">
               <button id="btn-add-text-collection" type="button">New collection</button>
@@ -139,41 +139,41 @@
           </div>
           <div class="split">
             <div class="list-pane">
-              <div id="scripture-tree" class="tree-container"></div>
+              <div id="canon-tree" class="tree-container"></div>
             </div>
             <div class="detail-pane">
               <section class="card">
                 <div class="section-heading small">Collection metadata</div>
                 <div class="form-row">
-                  <label for="scripture-collection-name">Name</label>
-                  <input id="scripture-collection-name" type="text" />
+                  <label for="canon-collection-name">Name</label>
+                  <input id="canon-collection-name" type="text" />
                 </div>
                 <div class="form-row">
-                  <label for="scripture-collection-description">Description</label>
-                  <textarea id="scripture-collection-description" rows="3"></textarea>
+                  <label for="canon-collection-description">Description</label>
+                  <textarea id="canon-collection-description" rows="3"></textarea>
                 </div>
                 <div class="form-row">
-                  <label for="scripture-collection-tags">Tags (comma‑separated)</label>
-                  <input id="scripture-collection-tags" type="text" />
+                  <label for="canon-collection-tags">Tags (comma‑separated)</label>
+                  <input id="canon-collection-tags" type="text" />
                 </div>
               </section>
 
               <section class="card">
                 <div class="section-heading small">Text editor</div>
-                <p id="scripture-text-hint" class="muted"></p>
+                <p id="canon-text-hint" class="muted"></p>
 
                 <div class="form-row">
-                  <label for="scripture-text-title">Title</label>
-                  <input id="scripture-text-title" type="text" />
+                  <label for="canon-text-title">Title</label>
+                  <input id="canon-text-title" type="text" />
                 </div>
                 <div class="form-row two-col">
                   <div>
-                    <label for="scripture-text-label">Label</label>
-                    <input id="scripture-text-label" type="text" />
+                    <label for="canon-text-label">Label</label>
+                    <input id="canon-text-label" type="text" />
                   </div>
                   <div>
-                    <label for="scripture-text-level">Level</label>
-                    <select id="scripture-text-level">
+                    <label for="canon-text-level">Level</label>
+                    <select id="canon-text-level">
                       <option value="work">work</option>
                       <option value="section">section</option>
                       <option value="passage">passage</option>
@@ -182,28 +182,28 @@
                   </div>
                 </div>
                 <div class="form-row">
-                  <label for="scripture-text-main-function">Main function</label>
-                  <input id="scripture-text-main-function" type="text" />
+                  <label for="canon-text-main-function">Main function</label>
+                  <input id="canon-text-main-function" type="text" />
                 </div>
                 <div class="form-row">
-                  <label for="scripture-text-parent">Parent text</label>
-                  <select id="scripture-text-parent"></select>
+                  <label for="canon-text-parent">Parent text</label>
+                  <select id="canon-text-parent"></select>
                 </div>
                 <div class="form-row">
-                  <label for="scripture-text-tags">Tags (comma‑separated)</label>
-                  <input id="scripture-text-tags" type="text" />
+                  <label for="canon-text-tags">Tags (comma‑separated)</label>
+                  <input id="canon-text-tags" type="text" />
                 </div>
                 <div class="form-row">
-                  <label for="scripture-text-mentions">Mentions entity IDs (comma‑separated)</label>
-                  <input id="scripture-text-mentions" type="text" />
+                  <label for="canon-text-mentions">Mentions entity IDs (comma‑separated)</label>
+                  <input id="canon-text-mentions" type="text" />
                 </div>
                 <div class="form-row">
-                  <label for="scripture-text-content">Content</label>
-                  <textarea id="scripture-text-content" rows="5"></textarea>
+                  <label for="canon-text-content">Content</label>
+                  <textarea id="canon-text-content" rows="5"></textarea>
                 </div>
                 <div class="form-row">
                   <label class="inline">
-                    <input id="scripture-text-root" type="checkbox" />
+                    <input id="canon-text-root" type="checkbox" />
                     Root of selected collection
                   </label>
                 </div>
