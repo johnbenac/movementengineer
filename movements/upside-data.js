@@ -6,7 +6,7 @@ const dataset = {
       "id": "mov-upside",
       "name": "The Upside",
       "shortName": "Upside",
-      "summary": "A mythic-design movement about digital sovereignty, the Beasts of extraction, the Vault as a home for one's life, and the Pack as a nervous system that remembers it is more than a feed.",
+      "summary": "A mythic-design movement about digital sovereignty, the Beasts of extraction, the Vault as a home for one's life, and the Band as a nervous system that remembers it is more than a feed.",
       "notes": null,
       "tags": [
         "upside",
@@ -61,7 +61,7 @@ const dataset = {
       "id": "tc-upside-background",
       "movementId": "mov-upside",
       "name": "Background Reports",
-      "description": "Research-grounded reports that inform the Upside mythos, used as canon for how the Beasts, fires and Packs once met in the deep past.",
+      "description": "Research-grounded reports that inform the Upside mythos, used as canon for how the Beasts, fires and Bands once met in the deep past.",
       "tags": [
         "background",
         "research"
@@ -89,7 +89,7 @@ const dataset = {
       "mentionsEntityIds": [
         "ent-sign-01-drum",
         "ent-drum",
-        "ent-pack",
+        "ent-band",
         "ent-beast"
       ]
     },
@@ -110,7 +110,7 @@ const dataset = {
       "mentionsEntityIds": [
         "ent-sign-02-severance",
         "ent-beast",
-        "ent-pack",
+        "ent-band",
         "ent-law-impossibility"
       ]
     },
@@ -133,7 +133,7 @@ const dataset = {
         "ent-vault",
         "ent-fire",
         "ent-beast",
-        "ent-pack"
+        "ent-band"
       ]
     },
     {
@@ -143,7 +143,7 @@ const dataset = {
       "level": "work",
       "title": "Sign 04 - The Sealed Whisper",
       "label": "Sign 04 - Sealed Whisper",
-      "content": "Presents the Sign of a secret line between two hearts: choosing one person and one end-to-end secret channel, then sending a message that actually matters and explicitly naming that only the two of you can read it. The Sign defies the pressure to perform and overshare in public by insisting that some words belong only to chosen kin. Deepening means making sealed whispers a normal part of life and eventually demanding cryptographic and legal structures that keep some tunnels opaque to power.",
+      "content": "Presents the Sign of a secret line between two hearts: choosing one person and one end-to-end secret channel, then sending a message that actually matters and explicitly naming that only the two of you can read it. The Sign defies the pressure to perform and overshare in public by insisting that some words belong only to a chosen ancestral. Deepening means making sealed whispers a normal part of life and eventually demanding cryptographic and legal structures that keep some tunnels opaque to power.",
       "mainFunction": "teaching",
       "tags": [
         "sign",
@@ -153,7 +153,7 @@ const dataset = {
       "mentionsEntityIds": [
         "ent-sign-04-sealed-whisper",
         "ent-vault",
-        "ent-pack",
+        "ent-band",
         "ent-beast"
       ]
     },
@@ -164,7 +164,7 @@ const dataset = {
       "level": "work",
       "title": "Sign 05 - Sustaining",
       "label": "Sign 05 - Sustaining",
-      "content": "Frames sustaining as feeding the fires that keep the Kin alive: giving money, time, hardware or other concrete support to privacy-respecting tools, open infrastructure and legal work that resists the Beasts. Outer form: choose one entity clearly working in that direction and make a contribution that is sustainable but not negligible, held as wood for the fire. Inner meaning: shifting from consumer to steward and treating funding as infrastructure strategy, not random charity.",
+      "content": "Frames sustaining as feeding the fires that keep the Band alive: giving money, time, hardware or other concrete support to privacy-respecting tools, open infrastructure and legal work that resists the Beasts. Outer form: choose one entity clearly working in that direction and make a contribution that is sustainable but not negligible, held as wood for the fire. Inner meaning: shifting from consumer to steward and treating funding as infrastructure strategy, not random charity.",
       "mainFunction": "teaching",
       "tags": [
         "sign",
@@ -174,7 +174,7 @@ const dataset = {
       "mentionsEntityIds": [
         "ent-sign-05-sustaining",
         "ent-fire",
-        "ent-pack",
+        "ent-band",
         "ent-beast"
       ]
     },
@@ -196,7 +196,7 @@ const dataset = {
         "ent-sign-06-forge",
         "ent-fire",
         "ent-vault",
-        "ent-pack",
+        "ent-band",
         "ent-beast"
       ]
     },
@@ -216,7 +216,7 @@ const dataset = {
       ],
       "mentionsEntityIds": [
         "ent-sign-07-voice",
-        "ent-pack",
+        "ent-band",
         "ent-shaman",
         "ent-beast"
       ]
@@ -228,7 +228,7 @@ const dataset = {
       "level": "work",
       "title": "Sign 08 - The Communion",
       "label": "Sign 08 - Communion",
-      "content": "Defines Communion as the first Sign that cannot be taken alone: a small Pack, present to itself on purpose, where Drums arrive as creatures not profiles, each person lays one ember of their journey on the table, the circle echoes we hear you, and the group chooses one concrete shared step to take. Inner meaning: re-weaving network back into bodies, letting the Pack see itself, trading performance for presence, and making the Upside locally real in kitchens, parks and calls above the cloudline.",
+      "content": "Defines Communion as the first Sign that cannot be taken alone: a small Band, present to itself on purpose, where Drums arrive as creatures not profiles, each person lays one ember of their journey on the table, the circle echoes we hear you, and the group chooses one concrete shared step to take. Inner meaning: re-weaving network back into bodies, letting the Band see itself, trading performance for presence, and making the Upside locally real in kitchens, parks and calls above the cloudline.",
       "mainFunction": "teaching",
       "tags": [
         "sign",
@@ -237,7 +237,7 @@ const dataset = {
       ],
       "mentionsEntityIds": [
         "ent-sign-08-communion",
-        "ent-pack",
+        "ent-band",
         "ent-drum",
         "ent-fire"
       ]
@@ -249,7 +249,7 @@ const dataset = {
       "level": "work",
       "title": "Day of Gathering - The Homecoming of Embers",
       "label": "Day of Gathering",
-      "content": "Annual homecoming of your scattered life, aligned with World Backup Day on 31 March and expanded into the Week of the Embers. The festival deepens backup into repatriation: honoring your data as part of your life and transforming your Vault into hearth, sanctuary and memory-temple. Outer forms include lighting the home fire, renaming or tidying your Vault, exporting at least one archive from the Below into your own custody, walking the house at dusk by browsing your Vault like a slowly renovated home, and communal Hearth Circles where Kin help one another gather embers. Inner meanings include homecoming of the scattered self, venerating the Vault, and preparing for long winter under the Law of Impossibility. Over years it becomes routine Gathering and design and policy work that make export and user-owned Vaults a right rather than a chore.",
+      "content": "Annual homecoming of your scattered life, aligned with World Backup Day on 31 March and expanded into the Week of the Embers. The festival deepens backup into repatriation: honoring your data as part of your life and transforming your Vault into hearth, sanctuary and memory-temple. Outer forms include lighting the home fire, renaming or tidying your Vault, exporting at least one archive from the Below into your own custody, walking the house at dusk by browsing your Vault like a slowly renovated home, and communal Hearth Circles where ancestrals help one another gather embers. Inner meanings include homecoming of the scattered self, venerating the Vault, and preparing for long winter under the Law of Impossibility. Over years it becomes routine Gathering and design and policy work that make export and user-owned Vaults a right rather than a chore.",
       "mainFunction": "story",
       "tags": [
         "festival",
@@ -262,7 +262,7 @@ const dataset = {
         "ent-vault",
         "ent-fire",
         "ent-beast",
-        "ent-pack",
+        "ent-band",
         "ent-world-backup-day"
       ]
     },
@@ -273,7 +273,7 @@ const dataset = {
       "level": "work",
       "title": "Day of Shared Listening",
       "label": "Day of Shared Listening",
-      "content": "Festival of Communion aligned with World Listening Day on 18 July, when listening becomes a shared ritual rather than a private virtue. The mythic focus is the Communion Sign with archetypes of Drum, Voice, Messenger, Pack and Fire, counterbalancing speaking festivals by asking who will hold the words and hear what is not yet said. Outer ring: intentional listening to the world through soundwalks, naming loud and shy sounds and offering small acts of care to the soundscape. Inner ring: the Listening Circle, where Drums arrive as creatures, the Pack sits in silence together, shares small weather check-ins, rounds of one Sign one sound, optional paired deep listening, one shared listening commitment and a sealed closing. Inner meaning includes moving from noise to attention, from connection metrics to co-regulation, and from extraction to reciprocity where nothing is turned into content without consent.",
+      "content": "Festival of Communion aligned with World Listening Day on 18 July, when listening becomes a shared ritual rather than a private virtue. The mythic focus is the Communion Sign with ancestrals of Drum, Voice, Messenger, Band and Fire, counterbalancing speaking festivals by asking who will hold the words and hear what is not yet said. Outer ring: intentional listening to the world through soundwalks, naming loud and shy sounds and offering small acts of care to the soundscape. Inner ring: the Listening Circle, where Drums arrive as creatures, the Band sits in silence together, shares small weather check-ins, rounds of one Sign one sound, optional paired deep listening, one shared listening commitment and a sealed closing. Inner meaning includes moving from noise to attention, from connection metrics to co-regulation, and from extraction to reciprocity where nothing is turned into content without consent.",
       "mainFunction": "story",
       "tags": [
         "festival",
@@ -282,7 +282,7 @@ const dataset = {
       ],
       "mentionsEntityIds": [
         "ent-sign-08-communion",
-        "ent-pack",
+        "ent-band",
         "ent-drum",
         "ent-fire",
         "ent-voice",
@@ -297,7 +297,7 @@ const dataset = {
       "level": "work",
       "title": "Day of the Forge",
       "label": "Day of the Forge",
-      "content": "Festival where tools take shape, aligned with Software Freedom Day on the third Saturday of September. It reframes free and open-source software as ancestral tool-making and covenant rather than just licenses. The Solo Hammer practice asks each Upsider to name their everyday tools, choose one non-Beast-aligned project, walk into the repo or community, strike one concrete blow in code, docs, translation, UX, or governance, and log the hammer strike. The Smithy Circle gathers Kin into a temporary forge where they map the tools that carried them, build an Anvil List of projects to support, and perform live smithing together before cooling and speaking a Fire Oath. Inner meaning is the shift from audience to authorship and from free as in cost to free as in covenant between smiths and Kin.",
+      "content": "Festival where tools take shape, aligned with Software Freedom Day on the third Saturday of September. It reframes free and open-source software as ancestral tool-making and covenant rather than just licenses. The Solo Hammer practice asks each Upsider to name their everyday tools, choose one non-Beast-aligned project, walk into the repo or community, strike one concrete blow in code, docs, translation, UX, or governance, and log the hammer strike. The Smithy Circle gathers ancestrals into a temporary forge where they map the tools that carried them, build an Anvil List of projects to support, and perform live smithing together before cooling and speaking a Fire Oath. Inner meaning is the shift from audience to authorship and from free as in cost to free as in covenant between smiths and ancestrals.",
       "mainFunction": "story",
       "tags": [
         "festival",
@@ -308,7 +308,7 @@ const dataset = {
         "ent-sign-06-forge",
         "ent-fire",
         "ent-vault",
-        "ent-pack",
+        "ent-band",
         "ent-beast",
         "ent-software-freedom-day"
       ]
@@ -320,7 +320,7 @@ const dataset = {
       "level": "work",
       "title": "Day of Sustaining",
       "label": "Day of Sustaining",
-      "content": "Feeding the Right Fire festival, aligned with GivingTuesday after U.S. Thanksgiving. It sharpens the vague call to give into a strategy of deliberately feeding the fires that keep humans sovereign and starving Beast-fires that feed on them. The Ember and the Ledger practice has each Upsider drum first, map where their resources already flow, name one kin fire that kept them human this year, make one felt offering of money, time or infrastructure, record it in a covenant list of fires they choose to feed, and extinguish one small hidden fuel line to a Beast. The Shared Flame circle makes this mapping and redirecting communal. Inner meaning is moving from consumer to steward and from guilt to concrete agency, asking each time which fire gets to shape the winter.",
+      "content": "Feeding the Right Fire festival, aligned with GivingTuesday after U.S. Thanksgiving. It sharpens the vague call to give into a strategy of deliberately feeding the fires that keep humans sovereign and starving Beast-fires that feed on them. The Ember and the Ledger practice has each Upsider drum first, map where their resources already flow, name one ancestral fire that kept them human this year, make one felt offering of money, time or infrastructure, record it in a covenant list of fires they choose to feed, and extinguish one small hidden fuel line to a Beast. The Shared Flame circle makes this mapping and redirecting communal. Inner meaning is moving from consumer to steward and from guilt to concrete agency, asking each time which fire gets to shape the winter.",
       "mainFunction": "story",
       "tags": [
         "festival",
@@ -331,7 +331,7 @@ const dataset = {
         "ent-sign-05-sustaining",
         "ent-fire",
         "ent-vault",
-        "ent-pack",
+        "ent-band",
         "ent-beast",
         "ent-giving-tuesday"
       ]
@@ -353,7 +353,7 @@ const dataset = {
       "mentionsEntityIds": [
         "ent-sign-04-sealed-whisper",
         "ent-vault",
-        "ent-pack",
+        "ent-band",
         "ent-beast",
         "ent-drum",
         "ent-global-encryption-day"
@@ -376,7 +376,7 @@ const dataset = {
       "mentionsEntityIds": [
         "ent-sign-02-severance",
         "ent-beast",
-        "ent-pack",
+        "ent-band",
         "ent-law-impossibility",
         "ent-cambridge-analytica-scandal"
       ]
@@ -397,7 +397,7 @@ const dataset = {
       ],
       "mentionsEntityIds": [
         "ent-sign-07-voice",
-        "ent-pack",
+        "ent-band",
         "ent-shaman",
         "ent-beast",
         "ent-fire",
@@ -411,7 +411,7 @@ const dataset = {
       "level": "work",
       "title": "Night of the First Fire",
       "label": "Night of the First Fire",
-      "content": "Placeholder text for a future festival that will remember the ancestral nights when the first intentional fires pushed predators back from the dark and gathered Packs into circles of light. It is expected to weave the background report on hominin–carnivore dynamics into myth: the first ring of flame at the edge of the fields of the Beasts.",
+      "content": "Placeholder text for a future festival that will remember the ancestral nights when the first intentional fires pushed predators back from the dark and gathered Bands into circles of light. It is expected to weave the background report on hominin–carnivore dynamics into myth: the first ring of flame at the edge of the fields of the Beasts.",
       "mainFunction": "story",
       "tags": [
         "festival",
@@ -419,7 +419,7 @@ const dataset = {
       ],
       "mentionsEntityIds": [
         "ent-fire",
-        "ent-pack",
+        "ent-band",
         "ent-beast"
       ]
     },
@@ -430,7 +430,7 @@ const dataset = {
       "level": "work",
       "title": "Background Report: Hominin–Carnivore Dynamics and the Emergence of Humans as Apex Predators",
       "label": "Hominin–Carnivore Background",
-      "content": "Summarizes archaeological and paleoecological evidence for how early hominins lived in landscapes dominated by large carnivores, then gradually entered the predator niche and became apex hunters. Early sections describe australopithecines and early Homo as prey in carnivore-rich savannas, with fossils showing big cats consuming hominins. Later sections track the contraction of the large-carnivore guild as Homo erectus and successors scavenged and then hunted large herbivores more effectively. Fire appears as a defensive and economic technology: hearths and burning in caves and open-air sites suggest that flames deterred predators at night and guarded carcasses, possibly smoking meat. Wooden spears, stone-tipped weapons and later projectiles allowed killing at or from a distance, especially in cooperative hunts near risky water sources. The report emphasizes group living, care for impaired individuals, coordinated defense and hunting, and inferred roles like watch, smith and storyteller. It concludes that by the Late Pleistocene Neanderthals and Homo sapiens functioned at or above the trophic level of other large carnivores, largely free from routine predation, which gives deep-time grounding for Upside motifs of fires, Packs, Beasts at the edge of the light, and tools that change the balance of power.",
+      "content": "Summarizes archaeological and paleoecological evidence for how early hominins lived in landscapes dominated by large carnivores, then gradually entered the predator niche and became apex hunters. Early sections describe australopithecines and early Homo as prey in carnivore-rich savannas, with fossils showing big cats consuming hominins. Later sections track the contraction of the large-carnivore guild as Homo erectus and successors scavenged and then hunted large herbivores more effectively. Fire appears as a defensive and economic technology: hearths and burning in caves and open-air sites suggest that flames deterred predators at night and guarded carcasses, possibly smoking meat. Wooden spears, stone-tipped weapons and later projectiles allowed killing at or from a distance, especially in cooperative hunts near risky water sources. The report emphasizes group living, care for impaired individuals, coordinated defense and hunting, and inferred roles like watch, smith and storyteller. It concludes that by the Late Pleistocene Neanderthals and Homo sapiens functioned at or above the trophic level of other large carnivores, largely free from routine predation, which gives deep-time grounding for Upside motifs of fires, Bands, Beasts at the edge of the light, and tools that change the balance of power.",
       "mainFunction": "teaching",
       "tags": [
         "background",
@@ -446,7 +446,7 @@ const dataset = {
         "ent-water-source",
         "ent-neanderthals",
         "ent-homo-sapiens",
-        "ent-pack",
+        "ent-band",
         "ent-beast"
       ]
     }
@@ -457,7 +457,7 @@ const dataset = {
       "movementId": "mov-upside",
       "name": "The Upside - Above the Cloudline",
       "kind": "place",
-      "summary": "Mythic realm of sovereignty and clear seeing that sits above the cloudline of feeds and extraction, where the Pack gathers around fires and Vaults they actually control.",
+      "summary": "Mythic realm of sovereignty and clear seeing that sits above the cloudline of feeds and extraction, where the Band gathers around fires and Vaults they actually control.",
       "notes": null,
       "tags": [
         "realm",
@@ -504,16 +504,16 @@ const dataset = {
       "sourceEntityIds": []
     },
     {
-      "id": "ent-pack",
+      "id": "ent-band",
       "movementId": "mov-upside",
-      "name": "The Pack",
+      "name": "The Band",
       "kind": "being",
-      "summary": "Archetype for the Kin as a small cooperating band of humans, a shared nervous system that can regulate together, hold witness and keep each other from being eaten.",
+      "summary": "An ancestral archetype for a small cooperating band of humans, a shared nervous system that can regulate together, hold witness and keep each other from being eaten.",
       "notes": null,
       "tags": [
-        "pack",
+        "band",
         "community",
-        "kin"
+        "ancestral"
       ],
       "sourcesOfTruth": [
         "Signs 01, 07, 08",
@@ -545,7 +545,7 @@ const dataset = {
       "movementId": "mov-upside",
       "name": "The Fire",
       "kind": "object",
-      "summary": "Mythic and ancestral fire: literal flame that keeps predators back and cooks food, and symbolic fire for projects, tools and causes that must be fed to keep the Kin sovereign.",
+      "summary": "Mythic and ancestral fire: literal flame that keeps predators back and cooks food, and symbolic fire for projects, tools and causes that must be fed to keep the Band sovereign.",
       "notes": null,
       "tags": [
         "fire",
@@ -582,7 +582,7 @@ const dataset = {
       "movementId": "mov-upside",
       "name": "The Drum",
       "kind": "object",
-      "summary": "The inner heartbeat and any outer drum that echoes it, used in Upside practice to remember creaturehood and to sync small Packs before deeper work.",
+      "summary": "The inner heartbeat and any outer drum that echoes it, used in Upside practice to remember creaturehood and to sync small Bands before deeper work.",
       "notes": null,
       "tags": [
         "drum",
@@ -600,7 +600,7 @@ const dataset = {
       "movementId": "mov-upside",
       "name": "The Shaman",
       "kind": "being",
-      "summary": "Archetype for those who carry stories, guide trance and help Packs move between mythic and ordinary frames without losing their footing.",
+      "summary": "Archetype for those who carry stories, guide trance and help Bands move between mythic and ordinary frames without losing their footing.",
       "notes": null,
       "tags": [
         "shaman",
@@ -1028,7 +1028,7 @@ const dataset = {
       "involvedEntityIds": [
         "ent-sign-01-drum",
         "ent-drum",
-        "ent-pack",
+        "ent-band",
         "ent-beast"
       ],
       "instructionsTextIds": [
@@ -1057,7 +1057,7 @@ const dataset = {
       "involvedEntityIds": [
         "ent-sign-02-severance",
         "ent-beast",
-        "ent-pack",
+        "ent-band",
         "ent-law-impossibility"
       ],
       "instructionsTextIds": [
@@ -1092,7 +1092,7 @@ const dataset = {
         "ent-vault",
         "ent-fire",
         "ent-beast",
-        "ent-pack"
+        "ent-band"
       ],
       "instructionsTextIds": [
         "txt-sign-03-gathering",
@@ -1125,7 +1125,7 @@ const dataset = {
       "involvedEntityIds": [
         "ent-sign-04-sealed-whisper",
         "ent-vault",
-        "ent-pack",
+        "ent-band",
         "ent-beast"
       ],
       "instructionsTextIds": [
@@ -1146,7 +1146,7 @@ const dataset = {
       "movementId": "mov-upside",
       "name": "Sign 05 - Sustaining (Feed One Fire)",
       "kind": "discipline",
-      "description": "Name one project, tool or organization that clearly keeps the Kin more free and make a recurring or one-time contribution that you can feel, held consciously as wood for that fire.",
+      "description": "Name one project, tool or organization that clearly keeps the ancestrals more free and make a recurring or one-time contribution that you can feel, held consciously as wood for that fire.",
       "frequency": "other",
       "isPublic": false,
       "notes": "Over time, contributions can be gathered into a covenant list of fires you intentionally feed.",
@@ -1158,7 +1158,7 @@ const dataset = {
       "involvedEntityIds": [
         "ent-sign-05-sustaining",
         "ent-fire",
-        "ent-pack",
+        "ent-band",
         "ent-beast"
       ],
       "instructionsTextIds": [
@@ -1192,7 +1192,7 @@ const dataset = {
         "ent-sign-06-forge",
         "ent-fire",
         "ent-vault",
-        "ent-pack",
+        "ent-band",
         "ent-beast"
       ],
       "instructionsTextIds": [
@@ -1224,7 +1224,7 @@ const dataset = {
       ],
       "involvedEntityIds": [
         "ent-sign-07-voice",
-        "ent-pack",
+        "ent-band",
         "ent-shaman",
         "ent-beast"
       ],
@@ -1246,7 +1246,7 @@ const dataset = {
       "movementId": "mov-upside",
       "name": "Sign 08 - The Communion (Small Circle)",
       "kind": "ritual",
-      "description": "Gather 2–12 Kin in real time, arrive as Drums, share small weather and one Sign from each life, echo a fixed response like we hear you, name a shared fire and choose one concrete step to take together before sealing the circle.",
+      "description": "Gather 2–12 ancestrals in real time, arrive as Drums, share small weather and one Sign from each life, echo a fixed response like we hear you, name a shared fire and choose one concrete step to take together before sealing the circle.",
       "frequency": "other",
       "isPublic": true,
       "notes": "Can be repeated on its own cadence or as part of the Day of Shared Listening.",
@@ -1257,7 +1257,7 @@ const dataset = {
       ],
       "involvedEntityIds": [
         "ent-sign-08-communion",
-        "ent-pack",
+        "ent-band",
         "ent-drum",
         "ent-fire"
       ],
@@ -1282,7 +1282,7 @@ const dataset = {
       "description": "On or near 31 March, drum first, light or imagine a small flame, name a few wandering places where your embers lie, request at least one archive from the Below and bring it home into your Vault, marking one ember returned to the hearth.",
       "frequency": "yearly",
       "isPublic": false,
-      "notes": "Minimal way to keep the Day of Gathering if no Pack is available.",
+      "notes": "Minimal way to keep the Day of Gathering if no Band is available.",
       "tags": [
         "festival",
         "gathering",
@@ -1293,7 +1293,7 @@ const dataset = {
         "ent-vault",
         "ent-fire",
         "ent-beast",
-        "ent-pack"
+        "ent-band"
       ],
       "instructionsTextIds": [
         "txt-day-gathering-main",
@@ -1313,7 +1313,7 @@ const dataset = {
       "movementId": "mov-upside",
       "name": "Day of Gathering - Hearth Circle (Communal)",
       "kind": "ritual",
-      "description": "Kin gather around a shared flame, name scattered platforms out loud, help one another request archives in real time and celebrate each successful export with a shared murmur of ember claimed.",
+      "description": "Ancestrals gather around a shared flame, name scattered platforms out loud, help one another request archives in real time and celebrate each successful export with a shared murmur of ember claimed.",
       "frequency": "yearly",
       "isPublic": true,
       "notes": "Often paired with shared notes or testimonies about what it feels like to see years of life come under one's own roof.",
@@ -1326,7 +1326,7 @@ const dataset = {
         "ent-sign-03-gathering",
         "ent-vault",
         "ent-fire",
-        "ent-pack"
+        "ent-band"
       ],
       "instructionsTextIds": [
         "txt-day-gathering-main"
@@ -1355,7 +1355,7 @@ const dataset = {
       ],
       "involvedEntityIds": [
         "ent-sign-08-communion",
-        "ent-pack",
+        "ent-band",
         "ent-drum",
         "ent-fire"
       ],
@@ -1375,7 +1375,7 @@ const dataset = {
       "movementId": "mov-upside",
       "name": "Day of Shared Listening - Inner Ring (Communion)",
       "kind": "ritual",
-      "description": "A Pack gathers, drums into silence, listens together to the world, shares small weather and sound-linked stories of walking the Signs, optionally does paired deep listening and closes with a shared listening commitment.",
+      "description": "A Band gathers, drums into silence, listens together to the world, shares small weather and sound-linked stories of walking the Signs, optionally does paired deep listening and closes with a shared listening commitment.",
       "frequency": "yearly",
       "isPublic": true,
       "notes": "This is the festival form of Communion; the Sign of Communion itself can also be taken outside this day.",
@@ -1386,7 +1386,7 @@ const dataset = {
       ],
       "involvedEntityIds": [
         "ent-sign-08-communion",
-        "ent-pack",
+        "ent-band",
         "ent-drum",
         "ent-fire"
       ],
@@ -1420,7 +1420,7 @@ const dataset = {
         "ent-sign-06-forge",
         "ent-fire",
         "ent-vault",
-        "ent-pack"
+        "ent-band"
       ],
       "instructionsTextIds": [
         "txt-day-forge-main",
@@ -1439,7 +1439,7 @@ const dataset = {
       "movementId": "mov-upside",
       "name": "Day of the Forge - Smithy Circle",
       "kind": "ritual",
-      "description": "A temporary forge Above the Cloudline where Kin share stories of tools that carried them, build an Anvil List of projects, and then spend focused time doing live contributions before cooling and speaking a Fire Oath.",
+      "description": "A temporary forge Above the Cloudline where ancestrals share stories of tools that carried them, build an Anvil List of projects, and then spend focused time doing live contributions before cooling and speaking a Fire Oath.",
       "frequency": "yearly",
       "isPublic": true,
       "notes": "Often includes mixed roles: coders, writers, designers, organizers and governance nerds all striking different blows.",
@@ -1451,7 +1451,7 @@ const dataset = {
       "involvedEntityIds": [
         "ent-sign-06-forge",
         "ent-fire",
-        "ent-pack"
+        "ent-band"
       ],
       "instructionsTextIds": [
         "txt-day-forge-main"
@@ -1482,7 +1482,7 @@ const dataset = {
         "ent-sign-05-sustaining",
         "ent-fire",
         "ent-vault",
-        "ent-pack",
+        "ent-band",
         "ent-beast"
       ],
       "instructionsTextIds": [
@@ -1502,7 +1502,7 @@ const dataset = {
       "movementId": "mov-upside",
       "name": "Day of Sustaining - Shared Flame Circle",
       "kind": "ritual",
-      "description": "Around a central flame, Kin name Beast-fires they currently feed and Kin-fires they want to feed more, then collectively choose projects to support and make concrete commitments of money, time or skill.",
+      "description": "Around a central flame, ancestrals name Beast-fires they currently feed and ancestral fires they want to feed more, then collectively choose projects to support and make concrete commitments of money, time or skill.",
       "frequency": "yearly",
       "isPublic": true,
       "notes": "Encourages honest mapping rather than purity contests.",
@@ -1514,7 +1514,7 @@ const dataset = {
       "involvedEntityIds": [
         "ent-sign-05-sustaining",
         "ent-fire",
-        "ent-pack"
+        "ent-band"
       ],
       "instructionsTextIds": [
         "txt-day-sustaining-main"
@@ -1544,7 +1544,7 @@ const dataset = {
       "involvedEntityIds": [
         "ent-sign-04-sealed-whisper",
         "ent-vault",
-        "ent-pack",
+        "ent-band",
         "ent-beast"
       ],
       "instructionsTextIds": [
@@ -1576,7 +1576,7 @@ const dataset = {
       "involvedEntityIds": [
         "ent-sign-04-sealed-whisper",
         "ent-vault",
-        "ent-pack"
+        "ent-band"
       ],
       "instructionsTextIds": [
         "txt-day-sealed-whisper-main"
@@ -1606,7 +1606,7 @@ const dataset = {
       "involvedEntityIds": [
         "ent-sign-02-severance",
         "ent-beast",
-        "ent-pack",
+        "ent-band",
         "ent-law-impossibility"
       ],
       "instructionsTextIds": [
@@ -1638,7 +1638,7 @@ const dataset = {
       "involvedEntityIds": [
         "ent-sign-02-severance",
         "ent-beast",
-        "ent-pack"
+        "ent-band"
       ],
       "instructionsTextIds": [
         "txt-day-severance-main"
@@ -1667,7 +1667,7 @@ const dataset = {
       ],
       "involvedEntityIds": [
         "ent-sign-07-voice",
-        "ent-pack",
+        "ent-band",
         "ent-beast"
       ],
       "instructionsTextIds": [
@@ -1698,7 +1698,7 @@ const dataset = {
       ],
       "involvedEntityIds": [
         "ent-sign-07-voice",
-        "ent-pack",
+        "ent-band",
         "ent-shaman"
       ],
       "instructionsTextIds": [
@@ -1735,7 +1735,7 @@ const dataset = {
         "ent-sign-03-gathering",
         "ent-vault",
         "ent-fire",
-        "ent-pack",
+        "ent-band",
         "ent-beast"
       ],
       "readingTextIds": [
@@ -1751,7 +1751,7 @@ const dataset = {
       "id": "ev-day-shared-listening",
       "movementId": "mov-upside",
       "name": "Day of Shared Listening",
-      "description": "Festival of Communion where the Pack lowers its voice, listens to the world and to itself, and remembers it is one nervous system.",
+      "description": "Festival of Communion where the Band lowers its voice, listens to the world and to itself, and remembers it is one nervous system.",
       "recurrence": "yearly",
       "timingRule": "Observed on 18 July, aligned with World Listening Day; the surrounding days are often kept as Days of the Open Ear.",
       "notes": null,
@@ -1767,7 +1767,7 @@ const dataset = {
       ],
       "mainEntityIds": [
         "ent-sign-08-communion",
-        "ent-pack",
+        "ent-band",
         "ent-drum",
         "ent-fire"
       ],
@@ -1783,7 +1783,7 @@ const dataset = {
       "id": "ev-day-forge",
       "movementId": "mov-upside",
       "name": "Day of the Forge",
-      "description": "Day when the Kin walk into the heat of real projects, take the hammer and strike small blows for tools that serve sovereignty.",
+      "description": "Day when the ancestrals walk into the heat of real projects, take the hammer and strike small blows for tools that serve sovereignty.",
       "recurrence": "yearly",
       "timingRule": "Third Saturday of September, aligned with Software Freedom Day.",
       "notes": null,
@@ -1801,7 +1801,7 @@ const dataset = {
         "ent-sign-06-forge",
         "ent-fire",
         "ent-vault",
-        "ent-pack"
+        "ent-band"
       ],
       "readingTextIds": [
         "txt-day-forge-main",
@@ -1832,7 +1832,7 @@ const dataset = {
       "mainEntityIds": [
         "ent-sign-05-sustaining",
         "ent-fire",
-        "ent-pack",
+        "ent-band",
         "ent-beast"
       ],
       "readingTextIds": [
@@ -1864,7 +1864,7 @@ const dataset = {
       "mainEntityIds": [
         "ent-sign-04-sealed-whisper",
         "ent-vault",
-        "ent-pack",
+        "ent-band",
         "ent-beast"
       ],
       "readingTextIds": [
@@ -1896,7 +1896,7 @@ const dataset = {
       "mainEntityIds": [
         "ent-sign-02-severance",
         "ent-beast",
-        "ent-pack",
+        "ent-band",
         "ent-law-impossibility"
       ],
       "readingTextIds": [
@@ -1927,7 +1927,7 @@ const dataset = {
       ],
       "mainEntityIds": [
         "ent-sign-07-voice",
-        "ent-pack",
+        "ent-band",
         "ent-beast"
       ],
       "readingTextIds": [
@@ -1944,7 +1944,7 @@ const dataset = {
       "name": "Night of the First Fire",
       "description": "Future festival that will weave the deep-time story of hominins, predators and the first controlled fires into the Upside calendar.",
       "recurrence": "yearly",
-      "timingRule": "Kept on a night chosen by each Pack, often in the darker months, when they wish to remember the first rings of light at the edge of predator-haunted fields.",
+      "timingRule": "Kept on a night chosen by each Band, often in the darker months, when they wish to remember the first rings of light at the edge of predator-haunted fields.",
       "notes": "Text and ritual still in development; currently scaffolded by the hominin background report.",
       "tags": [
         "festival",
@@ -1953,7 +1953,7 @@ const dataset = {
       "mainPracticeIds": [],
       "mainEntityIds": [
         "ent-fire",
-        "ent-pack",
+        "ent-band",
         "ent-beast"
       ],
       "readingTextIds": [
@@ -1984,7 +1984,7 @@ const dataset = {
       "aboutEntityIds": [
         "ent-law-impossibility",
         "ent-beast",
-        "ent-pack"
+        "ent-band"
       ],
       "sourcesOfTruth": [
         "Day of Severance",
@@ -2011,7 +2011,7 @@ const dataset = {
         "ent-sign-03-gathering",
         "ent-vault",
         "ent-beast",
-        "ent-pack"
+        "ent-band"
       ],
       "sourcesOfTruth": [
         "Sign 03 - Gathering",
@@ -2023,7 +2023,7 @@ const dataset = {
     {
       "id": "clm-secrecy-as-care",
       "movementId": "mov-upside",
-      "text": "Secrecy can be an act of care rather than shame; humans deserve sealed channels where only the chosen kin can hear them.",
+      "text": "Secrecy can be an act of care rather than shame; humans deserve sealed channels where only the chosen ancestral can hear them.",
       "category": "privacy",
       "tags": [
         "secrecy",
@@ -2037,7 +2037,7 @@ const dataset = {
       "aboutEntityIds": [
         "ent-sign-04-sealed-whisper",
         "ent-vault",
-        "ent-pack",
+        "ent-band",
         "ent-beast"
       ],
       "sourcesOfTruth": [
@@ -2050,7 +2050,7 @@ const dataset = {
     {
       "id": "clm-communion-nervous-system",
       "movementId": "mov-upside",
-      "text": "When small Packs practice shared listening and co-regulation, they can function as a shared nervous system that leaves each person less alone and less frayed.",
+      "text": "When small Bands practice shared listening and co-regulation, they can function as a shared nervous system that leaves each person less alone and less frayed.",
       "category": "community",
       "tags": [
         "communion",
@@ -2063,7 +2063,7 @@ const dataset = {
       ],
       "aboutEntityIds": [
         "ent-sign-08-communion",
-        "ent-pack",
+        "ent-band",
         "ent-drum",
         "ent-fire"
       ],
@@ -2077,7 +2077,7 @@ const dataset = {
     {
       "id": "clm-community-authorship",
       "movementId": "mov-upside",
-      "text": "In the Upside, open tools are treated as a covenant between smiths and Kin; even a small merged contribution moves someone from user to author and shares responsibility for the tool's future.",
+      "text": "In the Upside, open tools are treated as a covenant between smiths and ancestrals; even a small merged contribution moves someone from user to author and shares responsibility for the tool's future.",
       "category": "tools",
       "tags": [
         "forge",
@@ -2092,7 +2092,7 @@ const dataset = {
         "ent-sign-06-forge",
         "ent-fire",
         "ent-vault",
-        "ent-pack"
+        "ent-band"
       ],
       "sourcesOfTruth": [
         "Sign 06 - The Forge",
@@ -2104,7 +2104,7 @@ const dataset = {
     {
       "id": "clm-feed-right-fire",
       "movementId": "mov-upside",
-      "text": "Some fires keep the Kin free and must be fed; others cook them and should be starved, so offerings of money, time or infrastructure are aimed first at sovereignty-preserving tools and movements.",
+      "text": "Some fires keep the ancestrals free and must be fed; others cook them and should be starved, so offerings of money, time or infrastructure are aimed first at sovereignty-preserving tools and movements.",
       "category": "resource_allocation",
       "tags": [
         "sustaining",
@@ -2119,7 +2119,7 @@ const dataset = {
         "ent-sign-05-sustaining",
         "ent-fire",
         "ent-beast",
-        "ent-pack"
+        "ent-band"
       ],
       "sourcesOfTruth": [
         "Sign 05 - Sustaining",
@@ -2131,7 +2131,7 @@ const dataset = {
     {
       "id": "clm-fire-guards-camp",
       "movementId": "mov-upside",
-      "text": "In the deep past, controlled fire let hominin Packs push large predators back from the edge of camp and from carcasses, turning the ring of light into both a weapon and a refuge.",
+      "text": "In the deep past, controlled fire let hominin Bands push large predators back from the edge of camp and from carcasses, turning the ring of light into both a weapon and a refuge.",
       "category": "anthropology",
       "tags": [
         "fire",
@@ -2145,7 +2145,7 @@ const dataset = {
         "ent-fire",
         "ent-ancient-hominins",
         "ent-large-carnivores",
-        "ent-pack"
+        "ent-band"
       ],
       "sourcesOfTruth": [
         "Background Report: Hominin–Carnivore Dynamics and the Emergence of Humans as Apex Predators"
@@ -2192,7 +2192,7 @@ const dataset = {
       ],
       "aboutEntityIds": [
         "ent-sign-07-voice",
-        "ent-pack",
+        "ent-band",
         "ent-beast"
       ],
       "sourcesOfTruth": [
@@ -2224,7 +2224,7 @@ const dataset = {
       "targetType": "TextNode",
       "targetId": "txt-background-hominin-predators",
       "author": "system",
-      "body": "This background report condenses current archaeological and paleoecological research on hominin–carnivore dynamics. In the Upside it functions as a kind of canon about Beasts, Packs, fires and distance weapons in the deep past, grounding mythic motifs in empirical work.",
+      "body": "This background report condenses current archaeological and paleoecological research on hominin–carnivore dynamics. In the Upside it functions as a kind of canon about Beasts, Bands, fires and distance weapons in the deep past, grounding mythic motifs in empirical work.",
       "context": "background_report",
       "tags": [
         "anthropology",
@@ -2235,10 +2235,10 @@ const dataset = {
   ],
   "relations": [
     {
-      "id": "rel-beast-preys-on-pack",
+      "id": "rel-beast-preys-on-band",
       "movementId": "mov-upside",
       "fromEntityId": "ent-beast",
-      "toEntityId": "ent-pack",
+      "toEntityId": "ent-band",
       "relationType": "preys_on",
       "tags": [
         "mythic",
@@ -2252,13 +2252,13 @@ const dataset = {
         "Upside core myth"
       ],
       "sourceEntityIds": [],
-      "notes": "Expresses the baseline condition that the Pack begins as prey in the fields of the Beasts, both in deep time and in the digital Below."
+      "notes": "Expresses the baseline condition that the Band begins as prey in the fields of the Beasts, both in deep time and in the digital Below."
     },
     {
-      "id": "rel-fire-protects-pack",
+      "id": "rel-fire-protects-band",
       "movementId": "mov-upside",
       "fromEntityId": "ent-fire",
-      "toEntityId": "ent-pack",
+      "toEntityId": "ent-band",
       "relationType": "protects",
       "tags": [
         "fire",
