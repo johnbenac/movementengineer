@@ -121,8 +121,103 @@
               Text collection:
               <select id="scripture-collection-select"></select>
             </label>
+            <span class="toolbar-actions">
+              <button id="btn-add-text-collection" type="button">
+                New collection
+              </button>
+              <button id="btn-save-text-collection" type="button">
+                Save collection
+              </button>
+              <button id="btn-delete-text-collection" type="button">
+                Delete collection
+              </button>
+            </span>
           </div>
-          <div id="scripture-tree" class="tree-container"></div>
+          <div class="split scripture-split">
+            <div class="list-pane">
+              <div class="subtab-toolbar tight">
+                <button id="btn-add-root-text" type="button">Add root text</button>
+                <button id="btn-add-child-text" type="button">Add child</button>
+                <button id="btn-delete-text" type="button">Delete</button>
+              </div>
+              <div id="scripture-tree" class="tree-container"></div>
+            </div>
+            <div class="detail-pane scripture-detail">
+              <div class="detail-section">
+                <div class="section-heading small">
+                  Text collection · <span id="scripture-collection-title">None</span>
+                </div>
+                <div class="form-grid">
+                  <label class="stacked">
+                    Name
+                    <input id="scripture-collection-name" type="text" />
+                  </label>
+                  <label class="stacked">
+                    Tags
+                    <input
+                      id="scripture-collection-tags"
+                      type="text"
+                      placeholder="canon, commentary"
+                    />
+                  </label>
+                  <label class="stacked full">
+                    Description
+                    <textarea
+                      id="scripture-collection-description"
+                      rows="2"
+                    ></textarea>
+                  </label>
+                </div>
+              </div>
+
+              <div class="detail-section">
+                <div class="section-heading small">
+                  Text node · <span id="scripture-text-title">None</span>
+                </div>
+                <div class="form-grid">
+                  <label class="stacked">
+                    Title
+                    <input id="scripture-text-name" type="text" />
+                  </label>
+                  <label class="stacked">
+                    Label / ref
+                    <input id="scripture-text-label" type="text" />
+                  </label>
+                  <label class="stacked">
+                    Level
+                    <select id="scripture-text-level"></select>
+                  </label>
+                  <label class="stacked">
+                    Main function
+                    <select id="scripture-text-function"></select>
+                  </label>
+                  <label class="stacked">
+                    Tags
+                    <input
+                      id="scripture-text-tags"
+                      type="text"
+                      placeholder="blessing, creation"
+                    />
+                  </label>
+                  <label class="stacked">
+                    Mentions entities
+                    <select id="scripture-text-mentions" multiple></select>
+                  </label>
+                  <label class="stacked full">
+                    Content
+                    <textarea id="scripture-text-content" rows="4"></textarea>
+                  </label>
+                  <div class="meta-row">
+                    <div>ID: <span id="scripture-text-id">—</span></div>
+                    <div>Parent: <span id="scripture-text-parent">—</span></div>
+                  </div>
+                </div>
+                <div class="button-row right">
+                  <button id="btn-save-text" type="button">Save text</button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 

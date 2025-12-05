@@ -11,11 +11,23 @@
   'use strict';
 
   const { COLLECTION_NAMES, COLLECTIONS_WITH_MOVEMENT_ID } = DomainService;
+  const TEXT_LEVELS = ['work', 'section', 'passage', 'line'];
+  const TEXT_FUNCTIONS = [
+    'story',
+    'rule',
+    'instructions',
+    'teaching',
+    'prayer_or_song',
+    'commentary',
+    'other'
+  ];
 
   let snapshot = null;
   let currentMovementId = null;
   let currentCollectionName = 'entities';
   let currentItemId = null;
+  let currentTextId = null;
+  let currentTextCollectionId = null;
   let navigationStack = [];
   let navigationIndex = -1;
   let entityGraphView = null;
@@ -25,6 +37,7 @@
   let itemEditorDirty = false;
   let isPopulatingMovementForm = false;
   let isPopulatingEditor = false;
+  let isPopulatingScriptureForms = false;
 
   function updateDirtyState() {
     isDirty = snapshotDirty || movementFormDirty || itemEditorDirty;
@@ -78,6 +91,11 @@
     snapshotDirty = false;
     if (movement) movementFormDirty = false;
     if (item) itemEditorDirty = false;
+    updateDirtyState();
+  }
+
+  function markSnapshotDirty() {
+    snapshotDirty = true;
     updateDirtyState();
   }
 
@@ -203,9 +221,19 @@
     return snapshot.movements.find(r => r.id === id) || null;
   }
 
+  function getTextCollectionById(id) {
+    return (snapshot.textCollections || []).find(tc => tc.id === id) || null;
+  }
+
+  function getTextById(id) {
+    return (snapshot.texts || []).find(t => t.id === id) || null;
+  }
+
   function selectMovement(id) {
     currentMovementId = id || null;
     currentItemId = null; // reset item selection in collection editor
+    currentTextId = null;
+    currentTextCollectionId = null;
     renderMovementList();
     renderActiveTab();
   }
@@ -509,11 +537,11 @@
     }));
     ensureSelectOptions(select, options, 'All texts (no collection filter)');
 
-    const textCollectionId = select.value || null;
+    currentTextCollectionId = select.value || null;
 
     const vm = ViewModels.buildScriptureTreeViewModel(snapshot, {
       movementId: currentMovementId,
-      textCollectionId: textCollectionId || null
+      textCollectionId: currentTextCollectionId || null
     });
 
     if (!vm.roots || vm.roots.length === 0) {
@@ -521,6 +549,8 @@
       p.className = 'hint';
       p.textContent = 'No texts found for this movement.';
       treeContainer.appendChild(p);
+      if (currentTextId) currentTextId = null;
+      renderScriptureForms(vm);
       return;
     }
 
@@ -530,9 +560,14 @@
     const renderNode = node => {
       const li = document.createElement('li');
       li.className = 'text-node';
+      if (node.id === currentTextId) li.classList.add('selected');
 
       const header = document.createElement('div');
       header.className = 'text-node-header';
+      header.addEventListener('click', () => {
+        currentTextId = node.id;
+        renderScriptureView();
+      });
 
       const titleSpan = document.createElement('span');
       titleSpan.className = 'text-node-title';
@@ -623,6 +658,369 @@
       ul.appendChild(renderNode(root));
     });
     treeContainer.appendChild(ul);
+
+    if (currentTextId && !vm.nodesById[currentTextId]) {
+      currentTextId = null;
+    }
+
+    renderScriptureForms(vm);
+  }
+
+  function renderScriptureForms(vm) {
+    const collectionNameInput = document.getElementById(
+      'scripture-collection-name'
+    );
+    const collectionDescriptionInput = document.getElementById(
+      'scripture-collection-description'
+    );
+    const collectionTagsInput = document.getElementById(
+      'scripture-collection-tags'
+    );
+    const textTitle = document.getElementById('scripture-text-title');
+    const textNameInput = document.getElementById('scripture-text-name');
+    const textLabelInput = document.getElementById('scripture-text-label');
+    const textLevelSelect = document.getElementById('scripture-text-level');
+    const textFunctionSelect = document.getElementById(
+      'scripture-text-function'
+    );
+    const textContentInput = document.getElementById('scripture-text-content');
+    const textTagsInput = document.getElementById('scripture-text-tags');
+    const textMentionsSelect = document.getElementById('scripture-text-mentions');
+    const textIdLabel = document.getElementById('scripture-text-id');
+    const textParentLabel = document.getElementById('scripture-text-parent');
+    const collectionTitle = document.getElementById('scripture-collection-title');
+
+    if (
+      !collectionNameInput ||
+      !collectionDescriptionInput ||
+      !collectionTagsInput ||
+      !textTitle ||
+      !textNameInput ||
+      !textLabelInput ||
+      !textLevelSelect ||
+      !textFunctionSelect ||
+      !textContentInput ||
+      !textTagsInput ||
+      !textMentionsSelect ||
+      !textIdLabel ||
+      !textParentLabel ||
+      !collectionTitle
+    ) {
+      return;
+    }
+
+    isPopulatingScriptureForms = true;
+
+    const collection = currentTextCollectionId
+      ? getTextCollectionById(currentTextCollectionId)
+      : null;
+
+    const collectionFields = [
+      collectionNameInput,
+      collectionDescriptionInput,
+      collectionTagsInput
+    ];
+
+    if (collection) {
+      collectionFields.forEach(el => (el.disabled = false));
+      collectionNameInput.value = collection.name || '';
+      collectionDescriptionInput.value = collection.description || '';
+      collectionTagsInput.value = Array.isArray(collection.tags)
+        ? collection.tags.join(', ')
+        : '';
+      collectionTitle.textContent = collection.name || collection.id;
+    } else {
+      collectionFields.forEach(el => {
+        el.disabled = true;
+        el.value = '';
+      });
+      collectionTitle.textContent = 'No collection selected';
+    }
+
+    clearElement(textLevelSelect);
+    TEXT_LEVELS.forEach(level => {
+      const opt = document.createElement('option');
+      opt.value = level;
+      opt.textContent = level;
+      textLevelSelect.appendChild(opt);
+    });
+
+    clearElement(textFunctionSelect);
+    const emptyFunction = document.createElement('option');
+    emptyFunction.value = '';
+    emptyFunction.textContent = '—';
+    textFunctionSelect.appendChild(emptyFunction);
+    TEXT_FUNCTIONS.forEach(fn => {
+      const opt = document.createElement('option');
+      opt.value = fn;
+      opt.textContent = fn;
+      textFunctionSelect.appendChild(opt);
+    });
+
+    const entities = (snapshot.entities || [])
+      .filter(e => e.movementId === currentMovementId || e.movementId == null)
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    clearElement(textMentionsSelect);
+    entities.forEach(ent => {
+      const opt = document.createElement('option');
+      opt.value = ent.id;
+      opt.textContent = ent.name || ent.id;
+      textMentionsSelect.appendChild(opt);
+    });
+
+    const text = currentTextId ? getTextById(currentTextId) : null;
+    const textFields = [
+      textNameInput,
+      textLabelInput,
+      textLevelSelect,
+      textFunctionSelect,
+      textContentInput,
+      textTagsInput,
+      textMentionsSelect
+    ];
+
+    if (text) {
+      textFields.forEach(el => (el.disabled = false));
+      textTitle.textContent = text.title || text.id;
+      textNameInput.value = text.title || '';
+      textLabelInput.value = text.label || '';
+      textLevelSelect.value = text.level || 'work';
+      textFunctionSelect.value = text.mainFunction || '';
+      textContentInput.value = text.content || '';
+      textTagsInput.value = Array.isArray(text.tags) ? text.tags.join(', ') : '';
+      Array.from(textMentionsSelect.options).forEach(opt => {
+        opt.selected = Array.isArray(text.mentionsEntityIds)
+          ? text.mentionsEntityIds.includes(opt.value)
+          : false;
+      });
+      textIdLabel.textContent = text.id;
+      textParentLabel.textContent = text.parentId || '—';
+    } else {
+      textFields.forEach(el => {
+        el.disabled = true;
+        if (el.tagName === 'SELECT') {
+          el.selectedIndex = 0;
+        } else {
+          el.value = '';
+        }
+      });
+      textTitle.textContent = 'No text selected';
+      textIdLabel.textContent = '—';
+      textParentLabel.textContent = '—';
+    }
+
+    isPopulatingScriptureForms = false;
+  }
+
+  function addTextCollection() {
+    if (!currentMovementId) {
+      alert('Select a movement first.');
+      return;
+    }
+    const collection = DomainService.addNewItem(
+      snapshot,
+      'textCollections',
+      currentMovementId
+    );
+    currentTextCollectionId = collection.id;
+    const select = document.getElementById('scripture-collection-select');
+    if (select) select.value = collection.id;
+    saveSnapshot({ show: false });
+    setStatus('New text collection created');
+    renderScriptureView();
+  }
+
+  function saveTextCollectionForm() {
+    if (!currentTextCollectionId) return;
+    if (isPopulatingScriptureForms) return;
+    const collection = getTextCollectionById(currentTextCollectionId);
+    if (!collection) return;
+
+    const nameInput = document.getElementById('scripture-collection-name');
+    const descriptionInput = document.getElementById(
+      'scripture-collection-description'
+    );
+    const tagsInput = document.getElementById('scripture-collection-tags');
+    if (!nameInput || !descriptionInput || !tagsInput) return;
+
+    const name = nameInput.value.trim() || 'Untitled collection';
+    const description = descriptionInput.value.trim();
+    const tags = tagsInput.value
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+
+    DomainService.upsertItem(snapshot, 'textCollections', {
+      ...collection,
+      name,
+      description: description || null,
+      tags
+    });
+
+    saveSnapshot({ show: false });
+    setStatus('Text collection saved');
+    renderScriptureView();
+  }
+
+  function deleteTextCollection() {
+    if (!currentTextCollectionId) return;
+    const collection = getTextCollectionById(currentTextCollectionId);
+    if (!collection) return;
+    const ok = window.confirm(
+      'Delete this text collection? Texts will remain in the movement.'
+    );
+    if (!ok) return;
+
+    DomainService.deleteItem(snapshot, 'textCollections', collection.id);
+    currentTextCollectionId = null;
+    const select = document.getElementById('scripture-collection-select');
+    if (select) select.value = '';
+    saveSnapshot({ show: false });
+    setStatus('Collection deleted');
+    renderScriptureView();
+  }
+
+  function addRootText() {
+    if (!currentMovementId) {
+      alert('Select a movement first.');
+      return;
+    }
+
+    const text = DomainService.addNewItem(snapshot, 'texts', currentMovementId);
+    text.parentId = null;
+    DomainService.upsertItem(snapshot, 'texts', text);
+
+    if (currentTextCollectionId) {
+      const collection = getTextCollectionById(currentTextCollectionId);
+      if (collection) {
+        const roots = Array.isArray(collection.rootTextIds)
+          ? collection.rootTextIds.slice()
+          : [];
+        roots.push(text.id);
+        collection.rootTextIds = roots;
+        DomainService.upsertItem(snapshot, 'textCollections', collection);
+      }
+    }
+
+    currentTextId = text.id;
+    saveSnapshot({ show: false });
+    setStatus('New text created');
+    renderScriptureView();
+  }
+
+  function addChildText() {
+    if (!currentTextId) {
+      alert('Select a text to attach children.');
+      return;
+    }
+
+    const parent = getTextById(currentTextId);
+    if (!parent) return;
+
+    const text = DomainService.addNewItem(snapshot, 'texts', currentMovementId);
+    text.parentId = parent.id;
+    DomainService.upsertItem(snapshot, 'texts', text);
+
+    // Remove new child from any root list
+    (snapshot.textCollections || []).forEach(tc => {
+      if (Array.isArray(tc.rootTextIds)) {
+        tc.rootTextIds = tc.rootTextIds.filter(id => id !== text.id);
+      }
+    });
+
+    currentTextId = text.id;
+    saveSnapshot({ show: false });
+    setStatus('Child text created');
+    renderScriptureView();
+  }
+
+  function saveTextFromForm() {
+    if (!currentTextId) return;
+    if (isPopulatingScriptureForms) return;
+    const text = getTextById(currentTextId);
+    if (!text) return;
+
+    const titleInput = document.getElementById('scripture-text-name');
+    const labelInput = document.getElementById('scripture-text-label');
+    const levelSelect = document.getElementById('scripture-text-level');
+    const functionSelect = document.getElementById('scripture-text-function');
+    const contentInput = document.getElementById('scripture-text-content');
+    const tagsInput = document.getElementById('scripture-text-tags');
+    const mentionsSelect = document.getElementById('scripture-text-mentions');
+    if (
+      !titleInput ||
+      !labelInput ||
+      !levelSelect ||
+      !functionSelect ||
+      !contentInput ||
+      !tagsInput ||
+      !mentionsSelect
+    ) {
+      return;
+    }
+
+    const title = titleInput.value.trim() || 'Untitled text';
+    const label = labelInput.value.trim() || '1';
+    const level = levelSelect.value || 'work';
+    const mainFunction = functionSelect.value || null;
+    const content = contentInput.value;
+    const tags = tagsInput.value
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+    const mentionsEntityIds = Array.from(mentionsSelect.selectedOptions).map(
+      opt => opt.value
+    );
+
+    DomainService.upsertItem(snapshot, 'texts', {
+      ...text,
+      title,
+      label,
+      level,
+      mainFunction,
+      content,
+      tags,
+      mentionsEntityIds
+    });
+
+    saveSnapshot({ show: false });
+    setStatus('Text saved');
+    renderScriptureView();
+  }
+
+  function deleteTextAndDescendants(textId) {
+    const toRemove = new Set();
+    function collect(id) {
+      toRemove.add(id);
+      (snapshot.texts || [])
+        .filter(t => t.parentId === id)
+        .forEach(child => collect(child.id));
+    }
+    collect(textId);
+
+    snapshot.texts = (snapshot.texts || []).filter(t => !toRemove.has(t.id));
+    (snapshot.textCollections || []).forEach(tc => {
+      if (Array.isArray(tc.rootTextIds)) {
+        tc.rootTextIds = tc.rootTextIds.filter(id => !toRemove.has(id));
+      }
+    });
+  }
+
+  function deleteSelectedText() {
+    if (!currentTextId) return;
+    const text = getTextById(currentTextId);
+    if (!text) return;
+    const ok = window.confirm(
+      'Delete this text and all of its descendants? This cannot be undone.'
+    );
+    if (!ok) return;
+
+    const parentId = text.parentId || null;
+    deleteTextAndDescendants(text.id);
+    currentTextId = parentId;
+    saveSnapshot({ show: false });
+    setStatus('Text deleted');
+    renderScriptureView();
   }
 
   // ---- Entities (buildEntityDetailViewModel + buildEntityGraphViewModel) ----
@@ -3006,6 +3404,13 @@
         renderScriptureView
       );
     }
+    addListenerById('btn-add-text-collection', 'click', addTextCollection);
+    addListenerById('btn-save-text-collection', 'click', saveTextCollectionForm);
+    addListenerById('btn-delete-text-collection', 'click', deleteTextCollection);
+    addListenerById('btn-add-root-text', 'click', addRootText);
+    addListenerById('btn-add-child-text', 'click', addChildText);
+    addListenerById('btn-save-text', 'click', saveTextFromForm);
+    addListenerById('btn-delete-text', 'click', deleteSelectedText);
 
     // Collections tab
       addListenerById('collection-select', 'change', e => {

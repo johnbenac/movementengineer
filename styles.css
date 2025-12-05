@@ -310,6 +310,16 @@ button.danger:hover {
   flex: 1;
 }
 
+.subtab-toolbar .toolbar-actions {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.subtab-toolbar.tight {
+  gap: 0.35rem;
+}
+
 /* Split view in collections tab */
 
 .split {
@@ -333,6 +343,50 @@ button.danger:hover {
   flex: 1;
   display: flex;
   flex-direction: column;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+}
+
+.form-grid .full {
+  grid-column: 1 / -1;
+}
+
+.stacked {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.85rem;
+}
+
+.stacked input,
+.stacked select,
+.stacked textarea {
+  padding: 0.35rem 0.4rem;
+  border-radius: 4px;
+  border: 1px solid #d1d5db;
+  font-size: 0.9rem;
+}
+
+.meta-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: #4b5563;
+}
+
+.button-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+
+.button-row.right {
+  justify-content: flex-end;
 }
 
 .item-detail-grid {
@@ -645,6 +699,12 @@ button.danger:hover {
 
 .text-node {
   margin: 0.15rem 0;
+}
+
+.text-node.selected > .text-node-header {
+  background: #e0f2fe;
+  border-radius: 4px;
+  padding: 0.1rem 0.2rem;
 }
 
 .text-node-header {
