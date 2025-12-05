@@ -1,5 +1,5 @@
 const ComparisonServices = require('./comparison-services');
-const baseData = require('./sample-data');
+const baseData = require('./movement-data');
 
 function assert(condition, message) {
   if (!condition) {
@@ -144,11 +144,11 @@ function testBuildComparisonMatrixAutoCounts() {
 
   assert(
     entityRow.cells[0].value === 23,
-    'Auto-derived entity count should be 23 for sample-data'
+    'Auto-derived entity count should be 23 for Catholic dataset'
   );
   assert(
     practiceRow.cells[0].value === 7,
-    'Auto-derived practice count should be 7 for sample-data'
+    'Auto-derived practice count should be 7 for Catholic dataset'
   );
 
   // Now override the entity count in the binding and ensure override wins
@@ -199,12 +199,20 @@ function testApplyTemplateToMovement() {
     extraMovementTags: ['template']
   });
 
+  const originalMovementCount = baseData.movements.length;
+  const sourceEntityCount = baseData.entities.filter(
+    e => e.movementId === 'mov-catholic'
+  ).length;
+
   // Original data should be unchanged
-  assert(baseData.movements.length === 1, 'Base data should still have 1 movement');
+  assert(
+    baseData.movements.length === originalMovementCount,
+    'Base data should remain unchanged after templating'
+  );
 
   assert(
-    newData.movements.length === 2,
-    'New data should have one extra movement'
+    newData.movements.length === originalMovementCount + 1,
+    'New data should include one extra movement'
   );
 
   const newMovement = newData.movements.find(r => r.id === 'mov-template');
@@ -220,12 +228,17 @@ function testApplyTemplateToMovement() {
 
   // Entities: base has 23, new data should have base + copied skeleton(s)
   assert(
-    newData.entities.length === baseData.entities.length * 2,
-    'Skeleton entities should be added for the new movement'
+    newData.entities.length === baseData.entities.length + sourceEntityCount,
+    'Skeleton entities should be added for the new movement based on the source movement'
   );
 
   const skeleton = newData.entities.find(e => e.movementId === 'mov-template');
   assert(skeleton, 'Skeleton entity should belong to new movement');
+  assert(
+    newData.entities.filter(e => e.movementId === 'mov-template').length ===
+      sourceEntityCount,
+    'All source movement entities should be represented in the template movement'
+  );
   assert(
     skeleton.id !== baseData.entities[0].id,
     'Skeleton entity should have a new id'
