@@ -1,8 +1,5 @@
 # ADR-018: Use Meta‑Models for Comparison and Templates
 
-## Status
-Accepted
-
 ## Context
 
 When considering cross‑movement functionality, we faced two competing approaches: either bake comparison fields and templating hooks directly into the movement schema, or maintain a clean movement snapshot model and handle cross‑cutting concerns separately.  Some proposals suggested adding a `Group` entity or extra properties on `Practice` and `Entity` to support matching across movements.  Others considered a universal dictionary of keys built into the schema.  These would clutter the core model and introduce theology‑specific assumptions.  At the same time, we needed mechanisms to compare aspects of multiple movements and to scaffold new movements from existing ones without manually reinventing every structure.  The challenge was to enable flexible comparison and templating without sacrificing the neutrality of v3.4.

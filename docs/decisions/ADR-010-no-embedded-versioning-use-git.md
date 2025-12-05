@@ -1,8 +1,5 @@
 # ADR-010: No Embedded Versioning, Use Git for History
 
-## Status
-Accepted
-
 ## Context
 
 One of our goals is to allow multiple congregations to run different versions of a movement and to track its evolution over time.  We considered embedding version fields in each entity (e.g. `version`, `createdAt`, `updatedAt`) or building a built‑in branching mechanism into the schema.  Doing so would allow per‑object history within the data itself but would complicate the specification and could lead to merge conflicts.  At the same time, we plan to store movement snapshots in Git repositories and allow patches to modify them.  Git already tracks history, branches and merges.  The question was whether to duplicate that functionality in our data model or rely on the version control system.

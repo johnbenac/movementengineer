@@ -1,8 +1,5 @@
 # ADR-014: Allow Cross‑Movement Entities via Nullable `movementId`
 
-## Status
-Accepted
-
 ## Context
 
 Some entities and claims transcend individual movements: figures like Abraham or Mary are revered in multiple traditions; philosophical concepts like karma or the golden rule may appear in divergent systems; and certain objects like the Earth or the sky are universal.  In the initial model, every `Entity`, `Claim` and `MediaAsset` was required to have a `movementId`.  This forced duplication when the same entity or belief was referenced by multiple movements, complicating maintenance and patching.  We needed a way to represent shared concepts while still supporting tradition‑specific variations.

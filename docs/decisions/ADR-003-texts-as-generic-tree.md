@@ -1,8 +1,5 @@
 # ADR-003: Model Texts as a Generic Tree
 
-## Status
-Accepted
-
 ## Context
 
 When modelling movements, we realised that sacred and instructional writings come in wildly different formats.  Some movements have canonical books with chapters and verses, others have oral recitations transcribed in scrolls, and some use single prayers or hymns as primary texts.  Our goal was to support any movement without embedding a particular book–chapter–verse pattern.  We also wanted to group related works into collections (like “Bible”, “Main Canon”, or “Ritual Handbook”) without forcing every text to belong to a collection.  The decision had to account for nested structures (books contain chapters, which contain passages) and stand‑alone pieces (a one‑line prayer).  The model needed to be flexible enough to represent both long narratives and single instructions while remaining simple for implementers.

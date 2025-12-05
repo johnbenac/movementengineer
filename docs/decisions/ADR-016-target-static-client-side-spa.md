@@ -1,9 +1,5 @@
 # ADR-016: Target a Static Client-Side SPA
 
-## Status
-
-Accepted
-
 ## Context
 
 We need to decide how the Movement Engineer will be delivered and run: as a server-backed web application, a static single-page application (SPA), or some hybrid. The current codebase (data model + view-model builders) is already written as pure JavaScript that can run equally well in the browser or in Node. We now have enough clarity about the desired user experience—local JSON files, import/export, browser-side storage—to choose a delivery model rather than staying ambiguous.

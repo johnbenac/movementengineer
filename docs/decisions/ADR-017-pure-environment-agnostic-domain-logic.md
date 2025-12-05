@@ -1,8 +1,5 @@
 # ADR-017: Require Pure, Environment‑Agnostic Domain Logic
 
-## Status
-Accepted
-
 ## Context
 
 As the movement engineer evolved from a data specification into a functioning tool, we needed to define how and where core business logic would live.  Early prototypes mixed domain logic into the browser (for example, building view models inline with UI code) or relied on specific Node modules.  This made it difficult to test logic outside the runtime where it was written and blurred the separation between UI concerns and the core model.  We want a tool that can run as a static single‑page application in a browser, but also support command‑line tooling and automated unit tests in Node without rewriting functionality for each environment.  The question was where to put functions that transform the movement model into view data or apply comparison and templating logic: in the UI, in a server, or in a neutral library?

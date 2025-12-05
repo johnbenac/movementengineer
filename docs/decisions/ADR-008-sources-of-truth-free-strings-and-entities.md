@@ -1,8 +1,5 @@
 # ADR-008: Sources of Truth as Free Strings and Entity Links
 
-## Status
-Accepted
-
 ## Context
 
 Different religious traditions claim authority from wildly diverse sources: divine revelation, human prophets, community traditions, personal experience, empirical observation and more.  Early on, we considered defining a fixed enumeration of authority types (e.g. SUPERNATURAL_BEING, HUMAN_AUTHORITY, COMMUNITY_TRADITION, INDIVIDUAL_PERSON, OBSERVATION_OR_REASON).  However, such a list would be arbitrary and limiting.  New movements created with the designer could derive authority from unexpected places such as random number generators or specific objects.  We wanted a flexible mechanism to capture provenance of truth claims, rules, practices and entities without boxing authors into a narrow taxonomy.

@@ -1,8 +1,5 @@
 # ADR-019: Treat View Models as Projections Only
 
-## Status
-Accepted
-
 ## Context
 
 As we developed the designer’s UI layer, we needed to decide where data transformation should occur.  Early drafts mixed business rules and view code: some screens fetched and filtered data directly, others computed metrics (counts, histograms) on the client, and some view components performed validation.  This blurred the line between domain logic and presentation and made functions difficult to test.  We also wanted our view models to be stable across UI frameworks (React, Vue or command‑line output) and to serve as well‑defined contracts for the UI.  The question was how much intelligence the view model builders should have: should they interpret business rules (e.g. apply filters), or simply assemble data for display?

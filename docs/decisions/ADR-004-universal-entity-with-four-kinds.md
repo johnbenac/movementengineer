@@ -1,8 +1,5 @@
 # ADR-004: Single Entity Type with Four Kinds
 
-## Status
-Accepted
-
 ## Context
 
 Early design discussions considered modelling separate types for gods, spirits, ancestors, places, relics, institutions and abstract concepts.  While this granularity could encode theological nuance, it risked exploding the schema into dozens of specialised entity types.  We needed a representation that could cover an incredibly diverse range of beings and things: from the Holy Trinity and kami spirits to stadiums and colours in the Aggie football movement.  The core challenge was to choose a level of abstraction that allowed any religious system to encode its cosmology and ontology consistently without requiring per‑movement schema customisations.
