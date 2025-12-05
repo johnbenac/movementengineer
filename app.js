@@ -3043,11 +3043,12 @@
     }
 
     // Collections tab
-    document
-      .getElementById('collection-select')
-      .addEventListener('change', e => {
+    const collectionSelect = document.getElementById('collection-select');
+    if (collectionSelect) {
+      collectionSelect.addEventListener('change', e => {
         setCollectionAndItem(e.target.value, null, { addToHistory: false });
       });
+    }
 
     document
       .getElementById('collection-filter-by-movement')
