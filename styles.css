@@ -269,43 +269,7 @@ button.danger:hover {
   border-top: 1px solid #e5e7eb;
 }
 
-/* Movement explorer subtabs */
-
-.movement-explorer h3 {
-  margin: 0 0 0.25rem;
-  font-size: 1rem;
-}
-
-.subtabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
-  border-bottom: 1px solid #e5e7eb;
-  padding-bottom: 0.3rem;
-  margin-bottom: 0.4rem;
-}
-
-.subtab {
-  padding: 0.35rem 0.7rem;
-  border-radius: 999px;
-  border: 1px solid transparent;
-  background: #e5e7eb;
-  font-size: 0.78rem;
-}
-
-.subtab.active {
-  background: #111827;
-  color: #f9fafb;
-}
-
-.subtab-panel {
-  display: none;
-  padding-top: 0.4rem;
-}
-
-.subtab-panel.active {
-  display: block;
-}
+/* Explorer toolbars */
 
 .subtab-toolbar {
   display: flex;

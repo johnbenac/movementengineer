@@ -12,6 +12,18 @@
 
   const { COLLECTION_NAMES, COLLECTIONS_WITH_MOVEMENT_ID } = DomainService;
 
+  const EXPLORER_TABS = [
+    'scripture',
+    'entities',
+    'practices',
+    'calendar',
+    'claims',
+    'rules',
+    'authority',
+    'media',
+    'relations',
+    'notes'
+  ];
   let snapshot = null;
   let currentMovementId = null;
   let currentCollectionName = 'entities';
@@ -250,38 +262,20 @@
     return btn ? btn.dataset.tab : 'dashboard';
   }
 
-  function getActiveMovementSubtabName() {
-    const btn = document.querySelector('#movement-subtabs .subtab.active');
-    return btn ? btn.dataset.subtab : 'scripture';
-  }
-
-  function setActiveMovementSubtab(name) {
-    const buttons = document.querySelectorAll('#movement-subtabs .subtab');
-    buttons.forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.subtab === name);
-    });
-    const panels = document.querySelectorAll(
-      '.movement-explorer .subtab-panel'
-    );
-    panels.forEach(panel => {
-      panel.classList.toggle(
-        'active',
-        panel.id === 'movement-subtab-' + name
-      );
-    });
-    renderMovementSubtab(name);
-  }
-
   function renderActiveTab() {
     const tabName = getActiveTabName();
+    if (tabName === 'dashboard') {
+      renderMovementForm();
+      renderDashboard();
+      return;
+    }
+
+    if (EXPLORER_TABS.includes(tabName)) {
+      renderMovementSubtab(tabName);
+      return;
+    }
+
     switch (tabName) {
-      case 'dashboard':
-        renderDashboard();
-        break;
-      case 'movement':
-        renderMovementForm();
-        renderMovementExplorer();
-        break;
       case 'data':
         renderCollectionList();
         renderItemDetail();
@@ -408,22 +402,6 @@
   }
 
   // ---- Movement explorer (view-model-driven views) ----
-
-  function renderMovementExplorer() {
-    const explorer = document.querySelector('.movement-explorer');
-    if (!explorer) return;
-
-    const hasMovement = Boolean(currentMovementId);
-    // Disable inner controls textually when no movement
-    const subtabPanels = explorer.querySelectorAll('.subtab-panel');
-    if (!hasMovement) {
-      subtabPanels.forEach(panel => {
-        clearElement(panel.querySelector('.tree-container') || panel);
-      });
-    }
-    const activeSubtab = getActiveMovementSubtabName();
-    renderMovementSubtab(activeSubtab);
-  }
 
   function ensureSelectOptions(selectEl, options, includeEmptyLabel) {
     if (!selectEl) return;
@@ -1890,16 +1868,7 @@
     if (!entityId) return;
     const entSelect = document.getElementById('entity-select');
     if (!entSelect) return;
-    // Switch to movement tab + entities subtab
-    document
-      .querySelectorAll('.tab')
-      .forEach(b => b.classList.remove('active'));
-    document.querySelector('[data-tab="movement"]').classList.add('active');
-    document
-      .querySelectorAll('.tab-panel')
-      .forEach(panel => panel.classList.remove('active'));
-    document.getElementById('tab-movement').classList.add('active');
-    setActiveMovementSubtab('entities');
+    activateTab('entities');
     entSelect.value = entityId;
     renderEntitiesView();
   }
@@ -1908,30 +1877,14 @@
     if (!practiceId) return;
     const prSelect = document.getElementById('practice-select');
     if (!prSelect) return;
-    document
-      .querySelectorAll('.tab')
-      .forEach(b => b.classList.remove('active'));
-    document.querySelector('[data-tab="movement"]').classList.add('active');
-    document
-      .querySelectorAll('.tab-panel')
-      .forEach(panel => panel.classList.remove('active'));
-    document.getElementById('tab-movement').classList.add('active');
-    setActiveMovementSubtab('practices');
+    activateTab('practices');
     prSelect.value = practiceId;
     renderPracticesView();
   }
 
   function jumpToText(textId) {
     if (!textId) return;
-    document
-      .querySelectorAll('.tab')
-      .forEach(b => b.classList.remove('active'));
-    document.querySelector('[data-tab="movement"]').classList.add('active');
-    document
-      .querySelectorAll('.tab-panel')
-      .forEach(panel => panel.classList.remove('active'));
-    document.getElementById('tab-movement').classList.add('active');
-    setActiveMovementSubtab('scripture');
+    activateTab('scripture');
     // Scripture view does not currently center on a text,
     // but re-render so the user can browse the tree that includes it.
     renderScriptureView();
@@ -2911,31 +2864,9 @@
     // Tabs
     document.querySelectorAll('.tab').forEach(btn => {
       btn.addEventListener('click', () => {
-        document
-          .querySelectorAll('.tab')
-          .forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        const tabName = btn.dataset.tab;
-        document
-          .querySelectorAll('.tab-panel')
-          .forEach(panel => {
-            panel.classList.toggle(
-              'active',
-              panel.id === 'tab-' + tabName
-            );
-          });
-        renderActiveTab();
+        activateTab(btn.dataset.tab);
       });
     });
-
-    // Movement subtabs
-    document
-      .querySelectorAll('#movement-subtabs .subtab')
-      .forEach(btn => {
-        btn.addEventListener('click', () => {
-          setActiveMovementSubtab(btn.dataset.subtab);
-        });
-      });
 
     // Entity graph refresh button
     const refreshGraphBtn = document.getElementById(
