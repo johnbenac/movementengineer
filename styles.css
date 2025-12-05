@@ -803,7 +803,12 @@ a.text-link:hover {
 .graph-node-label {
   fill: #111827;
   font-size: 0.78rem;
-  pointer-events: none;
+  pointer-events: auto;
+  user-select: none;
+}
+
+.graph-node-label-clickable {
+  cursor: pointer;
 }
 
 .chip-strong {
