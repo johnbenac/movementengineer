@@ -5,6 +5,7 @@ Movement Engineer is a fully client-side tool for exploring, authoring, and comp
 ## Features
 - Browse, edit, and compare movements, entities, practices, events, rules, claims, and sources.
 - Persist your work in the browser or export/import JSON snapshots for sharing and backups.
+- Export/import full project archives as ZIP (with structured collections and assets) alongside the lighter JSON format.
 - Visualize relationships through the embedded entity graph view.
 - Auto-load bundled movement datasets from the `movements/` directory via the generated manifest.
 - Lightweight domain and view-model layers decoupled from the UI for easy testing.
@@ -50,9 +51,10 @@ node scripts/generate-movement-manifest.js
 Domain logic tests use simple Node scripts:
 
 ```bash
-node comparison-services.test.js
-node view-models.test.js
+npm test
 ```
+
+The `npm test` script runs the legacy comparison/view-model checks and the project import/export coverage.
 
 ## License
 This project is licensed under the [GNU Affero General Public License v3.0](LICENSE).

@@ -4,10 +4,44 @@
  * Handles localStorage plumbing and snapshot structure.
  */
 
-(function () {
+(function (rootFactory) {
+  const globalScope =
+    typeof globalThis !== 'undefined'
+      ? globalThis
+      : typeof window !== 'undefined'
+        ? window
+        : typeof global !== 'undefined'
+          ? global
+          : {};
+
+  const StorageService = rootFactory(globalScope);
+
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = StorageService;
+  }
+  if (globalScope) {
+    globalScope.StorageService = StorageService;
+  }
+})(function (globalScope) {
   'use strict';
 
   const STORAGE_KEY = 'movementDesigner.v3.snapshot';
+
+  const inMemoryStore = (() => {
+    let store = {};
+    return {
+      getItem: key => store[key] || null,
+      setItem: (key, value) => {
+        store[key] = String(value);
+      },
+      removeItem: key => {
+        delete store[key];
+      }
+    };
+  })();
+
+  const localStore =
+    globalScope && globalScope.localStorage ? globalScope.localStorage : inMemoryStore;
 
   const COLLECTION_NAMES = [
     'movements',
@@ -37,7 +71,7 @@
   ]);
 
   function createEmptySnapshot() {
-    const base = {};
+    const base = { version: '3.4' };
     COLLECTION_NAMES.forEach(name => {
       base[name] = [];
     });
@@ -49,8 +83,8 @@
   }
 
   function getBundledSample() {
-    if (typeof window !== 'undefined' && window.movementData) {
-      return window.movementData;
+    if (globalScope && globalScope.movementData) {
+      return globalScope.movementData;
     }
     if (typeof module !== 'undefined') {
       try {
@@ -71,6 +105,7 @@
 
   function ensureAllCollections(data) {
     const obj = data || {};
+    if (!obj.version) obj.version = '3.4';
     COLLECTION_NAMES.forEach(name => {
       if (!Array.isArray(obj[name])) obj[name] = [];
     });
@@ -79,7 +114,7 @@
 
   function loadSnapshot() {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = localStore.getItem(STORAGE_KEY);
       if (!raw) {
         const defaults = getDefaultSnapshot();
         saveSnapshot(defaults);
@@ -95,14 +130,14 @@
 
   function saveSnapshot(snapshot) {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+      localStore.setItem(STORAGE_KEY, JSON.stringify(snapshot));
     } catch (e) {
       console.error('Failed to save snapshot:', e);
       throw e;
     }
   }
 
-  window.StorageService = {
+  return {
     STORAGE_KEY,
     COLLECTION_NAMES,
     COLLECTIONS_WITH_MOVEMENT_ID,
@@ -112,4 +147,4 @@
     loadSnapshot,
     saveSnapshot
   };
-})();
+});

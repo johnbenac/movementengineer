@@ -1,0 +1,12 @@
+{
+  "name": "movementengineer",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Movement Engineer static SPA utilities and tests",
+  "scripts": {
+    "test": "node comparison-services.test.js && node view-models.test.js && node project-io.test.js"
+  },
+  "dependencies": {
+    "jszip": "^3.10.1"
+  }
+}
