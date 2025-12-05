@@ -3043,37 +3043,45 @@
     }
 
     // Collections tab
-    document
-      .getElementById('collection-select')
-      .addEventListener('change', e => {
+    const collectionSelect = document.getElementById('collection-select');
+    if (collectionSelect) {
+      collectionSelect.addEventListener('change', e => {
         setCollectionAndItem(e.target.value, null, { addToHistory: false });
       });
+    }
 
-    document
-      .getElementById('collection-filter-by-movement')
-      .addEventListener('change', () => {
+    const collectionFilterByMovement = document.getElementById(
+      'collection-filter-by-movement'
+    );
+    if (collectionFilterByMovement) {
+      collectionFilterByMovement.addEventListener('change', () => {
         renderCollectionList();
         renderItemDetail();
       });
+    }
 
-    document
-      .getElementById('btn-add-item')
-      .addEventListener('click', addNewItem);
-    document
-      .getElementById('btn-delete-item')
-      .addEventListener('click', deleteCurrentItem);
-    document
-      .getElementById('btn-save-item')
-      .addEventListener('click', saveItemFromEditor);
+    const btnAddItem = document.getElementById('btn-add-item');
+    if (btnAddItem) {
+      btnAddItem.addEventListener('click', addNewItem);
+    }
+    const btnDeleteItem = document.getElementById('btn-delete-item');
+    if (btnDeleteItem) {
+      btnDeleteItem.addEventListener('click', deleteCurrentItem);
+    }
+    const btnSaveItem = document.getElementById('btn-save-item');
+    if (btnSaveItem) {
+      btnSaveItem.addEventListener('click', saveItemFromEditor);
+    }
 
     const navBack = document.getElementById('btn-preview-back');
     const navForward = document.getElementById('btn-preview-forward');
     if (navBack) navBack.addEventListener('click', () => navigateHistory(-1));
     if (navForward) navForward.addEventListener('click', () => navigateHistory(1));
 
-    document
-      .getElementById('btn-save-banner')
-      .addEventListener('click', () => persistDirtyChanges());
+    const btnSaveBanner = document.getElementById('btn-save-banner');
+    if (btnSaveBanner) {
+      btnSaveBanner.addEventListener('click', () => persistDirtyChanges());
+    }
 
     const itemEditor = document.getElementById('item-editor');
     if (itemEditor) {
