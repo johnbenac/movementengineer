@@ -272,6 +272,10 @@ button.danger:hover {
   color: #6b7280;
 }
 
+.muted {
+  color: #6b7280;
+}
+
 /* Divider */
 
 .section-divider {
@@ -651,10 +655,17 @@ button.danger:hover {
   display: flex;
   justify-content: space-between;
   gap: 0.35rem;
+  cursor: pointer;
 }
 
 .text-node-title {
   font-weight: 500;
+}
+
+.text-node.selected > .text-node-header {
+  background: #eef2ff;
+  border-radius: 3px;
+  padding: 0.15rem 0.25rem;
 }
 
 .text-node-meta {

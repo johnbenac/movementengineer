@@ -16,6 +16,7 @@
   let currentMovementId = null;
   let currentCollectionName = 'entities';
   let currentItemId = null;
+  let currentTextId = null;
   let navigationStack = [];
   let navigationIndex = -1;
   let entityGraphView = null;
@@ -25,6 +26,7 @@
   let itemEditorDirty = false;
   let isPopulatingMovementForm = false;
   let isPopulatingEditor = false;
+  let isPopulatingScriptureForms = false;
 
   function updateDirtyState() {
     isDirty = snapshotDirty || movementFormDirty || itemEditorDirty;
@@ -206,6 +208,7 @@
   function selectMovement(id) {
     currentMovementId = id || null;
     currentItemId = null; // reset item selection in collection editor
+    currentTextId = null;
     renderMovementList();
     renderActiveTab();
   }
@@ -230,6 +233,7 @@
 
     currentMovementId = DomainService.deleteMovement(snapshot, id);
     currentItemId = null;
+    currentTextId = null;
     resetNavigationHistory();
     saveSnapshot();
   }
@@ -491,6 +495,214 @@
 
   // ---- Scripture (buildScriptureTreeViewModel) ----
 
+  function parseCsvInput(value) {
+    return (value || '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+  }
+
+  function getActiveTextCollection() {
+    const select = document.getElementById('scripture-collection-select');
+    if (!select) return null;
+    return (snapshot.textCollections || []).find(tc => tc.id === select.value);
+  }
+
+  function collectDescendants(textId, nodesById, acc = new Set()) {
+    const node = nodesById[textId];
+    if (!node || acc.has(textId)) return acc;
+    acc.add(textId);
+    (node.childIds || []).forEach(childId =>
+      collectDescendants(childId, nodesById, acc)
+    );
+    return acc;
+  }
+
+  function isTextInActiveTree(textId, vm) {
+    if (
+      !textId ||
+      !vm ||
+      !Array.isArray(vm.roots) ||
+      vm.roots.length === 0
+    ) {
+      return false;
+    }
+
+    const visited = new Set();
+    const stack = vm.roots.map(root => root.id);
+
+    while (stack.length) {
+      const id = stack.pop();
+      if (visited.has(id)) continue;
+      visited.add(id);
+      if (id === textId) return true;
+
+      const node = vm.nodesById[id];
+      if (node && Array.isArray(node.childIds)) {
+        node.childIds.forEach(childId => {
+          if (!visited.has(childId)) stack.push(childId);
+        });
+      }
+    }
+
+    return false;
+  }
+
+  function renderScriptureForms(vm) {
+    const collection = vm.collection;
+    const nameInput = document.getElementById('scripture-collection-name');
+    const descInput = document.getElementById('scripture-collection-description');
+    const tagsInput = document.getElementById('scripture-collection-tags');
+    const saveCollectionBtn = document.getElementById('btn-save-text-collection');
+    const deleteCollectionBtn = document.getElementById(
+      'btn-delete-text-collection'
+    );
+
+    if (!nameInput || !descInput || !tagsInput) return;
+
+    isPopulatingScriptureForms = true;
+    if (collection) {
+      nameInput.value = collection.name || '';
+      descInput.value = collection.description || '';
+      tagsInput.value = (collection.tags || []).join(', ');
+      nameInput.disabled = false;
+      descInput.disabled = false;
+      tagsInput.disabled = false;
+      if (saveCollectionBtn) saveCollectionBtn.disabled = false;
+      if (deleteCollectionBtn) deleteCollectionBtn.disabled = false;
+    } else {
+      nameInput.value = '';
+      descInput.value = '';
+      tagsInput.value = '';
+      nameInput.disabled = true;
+      descInput.disabled = true;
+      tagsInput.disabled = true;
+      if (saveCollectionBtn) saveCollectionBtn.disabled = true;
+      if (deleteCollectionBtn) deleteCollectionBtn.disabled = true;
+    }
+    isPopulatingScriptureForms = false;
+
+    const textHint = document.getElementById('scripture-text-hint');
+    const titleInput = document.getElementById('scripture-text-title');
+    const labelInput = document.getElementById('scripture-text-label');
+    const levelSelect = document.getElementById('scripture-text-level');
+    const mainFunctionInput = document.getElementById(
+      'scripture-text-main-function'
+    );
+    const parentSelect = document.getElementById('scripture-text-parent');
+    const tagsField = document.getElementById('scripture-text-tags');
+    const mentionsField = document.getElementById('scripture-text-mentions');
+    const contentInput = document.getElementById('scripture-text-content');
+    const rootCheckbox = document.getElementById('scripture-text-root');
+    const saveTextBtn = document.getElementById('btn-save-text');
+    const deleteTextBtn = document.getElementById('btn-delete-text');
+    const addChildBtn = document.getElementById('btn-add-child-text');
+
+    if (
+      !textHint ||
+      !titleInput ||
+      !labelInput ||
+      !levelSelect ||
+      !mainFunctionInput ||
+      !parentSelect ||
+      !tagsField ||
+      !mentionsField ||
+      !contentInput ||
+      !rootCheckbox
+    )
+      return;
+
+    const activeText =
+      currentTextId &&
+      (snapshot.texts || []).find(t => t.id === currentTextId);
+
+    const blockedParents = activeText
+      ? collectDescendants(activeText.id, vm.nodesById, new Set())
+      : new Set();
+    if (activeText) blockedParents.delete(activeText.id);
+
+    const availableParents = (snapshot.texts || [])
+      .filter(t => t.movementId === currentMovementId)
+      .filter(t => t.id !== currentTextId)
+      .filter(t => !blockedParents.has(t.id))
+      .map(t => ({ value: t.id, label: getLabelForItem(t) }));
+
+    ensureSelectOptions(parentSelect, availableParents, '— Root (no parent)');
+
+    const syncRootCheckboxWithParent = () => {
+      const collectionForRoot = getActiveTextCollection();
+      const hasParent = !!parentSelect.value;
+      rootCheckbox.disabled = !collectionForRoot || hasParent;
+      if (hasParent) {
+        rootCheckbox.checked = false;
+      }
+    };
+
+    parentSelect.onchange = () => {
+      if (isPopulatingScriptureForms) return;
+      syncRootCheckboxWithParent();
+    };
+
+    isPopulatingScriptureForms = true;
+    if (!activeText) {
+      textHint.textContent =
+        'Select a text from the tree or create a new one to edit its details.';
+      [
+        titleInput,
+        labelInput,
+        levelSelect,
+        mainFunctionInput,
+        parentSelect,
+        tagsField,
+        mentionsField,
+        contentInput
+      ].forEach(el => (el.disabled = true));
+      rootCheckbox.disabled = true;
+      rootCheckbox.checked = false;
+      if (saveTextBtn) saveTextBtn.disabled = true;
+      if (deleteTextBtn) deleteTextBtn.disabled = true;
+      if (addChildBtn) addChildBtn.disabled = true;
+      isPopulatingScriptureForms = false;
+      return;
+    }
+
+    textHint.textContent = `Editing ${activeText.title || activeText.id}`;
+    [
+      titleInput,
+      labelInput,
+      levelSelect,
+      mainFunctionInput,
+      parentSelect,
+      tagsField,
+      mentionsField,
+      contentInput
+    ].forEach(el => (el.disabled = false));
+    titleInput.value = activeText.title || '';
+    labelInput.value = activeText.label || '';
+    levelSelect.value = activeText.level || 'work';
+    mainFunctionInput.value = activeText.mainFunction || '';
+    parentSelect.value = activeText.parentId || '';
+    tagsField.value = (activeText.tags || []).join(', ');
+    mentionsField.value = (activeText.mentionsEntityIds || []).join(', ');
+    contentInput.value = activeText.content || '';
+
+    const collectionRoots = collection?.rootTextIds || [];
+    rootCheckbox.disabled = !collection;
+    rootCheckbox.checked = collection
+      ? collectionRoots.includes(activeText.id)
+      : false;
+
+    if (parentSelect.value) {
+      rootCheckbox.checked = false;
+    }
+
+    if (saveTextBtn) saveTextBtn.disabled = false;
+    if (deleteTextBtn) deleteTextBtn.disabled = false;
+    if (addChildBtn) addChildBtn.disabled = false;
+    isPopulatingScriptureForms = false;
+    syncRootCheckboxWithParent();
+  }
+
   function renderScriptureView() {
     const treeContainer = document.getElementById('scripture-tree');
     if (!treeContainer) return;
@@ -510,17 +722,30 @@
     ensureSelectOptions(select, options, 'All texts (no collection filter)');
 
     const textCollectionId = select.value || null;
+    const activeCollection = textCollectionId
+      ? ownCollections.find(tc => tc.id === textCollectionId)
+      : null;
 
     const vm = ViewModels.buildScriptureTreeViewModel(snapshot, {
       movementId: currentMovementId,
       textCollectionId: textCollectionId || null
     });
 
+    if (
+      currentTextId &&
+      textCollectionId &&
+      !isTextInActiveTree(currentTextId, vm)
+    ) {
+      currentTextId = null;
+    }
+
     if (!vm.roots || vm.roots.length === 0) {
+      currentTextId = null;
       const p = document.createElement('p');
       p.className = 'hint';
       p.textContent = 'No texts found for this movement.';
       treeContainer.appendChild(p);
+      renderScriptureForms({ collection: activeCollection, roots: [], nodesById: {} });
       return;
     }
 
@@ -530,6 +755,7 @@
     const renderNode = node => {
       const li = document.createElement('li');
       li.className = 'text-node';
+      if (node.id === currentTextId) li.classList.add('selected');
 
       const header = document.createElement('div');
       header.className = 'text-node-header';
@@ -549,6 +775,11 @@
       if (node.hasContent) bits.push('has content');
       metaSpan.textContent = bits.join(' · ');
       header.appendChild(metaSpan);
+
+      header.addEventListener('click', () => {
+        currentTextId = node.id;
+        renderScriptureView();
+      });
 
       li.appendChild(header);
 
@@ -623,6 +854,203 @@
       ul.appendChild(renderNode(root));
     });
     treeContainer.appendChild(ul);
+
+    renderScriptureForms({
+      collection: activeCollection,
+      roots: vm.roots,
+      nodesById: vm.nodesById
+    });
+  }
+
+  function addTextCollection() {
+    if (!currentMovementId) {
+      alert('Select a movement first.');
+      return;
+    }
+    try {
+      const collection = DomainService.addNewItem(
+        snapshot,
+        'textCollections',
+        currentMovementId
+      );
+      saveSnapshot({ show: false });
+      setStatus('Text collection created');
+      const select = document.getElementById('scripture-collection-select');
+      if (select) {
+        select.value = collection.id;
+      }
+      renderScriptureView();
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+
+  function saveTextCollection() {
+    if (isPopulatingScriptureForms) return;
+    const collection = getActiveTextCollection();
+    if (!collection) return;
+
+    const nameInput = document.getElementById('scripture-collection-name');
+    const descInput = document.getElementById('scripture-collection-description');
+    const tagsInput = document.getElementById('scripture-collection-tags');
+
+    const updated = {
+      ...collection,
+      name: nameInput.value.trim() || collection.name,
+      description: descInput.value,
+      tags: parseCsvInput(tagsInput.value)
+    };
+
+    DomainService.upsertItem(snapshot, 'textCollections', updated);
+    saveSnapshot({ show: false });
+    setStatus('Collection saved');
+    renderScriptureView();
+  }
+
+  function deleteTextCollection() {
+    const collection = getActiveTextCollection();
+    if (!collection) return;
+    const ok = window.confirm(
+      `Delete this text collection?\n\n${collection.name || collection.id}\n\nThis cannot be undone.`
+    );
+    if (!ok) return;
+
+    DomainService.deleteItem(snapshot, 'textCollections', collection.id);
+    const select = document.getElementById('scripture-collection-select');
+    if (select) select.value = '';
+    saveSnapshot();
+    renderScriptureView();
+  }
+
+  function addRootTextNode() {
+    if (!currentMovementId) {
+      alert('Select a movement first.');
+      return;
+    }
+    try {
+      const text = DomainService.addNewItem(snapshot, 'texts', currentMovementId);
+      text.parentId = null;
+      const collection = getActiveTextCollection();
+      if (collection) {
+        const roots = new Set(collection.rootTextIds || []);
+        roots.add(text.id);
+        collection.rootTextIds = Array.from(roots);
+      }
+      currentTextId = text.id;
+      saveSnapshot({ show: false });
+      setStatus('Text created');
+      renderScriptureView();
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+
+  function addChildTextNode() {
+    if (!currentTextId) {
+      alert('Select a parent text first.');
+      return;
+    }
+    if (!currentMovementId) {
+      alert('Select a movement first.');
+      return;
+    }
+    try {
+      const text = DomainService.addNewItem(snapshot, 'texts', currentMovementId);
+      text.parentId = currentTextId;
+      currentTextId = text.id;
+      saveSnapshot({ show: false });
+      setStatus('Child text created');
+      renderScriptureView();
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+
+  function saveCurrentTextNode() {
+    if (isPopulatingScriptureForms) return;
+    if (!currentTextId) return;
+    const text = (snapshot.texts || []).find(t => t.id === currentTextId);
+    if (!text) return;
+
+    const titleInput = document.getElementById('scripture-text-title');
+    const labelInput = document.getElementById('scripture-text-label');
+    const levelSelect = document.getElementById('scripture-text-level');
+    const mainFunctionInput = document.getElementById(
+      'scripture-text-main-function'
+    );
+    const parentSelect = document.getElementById('scripture-text-parent');
+    const tagsField = document.getElementById('scripture-text-tags');
+    const mentionsField = document.getElementById('scripture-text-mentions');
+    const contentInput = document.getElementById('scripture-text-content');
+    const rootCheckbox = document.getElementById('scripture-text-root');
+
+    const parentId = parentSelect.value || null;
+    const vm = ViewModels.buildScriptureTreeViewModel(snapshot, {
+      movementId: currentMovementId,
+      textCollectionId: null
+    });
+    const descendants = collectDescendants(currentTextId, vm.nodesById, new Set());
+    if (parentId && descendants.has(parentId)) {
+      alert('Cannot set a descendant as the parent of this text.');
+      return;
+    }
+
+    const updated = {
+      ...text,
+      title: titleInput.value,
+      label: labelInput.value,
+      level: levelSelect.value,
+      mainFunction: mainFunctionInput.value || null,
+      parentId,
+      tags: parseCsvInput(tagsField.value),
+      mentionsEntityIds: parseCsvInput(mentionsField.value),
+      content: contentInput.value
+    };
+
+    DomainService.upsertItem(snapshot, 'texts', updated);
+
+    const collection = getActiveTextCollection();
+    if (collection) {
+      const roots = new Set(collection.rootTextIds || []);
+      if (rootCheckbox.checked) {
+        roots.add(updated.id);
+      } else {
+        roots.delete(updated.id);
+      }
+      collection.rootTextIds = Array.from(roots);
+    }
+
+    saveSnapshot({ show: false });
+    setStatus('Text saved');
+    renderScriptureView();
+  }
+
+  function deleteCurrentTextNode() {
+    if (!currentTextId) return;
+    const vm = ViewModels.buildScriptureTreeViewModel(snapshot, {
+      movementId: currentMovementId,
+      textCollectionId: null
+    });
+    const descendants = Array.from(
+      collectDescendants(currentTextId, vm.nodesById, new Set())
+    );
+    const text = (snapshot.texts || []).find(t => t.id === currentTextId);
+    const label = getLabelForItem(text);
+    const ok = window.confirm(
+      `Delete this text and ${descendants.length - 1} descendant(s)?\n\n${label}\n\nThis cannot be undone.`
+    );
+    if (!ok) return;
+
+    const descendantSet = new Set(descendants);
+    descendants.forEach(id => {
+      DomainService.deleteItem(snapshot, 'texts', id);
+    });
+    (snapshot.textCollections || []).forEach(tc => {
+      tc.rootTextIds = (tc.rootTextIds || []).filter(id => !descendantSet.has(id));
+    });
+    currentTextId = null;
+    saveSnapshot();
+    renderScriptureView();
   }
 
   // ---- Entities (buildEntityDetailViewModel + buildEntityGraphViewModel) ----
@@ -1887,8 +2315,7 @@
   function jumpToText(textId) {
     if (!textId) return;
     activateTab('scripture');
-    // Scripture view does not currently center on a text,
-    // but re-render so the user can browse the tree that includes it.
+    currentTextId = textId;
     renderScriptureView();
   }
 
@@ -2829,53 +3256,56 @@
     snapshot = StorageService.getDefaultSnapshot();
     currentMovementId = snapshot.movements[0]?.id || null;
     currentItemId = null;
+    currentTextId = null;
     resetNavigationHistory();
     saveSnapshot({ clearMovementDirty: true, clearItemDirty: true });
     setStatus('Reset to default');
   }
 
-    function addListenerById(id, event, handler) {
-      const el = document.getElementById(id);
-      if (!el) return null;
-      el.addEventListener(event, handler);
-      return el;
-    }
+  function addListenerById(id, event, handler) {
+    const el = document.getElementById(id);
+    if (!el) return null;
+    el.addEventListener(event, handler);
+    return el;
+  }
 
-    // ---- Init ----
+  // ---- Init ----
 
-    function init() {
+  function init() {
     snapshot = loadSnapshot();
     currentMovementId = snapshot.movements[0]
       ? snapshot.movements[0].id
       : null;
+    currentItemId = null;
+    currentTextId = null;
     resetNavigationHistory();
     markSaved();
 
     // Sidebar
-      addListenerById('btn-add-movement', 'click', () => addMovement());
+    addListenerById('btn-add-movement', 'click', () => addMovement());
 
     // Top bar actions
-      addListenerById('btn-reset-defaults', 'click', resetToDefaults);
+    addListenerById('btn-reset-defaults', 'click', resetToDefaults);
 
     // Movement form
-      addListenerById('btn-save-movement', 'click', saveMovementFromForm);
-      addListenerById('btn-delete-movement', 'click', () =>
-        deleteMovement(currentMovementId)
-      );
-      addListenerById('btn-export-movement', 'click', exportCurrentMovement);
+    addListenerById('btn-save-movement', 'click', saveMovementFromForm);
+    addListenerById('btn-delete-movement', 'click', () =>
+      deleteMovement(currentMovementId)
+    );
+    addListenerById('btn-export-movement', 'click', exportCurrentMovement);
 
-      addListenerById('btn-import-movement', 'click', () => {
-        const input = document.getElementById('file-input');
-        if (!input) return;
-        input.value = '';
-        input.click();
-      });
+    addListenerById('btn-import-movement', 'click', () => {
+      const input = document.getElementById('file-input');
+      if (!input) return;
+      input.value = '';
+      input.click();
+    });
 
-      addListenerById('file-input', 'change', e => {
-        const file = e.target.files && e.target.files[0];
-        if (!file) return;
-        importMovementFromFile(file);
-      });
+    addListenerById('file-input', 'change', e => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      importMovementFromFile(file);
+    });
 
     ['movement-name', 'movement-shortName', 'movement-summary', 'movement-tags']
       .map(id => document.getElementById(id))
@@ -3006,6 +3436,13 @@
         renderScriptureView
       );
     }
+    addListenerById('btn-add-text-collection', 'click', addTextCollection);
+    addListenerById('btn-save-text-collection', 'click', saveTextCollection);
+    addListenerById('btn-delete-text-collection', 'click', deleteTextCollection);
+    addListenerById('btn-add-root-text', 'click', addRootTextNode);
+    addListenerById('btn-add-child-text', 'click', addChildTextNode);
+    addListenerById('btn-save-text', 'click', saveCurrentTextNode);
+    addListenerById('btn-delete-text', 'click', deleteCurrentTextNode);
 
     // Collections tab
       addListenerById('collection-select', 'change', e => {
