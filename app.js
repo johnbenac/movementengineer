@@ -21,6 +21,15 @@
   let navigationIndex = -1;
   let entityGraphView = null;
   const movementAssetStore = new Map();
+  function clearMovementAssetsForIds(movementIds) {
+    if (!movementIds || !movementIds.size) return;
+    for (const key of Array.from(movementAssetStore.keys())) {
+      const [movementId] = key.split(':');
+      if (movementIds.has(movementId)) {
+        movementAssetStore.delete(key);
+      }
+    }
+  }
   let isDirty = false;
   let snapshotDirty = false;
   let movementFormDirty = false;
@@ -234,6 +243,7 @@
     if (!confirmed) return;
 
     currentMovementId = DomainService.deleteMovement(snapshot, id);
+    clearMovementAssetsForIds(new Set([id]));
     currentItemId = null;
     currentTextId = null;
     resetNavigationHistory();
@@ -3256,6 +3266,7 @@
       if (!ok) return;
     }
 
+    clearMovementAssetsForIds(incomingIds);
     fullSnapshot = mergeMovementSnapshotIntoExisting(fullSnapshot, incoming);
     StorageService.saveSnapshot(fullSnapshot);
     snapshot = fullSnapshot;
@@ -3444,6 +3455,7 @@
     currentMovementId = snapshot.movements[0]?.id || null;
     currentItemId = null;
     currentTextId = null;
+    movementAssetStore.clear();
     resetNavigationHistory();
     saveSnapshot({ clearMovementDirty: true, clearItemDirty: true });
     setStatus('Reset to default');
