@@ -5,7 +5,7 @@
  * This file just handles DOM, localStorage, import/export, and wiring.
  */
 
-/* global DomainService, StorageService, ViewModels, EntityGraphView */
+/* global DomainService, StorageService, ViewModels, EntityGraphView, JSZip */
 
 (function () {
   'use strict';
@@ -20,6 +20,16 @@
   let navigationStack = [];
   let navigationIndex = -1;
   let entityGraphView = null;
+  const movementAssetStore = new Map();
+  function clearMovementAssetsForIds(movementIds) {
+    if (!movementIds || !movementIds.size) return;
+    for (const key of Array.from(movementAssetStore.keys())) {
+      const [movementId] = key.split(':');
+      if (movementIds.has(movementId)) {
+        movementAssetStore.delete(key);
+      }
+    }
+  }
   let isDirty = false;
   let snapshotDirty = false;
   let movementFormDirty = false;
@@ -233,6 +243,7 @@
     if (!confirmed) return;
 
     currentMovementId = DomainService.deleteMovement(snapshot, id);
+    clearMovementAssetsForIds(new Set([id]));
     currentItemId = null;
     currentTextId = null;
     resetNavigationHistory();
@@ -3182,92 +3193,257 @@
 
   // ---- Import / export / reset ----
 
-  function exportCurrentMovement() {
-    if (!currentMovementId) {
-      alert('Select a movement to export.');
-      return;
-    }
-    const movement = getMovementById(currentMovementId);
-    if (!movement) {
-      alert('Movement not found.');
-      return;
-    }
+  function createMovementSnapshot(movementId, fullSnapshot) {
+    const source = StorageService.ensureAllCollections(
+      fullSnapshot || StorageService.createEmptySnapshot()
+    );
+    const movement = (source.movements || []).find(m => m.id === movementId);
+    if (!movement) return null;
 
-    const data = StorageService.createEmptySnapshot();
-    if (snapshot.version) data.version = snapshot.version;
-    data.movements = [movement];
+    const movementSnapshot = StorageService.createEmptySnapshot();
+    if (source.version) movementSnapshot.version = source.version;
+    movementSnapshot.movements = [movement];
+
     COLLECTIONS_WITH_MOVEMENT_ID.forEach(collName => {
-      data[collName] = (snapshot[collName] || []).filter(
+      movementSnapshot[collName] = (source[collName] || []).filter(
         item => item.movementId === movement.id
       );
     });
 
-    const dataStr = JSON.stringify(data, null, 2);
-    const blob = new Blob([dataStr], { type: 'application/json' });
+    return movementSnapshot;
+  }
+
+  function mergeMovementSnapshotIntoExisting(fullSnapshot, movementSnapshot) {
+    const target = StorageService.ensureAllCollections(fullSnapshot || {});
+    const incoming = StorageService.ensureAllCollections(movementSnapshot || {});
+    const incomingMovements = incoming.movements || [];
+    const incomingIds = new Set(incomingMovements.map(m => m.id));
+
+    if (incoming.version) target.version = incoming.version;
+
+    target.movements = (target.movements || [])
+      .filter(m => !incomingIds.has(m.id))
+      .concat(incomingMovements);
+
+    COLLECTIONS_WITH_MOVEMENT_ID.forEach(collName => {
+      const existing = target[collName] || [];
+      const filteredExisting = existing.filter(
+        item => !incomingIds.has(item.movementId)
+      );
+      const incomingItems = (incoming[collName] || []).filter(item =>
+        incomingIds.has(item.movementId)
+      );
+      target[collName] = filteredExisting.concat(incomingItems);
+    });
+
+    return target;
+  }
+
+  function importMovementSnapshot(movementSnapshot) {
+    const incoming = StorageService.ensureAllCollections(movementSnapshot || {});
+    const incomingMovements = incoming.movements || [];
+    if (!incomingMovements.length) {
+      alert('No movements found in the imported file.');
+      return;
+    }
+
+    let fullSnapshot = StorageService.ensureAllCollections(
+      snapshot || StorageService.createEmptySnapshot()
+    );
+    const incomingIds = new Set(incomingMovements.map(m => m.id));
+    const conflicts = (fullSnapshot.movements || []).filter(m =>
+      incomingIds.has(m.id)
+    );
+
+    if (conflicts.length) {
+      const names = conflicts
+        .map(m => m.name || m.id)
+        .slice(0, 3)
+        .join(', ');
+      const ok = window.confirm(
+        `Replace existing movement data for: ${names}? This will overwrite matching IDs.`
+      );
+      if (!ok) return;
+    }
+
+    clearMovementAssetsForIds(incomingIds);
+    fullSnapshot = mergeMovementSnapshotIntoExisting(fullSnapshot, incoming);
+    StorageService.saveSnapshot(fullSnapshot);
+    snapshot = fullSnapshot;
+    currentMovementId = incomingMovements[0]?.id || currentMovementId;
+    currentItemId = null;
+    resetNavigationHistory();
+    renderMovementList();
+    renderActiveTab();
+    markSaved({ movement: true, item: true });
+  }
+
+  function exportCurrentMovementAsJson() {
+    if (!currentMovementId) {
+      alert('Select a movement to export.');
+      return;
+    }
+    const movementSnapshot = createMovementSnapshot(currentMovementId, snapshot);
+    if (!movementSnapshot) {
+      alert('Movement not found.');
+      return;
+    }
+
+    const json = JSON.stringify(movementSnapshot, null, 2);
+    const movement = movementSnapshot.movements[0];
+    const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `${movement.shortName || movement.id}-movement.json`;
-    document.body.appendChild(a);
     a.click();
-    document.body.removeChild(a);
     URL.revokeObjectURL(url);
     setStatus('Exported movement JSON');
   }
 
-  function importMovementFromFile(file) {
+  function importMovementFromJsonFile(file) {
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const data = StorageService.ensureAllCollections(
-          JSON.parse(reader.result)
-        );
-        const incomingMovements = data.movements || [];
-        if (!incomingMovements.length) {
-          alert('No movements found in the imported file.');
-          return;
-        }
-
-        const incomingIds = new Set(incomingMovements.map(m => m.id));
-        const conflicts = incomingMovements.filter(m =>
-          Boolean(getMovementById(m.id))
-        );
-
-        if (conflicts.length) {
-          const names = conflicts
-            .map(m => m.name || m.id)
-            .slice(0, 3)
-            .join(', ');
-          const ok = window.confirm(
-            `Replace existing movement data for: ${names}? This will overwrite matching IDs.`
-          );
-          if (!ok) return;
-        }
-
-        snapshot.movements = snapshot.movements.filter(m => !incomingIds.has(m.id));
-        snapshot.movements.push(...incomingMovements);
-
-        COLLECTIONS_WITH_MOVEMENT_ID.forEach(collName => {
-          const existing = snapshot[collName] || [];
-          const filteredExisting = existing.filter(
-            item => !incomingIds.has(item.movementId)
-          );
-          const incoming = (data[collName] || []).filter(item =>
-            incomingIds.has(item.movementId)
-          );
-          snapshot[collName] = filteredExisting.concat(incoming);
-        });
-
-        currentMovementId = incomingMovements[0]?.id || currentMovementId;
-        currentItemId = null;
-        resetNavigationHistory();
-        saveSnapshot();
+        const data = JSON.parse(reader.result);
+        importMovementSnapshot(data);
         setStatus('Imported movement JSON');
       } catch (e) {
         alert('Failed to import: ' + e.message);
       }
     };
     reader.readAsText(file);
+  }
+
+  function buildAssetPathForMedia(media) {
+    const base = 'media';
+    const idPart = media.id || media.slug || 'asset';
+    const mimeType = media.mimeType || '';
+
+    if (mimeType.startsWith('audio/')) return `${base}/audio/${idPart}`;
+    if (mimeType.startsWith('image/')) return `${base}/images/${idPart}`;
+    if (mimeType === 'text/csv') return `${base}/csv/${idPart}.csv`;
+    return `${base}/other/${idPart}`;
+  }
+
+  function buildZipManifest(movementSnapshot) {
+    const clone = JSON.parse(JSON.stringify(movementSnapshot || {}));
+
+    if (Array.isArray(clone.texts)) {
+      clone.texts = clone.texts.map(text => {
+        const { body, ...rest } = text;
+        const id = text.id || text.slug || 'text';
+        return {
+          ...rest,
+          bodyPath: `texts/${id}.md`
+        };
+      });
+    }
+
+    if (Array.isArray(clone.media)) {
+      clone.media = clone.media.map(media => ({
+        ...media,
+        assetPath: media.assetPath || buildAssetPathForMedia(media)
+      }));
+    }
+
+    return clone;
+  }
+
+  function addTextsToZip(zip, movementSnapshot) {
+    if (!Array.isArray(movementSnapshot.texts)) return;
+    movementSnapshot.texts.forEach(text => {
+      const id = text.id || text.slug || 'text';
+      const filePath = `texts/${id}.md`;
+      zip.file(filePath, text.body || '');
+    });
+  }
+
+  async function addAssetsToZip(zip, movementSnapshot) {
+    if (!Array.isArray(movementSnapshot.media)) return;
+    const movementId = movementSnapshot.movements?.[0]?.id;
+    if (!movementId) return;
+
+    for (const media of movementSnapshot.media) {
+      const assetPath = media.assetPath || buildAssetPathForMedia(media);
+      const key = `${movementId}:${assetPath}`;
+      const blob = movementAssetStore.get(key);
+      if (!blob) continue;
+      zip.file(assetPath, blob);
+    }
+  }
+
+  async function exportCurrentMovementAsZip() {
+    if (!currentMovementId) {
+      alert('Select a movement to export.');
+      return;
+    }
+    const movementSnapshot = createMovementSnapshot(currentMovementId, snapshot);
+    if (!movementSnapshot) {
+      alert('Movement not found.');
+      return;
+    }
+
+    const movement = movementSnapshot.movements[0];
+    const zip = new JSZip();
+    const manifest = buildZipManifest(movementSnapshot);
+    zip.file('manifest.json', JSON.stringify(manifest, null, 2));
+    addTextsToZip(zip, movementSnapshot);
+    await addAssetsToZip(zip, movementSnapshot);
+
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const filename = `${movement.shortName || movement.id}.movement.zip`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+    setStatus('Exported movement ZIP');
+  }
+
+  async function hydrateTextsFromZip(zip, movementSnapshot) {
+    if (!Array.isArray(movementSnapshot.texts)) return;
+    for (const text of movementSnapshot.texts) {
+      if (!text.bodyPath) continue;
+      const file = zip.file(text.bodyPath);
+      if (!file) continue;
+      text.body = await file.async('string');
+    }
+  }
+
+  async function hydrateAssetsFromZip(zip, movementSnapshot) {
+    if (!Array.isArray(movementSnapshot.media)) return;
+    const movementId = movementSnapshot.movements?.[0]?.id;
+    if (!movementId) return;
+
+    for (const media of movementSnapshot.media) {
+      const assetPath = media.assetPath;
+      if (!assetPath) continue;
+      const file = zip.file(assetPath);
+      if (!file) continue;
+      const blob = await file.async('blob');
+      const key = `${movementId}:${assetPath}`;
+      movementAssetStore.set(key, blob);
+    }
+  }
+
+  async function importMovementFromZipFile(file) {
+    try {
+      const zip = await JSZip.loadAsync(file);
+      const manifestFile = zip.file('manifest.json');
+      if (!manifestFile) throw new Error('manifest.json not found');
+
+      const manifestText = await manifestFile.async('string');
+      const manifest = JSON.parse(manifestText);
+      await hydrateTextsFromZip(zip, manifest);
+      await hydrateAssetsFromZip(zip, manifest);
+      importMovementSnapshot(manifest);
+      setStatus('Imported movement ZIP');
+    } catch (e) {
+      console.error(e);
+      alert('Failed to import ZIP: ' + e.message);
+    }
   }
 
   function resetToDefaults() {
@@ -3279,6 +3455,7 @@
     currentMovementId = snapshot.movements[0]?.id || null;
     currentItemId = null;
     currentTextId = null;
+    movementAssetStore.clear();
     resetNavigationHistory();
     saveSnapshot({ clearMovementDirty: true, clearItemDirty: true });
     setStatus('Reset to default');
@@ -3326,19 +3503,38 @@
     addListenerById('btn-delete-movement', 'click', () =>
       deleteMovement(currentMovementId)
     );
-    addListenerById('btn-export-movement', 'click', exportCurrentMovement);
+    addListenerById(
+      'btn-export-movement-json',
+      'click',
+      exportCurrentMovementAsJson
+    );
 
-    addListenerById('btn-import-movement', 'click', () => {
-      const input = document.getElementById('file-input');
+    addListenerById('btn-import-movement-json', 'click', () => {
+      const input = document.getElementById('file-input-json');
       if (!input) return;
       input.value = '';
       input.click();
     });
 
-    addListenerById('file-input', 'change', e => {
+    addListenerById('file-input-json', 'change', e => {
       const file = e.target.files && e.target.files[0];
       if (!file) return;
-      importMovementFromFile(file);
+      importMovementFromJsonFile(file);
+    });
+
+    addListenerById('btn-export-movement-zip', 'click', exportCurrentMovementAsZip);
+
+    addListenerById('btn-import-movement-zip', 'click', () => {
+      const input = document.getElementById('file-input-zip');
+      if (!input) return;
+      input.value = '';
+      input.click();
+    });
+
+    addListenerById('file-input-zip', 'change', e => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      importMovementFromZipFile(file);
     });
 
     ['movement-name', 'movement-shortName', 'movement-summary', 'movement-tags']
