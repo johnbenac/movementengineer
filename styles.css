@@ -316,6 +316,15 @@ button.danger:hover {
   margin-top: 0.5rem;
 }
 
+.sr-file-input {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0.001;
+  overflow: hidden;
+}
+
 .code-pill {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
     "Courier New", monospace;
