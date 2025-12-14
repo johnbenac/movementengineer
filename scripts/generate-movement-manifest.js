@@ -6,11 +6,23 @@ const MOVEMENTS_DIR = path.join(__dirname, '..', 'movements');
 const OUTPUT_FILE = path.join(MOVEMENTS_DIR, 'manifest.js');
 
 function getDatasetFiles() {
-  return fs
-    .readdirSync(MOVEMENTS_DIR)
-    .filter(name => name.endsWith('-data.js'))
-    .sort()
-    .map(name => `./movements/${name}`);
+  function findDatasets(dir) {
+    return fs.readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        return findDatasets(fullPath);
+      }
+      return entry.isFile() && entry.name.endsWith('-data.js') ? [fullPath] : [];
+    });
+  }
+
+  const datasetPaths = findDatasets(MOVEMENTS_DIR).sort();
+  const toBrowserPath = filePath => {
+    const relative = path.relative(path.join(__dirname, '..'), filePath);
+    return `./${relative.split(path.sep).join('/')}`;
+  };
+
+  return datasetPaths.map(toBrowserPath);
 }
 
 function buildManifestContent(files) {
