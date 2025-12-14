@@ -41,16 +41,31 @@
     return merged;
   }
 
-  function loadNodeSnapshots() {
+  function findNodeDatasets(dir) {
     const path = require('path');
     const fs = require('fs');
+    const datasets = [];
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+
+    entries.forEach(entry => {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        datasets.push(...findNodeDatasets(fullPath));
+      } else if (entry.isFile() && entry.name.endsWith('-data.js')) {
+        datasets.push(fullPath);
+      }
+    });
+
+    return datasets;
+  }
+
+  function loadNodeSnapshots() {
+    const path = require('path');
     const movementsDir = path.join(__dirname, 'movements');
     try {
-      const files = fs
-        .readdirSync(movementsDir)
-        .filter(file => file.endsWith('-data.js'))
-        .map(file => path.join(movementsDir, file));
-      return files.map(file => require(file));
+      return findNodeDatasets(movementsDir)
+        .sort()
+        .map(file => require(file));
     } catch (e) {
       return [];
     }

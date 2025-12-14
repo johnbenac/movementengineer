@@ -5,12 +5,27 @@ const path = require('path');
 const MOVEMENTS_DIR = path.join(__dirname, '..', 'movements');
 const OUTPUT_FILE = path.join(MOVEMENTS_DIR, 'manifest.js');
 
+function findDatasetFiles(dir) {
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  const files = [];
+
+  entries.forEach(entry => {
+    const fullPath = path.join(dir, entry.name);
+
+    if (entry.isDirectory()) {
+      files.push(...findDatasetFiles(fullPath));
+    } else if (entry.isFile() && entry.name.endsWith('-data.js')) {
+      const relPath = path.relative(path.join(__dirname, '..'), fullPath);
+      // Use POSIX separators so manifest works in browsers regardless of OS.
+      files.push(`./${relPath.split(path.sep).join('/')}`);
+    }
+  });
+
+  return files;
+}
+
 function getDatasetFiles() {
-  return fs
-    .readdirSync(MOVEMENTS_DIR)
-    .filter(name => name.endsWith('-data.js'))
-    .sort()
-    .map(name => `./movements/${name}`);
+  return findDatasetFiles(MOVEMENTS_DIR).sort();
 }
 
 function buildManifestContent(files) {
