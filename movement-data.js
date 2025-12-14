@@ -41,15 +41,28 @@
     return merged;
   }
 
+  function findDatasetFiles(dir) {
+    const fs = require('fs');
+    const path = require('path');
+
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    const files = entries.flatMap(entry => {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        return findDatasetFiles(fullPath);
+      }
+      return entry.isFile() && entry.name.endsWith('-data.js') ? [fullPath] : [];
+    });
+
+    return files.sort();
+  }
+
   function loadNodeSnapshots() {
     const path = require('path');
     const fs = require('fs');
     const movementsDir = path.join(__dirname, 'movements');
     try {
-      const files = fs
-        .readdirSync(movementsDir)
-        .filter(file => file.endsWith('-data.js'))
-        .map(file => path.join(movementsDir, file));
+      const files = findDatasetFiles(movementsDir);
       return files.map(file => require(file));
     } catch (e) {
       return [];
