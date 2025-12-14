@@ -47,27 +47,52 @@
     const movementsDir = path.join(__dirname, 'movements');
 
     function findDatasetFiles(dir) {
-      try {
-        const entries = fs.readdirSync(dir, { withFileTypes: true });
-        return entries.flatMap(entry => {
-          const fullPath = path.join(dir, entry.name);
-          if (entry.isDirectory()) {
-            return findDatasetFiles(fullPath);
-          }
-          return entry.isFile() && entry.name.endsWith('-data.js') ? [fullPath] : [];
-        });
-      } catch (e) {
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      return entries.flatMap(entry => {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) return findDatasetFiles(fullPath);
+        if (entry.isFile() && entry.name.endsWith('-data.js')) return [fullPath];
         return [];
-      }
+      });
     }
 
     const files = findDatasetFiles(movementsDir).sort();
-    return files.map(file => require(file));
+
+    if (files.length === 0) {
+      throw new Error(`No movement dataset files found under: ${movementsDir}`);
+    }
+
+    return files.map(file => {
+      try {
+        const snapshot = require(file);
+        if (!snapshot || typeof snapshot !== 'object') {
+          throw new Error(`Dataset did not export an object (got ${typeof snapshot})`);
+        }
+        return snapshot;
+      } catch (e) {
+        e.message = `Failed to load movement dataset file:\n  ${file}\n\n${e.message}`;
+        throw e;
+      }
+    });
   }
 
   function loadBrowserSnapshots() {
     if (typeof window === 'undefined') return [];
-    return Array.isArray(window.movementDatasets) ? window.movementDatasets : [];
+
+    if (!Array.isArray(window.movementDatasets)) {
+      throw new Error(
+        'window.movementDatasets is missing. Did you include movements/manifest.js before movement-data.js?'
+      );
+    }
+
+    const state = window.__movementDataLoadState;
+    if (state && (state.errors?.length || Object.keys(state.pushedBySrc || {}).length === 0)) {
+      throw new Error(
+        'Movement dataset loading did not complete cleanly. Check the fatal banner / console.'
+      );
+    }
+
+    return window.movementDatasets;
   }
 
   const snapshots =
