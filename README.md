@@ -40,7 +40,7 @@ This repository is static; you can open `index.html` directly in a browser or se
 2. Open `index.html` in your browser, or run a static server (for example, `npx http-server .`) and navigate to the hosted URL.
 
 ### Movement data
-Bundled datasets live in `movements/*-data.js`. The manifest at `movements/manifest.js` ensures the browser loads each dataset. When you add or rename datasets, regenerate the manifest with:
+Bundled datasets live in `movements/*-data.js`. Datasets can be organized in nested subdirectories (for example, `movements/reknit/seed-data.js`) so you can keep large movements split across multiple files. The manifest at `movements/manifest.js` ensures the browser loads each dataset. When you add or rename datasets, regenerate the manifest with:
 
 ```bash
 node scripts/generate-movement-manifest.js

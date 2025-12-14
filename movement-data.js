@@ -45,11 +45,22 @@
     const path = require('path');
     const fs = require('fs');
     const movementsDir = path.join(__dirname, 'movements');
+
+    function collectFiles(dirPath, files = []) {
+      const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+      entries.forEach(entry => {
+        const absolutePath = path.join(dirPath, entry.name);
+        if (entry.isDirectory()) {
+          collectFiles(absolutePath, files);
+        } else if (entry.isFile() && entry.name.endsWith('-data.js')) {
+          files.push(absolutePath);
+        }
+      });
+      return files;
+    }
+
     try {
-      const files = fs
-        .readdirSync(movementsDir)
-        .filter(file => file.endsWith('-data.js'))
-        .map(file => path.join(movementsDir, file));
+      const files = collectFiles(movementsDir).sort();
       return files.map(file => require(file));
     } catch (e) {
       return [];
