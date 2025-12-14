@@ -45,15 +45,24 @@
     const path = require('path');
     const fs = require('fs');
     const movementsDir = path.join(__dirname, 'movements');
-    try {
-      const files = fs
-        .readdirSync(movementsDir)
-        .filter(file => file.endsWith('-data.js'))
-        .map(file => path.join(movementsDir, file));
-      return files.map(file => require(file));
-    } catch (e) {
-      return [];
+
+    function findDatasetFiles(dir) {
+      try {
+        const entries = fs.readdirSync(dir, { withFileTypes: true });
+        return entries.flatMap(entry => {
+          const fullPath = path.join(dir, entry.name);
+          if (entry.isDirectory()) {
+            return findDatasetFiles(fullPath);
+          }
+          return entry.isFile() && entry.name.endsWith('-data.js') ? [fullPath] : [];
+        });
+      } catch (e) {
+        return [];
+      }
     }
+
+    const files = findDatasetFiles(movementsDir).sort();
+    return files.map(file => require(file));
   }
 
   function loadBrowserSnapshots() {
