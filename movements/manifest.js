@@ -11,6 +11,16 @@
     "./movements/race-for-the-cure/race-base-data.js",
     "./movements/race-for-the-cure/rules/safety-rule-data.js",
     "./movements/race-for-the-cure/rules/volunteer-rule-data.js",
+    "./movements/reknit-december-15/claims/corporate-productization-claim-data.js",
+    "./movements/reknit-december-15/claims/in-person-weaving-claim-data.js",
+    "./movements/reknit-december-15/claims/tech-isolating-claim-data.js",
+    "./movements/reknit-december-15/entities/reknit-entities-data.js",
+    "./movements/reknit-december-15/reknit-base-data.js",
+    "./movements/reknit-december-15/relations/reknit-relations-data.js",
+    "./movements/reknit-december-15/texts/corporate-productization-text-data.js",
+    "./movements/reknit-december-15/texts/in-person-meetings-text-data.js",
+    "./movements/reknit-december-15/texts/reknit-manifesto-data.js",
+    "./movements/reknit-december-15/texts/tech-isolating-text-data.js",
     "./movements/upside-data.js",
     "./movements/womens-suffrage-data.js"
   ];
