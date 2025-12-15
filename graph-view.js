@@ -265,6 +265,7 @@
 
       const hit = createSvgElement('circle', {
         r: NODE_RADIUS + 10,
+        class: 'graph-node-hit',
         fill: 'transparent',
         stroke: 'transparent'
       });
@@ -272,6 +273,7 @@
 
       const circle = createSvgElement('circle', {
         r: NODE_RADIUS,
+        class: 'graph-node-circle',
         fill: hashToColor(node.kind),
         stroke: node.id === centerEntityId ? '#111827' : '#f3f4f6',
         'stroke-width': node.id === centerEntityId ? 3 : 2
@@ -414,8 +416,20 @@
 
     _bindGlobalContextClose() {
       if (this._boundContextClose) return;
-      this._boundContextClose = () => this._hideContextMenu();
-      document.addEventListener('click', this._boundContextClose);
+      this._boundContextClose = evt => {
+        // Ignore right-clicks used to open the menu
+        if (evt && typeof evt.button === 'number' && evt.button === 2) return;
+
+        // Don't close if clicking inside the menu itself; menu items handle their own clicks
+        if (this.contextMenu && evt?.target && this.contextMenu.contains(evt.target)) {
+          return;
+        }
+
+        this._hideContextMenu();
+      };
+
+      // Use mousedown so the close doesn't immediately follow the contextmenu event
+      document.addEventListener('mousedown', this._boundContextClose, true);
     }
 
     _syncNodeState(nodes, positions) {
@@ -480,11 +494,16 @@
 
     _showContextMenu(event, node) {
       event.preventDefault();
+      event.stopPropagation();
       this.currentContextNodeId = node.id;
       if (!this.contextMenu) {
         this.contextMenu = document.createElement('div');
         this.contextMenu.className = 'graph-context-menu';
         document.body.appendChild(this.contextMenu);
+
+        // Prevent interactions inside the menu from bubbling and instantly closing it
+        this.contextMenu.addEventListener('mousedown', e => e.stopPropagation());
+        this.contextMenu.addEventListener('contextmenu', e => e.preventDefault());
       }
 
       this.contextMenu.innerHTML = '';
