@@ -5,7 +5,7 @@
  * This file just handles DOM, localStorage, import/export, and wiring.
  */
 
-/* global DomainService, StorageService, ViewModels, EntityGraphView, JSZip */
+/* global DomainService, StorageService, ViewModels, EntityGraphView, JSZip, d3 */
 
 (function () {
   'use strict';
@@ -20,6 +20,18 @@
   let navigationStack = [];
   let navigationIndex = -1;
   let entityGraphView = null;
+  // ---- Graph Workbench (new) ----
+  let workbenchGraphView = null;
+  let graphWorkbenchDom = null;
+  let graphWorkbenchState = {
+    includeShared: true,
+    leftWidth: 360,
+    rightWidth: 420,
+    searchKind: 'all',
+    searchQuery: '',
+    selection: null, // { type: 'entity'|'relation', id }
+    focusEntityId: null
+  };
   const movementAssetStore = new Map();
   function clearMovementAssetsForIds(movementIds) {
     if (!movementIds || !movementIds.size) return;
@@ -283,6 +295,7 @@
       case 'media':
       case 'relations':
       case 'notes':
+      case 'graph':
         renderMovementSection(tabName);
         break;
       case 'data':
@@ -476,7 +489,8 @@
         authority: $('#authority-sources'),
         media: $('#media-gallery'),
         relations: $('#relations-table-wrapper'),
-        notes: $('#notes-table-wrapper')
+        notes: $('#notes-table-wrapper'),
+        graph: $('#graph-workbench-root')
       };
       const target = containers[name];
       if (target) {
@@ -520,6 +534,9 @@
         break;
       case 'notes':
         renderNotesView();
+        break;
+      case 'graph':
+        renderGraphWorkbench();
         break;
       default:
         break;
@@ -2213,6 +2230,1385 @@
     });
 
     wrapper.appendChild(table);
+  }
+
+  // ============================================================
+  // Graph Workbench (Entities + Relations) — Ontorum-style panes
+  // ============================================================
+
+  function normaliseArray(value) {
+    return Array.isArray(value) ? value : [];
+  }
+
+  function uniqueSorted(values) {
+    return Array.from(new Set(values.filter(Boolean))).sort((a, b) =>
+      String(a).localeCompare(String(b), undefined, { sensitivity: 'base' })
+    );
+  }
+
+  function buildEntityIndex(entities) {
+    const map = new Map();
+    (entities || []).forEach(e => {
+      if (e && e.id) map.set(e.id, e);
+    });
+    return map;
+  }
+
+  function buildRelationIndex(relations) {
+    const map = new Map();
+    (relations || []).forEach(r => {
+      if (r && r.id) map.set(r.id, r);
+    });
+    return map;
+  }
+
+  function getGraphDatasetForCurrentMovement() {
+    const includeShared = Boolean(graphWorkbenchState.includeShared);
+    const movementId = currentMovementId;
+
+    const allEntities = normaliseArray(snapshot && snapshot.entities);
+    const allRelations = normaliseArray(snapshot && snapshot.relations);
+
+    // Filter entities: movement-specific + optional shared (movementId == null)
+    const visibleEntities = allEntities.filter(e => {
+      if (!e) return false;
+      const matchesMovement =
+        e.movementId === movementId || (includeShared && e.movementId == null);
+      return Boolean(matchesMovement);
+    });
+
+    const entityById = buildEntityIndex(visibleEntities);
+
+    // Filter relations: movement-specific + optional shared + endpoints must exist
+    const visibleRelations = allRelations.filter(r => {
+      if (!r) return false;
+      const matchesMovement =
+        r.movementId === movementId || (includeShared && r.movementId == null);
+      if (!matchesMovement) return false;
+      if (!r.fromEntityId || !r.toEntityId) return false;
+      return entityById.has(r.fromEntityId) && entityById.has(r.toEntityId);
+    });
+
+    return { visibleEntities, visibleRelations, entityById };
+  }
+
+  function buildGraphNodesAndLinks(visibleEntities, visibleRelations) {
+    // IMPORTANT: Graph nodes/links are COPIES so D3 doesn't mutate snapshot objects.
+    const nodes = visibleEntities.map(e => ({
+      id: e.id,
+      name: e.name || e.id,
+      kind: e.kind || '',
+      movementId: e.movementId ?? null
+    }));
+
+    const links = visibleRelations.map(r => ({
+      id: r.id,
+      source: r.fromEntityId,
+      target: r.toEntityId,
+      relationType: r.relationType || 'rel'
+    }));
+
+    return { nodes, links };
+  }
+
+  function ensureGraphWorkbenchDom() {
+    const root = document.getElementById('graph-workbench-root');
+    if (!root) return null;
+
+    if (graphWorkbenchDom && graphWorkbenchDom.root === root) {
+      return graphWorkbenchDom;
+    }
+
+    root.innerHTML = `
+      <div id="graph-workbench" class="graph-workbench"
+           style="--graph-left-width:${graphWorkbenchState.leftWidth}px; --graph-right-width:${graphWorkbenchState.rightWidth}px;">
+        <div class="graph-pane">
+          <div class="graph-resize-handle left" title="Drag to resize"></div>
+          <div class="pane-inner">
+
+            <details id="gw-create-entity" open>
+              <summary>Add Entity</summary>
+              <div class="details-body">
+                <form id="gw-add-entity-form" class="graph-form">
+                  <div class="form-row">
+                    <label>Name *</label>
+                    <input id="gw-add-entity-name" class="form-control" type="text" required />
+                  </div>
+
+                  <div class="form-row">
+                    <label>Kind</label>
+                    <input id="gw-add-entity-kind" class="form-control" list="gw-entity-kind-options" placeholder="e.g. being, place, object..." />
+                    <datalist id="gw-entity-kind-options"></datalist>
+                  </div>
+
+                  <div class="form-row">
+                    <label>Summary</label>
+                    <textarea id="gw-add-entity-summary" class="form-control" rows="3"></textarea>
+                  </div>
+
+                  <div class="form-row">
+                    <label>Tags (comma separated)</label>
+                    <input id="gw-add-entity-tags" class="form-control" type="text" placeholder="tag1, tag2" />
+                  </div>
+
+                  <div class="form-row">
+                    <label>Sources of truth (comma separated)</label>
+                    <input id="gw-add-entity-sources" class="form-control" type="text" placeholder="book, tradition, archive..." />
+                  </div>
+
+                  <div class="form-row">
+                    <label>Source entity IDs (comma separated)</label>
+                    <input id="gw-add-entity-source-entities" class="form-control" type="text" placeholder="ent-123, ent-456" />
+                    <div class="hint">Tip: use the Search pane to copy IDs.</div>
+                  </div>
+
+                  <div class="form-row">
+                    <label>Notes</label>
+                    <textarea id="gw-add-entity-notes" class="form-control" rows="3"></textarea>
+                  </div>
+
+                  <div class="form-row inline">
+                    <button class="btn btn-primary" type="submit">Create Entity</button>
+                  </div>
+                </form>
+              </div>
+            </details>
+
+            <details id="gw-create-relation">
+              <summary>Add Relation</summary>
+              <div class="details-body">
+                <div id="gw-add-relation-hint" class="hint">
+                  Select an entity in the graph to create a relation from/to it.
+                </div>
+
+                <form id="gw-add-relation-form" class="graph-form">
+                  <div class="form-row">
+                    <label>Direction</label>
+                    <div class="form-row inline" style="margin-bottom:0;">
+                      <label style="flex:none;">
+                        <input type="radio" name="gw-rel-direction" value="outgoing" checked />
+                        Outgoing (selected → target)
+                      </label>
+                      <label style="flex:none;">
+                        <input type="radio" name="gw-rel-direction" value="incoming" />
+                        Incoming (source → selected)
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="form-row">
+                    <label>Relation type *</label>
+                    <input id="gw-add-relation-type" class="form-control" list="gw-relation-type-options" required placeholder="e.g. inspired_by, teacher_of..." />
+                    <datalist id="gw-relation-type-options"></datalist>
+                  </div>
+
+                  <div class="form-row">
+                    <label>Target entity *</label>
+                    <select id="gw-add-relation-target" class="form-control" required></select>
+                  </div>
+
+                  <div class="form-row">
+                    <label>Tags (comma separated)</label>
+                    <input id="gw-add-relation-tags" class="form-control" type="text" placeholder="tag1, tag2" />
+                  </div>
+
+                  <div class="form-row">
+                    <label>Supporting claim IDs (comma separated)</label>
+                    <input id="gw-add-relation-claims" class="form-control" type="text" placeholder="claim-1, claim-2" />
+                  </div>
+
+                  <div class="form-row">
+                    <label>Sources of truth (comma separated)</label>
+                    <input id="gw-add-relation-sources" class="form-control" type="text" placeholder="book, tradition, archive..." />
+                  </div>
+
+                  <div class="form-row">
+                    <label>Source entity IDs (comma separated)</label>
+                    <input id="gw-add-relation-source-entities" class="form-control" type="text" placeholder="ent-123, ent-456" />
+                  </div>
+
+                  <div class="form-row">
+                    <label>Notes</label>
+                    <textarea id="gw-add-relation-notes" class="form-control" rows="3"></textarea>
+                  </div>
+
+                  <div class="form-row inline">
+                    <button class="btn btn-primary" type="submit" id="gw-add-relation-submit">Create Relation</button>
+                  </div>
+                </form>
+              </div>
+            </details>
+
+          </div>
+        </div>
+
+        <div class="graph-pane">
+          <div class="pane-inner">
+            <div class="graph-toolbar">
+              <label style="display:flex;align-items:center;gap:8px;">
+                <input id="gw-include-shared" type="checkbox" />
+                Include shared (movementId=null)
+              </label>
+
+              <span class="toolbar-spacer"></span>
+
+              <button class="btn" type="button" id="gw-fit-btn">Fit</button>
+              <button class="btn" type="button" id="gw-clear-selection-btn">Clear</button>
+            </div>
+
+            <div id="gw-canvas" class="graph-canvas card"></div>
+          </div>
+        </div>
+
+        <div class="graph-pane">
+          <div class="graph-resize-handle right" title="Drag to resize"></div>
+          <div class="pane-inner">
+
+            <details id="gw-search" open>
+              <summary>Search</summary>
+              <div class="details-body">
+                <div class="search-panel card">
+                  <div class="search-controls">
+                    <select id="gw-search-kind" class="form-control"></select>
+                    <input id="gw-search-query" class="form-control" type="text" placeholder="Search by name/summary..." />
+                  </div>
+                  <ul id="gw-search-results" class="graph-search-results"></ul>
+                </div>
+              </div>
+            </details>
+
+            <details id="gw-selected" open>
+              <summary>Selected</summary>
+              <div class="details-body">
+                <div id="gw-selected-body" class="card graph-selected-body"></div>
+              </div>
+            </details>
+
+          </div>
+        </div>
+      </div>
+    `;
+
+    const dom = {
+      root,
+      workbench: document.getElementById('graph-workbench'),
+      canvas: document.getElementById('gw-canvas'),
+
+      includeShared: document.getElementById('gw-include-shared'),
+      fitBtn: document.getElementById('gw-fit-btn'),
+      clearBtn: document.getElementById('gw-clear-selection-btn'),
+
+      searchKind: document.getElementById('gw-search-kind'),
+      searchQuery: document.getElementById('gw-search-query'),
+      searchResults: document.getElementById('gw-search-results'),
+
+      selectedBody: document.getElementById('gw-selected-body'),
+
+      createEntityForm: document.getElementById('gw-add-entity-form'),
+      createEntityName: document.getElementById('gw-add-entity-name'),
+      createEntityKind: document.getElementById('gw-add-entity-kind'),
+      createEntitySummary: document.getElementById('gw-add-entity-summary'),
+      createEntityTags: document.getElementById('gw-add-entity-tags'),
+      createEntitySources: document.getElementById('gw-add-entity-sources'),
+      createEntitySourceEntities: document.getElementById('gw-add-entity-source-entities'),
+      createEntityNotes: document.getElementById('gw-add-entity-notes'),
+      entityKindDatalist: document.getElementById('gw-entity-kind-options'),
+
+      createRelationHint: document.getElementById('gw-add-relation-hint'),
+      createRelationForm: document.getElementById('gw-add-relation-form'),
+      createRelationType: document.getElementById('gw-add-relation-type'),
+      createRelationTarget: document.getElementById('gw-add-relation-target'),
+      createRelationTags: document.getElementById('gw-add-relation-tags'),
+      createRelationClaims: document.getElementById('gw-add-relation-claims'),
+      createRelationSources: document.getElementById('gw-add-relation-sources'),
+      createRelationSourceEntities: document.getElementById('gw-add-relation-source-entities'),
+      createRelationNotes: document.getElementById('gw-add-relation-notes'),
+      relationTypeDatalist: document.getElementById('gw-relation-type-options'),
+
+      leftHandle: root.querySelector('.graph-resize-handle.left'),
+      rightHandle: root.querySelector('.graph-resize-handle.right')
+    };
+
+    // init checkbox state
+    dom.includeShared.checked = Boolean(graphWorkbenchState.includeShared);
+
+    // resize handles
+    function attachResize(handleEl, side) {
+      if (!handleEl) return;
+      handleEl.addEventListener('mousedown', e => {
+        e.preventDefault();
+        const startX = e.clientX;
+        const startLeft = graphWorkbenchState.leftWidth;
+        const startRight = graphWorkbenchState.rightWidth;
+
+        function onMove(ev) {
+          const dx = ev.clientX - startX;
+          if (side === 'left') {
+            const next = Math.max(240, startLeft + dx);
+            graphWorkbenchState.leftWidth = next;
+          } else {
+            // dragging right handle left/right changes right pane width inversely
+            const next = Math.max(260, startRight - dx);
+            graphWorkbenchState.rightWidth = next;
+          }
+          if (dom.workbench) {
+            dom.workbench.style.setProperty('--graph-left-width', graphWorkbenchState.leftWidth + 'px');
+            dom.workbench.style.setProperty('--graph-right-width', graphWorkbenchState.rightWidth + 'px');
+          }
+        }
+
+        function onUp() {
+          window.removeEventListener('mousemove', onMove);
+          window.removeEventListener('mouseup', onUp);
+        }
+
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+      });
+    }
+
+    attachResize(dom.leftHandle, 'left');
+    attachResize(dom.rightHandle, 'right');
+
+    // wiring: filters + buttons
+    dom.includeShared.addEventListener('change', () => {
+      graphWorkbenchState.includeShared = Boolean(dom.includeShared.checked);
+      renderGraphWorkbench();
+    });
+
+    dom.fitBtn.addEventListener('click', () => {
+      if (workbenchGraphView) workbenchGraphView.fit();
+    });
+
+    dom.clearBtn.addEventListener('click', () => {
+      graphWorkbenchState.selection = null;
+      graphWorkbenchState.focusEntityId = null;
+      renderGraphWorkbench();
+    });
+
+    dom.searchKind.addEventListener('change', () => {
+      graphWorkbenchState.searchKind = dom.searchKind.value || 'all';
+      renderGraphWorkbench(); // cheap enough; also updates result list selection highlights
+    });
+
+    dom.searchQuery.addEventListener('input', () => {
+      graphWorkbenchState.searchQuery = dom.searchQuery.value || '';
+      renderGraphWorkbench();
+    });
+
+    // Create entity
+    dom.createEntityForm.addEventListener('submit', e => {
+      e.preventDefault();
+      if (!currentMovementId) return;
+
+      const name = (dom.createEntityName.value || '').trim();
+      if (!name) return;
+
+      const kind = (dom.createEntityKind.value || '').trim() || null;
+      const summary = (dom.createEntitySummary.value || '').trim() || null;
+      const tags = parseCsvInput(dom.createEntityTags.value);
+      const sourcesOfTruth = parseCsvInput(dom.createEntitySources.value);
+      const sourceEntityIds = parseCsvInput(dom.createEntitySourceEntities.value);
+      const notes = (dom.createEntityNotes.value || '').trim() || null;
+
+      try {
+        const entity = DomainService.addNewItem(snapshot, 'entities', currentMovementId);
+        // Fill fields (data-model.js fields)
+        entity.name = name;
+        entity.kind = kind;
+        entity.summary = summary;
+        entity.tags = tags;
+        entity.sourcesOfTruth = sourcesOfTruth;
+        entity.sourceEntityIds = sourceEntityIds;
+        entity.notes = notes;
+
+        DomainService.upsertItem(snapshot, 'entities', entity);
+        saveSnapshot({ show: false });
+        setStatus('Entity created');
+
+        // Reset form
+        dom.createEntityName.value = '';
+        dom.createEntityKind.value = '';
+        dom.createEntitySummary.value = '';
+        dom.createEntityTags.value = '';
+        dom.createEntitySources.value = '';
+        dom.createEntitySourceEntities.value = '';
+        dom.createEntityNotes.value = '';
+
+        graphWorkbenchState.selection = { type: 'entity', id: entity.id };
+        graphWorkbenchState.focusEntityId = entity.id;
+        renderGraphWorkbench();
+      } catch (err) {
+        alert(err instanceof Error ? err.message : 'Failed to create entity');
+      }
+    });
+
+    // Create relation
+    dom.createRelationForm.addEventListener('submit', e => {
+      e.preventDefault();
+      if (!currentMovementId) return;
+
+      const sel = graphWorkbenchState.selection;
+      if (!sel || sel.type !== 'entity') return;
+
+      const selectedEntityId = sel.id;
+      const relationType = (dom.createRelationType.value || '').trim();
+      const targetId = dom.createRelationTarget.value;
+
+      if (!relationType || !targetId) return;
+
+      const direction = (dom.createRelationForm.querySelector('input[name="gw-rel-direction"]:checked') || {}).value || 'outgoing';
+      const outgoing = direction === 'outgoing';
+
+      const fromEntityId = outgoing ? selectedEntityId : targetId;
+      const toEntityId = outgoing ? targetId : selectedEntityId;
+
+      const tags = parseCsvInput(dom.createRelationTags.value);
+      const supportingClaimIds = parseCsvInput(dom.createRelationClaims.value);
+      const sourcesOfTruth = parseCsvInput(dom.createRelationSources.value);
+      const sourceEntityIds = parseCsvInput(dom.createRelationSourceEntities.value);
+      const notes = (dom.createRelationNotes.value || '').trim() || null;
+
+      try {
+        const rel = DomainService.addNewItem(snapshot, 'relations', currentMovementId);
+        rel.fromEntityId = fromEntityId;
+        rel.toEntityId = toEntityId;
+        rel.relationType = relationType;
+        rel.tags = tags;
+        rel.supportingClaimIds = supportingClaimIds;
+        rel.sourcesOfTruth = sourcesOfTruth;
+        rel.sourceEntityIds = sourceEntityIds;
+        rel.notes = notes;
+
+        DomainService.upsertItem(snapshot, 'relations', rel);
+        saveSnapshot({ show: false });
+        setStatus('Relation created');
+
+        dom.createRelationType.value = '';
+        dom.createRelationTags.value = '';
+        dom.createRelationClaims.value = '';
+        dom.createRelationSources.value = '';
+        dom.createRelationSourceEntities.value = '';
+        dom.createRelationNotes.value = '';
+
+        graphWorkbenchState.selection = { type: 'relation', id: rel.id };
+        renderGraphWorkbench();
+      } catch (err) {
+        alert(err instanceof Error ? err.message : 'Failed to create relation');
+      }
+    });
+
+    graphWorkbenchDom = dom;
+    return dom;
+  }
+
+  function createWorkbenchGraphView(options) {
+    if (typeof d3 === 'undefined') {
+      return {
+        render(container) {
+          if (!container) return;
+          container.innerHTML = '<p class="hint">D3 is not loaded. (Graph view requires d3.)</p>';
+        },
+        fit() {}
+      };
+    }
+
+    const onNodeClick = options.onNodeClick;
+    const onLinkClick = options.onLinkClick;
+    const onBackgroundClick = options.onBackgroundClick;
+
+    let containerEl = null;
+    let svg = null;
+    let g = null;
+    let zoomBehavior = null;
+    let simulation = null;
+    let lastTransform = d3.zoomIdentity.scale(0.9);
+
+    // Persist positions between renders (NOT in snapshot)
+    const pos = new Map(); // id -> {x,y}
+
+    function getSize(el) {
+      const r = el.getBoundingClientRect();
+      return {
+        width: Math.max(640, Math.floor(r.width || 0)),
+        height: Math.max(420, Math.floor(r.height || 0))
+      };
+    }
+
+    function stopSimulation() {
+      if (simulation) {
+        simulation.stop();
+        simulation = null;
+      }
+    }
+
+    function render(container, graph, state) {
+      if (!container) return;
+      containerEl = container;
+
+      // Rebuild fresh each render (simple + reliable)
+      stopSimulation();
+      container.innerHTML = '';
+
+      const { width, height } = getSize(container);
+
+      svg = d3.select(container)
+        .append('svg')
+        .attr('width', width)
+        .attr('height', height);
+
+      // defs
+      const defs = svg.append('defs');
+      defs.append('marker')
+        .attr('id', 'gw-arrow')
+        .attr('viewBox', '-10 -5 10 10')
+        .attr('refX', 18)
+        .attr('refY', 0)
+        .attr('markerWidth', 6)
+        .attr('markerHeight', 6)
+        .attr('orient', 'auto')
+        .append('path')
+        .attr('d', 'M -10,-5 L 0,0 L -10,5')
+        .attr('fill', 'var(--link-color, rgba(255,255,255,0.45))');
+
+      // background click target
+      svg.append('rect')
+        .attr('width', width)
+        .attr('height', height)
+        .attr('fill', 'transparent')
+        .on('click', () => {
+          if (onBackgroundClick) onBackgroundClick();
+        });
+
+      g = svg.append('g').attr('class', 'zoom-group');
+
+      zoomBehavior = d3.zoom()
+        .scaleExtent([0.2, 2])
+        .on('zoom', event => {
+          lastTransform = event.transform;
+          g.attr('transform', lastTransform);
+        });
+
+      svg.call(zoomBehavior);
+      svg.call(zoomBehavior.transform, lastTransform);
+
+      const nodes = normaliseArray(graph && graph.nodes).map(n => ({ ...n }));
+      const linksRaw = normaliseArray(graph && graph.links).map(l => ({ ...l }));
+
+      if (!nodes.length) {
+        g.append('text')
+          .attr('x', width / 2)
+          .attr('y', height / 2)
+          .attr('text-anchor', 'middle')
+          .attr('dominant-baseline', 'middle')
+          .style('opacity', 0.75)
+          .text('No entities for this movement.');
+        return;
+      }
+
+      // restore or seed positions
+      nodes.forEach(n => {
+        const saved = pos.get(n.id);
+        if (saved) {
+          n.x = saved.x;
+          n.y = saved.y;
+        } else {
+          const angle = Math.random() * 2 * Math.PI;
+          const radius = Math.min(width, height) / 3;
+          n.x = width / 2 + radius * Math.cos(angle);
+          n.y = height / 2 + radius * Math.sin(angle);
+        }
+      });
+
+      const nodeById = new Map(nodes.map(n => [n.id, n]));
+      const links = linksRaw
+        .map(l => ({
+          ...l,
+          source: nodeById.get(l.source),
+          target: nodeById.get(l.target)
+        }))
+        .filter(l => l.source && l.target);
+
+      // Draw links
+      const linkGroup = g.append('g')
+        .selectAll('g.graph-link')
+        .data(links, d => d.id)
+        .join('g')
+        .attr('class', d => {
+          const selected = state && state.selectedRelationId && state.selectedRelationId === d.id;
+          return 'graph-link' + (selected ? ' selected' : '');
+        })
+        .on('click', (event, d) => {
+          event.stopPropagation();
+          if (onLinkClick) onLinkClick(d.id);
+        });
+
+      linkGroup.append('path')
+        .attr('class', 'graph-link-hitbox');
+
+      const linkPath = linkGroup.append('path')
+        .attr('class', 'graph-link')
+        .attr('marker-end', 'url(#gw-arrow)');
+
+      const linkLabel = linkGroup.append('text')
+        .attr('class', 'graph-link-label')
+        .text(d => d.relationType || 'rel');
+
+      // Draw nodes
+      const nodeGroup = g.append('g')
+        .selectAll('g.graph-node')
+        .data(nodes, d => d.id)
+        .join('g')
+        .attr('class', d => {
+          const selected = state && state.selectedEntityId && state.selectedEntityId === d.id;
+          return 'graph-node' + (selected ? ' selected' : '');
+        })
+        .call(d3.drag()
+          .on('start', (event, d) => {
+            if (!event.active && simulation) simulation.alphaTarget(0.2).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+          })
+          .on('drag', (event, d) => {
+            d.fx = event.x;
+            d.fy = event.y;
+          })
+          .on('end', (event, d) => {
+            if (!event.active && simulation) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+          })
+        )
+        .on('click', (event, d) => {
+          event.stopPropagation();
+          if (onNodeClick) onNodeClick(d.id);
+        });
+
+      // color by kind (stable-ish)
+      const kinds = uniqueSorted(nodes.map(n => n.kind));
+      const color = d3.scaleOrdinal()
+        .domain(kinds.length ? kinds : [''])
+        .range(d3.schemeTableau10 || d3.schemeCategory10);
+
+      nodeGroup.append('circle')
+        .attr('r', 18)
+        .attr('fill', d => color(d.kind || ''));
+
+      nodeGroup.append('text')
+        .attr('dy', 32)
+        .attr('text-anchor', 'middle')
+        .text(d => {
+          const s = d.name || d.id;
+          return s.length > 18 ? s.slice(0, 17) + '…' : s;
+        });
+
+      // simulation
+      simulation = d3.forceSimulation(nodes)
+        .force('link', d3.forceLink(links)
+          .id(d => d.id)
+          .distance(120))
+        .force('charge', d3.forceManyBody().strength(-420).distanceMax(420))
+        .force('center', d3.forceCenter(width / 2, height / 2))
+        .force('collision', d3.forceCollide().radius(28))
+        .alpha(1)
+        .alphaDecay(0.03);
+
+      function arcPath(d) {
+        const sx = d.source.x;
+        const sy = d.source.y;
+        const tx = d.target.x;
+        const ty = d.target.y;
+
+        const dx = tx - sx;
+        const dy = ty - sy;
+        const dr = Math.sqrt(dx * dx + dy * dy) * 1.2;
+
+        return `M ${sx} ${sy} A ${dr} ${dr} 0 0 1 ${tx} ${ty}`;
+      }
+
+      simulation.on('tick', () => {
+        // persist positions
+        nodes.forEach(n => {
+          if (typeof n.x === 'number' && typeof n.y === 'number') {
+            pos.set(n.id, { x: n.x, y: n.y });
+          }
+        });
+
+        linkPath.attr('d', arcPath);
+        linkGroup.selectAll('path.graph-link-hitbox').attr('d', arcPath);
+
+        linkLabel.attr('transform', d => {
+          const pathEl = linkPath.nodes()[links.indexOf(d)];
+          if (!pathEl) return null;
+          const len = pathEl.getTotalLength();
+          const p = pathEl.getPointAtLength(len / 2);
+          return `translate(${p.x},${p.y})`;
+        });
+
+        nodeGroup.attr('transform', d => `translate(${d.x},${d.y})`);
+      });
+
+      // focus node
+      if (state && state.focusEntityId) {
+        const focusNode = nodes.find(n => n.id === state.focusEntityId);
+        if (focusNode) {
+          const zoomLevel = 1.2;
+          const t = d3.zoomIdentity
+            .translate(width / 2 - focusNode.x * zoomLevel, height / 2 - focusNode.y * zoomLevel)
+            .scale(zoomLevel);
+
+          svg.transition()
+            .duration(450)
+            .call(zoomBehavior.transform, t);
+        }
+      }
+    }
+
+    function fit() {
+      if (!svg || !containerEl) return;
+      if (!simulation) return;
+
+      const nodes = simulation.nodes();
+      if (!nodes || !nodes.length) return;
+
+      const { width, height } = getSize(containerEl);
+      const xs = nodes.map(n => n.x).filter(n => Number.isFinite(n));
+      const ys = nodes.map(n => n.y).filter(n => Number.isFinite(n));
+      if (!xs.length || !ys.length) return;
+
+      const minX = Math.min.apply(null, xs);
+      const maxX = Math.max.apply(null, xs);
+      const minY = Math.min.apply(null, ys);
+      const maxY = Math.max.apply(null, ys);
+
+      const pad = 40;
+      const dx = (maxX - minX) || 1;
+      const dy = (maxY - minY) || 1;
+
+      const scale = Math.min(
+        2,
+        Math.max(0.2, Math.min((width - pad * 2) / dx, (height - pad * 2) / dy))
+      );
+
+      const tx = width / 2 - ((minX + maxX) / 2) * scale;
+      const ty = height / 2 - ((minY + maxY) / 2) * scale;
+
+      const t = d3.zoomIdentity.translate(tx, ty).scale(scale);
+
+      svg.transition()
+        .duration(500)
+        .call(zoomBehavior.transform, t);
+    }
+
+    return { render, fit };
+  }
+
+  function renderGraphSearch(dom, visibleEntities) {
+    // Update kind filter options
+    const kinds = uniqueSorted(visibleEntities.map(e => e.kind));
+    const opts = [{ value: 'all', label: 'All kinds' }].concat(
+      kinds.map(k => ({ value: k, label: k }))
+    );
+
+    // preserve selection if possible
+    const prev = dom.searchKind.value || graphWorkbenchState.searchKind || 'all';
+    clearElement(dom.searchKind);
+    opts.forEach(o => {
+      const opt = document.createElement('option');
+      opt.value = o.value;
+      opt.textContent = o.label;
+      dom.searchKind.appendChild(opt);
+    });
+    dom.searchKind.value = opts.some(o => o.value === prev) ? prev : 'all';
+
+    // update query input (avoid stomping cursor if already typing)
+    if (dom.searchQuery.value !== (graphWorkbenchState.searchQuery || '')) {
+      dom.searchQuery.value = graphWorkbenchState.searchQuery || '';
+    }
+
+    // compute filtered
+    const q = (graphWorkbenchState.searchQuery || '').trim().toLowerCase();
+    const kindFilter = dom.searchKind.value || 'all';
+
+    const filtered = visibleEntities.filter(e => {
+      const matchesKind = kindFilter === 'all' || (e.kind || '') === kindFilter;
+      if (!matchesKind) return false;
+      if (!q) return true;
+      const hay = `${e.name || ''} ${(e.summary || '')}`.toLowerCase();
+      return hay.includes(q);
+    });
+
+    // render results
+    clearElement(dom.searchResults);
+
+    if (!filtered.length) {
+      const li = document.createElement('li');
+      li.className = 'muted';
+      li.style.padding = '10px';
+      li.textContent = 'No matches.';
+      dom.searchResults.appendChild(li);
+      return;
+    }
+
+    const selected =
+      graphWorkbenchState.selection && graphWorkbenchState.selection.type === 'entity'
+        ? graphWorkbenchState.selection.id
+        : null;
+
+    filtered.slice(0, 300).forEach(e => {
+      const li = document.createElement('li');
+      li.className = 'graph-search-item' + (selected === e.id ? ' selected' : '');
+      const left = document.createElement('span');
+      left.textContent = e.name || e.id;
+
+      const right = document.createElement('span');
+      right.className = 'meta';
+      right.textContent = e.kind || '—';
+
+      li.appendChild(left);
+      li.appendChild(right);
+      li.addEventListener('click', () => {
+        graphWorkbenchState.selection = { type: 'entity', id: e.id };
+        graphWorkbenchState.focusEntityId = e.id;
+        renderGraphWorkbench();
+      });
+
+      dom.searchResults.appendChild(li);
+    });
+  }
+
+  function renderSelected(dom, visibleEntities, visibleRelations, entityById) {
+    clearElement(dom.selectedBody);
+
+    const selection = graphWorkbenchState.selection;
+    if (!selection) {
+      const p = document.createElement('p');
+      p.className = 'muted';
+      p.textContent = 'Click an entity or relation to view/edit details.';
+      dom.selectedBody.appendChild(p);
+      return;
+    }
+
+    const allEntities = normaliseArray(snapshot.entities);
+    const allRelations = normaliseArray(snapshot.relations);
+    const entityIndexAll = buildEntityIndex(allEntities);
+    const relationIndexAll = buildRelationIndex(allRelations);
+
+    if (selection.type === 'entity') {
+      const entity = entityIndexAll.get(selection.id);
+      if (!entity) {
+        dom.selectedBody.textContent = 'Selected entity not found.';
+        return;
+      }
+
+      const header = document.createElement('div');
+      header.className = 'graph-selected-header';
+
+      const titleWrap = document.createElement('div');
+      const title = document.createElement('p');
+      title.className = 'graph-selected-title';
+      title.textContent = entity.name || entity.id;
+      const subtitle = document.createElement('p');
+      subtitle.className = 'graph-selected-subtitle';
+      subtitle.textContent = `Entity · ${entity.kind || '—'} · ${entity.id}`;
+      titleWrap.appendChild(title);
+      titleWrap.appendChild(subtitle);
+
+      const actions = document.createElement('div');
+      const btnSave = document.createElement('button');
+      btnSave.className = 'btn btn-primary';
+      btnSave.type = 'button';
+      btnSave.textContent = 'Save';
+
+      const btnDelete = document.createElement('button');
+      btnDelete.className = 'btn btn-danger';
+      btnDelete.type = 'button';
+      btnDelete.textContent = 'Delete';
+
+      actions.appendChild(btnSave);
+      actions.appendChild(btnDelete);
+
+      header.appendChild(titleWrap);
+      header.appendChild(actions);
+      dom.selectedBody.appendChild(header);
+
+      // form
+      const form = document.createElement('form');
+      form.className = 'graph-form';
+
+      function addInput(label, name, value, opts) {
+        const row = document.createElement('div');
+        row.className = 'form-row';
+        const l = document.createElement('label');
+        l.textContent = label;
+        const input = document.createElement('input');
+        input.className = 'form-control';
+        input.name = name;
+        input.value = value || '';
+        if (opts && opts.readOnly) input.readOnly = true;
+        row.appendChild(l);
+        row.appendChild(input);
+        form.appendChild(row);
+      }
+
+      function addTextarea(label, name, value, rows) {
+        const row = document.createElement('div');
+        row.className = 'form-row';
+        const l = document.createElement('label');
+        l.textContent = label;
+        const ta = document.createElement('textarea');
+        ta.className = 'form-control';
+        ta.name = name;
+        ta.rows = rows || 3;
+        ta.value = value || '';
+        row.appendChild(l);
+        row.appendChild(ta);
+        form.appendChild(row);
+      }
+
+      addInput('ID', 'id', entity.id, { readOnly: true });
+      addInput('Movement ID', 'movementId', entity.movementId || '', {});
+      addInput('Kind', 'kind', entity.kind || '', {});
+      addInput('Name', 'name', entity.name || '', {});
+      addTextarea('Summary', 'summary', entity.summary || '', 3);
+      addInput('Tags (csv)', 'tags', normaliseArray(entity.tags).join(', '), {});
+      addInput('Sources of truth (csv)', 'sourcesOfTruth', normaliseArray(entity.sourcesOfTruth).join(', '), {});
+      addInput('Source entity IDs (csv)', 'sourceEntityIds', normaliseArray(entity.sourceEntityIds).join(', '), {});
+      addTextarea('Notes', 'notes', entity.notes || '', 3);
+
+      dom.selectedBody.appendChild(form);
+
+      // relations list
+      const out = visibleRelations.filter(r => r.fromEntityId === entity.id);
+      const inc = visibleRelations.filter(r => r.toEntityId === entity.id);
+
+      function renderRelList(label, rels, arrow) {
+        const heading = document.createElement('div');
+        heading.className = 'section-heading small';
+        heading.textContent = `${label} (${rels.length})`;
+        dom.selectedBody.appendChild(heading);
+
+        if (!rels.length) {
+          const p = document.createElement('p');
+          p.className = 'muted';
+          p.textContent = '—';
+          dom.selectedBody.appendChild(p);
+          return;
+        }
+
+        const ul = document.createElement('ul');
+        ul.style.margin = '0';
+        ul.style.paddingLeft = '18px';
+
+        rels.forEach(r => {
+          const li = document.createElement('li');
+          const otherId = arrow === '→' ? r.toEntityId : r.fromEntityId;
+          const other = entityById.get(otherId) || entityIndexAll.get(otherId);
+          const otherLabel = other ? (other.name || other.id) : otherId;
+
+          li.style.cursor = 'pointer';
+          li.textContent = arrow === '→'
+            ? `${r.relationType || 'rel'} → ${otherLabel}`
+            : `${otherLabel} → ${r.relationType || 'rel'}`;
+
+          li.addEventListener('click', () => {
+            graphWorkbenchState.selection = { type: 'relation', id: r.id };
+            renderGraphWorkbench();
+          });
+
+          ul.appendChild(li);
+        });
+
+        dom.selectedBody.appendChild(ul);
+      }
+
+      renderRelList('Outgoing relations', out, '→');
+      renderRelList('Incoming relations', inc, '←');
+
+      // Save handler
+      btnSave.addEventListener('click', () => {
+        const fd = new FormData(form);
+        const updated = {
+          ...entity,
+          movementId: (fd.get('movementId') || '').toString().trim() || null,
+          kind: (fd.get('kind') || '').toString().trim() || null,
+          name: (fd.get('name') || '').toString().trim() || entity.name,
+          summary: (fd.get('summary') || '').toString().trim() || null,
+          tags: parseCsvInput((fd.get('tags') || '').toString()),
+          sourcesOfTruth: parseCsvInput((fd.get('sourcesOfTruth') || '').toString()),
+          sourceEntityIds: parseCsvInput((fd.get('sourceEntityIds') || '').toString()),
+          notes: (fd.get('notes') || '').toString().trim() || null
+        };
+
+        try {
+          DomainService.upsertItem(snapshot, 'entities', updated);
+          saveSnapshot({ show: false });
+          setStatus('Entity saved');
+          renderGraphWorkbench();
+        } catch (err) {
+          alert(err instanceof Error ? err.message : 'Failed to save entity');
+        }
+      });
+
+      // Delete handler (also delete connected relations)
+      btnDelete.addEventListener('click', () => {
+        const ok = window.confirm(
+          'Delete this entity AND all relations that reference it?\n\n' +
+          (entity.name || entity.id) +
+          '\n\nThis cannot be undone.'
+        );
+        if (!ok) return;
+
+        try {
+          // delete relations pointing to/from this entity
+          const rels = normaliseArray(snapshot.relations).filter(r =>
+            r && (r.fromEntityId === entity.id || r.toEntityId === entity.id)
+          );
+          rels.forEach(r => {
+            DomainService.deleteItem(snapshot, 'relations', r.id);
+          });
+
+          DomainService.deleteItem(snapshot, 'entities', entity.id);
+
+          graphWorkbenchState.selection = null;
+          graphWorkbenchState.focusEntityId = null;
+
+          saveSnapshot({ show: false });
+          setStatus('Entity deleted');
+          renderGraphWorkbench();
+        } catch (err) {
+          alert(err instanceof Error ? err.message : 'Failed to delete entity');
+        }
+      });
+
+      return;
+    }
+
+    // Relation selection
+    if (selection.type === 'relation') {
+      const rel = relationIndexAll.get(selection.id);
+      if (!rel) {
+        dom.selectedBody.textContent = 'Selected relation not found.';
+        return;
+      }
+
+      const from = entityIndexAll.get(rel.fromEntityId);
+      const to = entityIndexAll.get(rel.toEntityId);
+
+      const header = document.createElement('div');
+      header.className = 'graph-selected-header';
+
+      const titleWrap = document.createElement('div');
+      const title = document.createElement('p');
+      title.className = 'graph-selected-title';
+      title.textContent = rel.relationType || 'Relation';
+      const subtitle = document.createElement('p');
+      subtitle.className = 'graph-selected-subtitle';
+      subtitle.textContent = `Relation · ${rel.id}`;
+      titleWrap.appendChild(title);
+      titleWrap.appendChild(subtitle);
+
+      const actions = document.createElement('div');
+      const btnSave = document.createElement('button');
+      btnSave.className = 'btn btn-primary';
+      btnSave.type = 'button';
+      btnSave.textContent = 'Save';
+
+      const btnDelete = document.createElement('button');
+      btnDelete.className = 'btn btn-danger';
+      btnDelete.type = 'button';
+      btnDelete.textContent = 'Delete';
+
+      actions.appendChild(btnSave);
+      actions.appendChild(btnDelete);
+
+      header.appendChild(titleWrap);
+      header.appendChild(actions);
+      dom.selectedBody.appendChild(header);
+
+      // quick sandwich preview
+      const preview = document.createElement('div');
+      preview.className = 'card';
+      preview.style.padding = '10px';
+      preview.style.marginBottom = '10px';
+
+      const line = document.createElement('div');
+      line.style.display = 'flex';
+      line.style.gap = '8px';
+      line.style.flexWrap = 'wrap';
+      line.style.alignItems = 'center';
+
+      const fromChip = document.createElement('span');
+      fromChip.className = 'chip clickable';
+      fromChip.textContent = from ? (from.name || from.id) : rel.fromEntityId;
+      fromChip.addEventListener('click', () => {
+        graphWorkbenchState.selection = { type: 'entity', id: rel.fromEntityId };
+        graphWorkbenchState.focusEntityId = rel.fromEntityId;
+        renderGraphWorkbench();
+      });
+
+      const mid = document.createElement('span');
+      mid.style.opacity = '0.8';
+      mid.textContent = `→ ${rel.relationType || 'rel'} →`;
+
+      const toChip = document.createElement('span');
+      toChip.className = 'chip clickable';
+      toChip.textContent = to ? (to.name || to.id) : rel.toEntityId;
+      toChip.addEventListener('click', () => {
+        graphWorkbenchState.selection = { type: 'entity', id: rel.toEntityId };
+        graphWorkbenchState.focusEntityId = rel.toEntityId;
+        renderGraphWorkbench();
+      });
+
+      line.appendChild(fromChip);
+      line.appendChild(mid);
+      line.appendChild(toChip);
+
+      preview.appendChild(line);
+      dom.selectedBody.appendChild(preview);
+
+      // form
+      const form = document.createElement('form');
+      form.className = 'graph-form';
+
+      function addInput(label, name, value, opts) {
+        const row = document.createElement('div');
+        row.className = 'form-row';
+        const l = document.createElement('label');
+        l.textContent = label;
+        const input = document.createElement('input');
+        input.className = 'form-control';
+        input.name = name;
+        input.value = value || '';
+        if (opts && opts.readOnly) input.readOnly = true;
+        row.appendChild(l);
+        row.appendChild(input);
+        form.appendChild(row);
+      }
+
+      function addTextarea(label, name, value, rows) {
+        const row = document.createElement('div');
+        row.className = 'form-row';
+        const l = document.createElement('label');
+        l.textContent = label;
+        const ta = document.createElement('textarea');
+        ta.className = 'form-control';
+        ta.name = name;
+        ta.rows = rows || 3;
+        ta.value = value || '';
+        row.appendChild(l);
+        row.appendChild(ta);
+        form.appendChild(row);
+      }
+
+      addInput('ID', 'id', rel.id, { readOnly: true });
+      addInput('Movement ID', 'movementId', rel.movementId || '', {});
+      addInput('From entity ID', 'fromEntityId', rel.fromEntityId || '', {});
+      addInput('To entity ID', 'toEntityId', rel.toEntityId || '', {});
+      addInput('Relation type', 'relationType', rel.relationType || '', {});
+      addInput('Tags (csv)', 'tags', normaliseArray(rel.tags).join(', '), {});
+      addInput('Supporting claim IDs (csv)', 'supportingClaimIds', normaliseArray(rel.supportingClaimIds).join(', '), {});
+      addInput('Sources of truth (csv)', 'sourcesOfTruth', normaliseArray(rel.sourcesOfTruth).join(', '), {});
+      addInput('Source entity IDs (csv)', 'sourceEntityIds', normaliseArray(rel.sourceEntityIds).join(', '), {});
+      addTextarea('Notes', 'notes', rel.notes || '', 3);
+
+      dom.selectedBody.appendChild(form);
+
+      btnSave.addEventListener('click', () => {
+        const fd = new FormData(form);
+
+        const updated = {
+          ...rel,
+          movementId: (fd.get('movementId') || '').toString().trim() || null,
+          fromEntityId: (fd.get('fromEntityId') || '').toString().trim(),
+          toEntityId: (fd.get('toEntityId') || '').toString().trim(),
+          relationType: (fd.get('relationType') || '').toString().trim() || rel.relationType,
+          tags: parseCsvInput((fd.get('tags') || '').toString()),
+          supportingClaimIds: parseCsvInput((fd.get('supportingClaimIds') || '').toString()),
+          sourcesOfTruth: parseCsvInput((fd.get('sourcesOfTruth') || '').toString()),
+          sourceEntityIds: parseCsvInput((fd.get('sourceEntityIds') || '').toString()),
+          notes: (fd.get('notes') || '').toString().trim() || null
+        };
+
+        // basic validation: endpoints must exist in *current* graph dataset
+        if (!updated.fromEntityId || !updated.toEntityId) {
+          alert('Relation must have fromEntityId and toEntityId.');
+          return;
+        }
+
+        try {
+          DomainService.upsertItem(snapshot, 'relations', updated);
+          saveSnapshot({ show: false });
+          setStatus('Relation saved');
+          renderGraphWorkbench();
+        } catch (err) {
+          alert(err instanceof Error ? err.message : 'Failed to save relation');
+        }
+      });
+
+      btnDelete.addEventListener('click', () => {
+        const ok = window.confirm(
+          'Delete this relation?\n\n' +
+          (rel.relationType || rel.id) +
+          '\n\nThis cannot be undone.'
+        );
+        if (!ok) return;
+
+        try {
+          DomainService.deleteItem(snapshot, 'relations', rel.id);
+          graphWorkbenchState.selection = null;
+          saveSnapshot({ show: false });
+          setStatus('Relation deleted');
+          renderGraphWorkbench();
+        } catch (err) {
+          alert(err instanceof Error ? err.message : 'Failed to delete relation');
+        }
+      });
+
+      return;
+    }
+  }
+
+  function renderGraphWorkbench() {
+    const root = document.getElementById('graph-workbench-root');
+    if (!root) return;
+
+    // If no movement selected, show hint and bail (consistent with other tabs)
+    if (!currentMovementId) {
+      clearElement(root);
+      const p = document.createElement('p');
+      p.className = 'hint';
+      p.textContent = 'Create or select a movement on the left to use the graph editor.';
+      root.appendChild(p);
+      return;
+    }
+
+    const dom = ensureGraphWorkbenchDom();
+    if (!dom) return;
+
+    // keep CSS widths in sync
+    dom.workbench.style.setProperty('--graph-left-width', graphWorkbenchState.leftWidth + 'px');
+    dom.workbench.style.setProperty('--graph-right-width', graphWorkbenchState.rightWidth + 'px');
+
+    // Compute dataset
+    const { visibleEntities, visibleRelations, entityById } = getGraphDatasetForCurrentMovement();
+
+    // Keep selection valid for this movement
+    if (graphWorkbenchState.selection) {
+      const sel = graphWorkbenchState.selection;
+      if (sel.type === 'entity') {
+        const exists = normaliseArray(snapshot.entities).some(e => e && e.id === sel.id);
+        if (!exists) graphWorkbenchState.selection = null;
+      } else {
+        const exists = normaliseArray(snapshot.relations).some(r => r && r.id === sel.id);
+        if (!exists) graphWorkbenchState.selection = null;
+      }
+    }
+
+    // Build datalist options (kinds + relation types)
+    const kinds = uniqueSorted(visibleEntities.map(e => e.kind));
+    clearElement(dom.entityKindDatalist);
+    kinds.forEach(k => {
+      const opt = document.createElement('option');
+      opt.value = k;
+      dom.entityKindDatalist.appendChild(opt);
+    });
+
+    const relTypes = uniqueSorted(visibleRelations.map(r => r.relationType));
+    clearElement(dom.relationTypeDatalist);
+    relTypes.forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t;
+      dom.relationTypeDatalist.appendChild(opt);
+    });
+
+    // Relation target dropdown
+    const sel = graphWorkbenchState.selection;
+    const selectedEntityId = sel && sel.type === 'entity' ? sel.id : null;
+
+    clearElement(dom.createRelationTarget);
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = selectedEntityId ? 'Select target entity…' : 'Select an entity first…';
+    dom.createRelationTarget.appendChild(placeholder);
+
+    if (selectedEntityId) {
+      // group by kind for readability
+      const byKind = new Map();
+      visibleEntities.forEach(e => {
+        if (!e || e.id === selectedEntityId) return;
+        const k = e.kind || '—';
+        if (!byKind.has(k)) byKind.set(k, []);
+        byKind.get(k).push(e);
+      });
+
+      Array.from(byKind.keys()).sort().forEach(kind => {
+        const og = document.createElement('optgroup');
+        og.label = kind;
+        byKind.get(kind)
+          .slice()
+          .sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id))
+          .forEach(e => {
+            const opt = document.createElement('option');
+            opt.value = e.id;
+            opt.textContent = (e.name || e.id) + ` (${e.id})`;
+            og.appendChild(opt);
+          });
+        dom.createRelationTarget.appendChild(og);
+      });
+
+      dom.createRelationHint.textContent = 'Create a relation relative to the currently selected entity.';
+      dom.createRelationForm.querySelectorAll('input,select,textarea,button').forEach(el => {
+        el.disabled = false;
+      });
+    } else {
+      dom.createRelationHint.textContent = 'Select an entity in the graph to create a relation from/to it.';
+      dom.createRelationForm.querySelectorAll('input,select,textarea,button').forEach(el => {
+        el.disabled = true;
+      });
+    }
+
+    // Render search + selected panels
+    renderGraphSearch(dom, visibleEntities);
+    renderSelected(dom, visibleEntities, visibleRelations, entityById);
+
+    // Render graph
+    if (!workbenchGraphView) {
+      workbenchGraphView = createWorkbenchGraphView({
+        onNodeClick: id => {
+          graphWorkbenchState.selection = { type: 'entity', id };
+          graphWorkbenchState.focusEntityId = id;
+          renderGraphWorkbench();
+        },
+        onLinkClick: id => {
+          graphWorkbenchState.selection = { type: 'relation', id };
+          renderGraphWorkbench();
+        },
+        onBackgroundClick: () => {
+          graphWorkbenchState.selection = null;
+          graphWorkbenchState.focusEntityId = null;
+          renderGraphWorkbench();
+        }
+      });
+    }
+
+    const graphData = buildGraphNodesAndLinks(visibleEntities, visibleRelations);
+
+    const selectedEntityIdForGraph =
+      graphWorkbenchState.selection && graphWorkbenchState.selection.type === 'entity'
+        ? graphWorkbenchState.selection.id
+        : null;
+
+    const selectedRelationIdForGraph =
+      graphWorkbenchState.selection && graphWorkbenchState.selection.type === 'relation'
+        ? graphWorkbenchState.selection.id
+        : null;
+
+    workbenchGraphView.render(dom.canvas, graphData, {
+      selectedEntityId: selectedEntityIdForGraph,
+      selectedRelationId: selectedRelationIdForGraph,
+      focusEntityId: graphWorkbenchState.focusEntityId
+    });
   }
 
   // ---- Notes (buildNotesViewModel) ----
