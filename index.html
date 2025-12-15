@@ -74,6 +74,7 @@
         <button class="tab" data-tab="rules">Rules</button>
         <button class="tab" data-tab="authority">Authority</button>
         <button class="tab" data-tab="media">Media</button>
+        <button class="tab" data-tab="graph">Graph</button>
         <button class="tab" data-tab="relations">Relations</button>
         <button class="tab" data-tab="notes">Notes</button>
         <button class="tab" data-tab="data">Collections</button>
@@ -478,6 +479,13 @@
         </div>
       </section>
 
+      <!-- Graph -->
+      <section id="tab-graph" class="tab-panel">
+        <div class="panel-body">
+          <div id="graph-workbench-root"></div>
+        </div>
+      </section>
+
       <!-- Notes -->
       <section id="tab-notes" class="tab-panel">
         <div class="panel-body">
@@ -617,6 +625,7 @@
   <script src="./movements/manifest.js"></script>
   <script src="./movement-data.js"></script>
   <script src="./storage.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
   <script src="./domain-service.js"></script>
   <script src="./graph-view.js"></script>
   <!-- comparison-services.js is not required for this UI, but harmless to include if you like -->
