@@ -41,19 +41,26 @@
     return Math.min(Math.max(value, min), max);
   }
 
-  function initialisePositions(nodes, width, height) {
+  function initialisePositions(nodes, width, height, previousPositions = new Map()) {
     const positions = new Map();
     const centerX = width / 2;
     const centerY = height / 2;
     const radius = Math.min(width, height) / 3;
 
     nodes.forEach((node, idx) => {
+      const existing = previousPositions.get(node.id);
+      if (existing) {
+        positions.set(node.id, { ...existing });
+        return;
+      }
+
       const angle = (idx / Math.max(nodes.length, 1)) * Math.PI * 2;
       positions.set(node.id, {
         x: centerX + Math.cos(angle) * radius,
         y: centerY + Math.sin(angle) * radius,
         vx: 0,
-        vy: 0
+        vy: 0,
+        frozen: false
       });
     });
 
@@ -66,7 +73,18 @@
     const iterations = options.iterations || 220;
     const centerId = options.centerEntityId;
 
-    const positions = initialisePositions(nodes, width, height);
+    const positions = initialisePositions(
+      nodes,
+      width,
+      height,
+      options.initialPositions || new Map()
+    );
+
+    const frozenNodes = new Set(options.frozenNodes || []);
+    frozenNodes.forEach(id => {
+      const pos = positions.get(id);
+      if (pos) pos.frozen = true;
+    });
 
     for (let step = 0; step < iterations; step += 1) {
       // Repulsion
@@ -82,10 +100,14 @@
           const force = REPULSION / distSq;
           const fx = (force * dx) / Math.sqrt(distSq);
           const fy = (force * dy) / Math.sqrt(distSq);
-          posA.vx += fx;
-          posA.vy += fy;
-          posB.vx -= fx;
-          posB.vy -= fy;
+          if (!posA.frozen) {
+            posA.vx += fx;
+            posA.vy += fy;
+          }
+          if (!posB.frozen) {
+            posB.vx -= fx;
+            posB.vy -= fy;
+          }
         }
       }
 
@@ -101,21 +123,32 @@
         const force = SPRING_STRENGTH * delta;
         const fx = (force * dx) / dist;
         const fy = (force * dy) / dist;
-        source.vx += fx;
-        source.vy += fy;
-        target.vx -= fx;
-        target.vy -= fy;
+        if (!source.frozen) {
+          source.vx += fx;
+          source.vy += fy;
+        }
+        if (!target.frozen) {
+          target.vx -= fx;
+          target.vy -= fy;
+        }
       });
 
       // Centering force on the highlighted node
       if (centerId && positions.has(centerId)) {
         const pos = positions.get(centerId);
-        pos.vx += (width / 2 - pos.x) * CENTER_PULL;
-        pos.vy += (height / 2 - pos.y) * CENTER_PULL;
+        if (!pos.frozen) {
+          pos.vx += (width / 2 - pos.x) * CENTER_PULL;
+          pos.vy += (height / 2 - pos.y) * CENTER_PULL;
+        }
       }
 
       // Integrate
       positions.forEach(pos => {
+        if (pos.frozen) {
+          pos.vx = 0;
+          pos.vy = 0;
+          return;
+        }
         pos.vx *= DAMPING;
         pos.vy *= DAMPING;
         pos.x = clamp(pos.x + pos.vx, NODE_RADIUS * 2, width - NODE_RADIUS * 2);
@@ -188,7 +221,8 @@
         x: pos.x,
         y: pos.y + NODE_RADIUS + 12,
         class: 'graph-node-label',
-        'text-anchor': 'middle'
+        'text-anchor': 'middle',
+        'data-id': node.id
       });
       label.textContent = node.name || node.id;
       svg.appendChild(label);
@@ -206,7 +240,9 @@
         y1: from.y,
         x2: to.x,
         y2: to.y,
-        'marker-end': 'url(#arrowhead)'
+        'marker-end': 'url(#arrowhead)',
+        'data-from': edge.fromId,
+        'data-to': edge.toId
       });
       g.appendChild(line);
 
@@ -216,7 +252,9 @@
         x: midX,
         y: midY - 6,
         class: 'graph-edge-label',
-        'text-anchor': 'middle'
+        'text-anchor': 'middle',
+        'data-from': edge.fromId,
+        'data-to': edge.toId
       });
       label.textContent = edge.relationType;
       g.appendChild(label);
@@ -224,7 +262,7 @@
     svg.appendChild(g);
   }
 
-  function renderNodes(svg, nodes, positions, centerEntityId, onNodeClick) {
+  function renderNodes(svg, nodes, positions, centerEntityId, onNodeClick, options) {
     const g = createSvgElement('g', { class: 'graph-nodes' });
     nodes.forEach(node => {
       const pos = positions.get(node.id);
@@ -237,6 +275,16 @@
       if (onNodeClick) {
         nodeGroup.style.cursor = 'pointer';
         nodeGroup.addEventListener('click', () => onNodeClick(node.id));
+      }
+
+      nodeGroup.dataset.id = node.id;
+      nodeGroup.classList.toggle('frozen', Boolean(pos.frozen));
+
+      if (options && options.onNodeContextMenu) {
+        nodeGroup.addEventListener('contextmenu', event => {
+          event.preventDefault();
+          options.onNodeContextMenu(event, node.id);
+        });
       }
 
       const hit = createSvgElement('circle', {
@@ -279,10 +327,20 @@
   class EntityGraphView {
     constructor(options = {}) {
       this.onNodeClick = options.onNodeClick || null;
+      this.positions = new Map();
+      this.frozenNodes = new Set();
+      this.lastContainer = null;
+      this.lastVm = null;
+      this.lastOptions = null;
+      this.contextMenu = null;
+      this.contextMenuState = { nodeId: null };
     }
 
     render(container, vm, options = {}) {
       if (!container) return;
+      this.lastContainer = container;
+      this.lastVm = vm;
+      this.lastOptions = options;
       clearElement(container);
 
       if (!vm || !vm.nodes || !vm.nodes.length) {
@@ -296,11 +354,24 @@
       const width = options.width || container.clientWidth || DEFAULT_WIDTH;
       const height = options.height || DEFAULT_HEIGHT;
 
+      // Clean up state for removed nodes
+      const incomingIds = new Set(vm.nodes.map(n => n.id));
+      Array.from(this.positions.keys()).forEach(id => {
+        if (!incomingIds.has(id)) {
+          this.positions.delete(id);
+          this.frozenNodes.delete(id);
+        }
+      });
+
       const positions = runForceLayout(vm.nodes, vm.edges, {
         width,
         height,
-        centerEntityId: options.centerEntityId
+        centerEntityId: options.centerEntityId,
+        initialPositions: this.positions,
+        frozenNodes: this.frozenNodes
       });
+
+      this.positions = positions;
 
       const wrapper = document.createElement('div');
       wrapper.className = 'entity-graph-wrapper';
@@ -330,8 +401,13 @@
       svg.appendChild(defs);
 
       renderEdges(svg, vm.edges, positions);
-      renderNodes(svg, vm.nodes, positions, options.centerEntityId, this.onNodeClick);
+      renderNodes(svg, vm.nodes, positions, options.centerEntityId, this.onNodeClick, {
+        onNodeContextMenu: (event, nodeId) => this.showContextMenu(event, nodeId)
+      });
       renderLabels(svg, vm.nodes, positions);
+
+      this.attachDragHandlers(canvas, svg, vm);
+      this.installContextMenu();
 
       canvas.appendChild(svg);
       wrapper.appendChild(canvas);
@@ -340,6 +416,163 @@
       wrapper.appendChild(summary);
 
       container.appendChild(wrapper);
+    }
+
+    attachDragHandlers(canvas, svg, vm) {
+      let activeNodeId = null;
+      let offset = { x: 0, y: 0 };
+      const bounds = svg.getBoundingClientRect();
+
+      const onMouseMove = evt => {
+        if (!activeNodeId) return;
+        const pos = this.positions.get(activeNodeId);
+        if (!pos) return;
+        pos.x = evt.clientX - bounds.left - offset.x;
+        pos.y = evt.clientY - bounds.top - offset.y;
+        pos.frozen = true;
+        this.frozenNodes.add(activeNodeId);
+        this.updateGraph(svg, vm);
+      };
+
+      const onMouseUp = () => {
+        if (activeNodeId) {
+          this.frozenNodes.add(activeNodeId);
+        }
+        activeNodeId = null;
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', onMouseUp);
+      };
+
+      canvas.querySelectorAll('.graph-node').forEach(nodeEl => {
+        nodeEl.addEventListener('mousedown', evt => {
+          if (evt.button !== 0) return;
+          const id = nodeEl.dataset.id;
+          if (!id) return;
+          activeNodeId = id;
+          const pos = this.positions.get(id);
+          if (!pos) return;
+          offset = {
+            x: evt.clientX - bounds.left - pos.x,
+            y: evt.clientY - bounds.top - pos.y
+          };
+          window.addEventListener('mousemove', onMouseMove);
+          window.addEventListener('mouseup', onMouseUp);
+        });
+      });
+    }
+
+    updateGraph(svg, vm) {
+      vm.nodes.forEach(node => {
+        const pos = this.positions.get(node.id);
+        if (!pos) return;
+        const nodeEl = svg.querySelector(`.graph-node[data-id="${node.id}"]`);
+        if (nodeEl) {
+          nodeEl.setAttribute('transform', `translate(${pos.x}, ${pos.y})`);
+          nodeEl.classList.toggle('frozen', Boolean(pos.frozen));
+        }
+      });
+
+      svg.querySelectorAll('.graph-edges line').forEach(line => {
+        const fromId = line.getAttribute('data-from');
+        const toId = line.getAttribute('data-to');
+        const from = this.positions.get(fromId);
+        const to = this.positions.get(toId);
+        if (!from || !to) return;
+        line.setAttribute('x1', from.x);
+        line.setAttribute('y1', from.y);
+        line.setAttribute('x2', to.x);
+        line.setAttribute('y2', to.y);
+      });
+
+      svg.querySelectorAll('.graph-edge-label').forEach(label => {
+        const fromId = label.getAttribute('data-from');
+        const toId = label.getAttribute('data-to');
+        const from = this.positions.get(fromId);
+        const to = this.positions.get(toId);
+        if (!from || !to) return;
+        label.setAttribute('x', (from.x + to.x) / 2);
+        label.setAttribute('y', (from.y + to.y) / 2 - 6);
+      });
+
+      svg.querySelectorAll('.graph-node-label').forEach(label => {
+        const id = label.getAttribute('data-id');
+        const pos = this.positions.get(id);
+        if (!pos) return;
+        label.setAttribute('x', pos.x);
+        label.setAttribute('y', pos.y + NODE_RADIUS + 12);
+      });
+    }
+
+    installContextMenu() {
+      if (this.contextMenu) return;
+      const menu = document.createElement('div');
+      menu.className = 'graph-context-menu';
+      menu.hidden = true;
+
+      const freezeItem = document.createElement('button');
+      freezeItem.type = 'button';
+      freezeItem.className = 'graph-context-item';
+      freezeItem.textContent = 'Freeze node';
+      freezeItem.addEventListener('click', () => this.toggleFreeze());
+
+      const unfreezeOthers = document.createElement('button');
+      unfreezeOthers.type = 'button';
+      unfreezeOthers.className = 'graph-context-item';
+      unfreezeOthers.textContent = 'Unfreeze all other nodes';
+      unfreezeOthers.addEventListener('click', () => this.unfreezeOthers());
+
+      menu.appendChild(freezeItem);
+      menu.appendChild(unfreezeOthers);
+      document.body.appendChild(menu);
+
+      document.addEventListener('click', () => this.hideContextMenu());
+      this.contextMenu = menu;
+    }
+
+    showContextMenu(event, nodeId) {
+      if (!this.contextMenu) return;
+      this.contextMenuState.nodeId = nodeId;
+      const frozen = this.frozenNodes.has(nodeId);
+      this.contextMenu.querySelector('.graph-context-item').textContent = frozen
+        ? 'Unfreeze node'
+        : 'Freeze node';
+      this.contextMenu.style.left = `${event.clientX}px`;
+      this.contextMenu.style.top = `${event.clientY}px`;
+      this.contextMenu.hidden = false;
+    }
+
+    hideContextMenu() {
+      if (this.contextMenu) {
+        this.contextMenu.hidden = true;
+        this.contextMenuState.nodeId = null;
+      }
+    }
+
+    toggleFreeze() {
+      const nodeId = this.contextMenuState.nodeId;
+      if (!nodeId) return;
+      if (this.frozenNodes.has(nodeId)) {
+        this.frozenNodes.delete(nodeId);
+        const pos = this.positions.get(nodeId);
+        if (pos) pos.frozen = false;
+      } else {
+        this.frozenNodes.add(nodeId);
+        const pos = this.positions.get(nodeId);
+        if (pos) pos.frozen = true;
+      }
+      this.hideContextMenu();
+      this.render(this.lastContainer, this.lastVm, this.lastOptions);
+    }
+
+    unfreezeOthers() {
+      const keepId = this.contextMenuState.nodeId;
+      if (!keepId) return;
+      this.frozenNodes = new Set([keepId]);
+      this.positions.forEach((pos, id) => {
+        pos.frozen = id === keepId;
+      });
+      this.hideContextMenu();
+      this.render(this.lastContainer, this.lastVm, this.lastOptions);
     }
   }
 
