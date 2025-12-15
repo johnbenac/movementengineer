@@ -3493,16 +3493,30 @@
     // Compute dataset
     const { visibleEntities, visibleRelations, entityById } = getGraphDatasetForCurrentMovement();
 
-    // Keep selection valid for this movement
+    // Keep selection/focus valid for the current movement's dataset
     if (graphWorkbenchState.selection) {
       const sel = graphWorkbenchState.selection;
+
+      const entityIds = new Set(visibleEntities.map(e => e.id));
+      const relationIds = new Set(visibleRelations.map(r => r.id));
+
       if (sel.type === 'entity') {
-        const exists = normaliseArray(snapshot.entities).some(e => e && e.id === sel.id);
-        if (!exists) graphWorkbenchState.selection = null;
+        const exists = entityIds.has(sel.id);
+        if (!exists) {
+          graphWorkbenchState.selection = null;
+          graphWorkbenchState.focusEntityId = null;
+        }
       } else {
-        const exists = normaliseArray(snapshot.relations).some(r => r && r.id === sel.id);
-        if (!exists) graphWorkbenchState.selection = null;
+        const exists = relationIds.has(sel.id);
+        if (!exists) {
+          graphWorkbenchState.selection = null;
+          graphWorkbenchState.focusEntityId = null;
+        }
       }
+    }
+
+    if (graphWorkbenchState.focusEntityId && !visibleEntities.some(e => e.id === graphWorkbenchState.focusEntityId)) {
+      graphWorkbenchState.focusEntityId = null;
     }
 
     // Build datalist options (kinds + relation types)
