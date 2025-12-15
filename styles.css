@@ -1118,7 +1118,7 @@ a.text-link:hover {
 }
 
 .graph-link {
-  stroke: var(--link-color, rgba(255, 255, 255, 0.35));
+  stroke: var(--link-color, rgba(31, 41, 55, 0.55));
   stroke-width: 1.5px;
   fill: none;
 }
