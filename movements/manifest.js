@@ -6,6 +6,11 @@
     "./movements/catholic-church-data.js",
     "./movements/handwashing-hygiene-data.js",
     "./movements/me-too-data.js",
+    "./movements/race-for-the-cure/claims/awareness-claim-data.js",
+    "./movements/race-for-the-cure/claims/fundraising-claim-data.js",
+    "./movements/race-for-the-cure/race-base-data.js",
+    "./movements/race-for-the-cure/rules/safety-rule-data.js",
+    "./movements/race-for-the-cure/rules/volunteer-rule-data.js",
     "./movements/upside-data.js",
     "./movements/womens-suffrage-data.js"
   ];
