@@ -26,6 +26,10 @@
     while (el.firstChild) el.removeChild(el.firstChild);
   }
 
+  function clampToCanvas(value, radius, size) {
+    return clamp(value, radius, Math.max(radius, size - radius));
+  }
+
   function hashToColor(text) {
     if (!text) return '#1f2937';
     let hash = 0;
@@ -181,6 +185,7 @@
   }
 
   function renderLabels(svg, nodes, positions) {
+    const labels = [];
     nodes.forEach(node => {
       const pos = positions.get(node.id);
       if (!pos) return;
@@ -192,11 +197,14 @@
       });
       label.textContent = node.name || node.id;
       svg.appendChild(label);
+      labels.push({ id: node.id, el: label });
     });
+    return labels;
   }
 
   function renderEdges(svg, edges, positions) {
     const g = createSvgElement('g', { class: 'graph-edges' });
+    const rendered = [];
     edges.forEach(edge => {
       const from = positions.get(edge.fromId);
       const to = positions.get(edge.toId);
@@ -220,12 +228,15 @@
       });
       label.textContent = edge.relationType;
       g.appendChild(label);
+      rendered.push({ id: `${edge.fromId}-${edge.toId}-${edge.relationType}`, edge, line, label });
     });
     svg.appendChild(g);
+    return rendered;
   }
 
   function renderNodes(svg, nodes, positions, centerEntityId, onNodeClick) {
     const g = createSvgElement('g', { class: 'graph-nodes' });
+    const rendered = [];
     nodes.forEach(node => {
       const pos = positions.get(node.id);
       if (!pos) return;
@@ -272,13 +283,25 @@
       nodeGroup.appendChild(circle);
       nodeGroup.appendChild(text);
       g.appendChild(nodeGroup);
+      rendered.push({ id: node.id, group: nodeGroup, circle });
     });
     svg.appendChild(g);
+    return rendered;
   }
 
   class EntityGraphView {
     constructor(options = {}) {
       this.onNodeClick = options.onNodeClick || null;
+      this.positions = null;
+      this.nodeElements = new Map();
+      this.edgeElements = [];
+      this.labelElements = new Map();
+      this.currentContextNodeId = null;
+      this.contextMenuEl = null;
+      this.svg = null;
+      this.dimensions = { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT };
+      this.boundOutsideClick = null;
+      this.centerEntityId = null;
     }
 
     render(container, vm, options = {}) {
@@ -301,6 +324,10 @@
         height,
         centerEntityId: options.centerEntityId
       });
+
+      this.positions = positions;
+      this.dimensions = { width, height };
+      this.centerEntityId = options.centerEntityId || null;
 
       const wrapper = document.createElement('div');
       wrapper.className = 'entity-graph-wrapper';
@@ -329,9 +356,17 @@
       defs.appendChild(marker);
       svg.appendChild(defs);
 
-      renderEdges(svg, vm.edges, positions);
-      renderNodes(svg, vm.nodes, positions, options.centerEntityId, this.onNodeClick);
-      renderLabels(svg, vm.nodes, positions);
+      this.edgeElements = renderEdges(svg, vm.edges, positions);
+      renderNodes(svg, vm.nodes, positions, options.centerEntityId, this.onNodeClick).forEach(n =>
+        this.nodeElements.set(n.id, n)
+      );
+      renderLabels(svg, vm.nodes, positions).forEach(label =>
+        this.labelElements.set(label.id, label.el)
+      );
+
+      this.enableDragging(svg, vm.nodes, vm.edges);
+      this.attachContextMenu(wrapper);
+      this.updateGraphPositions();
 
       canvas.appendChild(svg);
       wrapper.appendChild(canvas);
@@ -340,6 +375,153 @@
       wrapper.appendChild(summary);
 
       container.appendChild(wrapper);
+      this.svg = svg;
+    }
+
+    updateGraphPositions(centerEntityId) {
+      if (!this.positions) return;
+      const activeCenter = centerEntityId || this.centerEntityId;
+      this.nodeElements.forEach((nodeEl, nodeId) => {
+        const pos = this.positions.get(nodeId);
+        if (!pos) return;
+        nodeEl.group.setAttribute('transform', `translate(${pos.x}, ${pos.y})`);
+        nodeEl.group.classList.toggle('frozen', Boolean(pos.frozen));
+        if (nodeEl.circle) {
+          nodeEl.circle.setAttribute('stroke', nodeId === activeCenter ? '#111827' : '#f3f4f6');
+          nodeEl.circle.setAttribute('stroke-width', nodeId === activeCenter ? 3 : 2);
+        }
+      });
+
+      this.labelElements.forEach((label, nodeId) => {
+        const pos = this.positions.get(nodeId);
+        if (!pos) return;
+        label.setAttribute('x', pos.x);
+        label.setAttribute('y', pos.y + NODE_RADIUS + 12);
+      });
+
+      this.edgeElements.forEach(item => {
+        const from = this.positions.get(item.edge.fromId);
+        const to = this.positions.get(item.edge.toId);
+        if (!from || !to) return;
+        item.line.setAttribute('x1', from.x);
+        item.line.setAttribute('y1', from.y);
+        item.line.setAttribute('x2', to.x);
+        item.line.setAttribute('y2', to.y);
+        const midX = (from.x + to.x) / 2;
+        const midY = (from.y + to.y) / 2;
+        item.label.setAttribute('x', midX);
+        item.label.setAttribute('y', midY - 6);
+      });
+    }
+
+    enableDragging(svg, nodes) {
+      if (!svg) return;
+      const activeDrag = { nodeId: null, offsetX: 0, offsetY: 0 };
+      const getCoords = evt => {
+        const rect = svg.getBoundingClientRect();
+        return {
+          x: ((evt.clientX - rect.left) / rect.width) * this.dimensions.width,
+          y: ((evt.clientY - rect.top) / rect.height) * this.dimensions.height
+        };
+      };
+
+      const onPointerMove = evt => {
+        if (!activeDrag.nodeId) return;
+        const coords = getCoords(evt);
+        const pos = this.positions.get(activeDrag.nodeId);
+        if (!pos) return;
+        pos.x = clampToCanvas(coords.x + activeDrag.offsetX, NODE_RADIUS * 2, this.dimensions.width);
+        pos.y = clampToCanvas(coords.y + activeDrag.offsetY, NODE_RADIUS * 2, this.dimensions.height);
+        this.updateGraphPositions();
+      };
+
+      const endDrag = () => {
+        if (!activeDrag.nodeId) return;
+        const pos = this.positions.get(activeDrag.nodeId);
+        if (pos) pos.frozen = true;
+        activeDrag.nodeId = null;
+        document.removeEventListener('pointermove', onPointerMove);
+        document.removeEventListener('pointerup', endDrag);
+      };
+
+      this.nodeElements.forEach((nodeEl, nodeId) => {
+        nodeEl.group.addEventListener('pointerdown', evt => {
+          if (evt.button !== 0) return; // only left-click drag
+          evt.preventDefault();
+          const pos = this.positions.get(nodeId);
+          if (!pos) return;
+          const coords = getCoords(evt);
+          activeDrag.nodeId = nodeId;
+          activeDrag.offsetX = pos.x - coords.x;
+          activeDrag.offsetY = pos.y - coords.y;
+          document.addEventListener('pointermove', onPointerMove);
+          document.addEventListener('pointerup', endDrag);
+        });
+
+        nodeEl.group.addEventListener('contextmenu', evt => {
+          evt.preventDefault();
+          this.showContextMenu(nodeId, evt.pageX, evt.pageY);
+        });
+      });
+    }
+
+    attachContextMenu(wrapper) {
+      if (this.contextMenuEl) {
+        this.contextMenuEl.remove();
+      }
+      if (this.boundOutsideClick) {
+        document.removeEventListener('click', this.boundOutsideClick);
+      }
+      const menu = document.createElement('div');
+      menu.className = 'graph-context-menu hidden';
+
+      const freezeItem = document.createElement('div');
+      freezeItem.className = 'graph-context-menu-item';
+      freezeItem.textContent = 'Freeze node';
+      freezeItem.addEventListener('click', () => {
+        if (!this.currentContextNodeId || !this.positions) return;
+        const pos = this.positions.get(this.currentContextNodeId);
+        if (pos) pos.frozen = !pos.frozen;
+        this.updateGraphPositions();
+        this.hideContextMenu();
+      });
+
+      const unfreezeOthers = document.createElement('div');
+      unfreezeOthers.className = 'graph-context-menu-item';
+      unfreezeOthers.textContent = 'Unfreeze all other nodes';
+      unfreezeOthers.addEventListener('click', () => {
+        if (!this.currentContextNodeId || !this.positions) return;
+        this.positions.forEach((pos, nodeId) => {
+          if (nodeId !== this.currentContextNodeId) pos.frozen = false;
+        });
+        this.updateGraphPositions();
+        this.hideContextMenu();
+      });
+
+      menu.appendChild(freezeItem);
+      menu.appendChild(unfreezeOthers);
+      wrapper.appendChild(menu);
+      this.contextMenuEl = menu;
+
+      const hide = () => this.hideContextMenu();
+      this.boundOutsideClick = hide;
+      document.addEventListener('click', hide);
+    }
+
+    showContextMenu(nodeId, pageX, pageY) {
+      if (!this.contextMenuEl) return;
+      this.currentContextNodeId = nodeId;
+      const pos = this.positions?.get(nodeId);
+      const freezeLabel = pos?.frozen ? 'Unfreeze node' : 'Freeze node';
+      this.contextMenuEl.querySelector('.graph-context-menu-item').textContent = freezeLabel;
+      this.contextMenuEl.style.left = `${pageX}px`;
+      this.contextMenuEl.style.top = `${pageY}px`;
+      this.contextMenuEl.classList.remove('hidden');
+    }
+
+    hideContextMenu() {
+      if (!this.contextMenuEl) return;
+      this.contextMenuEl.classList.add('hidden');
     }
   }
 

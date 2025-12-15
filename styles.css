@@ -907,12 +907,42 @@ a.text-link:hover {
   stroke: #111827;
 }
 
+.graph-node.frozen circle {
+  stroke-dasharray: 4;
+}
+
 .graph-node-label {
   fill: #111827;
   font-size: 0.78rem;
   pointer-events: none;
   user-select: none;
   cursor: default;
+}
+
+.graph-context-menu {
+  position: fixed;
+  z-index: 30;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(17, 24, 39, 0.12);
+  min-width: 180px;
+  overflow: hidden;
+  font-size: 0.9rem;
+}
+
+.graph-context-menu.hidden {
+  display: none;
+}
+
+.graph-context-menu-item {
+  padding: 0.65rem 0.9rem;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.graph-context-menu-item:hover {
+  background: #f3f4f6;
 }
 
 .chip-strong {
