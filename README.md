@@ -46,6 +46,8 @@ Bundled datasets live anywhere under `movements/` as files named `*-data.js`, al
 node scripts/generate-movement-manifest.js
 ```
 
+See [movement dataset file guidelines](docs/movement-dataset-file-guidelines.md) for how to split a movement’s claims, rules, entities, and related collections across multiple files while keeping loading predictable.
+
 ### Testing
 Domain logic tests use simple Node scripts:
 
