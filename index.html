@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="./styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 </head>
   <body>
     <header class="top-bar">
@@ -75,6 +76,7 @@
         <button class="tab" data-tab="authority">Authority</button>
         <button class="tab" data-tab="media">Media</button>
         <button class="tab" data-tab="relations">Relations</button>
+        <button class="tab" data-tab="graph">Graph</button>
         <button class="tab" data-tab="notes">Notes</button>
         <button class="tab" data-tab="data">Collections</button>
         <button class="tab" data-tab="comparison">Comparison</button>
@@ -475,6 +477,13 @@
             </label>
           </div>
           <div id="relations-table-wrapper" class="table-wrapper"></div>
+        </div>
+      </section>
+
+      <!-- Graph -->
+      <section id="tab-graph" class="tab-panel">
+        <div class="panel-body">
+          <div id="graph-workbench-root"></div>
         </div>
       </section>
 

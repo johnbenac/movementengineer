@@ -921,6 +921,241 @@ a.text-link:hover {
   border: 1px solid #bfdbfe;
 }
 
+/* ---------------------------
+   Graph Workbench (Ontorum-ish)
+---------------------------- */
+
+.graph-workbench {
+  --graph-left-width: 360px;
+  --graph-right-width: 420px;
+
+  display: grid;
+  grid-template-columns: var(--graph-left-width) 1fr var(--graph-right-width);
+  gap: 12px;
+
+  /* Good default inside a tab panel */
+  height: 78vh;
+  min-height: 640px;
+
+  align-items: stretch;
+}
+
+@media (max-width: 960px) {
+  .graph-workbench {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: 0;
+  }
+}
+
+.graph-pane {
+  position: relative;
+  min-width: 0; /* allow shrinking */
+  height: 100%;
+}
+
+.graph-pane .pane-inner {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.graph-pane details {
+  background: var(--panel-bg, transparent);
+  border-radius: 10px;
+}
+
+.graph-pane details > summary {
+  cursor: pointer;
+  user-select: none;
+  font-weight: 600;
+  padding: 10px 12px;
+  border-radius: 10px;
+  list-style: none;
+}
+
+.graph-pane details[open] > summary {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.graph-pane details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.graph-pane details .details-body {
+  padding: 10px 12px 12px 12px;
+}
+
+.graph-canvas {
+  flex: 1;
+  min-height: 420px;
+  position: relative;
+  overflow: hidden;
+}
+
+.graph-toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.graph-toolbar .toolbar-spacer {
+  flex: 1;
+}
+
+.graph-resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  cursor: col-resize;
+  z-index: 5;
+}
+
+.graph-resize-handle.left {
+  right: -5px;
+}
+
+.graph-resize-handle.right {
+  left: -5px;
+}
+
+@media (max-width: 960px) {
+  .graph-resize-handle {
+    display: none;
+  }
+}
+
+/* Search UI */
+.graph-search-results {
+  list-style: none;
+  margin: 10px 0 0 0;
+  padding: 0;
+  max-height: 300px;
+  overflow: auto;
+  border-radius: 10px;
+}
+
+.graph-search-item {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  padding: 8px 10px;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.graph-search-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.graph-search-item.selected {
+  outline: 2px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.graph-search-item .meta {
+  opacity: 0.7;
+  font-size: 0.85em;
+  white-space: nowrap;
+}
+
+/* Small form helpers */
+.graph-form .form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.graph-form .form-row.inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.graph-form .form-row.inline > * {
+  flex: 1;
+}
+
+.graph-form .hint {
+  font-size: 0.85em;
+  opacity: 0.7;
+}
+
+.graph-selected-body {
+  padding: 12px;
+}
+
+.graph-selected-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.graph-selected-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.graph-selected-subtitle {
+  margin: 0;
+  opacity: 0.7;
+  font-size: 0.85rem;
+}
+
+/* D3 graph styling */
+.graph-canvas svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.graph-link {
+  stroke: var(--link-color, rgba(255, 255, 255, 0.35));
+  stroke-width: 1.5px;
+  fill: none;
+}
+
+.graph-link-hitbox {
+  stroke: transparent;
+  stroke-width: 12px;
+  fill: none;
+  cursor: pointer;
+}
+
+.graph-link.selected .graph-link {
+  stroke-width: 3px;
+}
+
+.graph-link-label {
+  font-size: 11px;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.graph-node circle {
+  stroke: rgba(0, 0, 0, 0.35);
+  stroke-width: 1px;
+}
+
+.graph-node.selected circle {
+  stroke: rgba(255, 255, 255, 0.65);
+  stroke-width: 3px;
+}
+
+.graph-node text {
+  font-size: 11px;
+  opacity: 0.9;
+  pointer-events: none;
+}
+
 /* Responsive tweaks */
 @media (max-width: 1100px) {
   .save-banner {
