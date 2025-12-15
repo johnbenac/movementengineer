@@ -41,7 +41,7 @@
     return Math.min(Math.max(value, min), max);
   }
 
-  function initialisePositions(nodes, width, height) {
+  function initialisePositions(nodes, width, height, nodeStates) {
     const positions = new Map();
     const centerX = width / 2;
     const centerY = height / 2;
@@ -49,24 +49,26 @@
 
     nodes.forEach((node, idx) => {
       const angle = (idx / Math.max(nodes.length, 1)) * Math.PI * 2;
+      const state = nodeStates.get(node.id) || {};
       positions.set(node.id, {
-        x: centerX + Math.cos(angle) * radius,
-        y: centerY + Math.sin(angle) * radius,
+        x: state.x ?? centerX + Math.cos(angle) * radius,
+        y: state.y ?? centerY + Math.sin(angle) * radius,
         vx: 0,
-        vy: 0
+        vy: 0,
+        frozen: Boolean(state.frozen)
       });
     });
 
     return positions;
   }
 
-  function runForceLayout(nodes, edges, options) {
+  function runForceLayout(nodes, edges, options, nodeStates = new Map()) {
     const width = options.width || DEFAULT_WIDTH;
     const height = options.height || DEFAULT_HEIGHT;
     const iterations = options.iterations || 220;
     const centerId = options.centerEntityId;
 
-    const positions = initialisePositions(nodes, width, height);
+    const positions = initialisePositions(nodes, width, height, nodeStates);
 
     for (let step = 0; step < iterations; step += 1) {
       // Repulsion
@@ -82,10 +84,14 @@
           const force = REPULSION / distSq;
           const fx = (force * dx) / Math.sqrt(distSq);
           const fy = (force * dy) / Math.sqrt(distSq);
-          posA.vx += fx;
-          posA.vy += fy;
-          posB.vx -= fx;
-          posB.vy -= fy;
+          if (!posA.frozen) {
+            posA.vx += fx;
+            posA.vy += fy;
+          }
+          if (!posB.frozen) {
+            posB.vx -= fx;
+            posB.vy -= fy;
+          }
         }
       }
 
@@ -101,21 +107,35 @@
         const force = SPRING_STRENGTH * delta;
         const fx = (force * dx) / dist;
         const fy = (force * dy) / dist;
-        source.vx += fx;
-        source.vy += fy;
-        target.vx -= fx;
-        target.vy -= fy;
+        if (!source.frozen) {
+          source.vx += fx;
+          source.vy += fy;
+        }
+        if (!target.frozen) {
+          target.vx -= fx;
+          target.vy -= fy;
+        }
       });
 
       // Centering force on the highlighted node
       if (centerId && positions.has(centerId)) {
         const pos = positions.get(centerId);
-        pos.vx += (width / 2 - pos.x) * CENTER_PULL;
-        pos.vy += (height / 2 - pos.y) * CENTER_PULL;
+        if (!pos.frozen) {
+          pos.vx += (width / 2 - pos.x) * CENTER_PULL;
+          pos.vy += (height / 2 - pos.y) * CENTER_PULL;
+        }
       }
 
       // Integrate
       positions.forEach(pos => {
+        if (pos.frozen) {
+          pos.vx = 0;
+          pos.vy = 0;
+          pos.x = clamp(pos.x, NODE_RADIUS * 2, width - NODE_RADIUS * 2);
+          pos.y = clamp(pos.y, NODE_RADIUS * 2, height - NODE_RADIUS * 2);
+          return;
+        }
+
         pos.vx *= DAMPING;
         pos.vy *= DAMPING;
         pos.x = clamp(pos.x + pos.vx, NODE_RADIUS * 2, width - NODE_RADIUS * 2);
@@ -224,13 +244,13 @@
     svg.appendChild(g);
   }
 
-  function renderNodes(svg, nodes, positions, centerEntityId, onNodeClick) {
+  function renderNodes(svg, nodes, positions, centerEntityId, onNodeClick, onContextMenu) {
     const g = createSvgElement('g', { class: 'graph-nodes' });
     nodes.forEach(node => {
       const pos = positions.get(node.id);
       if (!pos) return;
       const nodeGroup = createSvgElement('g', {
-        class: 'graph-node',
+        class: `graph-node${pos.frozen ? ' frozen' : ''}`,
         transform: `translate(${pos.x}, ${pos.y})`
       });
 
@@ -238,6 +258,14 @@
         nodeGroup.style.cursor = 'pointer';
         nodeGroup.addEventListener('click', () => onNodeClick(node.id));
       }
+
+      nodeGroup.addEventListener('contextmenu', evt => {
+        evt.preventDefault();
+        evt.stopPropagation();
+        if (onContextMenu) {
+          onContextMenu(node.id, evt);
+        }
+      });
 
       const hit = createSvgElement('circle', {
         r: NODE_RADIUS + 10,
@@ -279,10 +307,112 @@
   class EntityGraphView {
     constructor(options = {}) {
       this.onNodeClick = options.onNodeClick || null;
+      this.nodeStates = new Map();
+      this.contextMenu = null;
+      this.latestPositions = null;
+      this.lastContainer = null;
+      this.lastVm = null;
+      this.lastOptions = null;
+
+      this.handleGlobalClick = this.hideContextMenu.bind(this);
+    }
+
+    syncNodeStates(nodes, positions) {
+      nodes.forEach(node => {
+        const pos = positions.get(node.id);
+        if (!pos) return;
+        this.nodeStates.set(node.id, {
+          x: pos.x,
+          y: pos.y,
+          frozen: pos.frozen || false
+        });
+      });
+    }
+
+    toggleFreeze(nodeId) {
+      const state = this.nodeStates.get(nodeId) || {};
+      this.nodeStates.set(nodeId, {
+        ...state,
+        frozen: !state.frozen,
+        x: state.x,
+        y: state.y
+      });
+      this.rerender();
+    }
+
+    unfreezeOthers(nodeId) {
+      this.nodeStates.forEach((state, id) => {
+        if (id === nodeId) return;
+        this.nodeStates.set(id, {
+          ...state,
+          frozen: false
+        });
+      });
+      const state = this.nodeStates.get(nodeId) || {};
+      this.nodeStates.set(nodeId, {
+        ...state,
+        frozen: true,
+        x: state.x,
+        y: state.y
+      });
+      this.rerender();
+    }
+
+    hideContextMenu() {
+      if (this.contextMenu && this.contextMenu.parentNode) {
+        this.contextMenu.parentNode.removeChild(this.contextMenu);
+      }
+      document.removeEventListener('click', this.handleGlobalClick);
+      this.contextMenu = null;
+    }
+
+    showContextMenu(nodeId, evt) {
+      this.hideContextMenu();
+      const menu = document.createElement('div');
+      menu.className = 'graph-context-menu';
+      menu.style.left = `${evt.clientX}px`;
+      menu.style.top = `${evt.clientY}px`;
+
+      const state = this.nodeStates.get(nodeId) || {};
+
+      const toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'context-menu-item';
+      toggle.textContent = state.frozen ? 'Unfreeze node' : 'Freeze node';
+      toggle.addEventListener('click', () => {
+        this.toggleFreeze(nodeId);
+        this.hideContextMenu();
+      });
+
+      const unfreezeOthers = document.createElement('button');
+      unfreezeOthers.type = 'button';
+      unfreezeOthers.className = 'context-menu-item';
+      unfreezeOthers.textContent = 'Unfreeze other nodes';
+      unfreezeOthers.addEventListener('click', () => {
+        this.unfreezeOthers(nodeId);
+        this.hideContextMenu();
+      });
+
+      menu.appendChild(toggle);
+      menu.appendChild(unfreezeOthers);
+
+      document.body.appendChild(menu);
+      this.contextMenu = menu;
+      setTimeout(() => document.addEventListener('click', this.handleGlobalClick), 0);
+    }
+
+    rerender() {
+      if (this.lastContainer && this.lastVm) {
+        this.render(this.lastContainer, this.lastVm, this.lastOptions || {});
+      }
     }
 
     render(container, vm, options = {}) {
       if (!container) return;
+      this.hideContextMenu();
+      this.lastContainer = container;
+      this.lastVm = vm;
+      this.lastOptions = options;
       clearElement(container);
 
       if (!vm || !vm.nodes || !vm.nodes.length) {
@@ -300,7 +430,10 @@
         width,
         height,
         centerEntityId: options.centerEntityId
-      });
+      }, this.nodeStates);
+
+      this.latestPositions = positions;
+      this.syncNodeStates(vm.nodes, positions);
 
       const wrapper = document.createElement('div');
       wrapper.className = 'entity-graph-wrapper';
@@ -330,7 +463,14 @@
       svg.appendChild(defs);
 
       renderEdges(svg, vm.edges, positions);
-      renderNodes(svg, vm.nodes, positions, options.centerEntityId, this.onNodeClick);
+      renderNodes(
+        svg,
+        vm.nodes,
+        positions,
+        options.centerEntityId,
+        this.onNodeClick,
+        (nodeId, evt) => this.showContextMenu(nodeId, evt)
+      );
       renderLabels(svg, vm.nodes, positions);
 
       canvas.appendChild(svg);

@@ -907,6 +907,11 @@ a.text-link:hover {
   stroke: #111827;
 }
 
+.graph-node.frozen circle {
+  stroke-dasharray: 4 2;
+  stroke: #1d4ed8;
+}
+
 .graph-node-label {
   fill: #111827;
   font-size: 0.78rem;
@@ -919,6 +924,32 @@ a.text-link:hover {
   background: #dbeafe;
   color: #1d4ed8;
   border: 1px solid #bfdbfe;
+}
+
+.graph-context-menu {
+  position: fixed;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(17, 24, 39, 0.12);
+  padding: 0.35rem 0;
+  z-index: 50;
+  min-width: 180px;
+}
+
+.graph-context-menu .context-menu-item {
+  width: 100%;
+  padding: 0.5rem 0.85rem;
+  background: transparent;
+  border: none;
+  text-align: left;
+  font-size: 0.9rem;
+  color: #111827;
+  cursor: pointer;
+}
+
+.graph-context-menu .context-menu-item:hover {
+  background: #f3f4f6;
 }
 
 /* ---------------------------
