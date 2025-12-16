@@ -289,6 +289,25 @@
     while (el.firstChild) el.removeChild(el.firstChild);
   }
 
+  function renderMarkdownPreview(previewEl, markdown) {
+    if (!previewEl) return;
+    const hasContent = Boolean(markdown && markdown.trim());
+    previewEl.classList.toggle('muted', !hasContent);
+
+    if (!hasContent) {
+      previewEl.innerHTML =
+        '<p class="muted">No content yet. Add markdown in the editor.</p>';
+      return;
+    }
+
+    if (window.marked && typeof window.marked.parse === 'function') {
+      previewEl.innerHTML = window.marked.parse(markdown);
+      return;
+    }
+
+    previewEl.textContent = markdown;
+  }
+
   function getActiveTabName() {
     const btn = document.querySelector('.tab.active');
     return btn ? btn.dataset.tab : 'dashboard';
@@ -659,6 +678,7 @@
     const tagsField = document.getElementById('canon-text-tags');
     const mentionsField = document.getElementById('canon-text-mentions');
     const contentInput = document.getElementById('canon-text-content');
+    const previewEl = document.getElementById('canon-text-preview');
     const rootCheckbox = document.getElementById('canon-text-root');
     const saveTextBtn = document.getElementById('btn-save-text');
     const deleteTextBtn = document.getElementById('btn-delete-text');
@@ -674,6 +694,7 @@
       !tagsField ||
       !mentionsField ||
       !contentInput ||
+      !previewEl ||
       !rootCheckbox
     )
       return;
@@ -721,13 +742,16 @@
         parentSelect,
         tagsField,
         mentionsField,
-        contentInput
+        contentInput,
+        previewEl
       ].forEach(el => (el.disabled = true));
       rootCheckbox.disabled = true;
       rootCheckbox.checked = false;
       if (saveTextBtn) saveTextBtn.disabled = true;
       if (deleteTextBtn) deleteTextBtn.disabled = true;
       if (addChildBtn) addChildBtn.disabled = true;
+      contentInput.value = '';
+      renderMarkdownPreview(previewEl, '');
       isPopulatingCanonForms = false;
       return;
     }
@@ -741,7 +765,8 @@
       parentSelect,
       tagsField,
       mentionsField,
-      contentInput
+      contentInput,
+      previewEl
     ].forEach(el => (el.disabled = false));
     titleInput.value = activeText.title || '';
     labelInput.value = activeText.label || '';
@@ -751,6 +776,14 @@
     tagsField.value = (activeText.tags || []).join(', ');
     mentionsField.value = (activeText.mentionsEntityIds || []).join(', ');
     contentInput.value = activeText.content || '';
+    renderMarkdownPreview(previewEl, contentInput.value);
+
+    if (!contentInput.dataset.previewBound) {
+      contentInput.addEventListener('input', () => {
+        renderMarkdownPreview(previewEl, contentInput.value);
+      });
+      contentInput.dataset.previewBound = 'true';
+    }
 
     const collectionRoots = collection?.rootTextIds || [];
     rootCheckbox.disabled = !collection;
