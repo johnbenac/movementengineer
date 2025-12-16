@@ -26,6 +26,11 @@
     while (el.firstChild) el.removeChild(el.firstChild);
   }
 
+  function normaliseArray(value) {
+    if (Array.isArray(value)) return value.filter(Boolean);
+    return value ? [value] : [];
+  }
+
   function hashToColor(text) {
     if (!text) return '#1f2937';
     let hash = 0;
@@ -201,128 +206,74 @@
     return aside;
   }
 
-  function renderEdges(svg, edges, positions) {
-    const g = createSvgElement('g', { class: 'graph-edges' });
-    const rendered = [];
-    edges.forEach(edge => {
-      const from = positions.get(edge.fromId);
-      const to = positions.get(edge.toId);
-      if (!from || !to) return;
-      const line = createSvgElement('line', {
-        x1: from.x,
-        y1: from.y,
-        x2: to.x,
-        y2: to.y,
-        'marker-end': 'url(#arrowhead)'
-      });
-      g.appendChild(line);
-
-      const midX = (from.x + to.x) / 2;
-      const midY = (from.y + to.y) / 2;
-      const label = createSvgElement('text', {
-        x: midX,
-        y: midY - 6,
-        class: 'graph-edge-label',
-        'text-anchor': 'middle'
-      });
-      label.textContent = edge.relationType;
-      g.appendChild(label);
-
-      rendered.push({ edge, line, label });
-    });
-    svg.appendChild(g);
-    return rendered;
+  function transformToString(transform) {
+    if (!transform) return '';
+    const k = typeof transform.k === 'number' ? transform.k : 1;
+    const x = typeof transform.x === 'number' ? transform.x : 0;
+    const y = typeof transform.y === 'number' ? transform.y : 0;
+    return `translate(${x},${y}) scale(${k})`;
   }
 
-  function renderNodes(svg, nodes, positions, centerEntityId, options) {
-    const { onNodeClick, onContextMenu, onDragStart, nodeState } = options;
-    const g = createSvgElement('g', { class: 'graph-nodes' });
-    const rendered = new Map();
-    nodes.forEach(node => {
-      const pos = positions.get(node.id);
-      if (!pos) return;
-      const nodeGroup = createSvgElement('g', {
-        class: 'graph-node' + (nodeState.get(node.id)?.frozen ? ' frozen' : ''),
-        transform: `translate(${pos.x}, ${pos.y})`
-      });
+  function normaliseGraph(graph) {
+    const nodes = normaliseArray(graph && graph.nodes).map(n => ({
+      id: n.id,
+      name: n.name || n.id,
+      kind: n.kind || null,
+      tags: normaliseArray(n.tags)
+    }));
 
-      if (onNodeClick) {
-        nodeGroup.style.cursor = 'pointer';
-        nodeGroup.addEventListener('click', () => onNodeClick(node.id));
-      }
+    const edgesRaw = normaliseArray((graph && graph.edges) || (graph && graph.links));
+    const edges = edgesRaw
+      .map((edge, idx) => {
+        const fromId = edge.fromId || edge.source;
+        const toId = edge.toId || edge.target;
+        if (!fromId || !toId) return null;
+        return {
+          id: edge.id || `edge-${idx}`,
+          fromId,
+          toId,
+          relationType: edge.relationType || edge.label || 'rel'
+        };
+      })
+      .filter(Boolean);
 
-      if (onContextMenu) {
-        nodeGroup.addEventListener('contextmenu', event =>
-          onContextMenu(event, node)
-        );
-      }
-
-      if (onDragStart) {
-        nodeGroup.addEventListener('mousedown', event =>
-          onDragStart(event, node)
-        );
-      }
-
-      const hit = createSvgElement('circle', {
-        r: NODE_RADIUS + 10,
-        class: 'graph-node-hit',
-        fill: 'transparent',
-        stroke: 'transparent'
-      });
-      hit.setAttribute('pointer-events', onNodeClick ? 'all' : 'none');
-
-      const circle = createSvgElement('circle', {
-        r: NODE_RADIUS,
-        class: 'graph-node-circle',
-        fill: hashToColor(node.kind),
-        stroke: node.id === centerEntityId ? '#111827' : '#f3f4f6',
-        'stroke-width': node.id === centerEntityId ? 3 : 2
-      });
-
-      const initials = (node.name || node.id)
-        .split(/\s+/)
-        .slice(0, 2)
-        .map(part => part[0])
-        .join('')
-        .toUpperCase();
-
-      const text = createSvgElement('text', {
-        'text-anchor': 'middle',
-        'dominant-baseline': 'central',
-        fill: '#fff',
-        'font-size': '0.85rem'
-      });
-      text.textContent = initials;
-
-      nodeGroup.appendChild(hit);
-      nodeGroup.appendChild(circle);
-      nodeGroup.appendChild(text);
-      g.appendChild(nodeGroup);
-      rendered.set(node.id, nodeGroup);
-    });
-    svg.appendChild(g);
-    return rendered;
+    return {
+      nodes,
+      edges,
+      centerEntityId: graph && graph.centerEntityId ? graph.centerEntityId : null
+    };
   }
 
-  class EntityGraphView {
+  class GraphView {
     constructor(options = {}) {
       this.onNodeClick = options.onNodeClick || null;
+      this.onEdgeClick = options.onEdgeClick || options.onLinkClick || null;
+      this.onBackgroundClick = options.onBackgroundClick || null;
+      this.enableSummary = options.showSummary !== false;
+      this.enableContextMenu = options.enableContextMenu !== false;
       this.nodeState = new Map();
       this.positions = new Map();
       this.edgeElements = [];
       this.nodeElements = new Map();
       this.nodeLabels = new Map();
       this.svgEl = null;
+      this.contentGroup = null;
       this.contextMenu = null;
       this.currentContextNodeId = null;
       this.currentGraph = null;
+      this.zoom = null;
+      this.zoomTransform = null;
+      this.canvasEl = null;
     }
 
-    render(container, vm, options = {}) {
+    render(container, graphInput, options = {}) {
       if (!container) return;
+      const graph = normaliseGraph(graphInput || {});
+      const showSummary = options.showSummary !== false && this.enableSummary;
+
       clearElement(container);
 
-      if (!vm || !vm.nodes || !vm.nodes.length) {
+      if (!graph.nodes || !graph.nodes.length) {
         const p = document.createElement('p');
         p.className = 'hint';
         p.textContent = 'No relations to graph yet.';
@@ -333,28 +284,33 @@
       const width = options.width || container.clientWidth || DEFAULT_WIDTH;
       const height = options.height || DEFAULT_HEIGHT;
 
-      const positions = runForceLayout(vm.nodes, vm.edges, {
-        width,
-        height,
-        centerEntityId: options.centerEntityId,
-        nodeState: this.nodeState
-      });
-      this.positions = positions;
-      this.currentGraph = {
-        nodes: vm.nodes,
-        edges: vm.edges,
-        width,
-        height,
-        centerEntityId: options.centerEntityId
-      };
-      this._syncNodeState(vm.nodes, positions);
+    const positions = runForceLayout(graph.nodes, graph.edges, {
+      width,
+      height,
+      centerEntityId: options.centerEntityId || graph.centerEntityId,
+      nodeState: this.nodeState
+    });
+    this.positions = positions;
+    this.currentGraph = {
+      nodes: graph.nodes,
+      edges: graph.edges,
+      width,
+      height,
+      centerEntityId: options.centerEntityId || graph.centerEntityId,
+      selectedNodeId: options.selectedNodeId || null,
+      selectedEdgeId: options.selectedEdgeId || null
+    };
+      this._syncNodeState(graph.nodes, positions);
 
-      const wrapper = document.createElement('div');
-      wrapper.className = 'entity-graph-wrapper';
+      const wrapper = showSummary ? document.createElement('div') : container;
+      if (showSummary) {
+        wrapper.className = 'entity-graph-wrapper';
+      }
 
       const canvas = document.createElement('div');
-      canvas.className = 'entity-graph-canvas';
+      canvas.className = options.canvasClass || (showSummary ? 'entity-graph-canvas' : 'graph-canvas');
       canvas.style.minHeight = `${height}px`;
+      this.canvasEl = canvas;
 
       const svg = createSvgElement('svg', {
         viewBox: `0 0 ${width} ${height}`,
@@ -362,6 +318,9 @@
         'aria-label': 'Entity relation graph'
       });
       this.svgEl = svg;
+
+      const content = createSvgElement('g', { class: 'graph-content' });
+      this.contentGroup = content;
 
       const defs = createSvgElement('defs');
       const marker = createSvgElement('marker', {
@@ -377,23 +336,219 @@
       defs.appendChild(marker);
       svg.appendChild(defs);
 
-      this.edgeElements = renderEdges(svg, vm.edges, positions);
-      this.nodeElements = renderNodes(svg, vm.nodes, positions, options.centerEntityId, {
-        onNodeClick: this.onNodeClick,
-        onContextMenu: (event, node) => this._showContextMenu(event, node),
-        onDragStart: (event, node) => this._startDrag(event, node),
-        nodeState: this.nodeState
+      const bg = createSvgElement('rect', {
+        width,
+        height,
+        fill: 'transparent'
       });
-      this.nodeLabels = this._renderNodeLabels(svg, vm.nodes, positions);
+      if (this.onBackgroundClick) {
+        bg.addEventListener('click', () => this.onBackgroundClick());
+      }
+      svg.appendChild(bg);
+      svg.appendChild(content);
+
+      this._configureZoom(svg, content);
+
+      this.edgeElements = this._renderEdges(content, graph.edges, positions, options.selectedEdgeId);
+      this.nodeElements = this._renderNodes(content, graph.nodes, positions, options.centerEntityId, options.selectedNodeId);
+      this.nodeLabels = this._renderNodeLabels(content, graph.nodes, positions);
 
       canvas.appendChild(svg);
       wrapper.appendChild(canvas);
 
-      const summary = buildSummarySection(vm, this.onNodeClick);
-      wrapper.appendChild(summary);
+      if (showSummary) {
+        const summary = buildSummarySection(graph, this.onNodeClick);
+        wrapper.appendChild(summary);
+        container.appendChild(wrapper);
+      }
 
-      container.appendChild(wrapper);
       this._bindGlobalContextClose();
+
+      if (options.focusNodeId) {
+        this._focusOnNode(options.focusNodeId, { animate: true });
+      }
+    }
+
+    fit() {
+      if (!this.svgEl || !this.contentGroup || !this.positions.size) return;
+      const xs = Array.from(this.positions.values()).map(p => p.x);
+      const ys = Array.from(this.positions.values()).map(p => p.y);
+      if (!xs.length || !ys.length) return;
+
+      const minX = Math.min(...xs);
+      const maxX = Math.max(...xs);
+      const minY = Math.min(...ys);
+      const maxY = Math.max(...ys);
+
+      const pad = 40;
+      const dx = maxX - minX || 1;
+      const dy = maxY - minY || 1;
+
+      const width = this.currentGraph?.width || DEFAULT_WIDTH;
+      const height = this.currentGraph?.height || DEFAULT_HEIGHT;
+
+      const scale = Math.min(
+        2,
+        Math.max(0.2, Math.min((width - pad * 2) / dx, (height - pad * 2) / dy))
+      );
+
+      const tx = width / 2 - ((minX + maxX) / 2) * scale;
+      const ty = height / 2 - ((minY + maxY) / 2) * scale;
+
+      const transform = typeof d3 !== 'undefined'
+        ? d3.zoomIdentity.translate(tx, ty).scale(scale)
+        : { x: tx, y: ty, k: scale };
+
+      this._applyTransform(transform, { animate: true });
+    }
+
+    _configureZoom(svg, content) {
+      if (typeof d3 === 'undefined') return;
+      const initial = this.zoomTransform || d3.zoomIdentity.scale(0.9);
+      this.zoomTransform = initial;
+      this.zoom = d3
+        .zoom()
+        .scaleExtent([0.2, 2])
+        .on('zoom', event => {
+          this.zoomTransform = event.transform;
+          content.setAttribute('transform', transformToString(event.transform));
+        });
+
+      const selection = d3.select(svg);
+      selection.call(this.zoom);
+      selection.call(this.zoom.transform, initial);
+    }
+
+    _applyTransform(transform, opts = {}) {
+      if (!this.contentGroup) return;
+      const tString = transformToString(transform);
+      if (this.zoom && typeof d3 !== 'undefined' && this.svgEl) {
+        const selection = d3.select(this.svgEl);
+        const target = transform instanceof d3.zoomIdentity.constructor ? transform : transform;
+        selection
+          .transition()
+          .duration(opts.animate ? 450 : 0)
+          .call(this.zoom.transform, target);
+      } else {
+        this.contentGroup.setAttribute('transform', tString);
+        this.zoomTransform = transform;
+      }
+    }
+
+    _renderEdges(svg, edges, positions, selectedEdgeId) {
+      const g = createSvgElement('g', { class: 'graph-edges' });
+      const rendered = [];
+      edges.forEach(edge => {
+        const from = positions.get(edge.fromId);
+        const to = positions.get(edge.toId);
+        if (!from || !to) return;
+        const edgeGroup = createSvgElement('g', {
+          class: 'graph-link' + (selectedEdgeId && edge.id === selectedEdgeId ? ' selected' : '')
+        });
+
+        const line = createSvgElement('line', {
+          x1: from.x,
+          y1: from.y,
+          x2: to.x,
+          y2: to.y,
+          'marker-end': 'url(#arrowhead)'
+        });
+        edgeGroup.appendChild(line);
+
+        const midX = (from.x + to.x) / 2;
+        const midY = (from.y + to.y) / 2;
+        const label = createSvgElement('text', {
+          x: midX,
+          y: midY - 6,
+          class: 'graph-edge-label graph-link-label',
+          'text-anchor': 'middle'
+        });
+        label.textContent = edge.relationType;
+        edgeGroup.appendChild(label);
+
+        if (this.onEdgeClick) {
+          edgeGroup.style.cursor = 'pointer';
+          edgeGroup.addEventListener('click', evt => {
+            evt.stopPropagation();
+            this.onEdgeClick(edge.id);
+          });
+        }
+
+        g.appendChild(edgeGroup);
+        rendered.push({ edge, line, label, group: edgeGroup });
+      });
+      svg.appendChild(g);
+      return rendered;
+    }
+
+    _renderNodes(svg, nodes, positions, centerEntityId, selectedNodeId) {
+      const g = createSvgElement('g', { class: 'graph-nodes' });
+      const rendered = new Map();
+      nodes.forEach(node => {
+        const pos = positions.get(node.id);
+        if (!pos) return;
+        const nodeGroup = createSvgElement('g', {
+          class:
+            'graph-node' +
+            (this.nodeState.get(node.id)?.frozen ? ' frozen' : '') +
+            (selectedNodeId && node.id === selectedNodeId ? ' selected' : ''),
+          transform: `translate(${pos.x}, ${pos.y})`
+        });
+
+        if (this.onNodeClick) {
+          nodeGroup.style.cursor = 'pointer';
+          nodeGroup.addEventListener('click', () => this.onNodeClick(node.id));
+        }
+
+        if (this.enableContextMenu) {
+          nodeGroup.addEventListener('contextmenu', event =>
+            this._showContextMenu(event, node)
+          );
+        }
+
+        nodeGroup.addEventListener('mousedown', event =>
+          this._startDrag(event, node)
+        );
+
+        const hit = createSvgElement('circle', {
+          r: NODE_RADIUS + 10,
+          class: 'graph-node-hit',
+          fill: 'transparent',
+          stroke: 'transparent'
+        });
+        hit.setAttribute('pointer-events', this.onNodeClick ? 'all' : 'none');
+
+        const circle = createSvgElement('circle', {
+          r: NODE_RADIUS,
+          class: 'graph-node-circle',
+          fill: hashToColor(node.kind),
+          stroke: node.id === centerEntityId ? '#111827' : '#f3f4f6',
+          'stroke-width': node.id === centerEntityId ? 3 : 2
+        });
+
+        const initials = (node.name || node.id)
+          .split(/\s+/)
+          .slice(0, 2)
+          .map(part => part[0])
+          .join('')
+          .toUpperCase();
+
+        const text = createSvgElement('text', {
+          'text-anchor': 'middle',
+          'dominant-baseline': 'central',
+          fill: '#fff',
+          'font-size': '0.85rem'
+        });
+        text.textContent = initials;
+
+        nodeGroup.appendChild(hit);
+        nodeGroup.appendChild(circle);
+        nodeGroup.appendChild(text);
+        g.appendChild(nodeGroup);
+        rendered.set(node.id, nodeGroup);
+      });
+      svg.appendChild(g);
+      return rendered;
     }
 
     _renderNodeLabels(svg, nodes, positions) {
@@ -428,7 +583,6 @@
         this._hideContextMenu();
       };
 
-      // Use mousedown so the close doesn't immediately follow the contextmenu event
       document.addEventListener('mousedown', this._boundContextClose, true);
     }
 
@@ -454,6 +608,8 @@
         group.setAttribute('transform', `translate(${pos.x}, ${pos.y})`);
         const frozen = this.nodeState.get(nodeId)?.frozen;
         group.classList.toggle('frozen', !!frozen);
+        const selected = this.currentGraph.selectedNodeId === nodeId;
+        group.classList.toggle('selected', !!selected);
       });
 
       this.nodeLabels.forEach((label, nodeId) => {
@@ -463,7 +619,7 @@
         label.setAttribute('y', pos.y + NODE_RADIUS + 12);
       });
 
-      this.edgeElements.forEach(({ edge, line, label }) => {
+      this.edgeElements.forEach(({ edge, line, label, group }) => {
         const from = this.positions.get(edge.fromId);
         const to = this.positions.get(edge.toId);
         if (!from || !to) return;
@@ -476,6 +632,7 @@
         const midY = (from.y + to.y) / 2;
         label.setAttribute('x', midX);
         label.setAttribute('y', midY - 6);
+        group.classList.toggle('selected', edge.id === this.currentGraph.selectedEdgeId);
       });
     }
 
@@ -493,6 +650,7 @@
     }
 
     _showContextMenu(event, node) {
+      if (!this.enableContextMenu) return;
       event.preventDefault();
       event.stopPropagation();
       this.currentContextNodeId = node.id;
@@ -562,31 +720,40 @@
       const svgRect = this.svgEl.getBoundingClientRect();
       const pos = this.positions.get(node.id);
       if (!pos) return;
-      const offsetX = event.clientX - pos.x - svgRect.left;
-      const offsetY = event.clientY - pos.y - svgRect.top;
 
-        const move = moveEvt => {
-          const x = clamp(
-            moveEvt.clientX - svgRect.left - offsetX,
-            NODE_RADIUS * 2,
-            this.currentGraph.width - NODE_RADIUS * 2
-          );
-          const y = clamp(
-            moveEvt.clientY - svgRect.top - offsetY,
-            NODE_RADIUS * 2,
-            this.currentGraph.height - NODE_RADIUS * 2
-          );
-          pos.x = x;
-          pos.y = y;
-          pos.vx = 0;
-          pos.vy = 0;
-          this.nodeState.set(node.id, {
-            ...(this.nodeState.get(node.id) || {}),
-            x,
-            y
-          });
-          this._updateGraphPositions();
-        };
+      const zoom = this.zoomTransform || { x: 0, y: 0, k: 1 };
+      const toGraphCoords = clientEvt => ({
+        x: (clientEvt.clientX - svgRect.left - zoom.x) / zoom.k,
+        y: (clientEvt.clientY - svgRect.top - zoom.y) / zoom.k
+      });
+
+      const origin = toGraphCoords(event);
+      const offsetX = origin.x - pos.x;
+      const offsetY = origin.y - pos.y;
+
+      const move = moveEvt => {
+        const point = toGraphCoords(moveEvt);
+        const x = clamp(
+          point.x - offsetX,
+          NODE_RADIUS * 2,
+          this.currentGraph.width - NODE_RADIUS * 2
+        );
+        const y = clamp(
+          point.y - offsetY,
+          NODE_RADIUS * 2,
+          this.currentGraph.height - NODE_RADIUS * 2
+        );
+        pos.x = x;
+        pos.y = y;
+        pos.vx = 0;
+        pos.vy = 0;
+        this.nodeState.set(node.id, {
+          ...(this.nodeState.get(node.id) || {}),
+          x,
+          y
+        });
+        this._updateGraphPositions();
+      };
 
       const up = () => {
         document.removeEventListener('mousemove', move);
@@ -603,7 +770,20 @@
       document.addEventListener('mousemove', move);
       document.addEventListener('mouseup', up);
     }
+
+    _focusOnNode(nodeId, opts = {}) {
+      if (!nodeId || !this.positions.has(nodeId)) return;
+      const pos = this.positions.get(nodeId);
+      const width = this.currentGraph?.width || DEFAULT_WIDTH;
+      const height = this.currentGraph?.height || DEFAULT_HEIGHT;
+      const zoomLevel = 1.2;
+      const transform = typeof d3 !== 'undefined'
+        ? d3.zoomIdentity.translate(width / 2 - pos.x * zoomLevel, height / 2 - pos.y * zoomLevel).scale(zoomLevel)
+        : { x: width / 2 - pos.x * zoomLevel, y: height / 2 - pos.y * zoomLevel, k: zoomLevel };
+      this._applyTransform(transform, opts);
+    }
   }
 
-  window.EntityGraphView = EntityGraphView;
+  window.GraphView = GraphView;
+  window.EntityGraphView = GraphView;
 })();
