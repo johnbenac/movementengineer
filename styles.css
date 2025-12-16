@@ -1092,6 +1092,23 @@ a.text-link:hover {
   white-space: nowrap;
 }
 
+/* Graph workbench filters */
+#gw-filter-types .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+}
+
+#gw-filter-types .chip input[type='checkbox'] {
+  transform: translateY(1px);
+}
+
+#gw-filter-center-label {
+  margin-top: 4px;
+  margin-bottom: 6px;
+}
+
 /* Small form helpers */
 .graph-form .form-row {
   display: flex;

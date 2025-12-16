@@ -28,27 +28,38 @@
     rightWidth: 420,
     searchKind: 'all',
     searchQuery: '',
-    selection: null, // { type: 'entity'|'relation', id }
-    focusEntityId: null
+    selection: null, // { type: 'entity'|'relation'|'node', id }
+    filterCenterId: null,
+    filterDepth: null,
+    filterNodeTypes: []
   };
 
   function normaliseSelectionType(type) {
     return typeof type === 'string' ? type.toLowerCase() : null;
   }
 
+  const GRAPH_NODE_TYPE_LABELS = {
+    Entity: 'Entity',
+    TextCollection: 'Canon collection',
+    TextNode: 'Canon text',
+    Practice: 'Practice',
+    Event: 'Calendar event',
+    Rule: 'Rule',
+    Claim: 'Claim',
+    MediaAsset: 'Media',
+    Note: 'Note'
+  };
+
+  const labelForNodeType = t => GRAPH_NODE_TYPE_LABELS[t] || t || 'Unknown';
+
   function setGraphWorkbenchSelection(selection) {
     if (!selection || !selection.id) {
       graphWorkbenchState.selection = null;
-      graphWorkbenchState.focusEntityId = null;
       return;
     }
 
-    const type = normaliseSelectionType(selection.type) || 'entity';
+    const type = normaliseSelectionType(selection.type) || 'node';
     graphWorkbenchState.selection = { type, id: selection.id };
-
-    if (type === 'entity') {
-      graphWorkbenchState.focusEntityId = selection.id;
-    }
   }
   const movementAssetStore = new Map();
   function clearMovementAssetsForIds(movementIds) {
@@ -2446,6 +2457,40 @@
           <div class="graph-resize-handle right" title="Drag to resize"></div>
           <div class="pane-inner">
 
+            <details id="gw-filters" open>
+              <summary>Filters</summary>
+              <div class="details-body">
+                <div class="card">
+                  <div class="form-row">
+                    <label>Center node</label>
+                    <div id="gw-filter-center-label" class="hint">No center selected; showing full graph.</div>
+                    <div class="form-row inline" style="margin-bottom:0;">
+                      <button class="btn" type="button" id="gw-filter-use-selection">Use selected</button>
+                      <button class="btn" type="button" id="gw-filter-clear-center">Clear</button>
+                    </div>
+                  </div>
+
+                  <div class="form-row inline" style="align-items:flex-end;">
+                    <div style="flex:1;">
+                      <label>Hops</label>
+                      <input id="gw-filter-depth" class="form-control" type="number" min="0" step="1" placeholder="∞ (no limit)" />
+                    </div>
+                    <button class="btn" type="button" id="gw-filter-depth-clear" title="No hop limit">∞</button>
+                  </div>
+
+                  <div class="form-row">
+                    <label>Node types</label>
+                    <div id="gw-filter-types" class="chip-row wrap"></div>
+                    <div class="hint">Select none to show all node types.</div>
+                  </div>
+
+                  <div class="form-row inline">
+                    <button class="btn" type="button" id="gw-filter-reset">Reset filters</button>
+                  </div>
+                </div>
+              </div>
+            </details>
+
             <details id="gw-search" open>
               <summary>Search</summary>
               <div class="details-body">
@@ -2477,6 +2522,14 @@
       canvas: document.getElementById('gw-canvas'),
       fitBtn: document.getElementById('gw-fit-btn'),
       clearBtn: document.getElementById('gw-clear-selection-btn'),
+
+      filterCenterLabel: document.getElementById('gw-filter-center-label'),
+      filterUseSelection: document.getElementById('gw-filter-use-selection'),
+      filterClearCenter: document.getElementById('gw-filter-clear-center'),
+      filterDepth: document.getElementById('gw-filter-depth'),
+      filterDepthClear: document.getElementById('gw-filter-depth-clear'),
+      filterTypes: document.getElementById('gw-filter-types'),
+      filterReset: document.getElementById('gw-filter-reset'),
 
       searchKind: document.getElementById('gw-search-kind'),
       searchQuery: document.getElementById('gw-search-query'),
@@ -2554,6 +2607,46 @@
 
     dom.clearBtn.addEventListener('click', () => {
       setGraphWorkbenchSelection(null);
+      renderGraphWorkbench();
+    });
+
+    dom.filterDepth.addEventListener('input', () => {
+      const raw = dom.filterDepth.value;
+      if (raw === '') {
+        graphWorkbenchState.filterDepth = null;
+      } else {
+        const n = parseInt(raw, 10);
+        graphWorkbenchState.filterDepth = Number.isFinite(n) && n >= 0 ? n : null;
+      }
+      renderGraphWorkbench();
+    });
+
+    dom.filterDepthClear.addEventListener('click', () => {
+      graphWorkbenchState.filterDepth = null;
+      dom.filterDepth.value = '';
+      renderGraphWorkbench();
+    });
+
+    dom.filterUseSelection.addEventListener('click', () => {
+      const sel = graphWorkbenchState.selection;
+      if (!sel || !sel.id) return;
+
+      const t = normaliseSelectionType(sel.type);
+      if (t === 'relation' || t === 'edge') return;
+
+      graphWorkbenchState.filterCenterId = sel.id;
+      renderGraphWorkbench();
+    });
+
+    dom.filterClearCenter.addEventListener('click', () => {
+      graphWorkbenchState.filterCenterId = null;
+      renderGraphWorkbench();
+    });
+
+    dom.filterReset.addEventListener('click', () => {
+      graphWorkbenchState.filterCenterId = null;
+      graphWorkbenchState.filterDepth = null;
+      graphWorkbenchState.filterNodeTypes = [];
       renderGraphWorkbench();
     });
 
@@ -2672,14 +2765,72 @@
     return dom;
   }
 
-  function renderGraphSearch(dom, visibleEntities) {
-    // Update kind filter options
-    const kinds = uniqueSorted(visibleEntities.map(e => e.kind));
-    const opts = [{ value: 'all', label: 'All kinds' }].concat(
-      kinds.map(k => ({ value: k, label: k }))
+  function renderGraphWorkbenchFilters(dom, baseGraph) {
+    const nodes = Array.isArray(baseGraph?.nodes) ? baseGraph.nodes : [];
+    const nodeById = new Map(nodes.map(n => [n.id, n]));
+
+    if (graphWorkbenchState.filterCenterId && !nodeById.has(graphWorkbenchState.filterCenterId)) {
+      graphWorkbenchState.filterCenterId = null;
+    }
+
+    if (dom.filterDepth) {
+      if (graphWorkbenchState.filterDepth === null || graphWorkbenchState.filterDepth === undefined) {
+        if (dom.filterDepth.value !== '') dom.filterDepth.value = '';
+      } else if (dom.filterDepth.value !== String(graphWorkbenchState.filterDepth)) {
+        dom.filterDepth.value = String(graphWorkbenchState.filterDepth);
+      }
+    }
+
+    const availableTypes = uniqueSorted(nodes.map(n => n.type));
+    const availableTypeSet = new Set(availableTypes);
+    graphWorkbenchState.filterNodeTypes = normaliseArray(graphWorkbenchState.filterNodeTypes).filter(t => availableTypeSet.has(t));
+
+    clearElement(dom.filterTypes);
+    availableTypes.forEach(type => {
+      const chip = document.createElement('label');
+      chip.className = 'chip';
+
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = graphWorkbenchState.filterNodeTypes.includes(type);
+      checkbox.addEventListener('change', () => {
+        const next = new Set(graphWorkbenchState.filterNodeTypes);
+        if (checkbox.checked) {
+          next.add(type);
+        } else {
+          next.delete(type);
+        }
+        graphWorkbenchState.filterNodeTypes = Array.from(next);
+        renderGraphWorkbench();
+      });
+
+      const label = document.createElement('span');
+      label.textContent = labelForNodeType(type);
+
+      chip.appendChild(checkbox);
+      chip.appendChild(label);
+      dom.filterTypes.appendChild(chip);
+    });
+
+    const center = graphWorkbenchState.filterCenterId
+      ? nodeById.get(graphWorkbenchState.filterCenterId)
+      : null;
+
+    if (center) {
+      dom.filterCenterLabel.textContent = `${center.name || center.id} (${labelForNodeType(center.type)}) [${center.id}]`;
+    } else {
+      dom.filterCenterLabel.textContent = 'No center selected; showing full graph.';
+    }
+  }
+
+  function renderGraphSearch(dom, baseGraphNodes) {
+    const nodes = Array.isArray(baseGraphNodes) ? baseGraphNodes : [];
+
+    const types = uniqueSorted(nodes.map(n => n.type));
+    const opts = [{ value: 'all', label: 'All types' }].concat(
+      types.map(t => ({ value: t, label: labelForNodeType(t) }))
     );
 
-    // preserve selection if possible
     const prev = dom.searchKind.value || graphWorkbenchState.searchKind || 'all';
     clearElement(dom.searchKind);
     opts.forEach(o => {
@@ -2690,24 +2841,21 @@
     });
     dom.searchKind.value = opts.some(o => o.value === prev) ? prev : 'all';
 
-    // update query input (avoid stomping cursor if already typing)
     if (dom.searchQuery.value !== (graphWorkbenchState.searchQuery || '')) {
       dom.searchQuery.value = graphWorkbenchState.searchQuery || '';
     }
 
-    // compute filtered
     const q = (graphWorkbenchState.searchQuery || '').trim().toLowerCase();
-    const kindFilter = dom.searchKind.value || 'all';
+    const typeFilter = dom.searchKind.value || 'all';
 
-    const filtered = visibleEntities.filter(e => {
-      const matchesKind = kindFilter === 'all' || (e.kind || '') === kindFilter;
-      if (!matchesKind) return false;
+    const filtered = nodes.filter(n => {
+      const matchesType = typeFilter === 'all' || n.type === typeFilter;
+      if (!matchesType) return false;
       if (!q) return true;
-      const hay = `${e.name || ''} ${(e.summary || '')}`.toLowerCase();
+      const hay = `${n.name || ''} ${(n.id || '')} ${(n.kind || '')}`.toLowerCase();
       return hay.includes(q);
     });
 
-    // render results
     clearElement(dom.searchResults);
 
     if (!filtered.length) {
@@ -2720,24 +2868,28 @@
     }
 
     const selected =
-      normaliseSelectionType(graphWorkbenchState.selection?.type) === 'entity'
+      graphWorkbenchState.selection &&
+      graphWorkbenchState.selection.type !== 'relation' &&
+      graphWorkbenchState.selection.type !== 'edge'
         ? graphWorkbenchState.selection.id
         : null;
 
-    filtered.slice(0, 300).forEach(e => {
+    filtered.slice(0, 300).forEach(n => {
       const li = document.createElement('li');
-      li.className = 'graph-search-item' + (selected === e.id ? ' selected' : '');
+      li.className = 'graph-search-item' + (selected === n.id ? ' selected' : '');
       const left = document.createElement('span');
-      left.textContent = e.name || e.id;
+      left.textContent = n.name || n.id;
 
       const right = document.createElement('span');
       right.className = 'meta';
-      right.textContent = e.kind || '—';
+      right.textContent = labelForNodeType(n.type);
 
       li.appendChild(left);
       li.appendChild(right);
       li.addEventListener('click', () => {
-        setGraphWorkbenchSelection({ type: 'entity', id: e.id });
+        const type = normaliseSelectionType(n.type) || 'node';
+        setGraphWorkbenchSelection({ type, id: n.id });
+        graphWorkbenchState.filterCenterId = n.id;
         renderGraphWorkbench();
       });
 
@@ -3163,35 +3315,36 @@
     dom.workbench.style.setProperty('--graph-left-width', graphWorkbenchState.leftWidth + 'px');
     dom.workbench.style.setProperty('--graph-right-width', graphWorkbenchState.rightWidth + 'px');
 
-    // Compute dataset
+    const baseGraph = ViewModels.buildMovementGraphModel(snapshot, {
+      movementId: currentMovementId
+    });
+
+    const baseNodes = Array.isArray(baseGraph.nodes) ? baseGraph.nodes : [];
+    const baseNodeIds = new Set(baseNodes.map(n => n.id));
+
     const { visibleEntities, visibleRelations, entityById } = getGraphDatasetForCurrentMovement();
 
-    // Keep selection/focus valid for the current movement's dataset
     if (graphWorkbenchState.selection) {
       const sel = graphWorkbenchState.selection;
       const selType = normaliseSelectionType(sel.type);
 
-      const entityIds = new Set(visibleEntities.map(e => e.id));
       const relationIds = new Set(visibleRelations.map(r => r.id));
 
-      if (selType === 'entity') {
-        const exists = entityIds.has(sel.id);
-        if (!exists) {
-          setGraphWorkbenchSelection(null);
-        }
-      } else if (selType === 'relation') {
+      if (selType === 'relation') {
         const exists = relationIds.has(sel.id);
         if (!exists) {
           setGraphWorkbenchSelection(null);
         }
+      } else if (selType !== 'edge' && !baseNodeIds.has(sel.id)) {
+        setGraphWorkbenchSelection(null);
       }
-      // Non-entity/relation selections (e.g., media, notes, edges) remain valid so
-      // the workbench can show the non-editable fallback message.
     }
 
-    if (graphWorkbenchState.focusEntityId && !visibleEntities.some(e => e.id === graphWorkbenchState.focusEntityId)) {
-      graphWorkbenchState.focusEntityId = null;
+    if (graphWorkbenchState.filterCenterId && !baseNodeIds.has(graphWorkbenchState.filterCenterId)) {
+      graphWorkbenchState.filterCenterId = null;
     }
+
+    renderGraphWorkbenchFilters(dom, baseGraph);
 
     // Build datalist options (kinds + relation types)
     const kinds = uniqueSorted(visibleEntities.map(e => e.kind));
@@ -3257,15 +3410,16 @@
     }
 
     // Render search + selected panels
-    renderGraphSearch(dom, visibleEntities);
+    renderGraphSearch(dom, baseNodes);
     renderSelected(dom, visibleEntities, visibleRelations, entityById);
 
     // Render graph
     if (!workbenchGraphView) {
       workbenchGraphView = new EntityGraphView({
         onNodeClick: (id, node) => {
-          const type = normaliseSelectionType(node?.type) || 'entity';
+          const type = normaliseSelectionType(node?.type) || 'node';
           setGraphWorkbenchSelection({ type, id });
+          graphWorkbenchState.filterCenterId = id;
           renderGraphWorkbench();
         },
         onLinkClick: id => {
@@ -3281,24 +3435,30 @@
       });
     }
 
-    const graphData = ViewModels.buildMovementGraphModel(snapshot, {
-      movementId: currentMovementId
+    const filteredGraph = ViewModels.filterGraphModel(baseGraph, {
+      centerNodeId: graphWorkbenchState.filterCenterId,
+      depth: graphWorkbenchState.filterDepth,
+      nodeTypeFilter: graphWorkbenchState.filterNodeTypes
     });
 
     const selectedType = normaliseSelectionType(
       graphWorkbenchState.selection && graphWorkbenchState.selection.type
     );
 
-    const selectedEntityIdForGraph =
-      selectedType === 'entity' ? graphWorkbenchState.selection.id : null;
+    const selectedNodeIdForGraph =
+      graphWorkbenchState.selection &&
+      selectedType !== 'relation' &&
+      selectedType !== 'edge'
+        ? graphWorkbenchState.selection.id
+        : null;
 
     const selectedRelationIdForGraph =
       selectedType === 'relation' ? graphWorkbenchState.selection.id : null;
 
-    workbenchGraphView.render(dom.canvas, graphData, {
-      selectedEntityId: selectedEntityIdForGraph,
+    workbenchGraphView.render(dom.canvas, filteredGraph, {
+      selectedEntityId: selectedNodeIdForGraph,
       selectedRelationId: selectedRelationIdForGraph,
-      focusEntityId: graphWorkbenchState.focusEntityId
+      focusEntityId: graphWorkbenchState.filterCenterId
     });
   }
 
