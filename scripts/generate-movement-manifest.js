@@ -5,12 +5,16 @@ const path = require('path');
 const MOVEMENTS_DIR = path.join(__dirname, '..', 'movements');
 const OUTPUT_FILE = path.join(MOVEMENTS_DIR, 'manifest.js');
 
+function isDatasetFile(entry) {
+  return entry.isFile() && entry.name.endsWith('-data.js');
+}
+
 function collectDatasetFiles(dirPath) {
   const entries = fs.readdirSync(dirPath, { withFileTypes: true });
   return entries.flatMap(entry => {
     const absolutePath = path.join(dirPath, entry.name);
     if (entry.isDirectory()) return collectDatasetFiles(absolutePath);
-    if (entry.isFile() && entry.name.endsWith('-data.js')) return [absolutePath];
+    if (isDatasetFile(entry)) return [absolutePath];
     return [];
   });
 }
@@ -23,9 +27,17 @@ function toRelativeManifestPath(filePath) {
 }
 
 function getDatasetFiles() {
-  return collectDatasetFiles(MOVEMENTS_DIR)
-    .map(toRelativeManifestPath)
-    .sort();
+  const discovered = collectDatasetFiles(MOVEMENTS_DIR);
+  if (discovered.length === 0) {
+    return [];
+  }
+
+  const relative = discovered.map(toRelativeManifestPath).sort();
+
+  console.log(`Discovered ${relative.length} movement dataset file(s).`);
+  relative.forEach(file => console.log(`  - ${file}`));
+
+  return relative;
 }
 
 function buildManifestContent(files) {
