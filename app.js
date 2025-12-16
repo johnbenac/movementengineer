@@ -2272,6 +2272,141 @@
 
   const labelForNodeType = type => GRAPH_NODE_TYPE_LABELS[type] || type || 'Unknown';
 
+  const GRAPH_NODE_EDIT_CONFIG = {
+    textcollection: {
+      collection: 'textCollections',
+      label: 'Canon collection',
+      fields: [
+        { label: 'ID', name: 'id', readOnly: true },
+        { label: 'Movement ID', name: 'movementId' },
+        { label: 'Name', name: 'name' },
+        { label: 'Description', name: 'description', type: 'textarea', rows: 3, nullable: true },
+        { label: 'Tags (csv)', name: 'tags', type: 'csv' },
+        { label: 'Root text IDs (csv)', name: 'rootTextIds', type: 'csv' }
+      ]
+    },
+    textnode: {
+      collection: 'texts',
+      label: 'Canon text',
+      fields: [
+        { label: 'ID', name: 'id', readOnly: true },
+        { label: 'Movement ID', name: 'movementId' },
+        { label: 'Parent ID', name: 'parentId', nullable: true },
+        { label: 'Level', name: 'level' },
+        { label: 'Title', name: 'title' },
+        { label: 'Label', name: 'label' },
+        { label: 'Content', name: 'content', type: 'textarea', rows: 4, nullable: true },
+        { label: 'Main function', name: 'mainFunction', nullable: true },
+        { label: 'Tags (csv)', name: 'tags', type: 'csv' },
+        { label: 'Mentions entity IDs (csv)', name: 'mentionsEntityIds', type: 'csv' }
+      ]
+    },
+    practice: {
+      collection: 'practices',
+      label: 'Practice',
+      fields: [
+        { label: 'ID', name: 'id', readOnly: true },
+        { label: 'Movement ID', name: 'movementId' },
+        { label: 'Name', name: 'name' },
+        { label: 'Kind', name: 'kind', nullable: true },
+        { label: 'Description', name: 'description', type: 'textarea', rows: 3, nullable: true },
+        { label: 'Frequency', name: 'frequency', nullable: true },
+        { label: 'Is public', name: 'isPublic', type: 'checkbox' },
+        { label: 'Notes', name: 'notes', type: 'textarea', rows: 3, nullable: true },
+        { label: 'Tags (csv)', name: 'tags', type: 'csv' },
+        { label: 'Involved entity IDs (csv)', name: 'involvedEntityIds', type: 'csv' },
+        { label: 'Instruction text IDs (csv)', name: 'instructionsTextIds', type: 'csv' },
+        { label: 'Supporting claim IDs (csv)', name: 'supportingClaimIds', type: 'csv' },
+        { label: 'Sources of truth (csv)', name: 'sourcesOfTruth', type: 'csv' },
+        { label: 'Source entity IDs (csv)', name: 'sourceEntityIds', type: 'csv' }
+      ]
+    },
+    event: {
+      collection: 'events',
+      label: 'Calendar event',
+      fields: [
+        { label: 'ID', name: 'id', readOnly: true },
+        { label: 'Movement ID', name: 'movementId' },
+        { label: 'Name', name: 'name' },
+        { label: 'Description', name: 'description', type: 'textarea', rows: 3, nullable: true },
+        { label: 'Recurrence', name: 'recurrence', nullable: true },
+        { label: 'Timing rule', name: 'timingRule', nullable: true },
+        { label: 'Notes', name: 'notes', type: 'textarea', rows: 3, nullable: true },
+        { label: 'Tags (csv)', name: 'tags', type: 'csv' },
+        { label: 'Main practice IDs (csv)', name: 'mainPracticeIds', type: 'csv' },
+        { label: 'Main entity IDs (csv)', name: 'mainEntityIds', type: 'csv' },
+        { label: 'Reading text IDs (csv)', name: 'readingTextIds', type: 'csv' },
+        { label: 'Supporting claim IDs (csv)', name: 'supportingClaimIds', type: 'csv' }
+      ]
+    },
+    rule: {
+      collection: 'rules',
+      label: 'Rule',
+      fields: [
+        { label: 'ID', name: 'id', readOnly: true },
+        { label: 'Movement ID', name: 'movementId' },
+        { label: 'Short text', name: 'shortText' },
+        { label: 'Kind', name: 'kind', nullable: true },
+        { label: 'Details', name: 'details', type: 'textarea', rows: 3, nullable: true },
+        { label: 'Applies to (csv)', name: 'appliesTo', type: 'csv' },
+        { label: 'Domain (csv)', name: 'domain', type: 'csv' },
+        { label: 'Tags (csv)', name: 'tags', type: 'csv' },
+        { label: 'Supporting text IDs (csv)', name: 'supportingTextIds', type: 'csv' },
+        { label: 'Supporting claim IDs (csv)', name: 'supportingClaimIds', type: 'csv' },
+        { label: 'Related practice IDs (csv)', name: 'relatedPracticeIds', type: 'csv' },
+        { label: 'Sources of truth (csv)', name: 'sourcesOfTruth', type: 'csv' },
+        { label: 'Source entity IDs (csv)', name: 'sourceEntityIds', type: 'csv' }
+      ]
+    },
+    claim: {
+      collection: 'claims',
+      label: 'Claim',
+      fields: [
+        { label: 'ID', name: 'id', readOnly: true },
+        { label: 'Movement ID', name: 'movementId' },
+        { label: 'Text', name: 'text', type: 'textarea', rows: 3 },
+        { label: 'Category', name: 'category', nullable: true },
+        { label: 'Tags (csv)', name: 'tags', type: 'csv' },
+        { label: 'Source text IDs (csv)', name: 'sourceTextIds', type: 'csv' },
+        { label: 'About entity IDs (csv)', name: 'aboutEntityIds', type: 'csv' },
+        { label: 'Sources of truth (csv)', name: 'sourcesOfTruth', type: 'csv' },
+        { label: 'Source entity IDs (csv)', name: 'sourceEntityIds', type: 'csv' },
+        { label: 'Notes', name: 'notes', type: 'textarea', rows: 3, nullable: true }
+      ]
+    },
+    mediaasset: {
+      collection: 'media',
+      label: 'Media',
+      fields: [
+        { label: 'ID', name: 'id', readOnly: true },
+        { label: 'Movement ID', name: 'movementId' },
+        { label: 'Kind', name: 'kind', nullable: true },
+        { label: 'URI', name: 'uri' },
+        { label: 'Title', name: 'title' },
+        { label: 'Description', name: 'description', type: 'textarea', rows: 3, nullable: true },
+        { label: 'Tags (csv)', name: 'tags', type: 'csv' },
+        { label: 'Linked entity IDs (csv)', name: 'linkedEntityIds', type: 'csv' },
+        { label: 'Linked practice IDs (csv)', name: 'linkedPracticeIds', type: 'csv' },
+        { label: 'Linked event IDs (csv)', name: 'linkedEventIds', type: 'csv' },
+        { label: 'Linked text IDs (csv)', name: 'linkedTextIds', type: 'csv' }
+      ]
+    },
+    note: {
+      collection: 'notes',
+      label: 'Note',
+      fields: [
+        { label: 'ID', name: 'id', readOnly: true },
+        { label: 'Movement ID', name: 'movementId' },
+        { label: 'Target type', name: 'targetType' },
+        { label: 'Target ID', name: 'targetId' },
+        { label: 'Author', name: 'author', nullable: true },
+        { label: 'Body', name: 'body', type: 'textarea', rows: 3 },
+        { label: 'Context', name: 'context', type: 'textarea', rows: 2, nullable: true },
+        { label: 'Tags (csv)', name: 'tags', type: 'csv' }
+      ]
+    }
+  };
+
   function buildEntityIndex(entities) {
     const map = new Map();
     (entities || []).forEach(e => {
@@ -2912,6 +3047,160 @@
     });
   }
 
+  function renderGenericNodeEditor(dom, node, config) {
+    const item = (snapshot[config.collection] || []).find(it => it && it.id === node.id);
+
+    if (!item) {
+      dom.selectedBody.textContent = 'Selected item not found.';
+      return;
+    }
+
+    const header = document.createElement('div');
+    header.className = 'graph-selected-header';
+
+    const titleWrap = document.createElement('div');
+    const title = document.createElement('p');
+    title.className = 'graph-selected-title';
+    title.textContent = item.name || item.title || item.shortText || item.text || node.id;
+
+    const subtitle = document.createElement('p');
+    subtitle.className = 'graph-selected-subtitle';
+    subtitle.textContent = `${config.label} · ${node.id}`;
+    titleWrap.appendChild(title);
+    titleWrap.appendChild(subtitle);
+
+    const actions = document.createElement('div');
+    const btnSave = document.createElement('button');
+    btnSave.className = 'btn btn-primary';
+    btnSave.type = 'button';
+    btnSave.textContent = 'Save';
+
+    const btnDelete = document.createElement('button');
+    btnDelete.className = 'btn btn-danger';
+    btnDelete.type = 'button';
+    btnDelete.textContent = 'Delete';
+
+    actions.appendChild(btnSave);
+    actions.appendChild(btnDelete);
+
+    header.appendChild(titleWrap);
+    header.appendChild(actions);
+    dom.selectedBody.appendChild(header);
+
+    const form = document.createElement('form');
+    form.className = 'form-stack';
+    form.addEventListener('submit', ev => ev.preventDefault());
+
+    const formatterCsv = value => normaliseArray(value).join(', ');
+
+    config.fields.forEach(field => {
+      const row = document.createElement('label');
+      row.className = 'form-row';
+      row.style.marginBottom = '10px';
+
+      const label = document.createElement('span');
+      label.textContent = field.label;
+      label.style.display = 'block';
+      label.style.fontWeight = '600';
+      label.style.marginBottom = '4px';
+
+      row.appendChild(label);
+
+      let control;
+      const value = item[field.name];
+      const initialValue =
+        field.type === 'csv' ? formatterCsv(value) : value === null ? '' : value || '';
+
+      if (field.type === 'textarea') {
+        control = document.createElement('textarea');
+        control.className = 'form-control';
+        control.name = field.name;
+        control.rows = field.rows || 3;
+        control.value = initialValue;
+      } else if (field.type === 'checkbox') {
+        control = document.createElement('input');
+        control.type = 'checkbox';
+        control.name = field.name;
+        control.checked = Boolean(value);
+      } else {
+        control = document.createElement('input');
+        control.type = 'text';
+        control.className = 'form-control';
+        control.name = field.name;
+        control.value = initialValue;
+      }
+
+      if (field.readOnly) {
+        control.readOnly = true;
+      }
+
+      row.appendChild(control);
+      form.appendChild(row);
+    });
+
+    dom.selectedBody.appendChild(form);
+
+    btnSave.addEventListener('click', () => {
+      const fd = new FormData(form);
+      const updated = { ...item };
+
+      config.fields.forEach(field => {
+        let rawValue;
+        if (field.type === 'checkbox') {
+          const el = form.querySelector(`[name="${field.name}"]`);
+          rawValue = el && 'checked' in el ? el.checked : false;
+        } else {
+          rawValue = fd.get(field.name);
+        }
+
+        if (field.readOnly) return;
+
+        const rawString = rawValue === null ? '' : rawValue.toString();
+        let parsedValue;
+
+        if (field.type === 'csv') {
+          parsedValue = parseCsvInput(rawString);
+        } else if (field.type === 'checkbox') {
+          parsedValue = Boolean(rawValue);
+        } else {
+          parsedValue = rawString.trim();
+        }
+
+        if (field.nullable && parsedValue === '') {
+          updated[field.name] = null;
+        } else {
+          updated[field.name] = parsedValue;
+        }
+      });
+
+      try {
+        DomainService.upsertItem(snapshot, config.collection, updated);
+        saveSnapshot({ show: false });
+        setStatus(`${config.label} saved`);
+        renderGraphWorkbench();
+      } catch (err) {
+        alert(err instanceof Error ? err.message : 'Failed to save item');
+      }
+    });
+
+    btnDelete.addEventListener('click', () => {
+      const ok = window.confirm(
+        `Delete this ${config.label.toLowerCase()}?\n\n${item.name || item.title || item.id}\n\nThis cannot be undone.`
+      );
+      if (!ok) return;
+
+      try {
+        DomainService.deleteItem(snapshot, config.collection, item.id);
+        setGraphWorkbenchSelection(null);
+        saveSnapshot({ show: false });
+        setStatus(`${config.label} deleted`);
+        renderGraphWorkbench();
+      } catch (err) {
+        alert(err instanceof Error ? err.message : 'Failed to delete item');
+      }
+    });
+  }
+
   function renderSelected(dom, visibleEntities, visibleRelations, entityById, baseGraphNodes) {
     clearElement(dom.selectedBody);
 
@@ -3302,11 +3591,18 @@
       return;
     }
 
-    // Fallback for non-entity, non-relation nodes/edges
+    // Other node types
     const nodeIndex = new Map(normaliseArray(baseGraphNodes).map(n => [n.id, n]));
     const node = nodeIndex.get(selection.id);
 
     if (node) {
+      const config = GRAPH_NODE_EDIT_CONFIG[normaliseSelectionType(node.type)];
+
+      if (config) {
+        renderGenericNodeEditor(dom, node, config);
+        return;
+      }
+
       const card = document.createElement('div');
       card.className = 'card';
       card.style.padding = '10px';
@@ -3322,7 +3618,7 @@
 
       const hint = document.createElement('p');
       hint.className = 'hint';
-      hint.textContent = 'Editing is only available for entities and relations.';
+      hint.textContent = 'Editing is not available for this node type yet.';
 
       card.appendChild(title);
       card.appendChild(subtitle);
