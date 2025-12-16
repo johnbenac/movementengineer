@@ -45,11 +45,41 @@ function testPracticeDetail() {
   );
 }
 
+function testGraphFilters() {
+  const baseGraph = {
+    nodes: [
+      { id: 'a', type: 'Entity', name: 'Entity A' },
+      { id: 'b', type: 'Claim', name: 'Claim B' },
+      { id: 'c', type: 'Rule', name: 'Rule C' }
+    ],
+    edges: [
+      { fromId: 'a', toId: 'b', relationType: 'rel_ab' },
+      { fromId: 'b', toId: 'c', relationType: 'rel_bc' }
+    ]
+  };
+
+  const typeFiltered = ViewModels.filterGraphModel(baseGraph, { nodeTypeFilter: ['Claim'] });
+  assert(typeFiltered.nodes.length === 1 && typeFiltered.nodes[0].id === 'b', 'Type filter should keep matching nodes');
+  assert(typeFiltered.edges.length === 0, 'Edges should be dropped if endpoints are filtered out');
+
+  const depthFiltered = ViewModels.filterGraphModel(baseGraph, { centerNodeId: 'a', depth: 1 });
+  assert(depthFiltered.nodes.length === 2, 'Depth filter should include center + 1-hop neighbours');
+  assert(depthFiltered.edges.length === 1, 'Depth filter should keep edges within the hop window');
+
+  const centerPreserved = ViewModels.filterGraphModel(baseGraph, {
+    centerNodeId: 'a',
+    depth: 1,
+    nodeTypeFilter: ['Claim']
+  });
+  assert(centerPreserved.nodes.some(n => n.id === 'a'), 'Center node should be preserved even if type filtered out');
+}
+
 function runTests() {
   console.log('Running view-model tests...');
   testMovementDashboard();
   testEntityDetail();
   testPracticeDetail();
+  testGraphFilters();
   console.log('All tests passed ✅');
 }
 

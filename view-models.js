@@ -296,16 +296,16 @@ function buildEntityDetailViewModel(data, input) {
   };
 }
 
-function buildEntityGraphViewModel(data, input) {
-  const { movementId, centerEntityId, depth, relationTypeFilter } = input;
-  const baseGraph = buildMovementGraphModel(data, { movementId, relationTypeFilter });
+function filterGraphModel(graph, filters = {}) {
+  const nodes = Array.isArray(graph?.nodes) ? graph.nodes : [];
+  const edges = Array.isArray(graph?.edges) ? graph.edges : [];
 
-  if (!centerEntityId || !Number.isFinite(depth)) {
-    return { ...baseGraph, centerEntityId };
-  }
+  const { centerNodeId, depth, nodeTypeFilter } = filters;
+
+  const hasCenter = centerNodeId && nodes.some(n => n.id === centerNodeId);
 
   const adjacency = new Map();
-  baseGraph.edges.forEach(edge => {
+  edges.forEach(edge => {
     const fromList = adjacency.get(edge.fromId) || [];
     fromList.push(edge.toId);
     adjacency.set(edge.fromId, fromList);
@@ -315,28 +315,55 @@ function buildEntityGraphViewModel(data, input) {
     adjacency.set(edge.toId, toList);
   });
 
-  const visited = new Set([centerEntityId]);
-  let frontier = [centerEntityId];
-  for (let step = 0; step < depth; step += 1) {
-    const next = [];
-    frontier.forEach(nodeId => {
-      (adjacency.get(nodeId) || []).forEach(neighbour => {
-        if (!visited.has(neighbour)) {
-          visited.add(neighbour);
-          next.push(neighbour);
-        }
+  const visited = hasCenter ? new Set([centerNodeId]) : new Set(nodes.map(n => n.id));
+  if (hasCenter && Number.isFinite(depth)) {
+    let frontier = [centerNodeId];
+    for (let step = 0; step < depth; step += 1) {
+      const next = [];
+      frontier.forEach(nodeId => {
+        (adjacency.get(nodeId) || []).forEach(neighbour => {
+          if (!visited.has(neighbour)) {
+            visited.add(neighbour);
+            next.push(neighbour);
+          }
+        });
       });
-    });
-    frontier = next;
-    if (frontier.length === 0) break;
+      frontier = next;
+      if (frontier.length === 0) break;
+    }
   }
 
-  const nodes = baseGraph.nodes.filter(n => visited.has(n.id));
-  const edges = baseGraph.edges.filter(
-    edge => visited.has(edge.fromId) || visited.has(edge.toId)
+  const typeFilterSet = Array.isArray(nodeTypeFilter) && nodeTypeFilter.length
+    ? new Set(nodeTypeFilter)
+    : null;
+
+  const filteredNodes = nodes.filter(n => {
+    if (!visited.has(n.id)) return false;
+    if (typeFilterSet && !typeFilterSet.has(n.type)) {
+      return hasCenter && n.id === centerNodeId;
+    }
+    return true;
+  });
+
+  const allowedNodeIds = new Set(filteredNodes.map(n => n.id));
+  const filteredEdges = edges.filter(
+    edge => allowedNodeIds.has(edge.fromId) && allowedNodeIds.has(edge.toId)
   );
 
-  return { nodes, edges, centerEntityId };
+  return { nodes: filteredNodes, edges: filteredEdges };
+}
+
+function buildEntityGraphViewModel(data, input) {
+  const { movementId, centerEntityId, depth, relationTypeFilter, nodeTypeFilter } = input;
+  const baseGraph = buildMovementGraphModel(data, { movementId, relationTypeFilter });
+
+  const filtered = filterGraphModel(baseGraph, {
+    centerNodeId: centerEntityId,
+    depth,
+    nodeTypeFilter
+  });
+
+  return { ...filtered, centerEntityId };
 }
 
 function buildMovementGraphModel(data, input) {
@@ -1057,6 +1084,7 @@ const ViewModels = {
   buildCanonTreeViewModel,
   buildEntityDetailViewModel,
   buildEntityGraphViewModel,
+  filterGraphModel,
   buildMovementGraphModel,
   buildPracticeDetailViewModel,
   buildCalendarViewModel,
