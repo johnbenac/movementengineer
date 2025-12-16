@@ -22,10 +22,6 @@
     while (el.firstChild) el.removeChild(el.firstChild);
   }
 
-  function clamp(value, min, max) {
-    return Math.min(Math.max(value, min), max);
-  }
-
   function hashToColor(text) {
     if (!text) return '#1f2937';
     let hash = 0;
@@ -283,9 +279,8 @@
               d.fy = d.y;
             })
             .on('drag', (event, d) => {
-              const pad = NODE_RADIUS;
-              d.fx = clamp(event.x, pad, width - pad);
-              d.fy = clamp(event.y, pad, height - pad);
+              d.fx = event.x;
+              d.fy = event.y;
               this._persistPosition(d.id, d.fx, d.fy, true);
               this._hideContextMenu();
             })
