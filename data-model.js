@@ -433,7 +433,7 @@
       }
     },
     "Relation": {
-      "description": "A typed relationship between two entities (for myth, hierarchy, membership, type-instance, etc.). Tools can infer 'general' vs 'particular' by conventions such as using relationType values like 'instance_of' or 'generalizes'.",
+      "description": "A typed relationship between two entities (for myth, hierarchy, membership, type-instance, etc.). These records are emitted directly as graph edges alongside the references captured on texts, practices, events, rules, claims, media, and notes.",
       "collectionName": "relations",
       "fields": {
         "id": { "type": "string", "format": "id", "required": true },

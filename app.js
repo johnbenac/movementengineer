@@ -2276,26 +2276,11 @@
       return entityById.has(r.fromEntityId) && entityById.has(r.toEntityId);
     });
 
-    return { visibleEntities, visibleRelations, entityById };
-  }
+    const graphData = ViewModels.buildGraphModel(snapshot, {
+      movementId: currentMovementId
+    });
 
-  function buildGraphNodesAndLinks(visibleEntities, visibleRelations) {
-    // IMPORTANT: Graph nodes/links are COPIES so D3 doesn't mutate snapshot objects.
-    const nodes = visibleEntities.map(e => ({
-      id: e.id,
-      name: e.name || e.id,
-      kind: e.kind || '',
-      movementId: e.movementId
-    }));
-
-    const links = visibleRelations.map(r => ({
-      id: r.id,
-      source: r.fromEntityId,
-      target: r.toEntityId,
-      relationType: r.relationType || 'rel'
-    }));
-
-    return { nodes, links };
+    return { visibleEntities, visibleRelations, entityById, graphData };
   }
 
   function ensureGraphWorkbenchDom() {
@@ -3162,14 +3147,14 @@
     dom.workbench.style.setProperty('--graph-right-width', graphWorkbenchState.rightWidth + 'px');
 
     // Compute dataset
-    const { visibleEntities, visibleRelations, entityById } = getGraphDatasetForCurrentMovement();
+    const { visibleEntities, visibleRelations, entityById, graphData } = getGraphDatasetForCurrentMovement();
+    const relationIds = new Set(visibleRelations.map(r => r.id));
 
     // Keep selection/focus valid for the current movement's dataset
     if (graphWorkbenchState.selection) {
       const sel = graphWorkbenchState.selection;
 
       const entityIds = new Set(visibleEntities.map(e => e.id));
-      const relationIds = new Set(visibleRelations.map(r => r.id));
 
       if (sel.type === 'entity') {
         const exists = entityIds.has(sel.id);
@@ -3261,11 +3246,13 @@
     if (!workbenchGraphView) {
       workbenchGraphView = new EntityGraphView({
         onNodeClick: id => {
+          if (!entityById.has(id)) return;
           graphWorkbenchState.selection = { type: 'entity', id };
           graphWorkbenchState.focusEntityId = id;
           renderGraphWorkbench();
         },
         onLinkClick: id => {
+          if (!relationIds.has(id)) return;
           graphWorkbenchState.selection = { type: 'relation', id };
           renderGraphWorkbench();
         },
@@ -3276,8 +3263,6 @@
         }
       });
     }
-
-    const graphData = buildGraphNodesAndLinks(visibleEntities, visibleRelations);
 
     const selectedEntityIdForGraph =
       graphWorkbenchState.selection && graphWorkbenchState.selection.type === 'entity'
