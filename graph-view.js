@@ -127,6 +127,11 @@
         return;
       }
 
+      if (this.simulation) {
+        this.simulation.stop();
+        this.simulation = null;
+      }
+
       const nodes = Array.isArray(graph?.nodes) ? graph.nodes.map(n => ({ ...n })) : [];
 
       clearElement(container);
