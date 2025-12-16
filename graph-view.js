@@ -184,12 +184,14 @@
       const canvas = document.createElement('div');
       canvas.className = 'entity-graph-canvas graph-canvas';
       canvas.style.minHeight = `${height}px`;
+      canvas.style.height = `${height}px`;
 
       const svg = d3
         .select(canvas)
         .append('svg')
-        .attr('width', width)
-        .attr('height', height);
+        .attr('width', '100%')
+        .attr('height', '100%')
+        .attr('viewBox', `0 0 ${width} ${height}`);
       this.svgEl = svg;
 
       this._ensureDefs(svg);
