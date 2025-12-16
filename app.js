@@ -121,6 +121,78 @@
     updateDirtyState();
   }
 
+  function renderMarkdownToElement(el, markdown) {
+    if (!el) return;
+    const text = markdown || '';
+    if (window.marked && typeof window.marked.parse === 'function') {
+      el.innerHTML = window.marked.parse(text);
+    } else {
+      el.textContent = text;
+    }
+  }
+
+  function openMarkdownModal({ title = 'Edit markdown', initial = '', onSave }) {
+    const overlay = document.createElement('div');
+    overlay.className = 'markdown-modal-overlay';
+
+    const modal = document.createElement('div');
+    modal.className = 'markdown-modal';
+
+    const header = document.createElement('div');
+    header.className = 'markdown-modal-header';
+    const h2 = document.createElement('h2');
+    h2.textContent = title;
+    header.appendChild(h2);
+    modal.appendChild(header);
+
+    const body = document.createElement('div');
+    body.className = 'markdown-modal-body';
+    const textarea = document.createElement('textarea');
+    textarea.value = initial || '';
+
+    const preview = document.createElement('div');
+    preview.className = 'markdown-preview-pane';
+    renderMarkdownToElement(preview, textarea.value);
+
+    textarea.addEventListener('input', () => {
+      renderMarkdownToElement(preview, textarea.value);
+    });
+
+    body.appendChild(textarea);
+    body.appendChild(preview);
+    modal.appendChild(body);
+
+    const footer = document.createElement('div');
+    footer.className = 'markdown-modal-footer';
+    const saveBtn = document.createElement('button');
+    saveBtn.textContent = 'Use content';
+    saveBtn.className = 'btn btn-primary';
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.className = 'btn';
+    footer.appendChild(cancelBtn);
+    footer.appendChild(saveBtn);
+    modal.appendChild(footer);
+
+    const closeModal = () => {
+      document.body.removeChild(overlay);
+    };
+
+    saveBtn.addEventListener('click', () => {
+      if (typeof onSave === 'function') {
+        onSave(textarea.value);
+      }
+      closeModal();
+    });
+
+    cancelBtn.addEventListener('click', closeModal);
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    textarea.focus();
+  }
+
   function renderSaveBanner() {
     const banner = document.getElementById('save-banner');
     const text = document.getElementById('save-banner-text');
@@ -660,6 +732,8 @@
     const mentionsField = document.getElementById('canon-text-mentions');
     const contentInput = document.getElementById('canon-text-content');
     const rootCheckbox = document.getElementById('canon-text-root');
+    const previewPane = document.getElementById('canon-text-preview');
+    const openMarkdownBtn = document.getElementById('btn-open-markdown-modal');
     const saveTextBtn = document.getElementById('btn-save-text');
     const deleteTextBtn = document.getElementById('btn-delete-text');
     const addChildBtn = document.getElementById('btn-add-child-text');
@@ -677,6 +751,16 @@
       !rootCheckbox
     )
       return;
+
+    const renderContentPreview = value => {
+      if (!previewPane) return;
+      if (!value) {
+        previewPane.innerHTML =
+          '<p class="muted">No content yet. Start typing to see a preview.</p>';
+        return;
+      }
+      renderMarkdownToElement(previewPane, value);
+    };
 
     const activeText =
       currentTextId &&
@@ -723,8 +807,13 @@
         mentionsField,
         contentInput
       ].forEach(el => (el.disabled = true));
+      renderContentPreview('');
       rootCheckbox.disabled = true;
       rootCheckbox.checked = false;
+      if (openMarkdownBtn) {
+        openMarkdownBtn.disabled = true;
+        openMarkdownBtn.onclick = null;
+      }
       if (saveTextBtn) saveTextBtn.disabled = true;
       if (deleteTextBtn) deleteTextBtn.disabled = true;
       if (addChildBtn) addChildBtn.disabled = true;
@@ -751,12 +840,31 @@
     tagsField.value = (activeText.tags || []).join(', ');
     mentionsField.value = (activeText.mentionsEntityIds || []).join(', ');
     contentInput.value = activeText.content || '';
+    renderContentPreview(contentInput.value);
+    contentInput.oninput = () => {
+      if (isPopulatingCanonForms) return;
+      renderContentPreview(contentInput.value);
+    };
 
     const collectionRoots = collection?.rootTextIds || [];
     rootCheckbox.disabled = !collection;
     rootCheckbox.checked = collection
       ? collectionRoots.includes(activeText.id)
       : false;
+
+    if (openMarkdownBtn) {
+      openMarkdownBtn.disabled = false;
+      openMarkdownBtn.onclick = () => {
+        openMarkdownModal({
+          title: activeText.title || 'Canon text',
+          initial: contentInput.value,
+          onSave: value => {
+            contentInput.value = value;
+            renderContentPreview(value);
+          }
+        });
+      };
+    }
 
     if (parentSelect.value) {
       rootCheckbox.checked = false;
