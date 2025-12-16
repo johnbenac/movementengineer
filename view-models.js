@@ -339,6 +339,77 @@ function buildEntityGraphViewModel(data, input) {
   return { nodes, edges, centerEntityId };
 }
 
+function filterGraphModel(graph, filters = {}) {
+  const nodes = Array.isArray(graph?.nodes) ? graph.nodes : [];
+  const edges = Array.isArray(graph?.edges) ? graph.edges : [];
+
+  const { centerNodeId, depth, nodeTypeFilter } = filters;
+
+  const nodeIdSet = new Set(nodes.map(n => n.id));
+  const hasCenter = Boolean(centerNodeId && nodeIdSet.has(centerNodeId));
+  const hasDepth = Number.isFinite(depth) && depth >= 0;
+  const hopFilterActive = hasCenter && hasDepth;
+
+  // Build undirected adjacency
+  const adjacency = new Map();
+  const addAdj = (a, b) => {
+    if (!a || !b) return;
+    const list = adjacency.get(a) || [];
+    list.push(b);
+    adjacency.set(a, list);
+  };
+
+  edges.forEach(e => {
+    addAdj(e.fromId, e.toId);
+    addAdj(e.toId, e.fromId);
+  });
+
+  // Visited nodes by hops
+  let visited;
+  if (hopFilterActive) {
+    visited = new Set([centerNodeId]);
+    let frontier = [centerNodeId];
+    for (let step = 0; step < depth; step += 1) {
+      const next = [];
+      frontier.forEach(id => {
+        (adjacency.get(id) || []).forEach(nb => {
+          if (!visited.has(nb)) {
+            visited.add(nb);
+            next.push(nb);
+          }
+        });
+      });
+      frontier = next;
+      if (!frontier.length) break;
+    }
+  } else {
+    visited = new Set(nodes.map(n => n.id));
+  }
+
+  // Apply hop filter
+  let hopNodes = nodes.filter(n => visited.has(n.id));
+  let hopEdges = edges.filter(e => visited.has(e.fromId) && visited.has(e.toId));
+
+  // Apply type filter
+  const typeFilterSet =
+    Array.isArray(nodeTypeFilter) && nodeTypeFilter.filter(Boolean).length
+      ? new Set(nodeTypeFilter.filter(Boolean))
+      : null;
+
+  if (typeFilterSet) {
+    hopNodes = hopNodes.filter(n => {
+      if (typeFilterSet.has(n.type)) return true;
+      // preserve center if active (even if type filtered out)
+      return hopFilterActive && n.id === centerNodeId;
+    });
+
+    const allowedIds = new Set(hopNodes.map(n => n.id));
+    hopEdges = hopEdges.filter(e => allowedIds.has(e.fromId) && allowedIds.has(e.toId));
+  }
+
+  return { nodes: hopNodes, edges: hopEdges };
+}
+
 function buildMovementGraphModel(data, input) {
   const { movementId, relationTypeFilter } = input;
   const relationFilterSet = Array.isArray(relationTypeFilter)
@@ -1057,6 +1128,7 @@ const ViewModels = {
   buildCanonTreeViewModel,
   buildEntityDetailViewModel,
   buildEntityGraphViewModel,
+  filterGraphModel,
   buildMovementGraphModel,
   buildPracticeDetailViewModel,
   buildCalendarViewModel,
