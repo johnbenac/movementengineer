@@ -11,6 +11,7 @@
     "./movements/race-for-the-cure/race-base-data.js",
     "./movements/race-for-the-cure/rules/safety-rule-data.js",
     "./movements/race-for-the-cure/rules/volunteer-rule-data.js",
+    "./movements/reknit-december-15/meta/canon-taxonomy-data.js",
     "./movements/reknit-december-15/reknit-full-data.js",
     "./movements/reknit/meta/canon-taxonomy-data.js",
     "./movements/upside-data.js",
