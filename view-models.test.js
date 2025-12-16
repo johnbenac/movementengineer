@@ -45,11 +45,46 @@ function testPracticeDetail() {
   );
 }
 
+function testGraphFiltering() {
+  const base = {
+    nodes: [
+      { id: 't1', type: 'TextNode', name: 'Text 1' },
+      { id: 'c1', type: 'Claim', name: 'Claim 1' },
+      { id: 'e1', type: 'Entity', name: 'Entity 1' }
+    ],
+    edges: [
+      { id: 'a', fromId: 't1', toId: 'c1', relationType: 'supports_claim' },
+      { id: 'b', fromId: 'c1', toId: 'e1', relationType: 'about' }
+    ]
+  };
+
+  const onlyClaims = ViewModels.filterGraphModel(base, { nodeTypeFilter: ['Claim'] });
+  assert(onlyClaims.nodes.length === 1, 'Type-only filter keeps only Claim nodes');
+  assert(onlyClaims.edges.length === 0, 'Edges drop when endpoints missing');
+
+  const hop1 = ViewModels.filterGraphModel(base, { centerNodeId: 't1', depth: 1 });
+  assert(hop1.nodes.some(n => n.id === 't1'), 'Hop filter keeps center');
+  assert(hop1.nodes.some(n => n.id === 'c1'), 'Hop filter keeps 1-hop neighbor');
+  assert(!hop1.nodes.some(n => n.id === 'e1'), '2-hop node excluded at depth 1');
+
+  const combined = ViewModels.filterGraphModel(base, {
+    centerNodeId: 't1',
+    depth: 2,
+    nodeTypeFilter: ['Claim']
+  });
+  assert(
+    combined.nodes.some(n => n.id === 't1'),
+    'Center preserved even if type-filtered out'
+  );
+  assert(combined.nodes.some(n => n.id === 'c1'), 'Allowed type node kept');
+}
+
 function runTests() {
   console.log('Running view-model tests...');
   testMovementDashboard();
   testEntityDetail();
   testPracticeDetail();
+  testGraphFiltering();
   console.log('All tests passed ✅');
 }
 

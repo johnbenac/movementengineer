@@ -880,6 +880,23 @@ a.text-link:hover {
   flex-wrap: wrap;
 }
 
+/* Graph workbench filter chips */
+#gw-filter-types .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+}
+
+#gw-filter-types .chip input[type='checkbox'] {
+  transform: translateY(1px);
+}
+
+#gw-filter-center-label {
+  margin-top: 4px;
+  margin-bottom: 6px;
+}
+
 .edge-list {
   margin: 0;
   padding-left: 1.05rem;
