@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="./styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
   <body>
     <header class="top-bar">
@@ -245,8 +246,23 @@
                   <input id="canon-text-mentions" type="text" />
                 </div>
                 <div class="form-row">
-                  <label for="canon-text-content">Content</label>
-                  <textarea id="canon-text-content" rows="5"></textarea>
+                  <div class="form-row-header">
+                    <label for="canon-text-content">Content</label>
+                    <div class="canon-content-actions">
+                      <button id="btn-open-canon-markdown" type="button">
+                        Open markdown editor
+                      </button>
+                      <span class="muted small">Markdown preview updates as you type</span>
+                    </div>
+                  </div>
+                  <div class="canon-content-grid">
+                    <div class="canon-content-editor">
+                      <textarea id="canon-text-content" rows="8"></textarea>
+                    </div>
+                    <div id="canon-text-preview" class="canon-content-preview muted">
+                      Select a text to view its content.
+                    </div>
+                  </div>
                 </div>
                 <div class="form-row">
                   <label class="inline">

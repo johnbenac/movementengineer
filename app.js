@@ -121,6 +121,87 @@
     updateDirtyState();
   }
 
+  function renderMarkdownInto(element, markdown, { fallbackText = '' } = {}) {
+    if (!element) return;
+    const content = markdown || '';
+    if (!content.trim()) {
+      element.textContent = fallbackText;
+      element.classList.add('muted');
+      return;
+    }
+
+    element.classList.remove('muted');
+    if (window.marked && typeof window.marked.parse === 'function') {
+      element.innerHTML = window.marked.parse(content);
+    } else {
+      element.textContent = content;
+    }
+  }
+
+  function openMarkdownModal({ title = 'Edit markdown', initial = '', onSave, onClose }) {
+    const overlay = document.createElement('div');
+    overlay.className = 'markdown-modal-overlay';
+    const modal = document.createElement('div');
+    modal.className = 'markdown-modal';
+
+    const header = document.createElement('div');
+    header.className = 'markdown-modal-header';
+    const h2 = document.createElement('h2');
+    h2.textContent = title;
+    header.appendChild(h2);
+    modal.appendChild(header);
+
+    const body = document.createElement('div');
+    body.className = 'markdown-modal-body';
+    const editor = document.createElement('textarea');
+    editor.value = initial || '';
+    const preview = document.createElement('div');
+    preview.className = 'markdown-modal-preview';
+
+    const updatePreview = () => {
+      renderMarkdownInto(preview, editor.value, {
+        fallbackText: 'Preview will appear here.'
+      });
+    };
+
+    updatePreview();
+    editor.addEventListener('input', updatePreview);
+
+    body.appendChild(editor);
+    body.appendChild(preview);
+    modal.appendChild(body);
+
+    const footer = document.createElement('div');
+    footer.className = 'markdown-modal-footer';
+    const saveBtn = document.createElement('button');
+    saveBtn.textContent = 'Save';
+    saveBtn.className = 'btn btn-primary';
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.className = 'btn';
+    footer.appendChild(saveBtn);
+    footer.appendChild(cancelBtn);
+    modal.appendChild(footer);
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    const closeModal = () => {
+      if (typeof onClose === 'function') onClose();
+      document.body.removeChild(overlay);
+    };
+
+    saveBtn.addEventListener('click', () => {
+      if (typeof onSave === 'function') onSave(editor.value);
+      document.body.removeChild(overlay);
+    });
+
+    cancelBtn.addEventListener('click', closeModal);
+    overlay.addEventListener('click', e => {
+      if (e.target === overlay) closeModal();
+    });
+  }
+
   function renderSaveBanner() {
     const banner = document.getElementById('save-banner');
     const text = document.getElementById('save-banner-text');
@@ -614,6 +695,34 @@
     return false;
   }
 
+  function updateCanonPreview(markdown) {
+    const preview = document.getElementById('canon-text-preview');
+    renderMarkdownInto(preview, markdown, {
+      fallbackText: 'Select a text to view its content.'
+    });
+  }
+
+  function handleCanonContentInput() {
+    if (isPopulatingCanonForms) return;
+    const contentInput = document.getElementById('canon-text-content');
+    if (!contentInput) return;
+    updateCanonPreview(contentInput.value);
+  }
+
+  function openCanonMarkdownEditor() {
+    const contentInput = document.getElementById('canon-text-content');
+    if (!contentInput || contentInput.disabled) return;
+    openMarkdownModal({
+      title: 'Edit canon content',
+      initial: contentInput.value,
+      onSave: value => {
+        contentInput.value = value;
+        updateCanonPreview(value);
+      },
+      onClose: () => updateCanonPreview(contentInput.value)
+    });
+  }
+
   function renderCanonForms(vm) {
     const collection = vm.collection;
     const nameInput = document.getElementById('canon-collection-name');
@@ -660,6 +769,8 @@
     const mentionsField = document.getElementById('canon-text-mentions');
     const contentInput = document.getElementById('canon-text-content');
     const rootCheckbox = document.getElementById('canon-text-root');
+    const previewPane = document.getElementById('canon-text-preview');
+    const markdownEditorBtn = document.getElementById('btn-open-canon-markdown');
     const saveTextBtn = document.getElementById('btn-save-text');
     const deleteTextBtn = document.getElementById('btn-delete-text');
     const addChildBtn = document.getElementById('btn-add-child-text');
@@ -725,6 +836,11 @@
       ].forEach(el => (el.disabled = true));
       rootCheckbox.disabled = true;
       rootCheckbox.checked = false;
+      if (markdownEditorBtn) markdownEditorBtn.disabled = true;
+      if (previewPane)
+        renderMarkdownInto(previewPane, '', {
+          fallbackText: 'Select a text to view its content.'
+        });
       if (saveTextBtn) saveTextBtn.disabled = true;
       if (deleteTextBtn) deleteTextBtn.disabled = true;
       if (addChildBtn) addChildBtn.disabled = true;
@@ -743,6 +859,7 @@
       mentionsField,
       contentInput
     ].forEach(el => (el.disabled = false));
+    if (markdownEditorBtn) markdownEditorBtn.disabled = false;
     titleInput.value = activeText.title || '';
     labelInput.value = activeText.label || '';
     levelSelect.value = activeText.level || 'work';
@@ -751,6 +868,7 @@
     tagsField.value = (activeText.tags || []).join(', ');
     mentionsField.value = (activeText.mentionsEntityIds || []).join(', ');
     contentInput.value = activeText.content || '';
+    if (previewPane) renderMarkdownInto(previewPane, activeText.content || '');
 
     const collectionRoots = collection?.rootTextIds || [];
     rootCheckbox.disabled = !collection;
@@ -5257,6 +5375,8 @@
     addListenerById('btn-add-child-text', 'click', addChildTextNode);
     addListenerById('btn-save-text', 'click', saveCurrentTextNode);
     addListenerById('btn-delete-text', 'click', deleteCurrentTextNode);
+    addListenerById('canon-text-content', 'input', handleCanonContentInput);
+    addListenerById('btn-open-canon-markdown', 'click', openCanonMarkdownEditor);
 
     // Collections tab
       addListenerById('collection-select', 'change', e => {
