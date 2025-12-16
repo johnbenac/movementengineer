@@ -65,6 +65,7 @@
   let isPopulatingMovementForm = false;
   let isPopulatingEditor = false;
   let isPopulatingCanonForms = false;
+  let isCanonMarkdownInitialized = false;
 
   function updateDirtyState() {
     isDirty = snapshotDirty || movementFormDirty || itemEditorDirty;
@@ -614,6 +615,148 @@
     return false;
   }
 
+  function renderMarkdownPreview(targetEl, content, { enabled = true } = {}) {
+    if (!targetEl) return;
+
+    if (!enabled) {
+      targetEl.classList.add('empty');
+      targetEl.innerHTML = '<p class="muted">Select a text to see its content.</p>';
+      return;
+    }
+
+    const trimmed = (content || '').trim();
+    if (!trimmed) {
+      targetEl.classList.add('empty');
+      targetEl.innerHTML = '<p class="muted">Add markdown content to see a preview.</p>';
+      return;
+    }
+
+    targetEl.classList.remove('empty');
+    try {
+      if (window.marked && typeof window.marked.parse === 'function') {
+        targetEl.innerHTML = window.marked.parse(content);
+      } else {
+        targetEl.textContent = content;
+      }
+    } catch (err) {
+      targetEl.textContent = content;
+    }
+  }
+
+  function openMarkdownModal({
+    title = 'Edit Markdown',
+    initial = '',
+    onSave = null,
+    onClose = null
+  } = {}) {
+    const overlay = document.createElement('div');
+    overlay.className = 'markdown-modal-overlay';
+
+    const modal = document.createElement('div');
+    modal.className = 'markdown-modal';
+
+    const header = document.createElement('div');
+    header.className = 'markdown-modal-header';
+    const h2 = document.createElement('h2');
+    h2.textContent = title;
+    header.appendChild(h2);
+    modal.appendChild(header);
+
+    const body = document.createElement('div');
+    body.className = 'markdown-modal-body';
+
+    const editorWrapper = document.createElement('div');
+    editorWrapper.className = 'markdown-editor-container';
+    const textarea = document.createElement('textarea');
+    textarea.className = 'markdown-editor';
+    textarea.value = initial || '';
+    editorWrapper.appendChild(textarea);
+
+    const previewWrapper = document.createElement('div');
+    previewWrapper.className = 'markdown-preview';
+    renderMarkdownPreview(previewWrapper, textarea.value);
+
+    body.appendChild(editorWrapper);
+    body.appendChild(previewWrapper);
+    modal.appendChild(body);
+
+    const footer = document.createElement('div');
+    footer.className = 'markdown-modal-footer';
+    const saveBtn = document.createElement('button');
+    saveBtn.textContent = 'Save';
+    saveBtn.className = 'btn btn-primary';
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.className = 'btn';
+    footer.appendChild(saveBtn);
+    footer.appendChild(cancelBtn);
+    modal.appendChild(footer);
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    const handleInput = () => {
+      renderMarkdownPreview(previewWrapper, textarea.value);
+    };
+    textarea.addEventListener('input', handleInput);
+
+    const closeModal = (triggerOnClose = true) => {
+      textarea.removeEventListener('input', handleInput);
+      document.removeEventListener('keydown', onKeyDown);
+      if (overlay.parentElement) {
+        overlay.parentElement.removeChild(overlay);
+      }
+      if (triggerOnClose && typeof onClose === 'function') onClose();
+    };
+
+    const onKeyDown = evt => {
+      if (evt.key === 'Escape') {
+        closeModal();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+
+    saveBtn.addEventListener('click', () => {
+      if (typeof onSave === 'function') onSave(textarea.value);
+      closeModal(false);
+    });
+    cancelBtn.addEventListener('click', () => closeModal());
+  }
+
+  function ensureCanonMarkdownControls() {
+    if (isCanonMarkdownInitialized) return;
+
+    const contentInput = document.getElementById('canon-text-content');
+    const preview = document.getElementById('canon-text-preview');
+    const openBtn = document.getElementById('btn-open-canon-markdown');
+    if (!contentInput || !preview || !openBtn) return;
+
+    contentInput.addEventListener('input', () => {
+      renderMarkdownPreview(preview, contentInput.value, {
+        enabled: !contentInput.disabled
+      });
+    });
+
+    openBtn.addEventListener('click', () => {
+      if (contentInput.disabled) return;
+      openMarkdownModal({
+        title: 'Edit canon text',
+        initial: contentInput.value,
+        onSave: value => {
+          contentInput.value = value;
+          renderMarkdownPreview(preview, value, { enabled: true });
+        },
+        onClose: () => {
+          renderMarkdownPreview(preview, contentInput.value, {
+            enabled: !contentInput.disabled
+          });
+        }
+      });
+    });
+
+    isCanonMarkdownInitialized = true;
+  }
+
   function renderCanonForms(vm) {
     const collection = vm.collection;
     const nameInput = document.getElementById('canon-collection-name');
@@ -660,6 +803,8 @@
     const mentionsField = document.getElementById('canon-text-mentions');
     const contentInput = document.getElementById('canon-text-content');
     const rootCheckbox = document.getElementById('canon-text-root');
+    const markdownPreview = document.getElementById('canon-text-preview');
+    const markdownModalBtn = document.getElementById('btn-open-canon-markdown');
     const saveTextBtn = document.getElementById('btn-save-text');
     const deleteTextBtn = document.getElementById('btn-delete-text');
     const addChildBtn = document.getElementById('btn-add-child-text');
@@ -677,6 +822,8 @@
       !rootCheckbox
     )
       return;
+
+    ensureCanonMarkdownControls();
 
     const activeText =
       currentTextId &&
@@ -725,6 +872,10 @@
       ].forEach(el => (el.disabled = true));
       rootCheckbox.disabled = true;
       rootCheckbox.checked = false;
+      if (markdownPreview) {
+        renderMarkdownPreview(markdownPreview, '', { enabled: false });
+      }
+      if (markdownModalBtn) markdownModalBtn.disabled = true;
       if (saveTextBtn) saveTextBtn.disabled = true;
       if (deleteTextBtn) deleteTextBtn.disabled = true;
       if (addChildBtn) addChildBtn.disabled = true;
@@ -757,6 +908,12 @@
     rootCheckbox.checked = collection
       ? collectionRoots.includes(activeText.id)
       : false;
+    if (markdownPreview) {
+      renderMarkdownPreview(markdownPreview, activeText.content || '', {
+        enabled: true
+      });
+    }
+    if (markdownModalBtn) markdownModalBtn.disabled = false;
 
     if (parentSelect.value) {
       rootCheckbox.checked = false;
