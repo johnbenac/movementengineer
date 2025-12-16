@@ -21,8 +21,7 @@ function testCreateBlankBinding() {
         valueKind: 'number',
         sourceKind: 'collection_count',
         sourceCollection: 'entities',
-        sourceFilterTags: [],
-        includeShared: false
+        sourceFilterTags: []
       },
       {
         id: 'practice_count',
@@ -31,8 +30,7 @@ function testCreateBlankBinding() {
         valueKind: 'number',
         sourceKind: 'collection_count',
         sourceCollection: 'practices',
-        sourceFilterTags: [],
-        includeShared: false
+        sourceFilterTags: []
       }
     ]
   };
@@ -67,8 +65,7 @@ function testSetBindingValueIsPure() {
         valueKind: 'number',
         sourceKind: 'collection_count',
         sourceCollection: 'entities',
-        sourceFilterTags: [],
-        includeShared: false
+        sourceFilterTags: []
       }
     ]
   };
@@ -113,8 +110,7 @@ function testBuildComparisonMatrixAutoCounts() {
         valueKind: 'number',
         sourceKind: 'collection_count',
         sourceCollection: 'entities',
-        sourceFilterTags: [],
-        includeShared: false
+        sourceFilterTags: []
       },
       {
         id: 'practice_count',
@@ -122,8 +118,7 @@ function testBuildComparisonMatrixAutoCounts() {
         valueKind: 'number',
         sourceKind: 'collection_count',
         sourceCollection: 'practices',
-        sourceFilterTags: [],
-        includeShared: false
+        sourceFilterTags: []
       }
     ]
   };

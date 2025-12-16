@@ -24,7 +24,6 @@
   let workbenchGraphView = null;
   let graphWorkbenchDom = null;
   let graphWorkbenchState = {
-    includeShared: true,
     leftWidth: 360,
     rightWidth: 420,
     searchKind: 'all',
@@ -1114,7 +1113,7 @@
       return;
 
     const entities = (snapshot.entities || []).filter(
-      e => e.movementId === currentMovementId || e.movementId == null
+      e => e.movementId === currentMovementId
     );
 
     const options = entities
@@ -1610,9 +1609,7 @@
     clearElement(wrapper);
 
     const allClaims = (snapshot.claims || []).filter(
-      c =>
-        c.movementId === currentMovementId ||
-        c.movementId == null
+      c => c.movementId === currentMovementId
     );
     const categories = Array.from(
       new Set(
@@ -1623,7 +1620,7 @@
     ).sort();
 
     const entities = (snapshot.entities || []).filter(
-      e => e.movementId === currentMovementId || e.movementId == null
+      e => e.movementId === currentMovementId
     );
 
     ensureSelectOptions(
@@ -1938,7 +1935,7 @@
     clearElement(wrapper);
 
     const entities = (snapshot.entities || []).filter(
-      e => e.movementId === currentMovementId || e.movementId == null
+      e => e.movementId === currentMovementId
     );
     const practices = (snapshot.practices || []).filter(
       p => p.movementId === currentMovementId
@@ -2121,16 +2118,14 @@
     clearElement(wrapper);
 
     const allRelations = (snapshot.relations || []).filter(
-      r =>
-        r.movementId === currentMovementId ||
-        r.movementId == null
+      r => r.movementId === currentMovementId
     );
     const relationTypes = Array.from(
       new Set(allRelations.map(r => r.relationType).filter(Boolean))
     ).sort();
 
     const entities = (snapshot.entities || []).filter(
-      e => e.movementId === currentMovementId || e.movementId == null
+      e => e.movementId === currentMovementId
     );
 
     ensureSelectOptions(
@@ -2263,28 +2258,20 @@
   }
 
   function getGraphDatasetForCurrentMovement() {
-    const includeShared = Boolean(graphWorkbenchState.includeShared);
     const movementId = currentMovementId;
 
     const allEntities = normaliseArray(snapshot && snapshot.entities);
     const allRelations = normaliseArray(snapshot && snapshot.relations);
 
-    // Filter entities: movement-specific + optional shared (movementId == null)
-    const visibleEntities = allEntities.filter(e => {
-      if (!e) return false;
-      const matchesMovement =
-        e.movementId === movementId || (includeShared && e.movementId == null);
-      return Boolean(matchesMovement);
-    });
+    const visibleEntities = allEntities.filter(
+      e => e && e.movementId === movementId
+    );
 
     const entityById = buildEntityIndex(visibleEntities);
 
-    // Filter relations: movement-specific + optional shared + endpoints must exist
     const visibleRelations = allRelations.filter(r => {
       if (!r) return false;
-      const matchesMovement =
-        r.movementId === movementId || (includeShared && r.movementId == null);
-      if (!matchesMovement) return false;
+      if (r.movementId !== movementId) return false;
       if (!r.fromEntityId || !r.toEntityId) return false;
       return entityById.has(r.fromEntityId) && entityById.has(r.toEntityId);
     });
@@ -2298,7 +2285,7 @@
       id: e.id,
       name: e.name || e.id,
       kind: e.kind || '',
-      movementId: e.movementId ?? null
+      movementId: e.movementId
     }));
 
     const links = visibleRelations.map(r => ({
@@ -2445,11 +2432,6 @@
         <div class="graph-pane">
           <div class="pane-inner">
             <div class="graph-toolbar">
-              <label style="display:flex;align-items:center;gap:8px;">
-                <input id="gw-include-shared" type="checkbox" />
-                Include shared (movementId=null)
-              </label>
-
               <span class="toolbar-spacer"></span>
 
               <button class="btn" type="button" id="gw-fit-btn">Fit</button>
@@ -2493,8 +2475,6 @@
       root,
       workbench: document.getElementById('graph-workbench'),
       canvas: document.getElementById('gw-canvas'),
-
-      includeShared: document.getElementById('gw-include-shared'),
       fitBtn: document.getElementById('gw-fit-btn'),
       clearBtn: document.getElementById('gw-clear-selection-btn'),
 
@@ -2528,9 +2508,6 @@
       leftHandle: root.querySelector('.graph-resize-handle.left'),
       rightHandle: root.querySelector('.graph-resize-handle.right')
     };
-
-    // init checkbox state
-    dom.includeShared.checked = Boolean(graphWorkbenchState.includeShared);
 
     // resize handles
     function attachResize(handleEl, side) {
@@ -2571,11 +2548,6 @@
     attachResize(dom.rightHandle, 'right');
 
     // wiring: filters + buttons
-    dom.includeShared.addEventListener('change', () => {
-      graphWorkbenchState.includeShared = Boolean(dom.includeShared.checked);
-      renderGraphWorkbench();
-    });
-
     dom.fitBtn.addEventListener('click', () => {
       if (workbenchGraphView) workbenchGraphView.fit();
     });
@@ -3649,11 +3621,7 @@
       currentMovementId &&
       COLLECTIONS_WITH_MOVEMENT_ID.has(collName)
     ) {
-      items = coll.filter(
-        item =>
-          item.movementId === currentMovementId ||
-          item.movementId == null
-      );
+      items = coll.filter(item => item.movementId === currentMovementId);
     }
 
     if (!items.length) {
@@ -4032,9 +4000,7 @@
         .filter(text => text.parentId === item.id)
         .filter(text => {
           if (!applyMovementFilter || !currentMovementId) return true;
-          return (
-            text.movementId === currentMovementId || text.movementId == null
-          );
+          return text.movementId === currentMovementId;
         })
         .sort((a, b) =>
           getLabelForItem(a).localeCompare(getLabelForItem(b), undefined, {

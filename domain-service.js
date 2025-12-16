@@ -53,7 +53,11 @@
   }
 
   function createSkeletonItem(collectionName, movementId) {
-    const rid = movementId || null;
+    if (COLLECTIONS_WITH_MOVEMENT_ID.has(collectionName) && !movementId) {
+      throw new Error('movementId is required to create items');
+    }
+
+    const rid = movementId;
 
     switch (collectionName) {
       case 'entities':

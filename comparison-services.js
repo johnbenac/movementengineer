@@ -138,7 +138,6 @@ function deriveAutoValue(data, dimension, movementId) {
   const collectionName = dimension.sourceCollection;
   if (!collectionName || !Array.isArray(data[collectionName])) return null;
 
-  const includeShared = Boolean(dimension.includeShared);
   const filterTags = normaliseArray(dimension.sourceFilterTags);
 
   const items = data[collectionName];
@@ -146,11 +145,7 @@ function deriveAutoValue(data, dimension, movementId) {
   if (sourceKind === 'collection_count' || sourceKind === 'tagged_collection_count') {
     const matches = items.filter(item => {
       if (!item) return false;
-      const matchesMovement =
-        item.movementId === movementId ||
-        (includeShared && item.movementId == null);
-
-      if (!matchesMovement) return false;
+      if (item.movementId !== movementId) return false;
       if (sourceKind === 'tagged_collection_count' && filterTags.length > 0) {
         const tags = normaliseArray(item.tags);
         return filterTags.some(tag => tags.indexOf(tag) !== -1);
