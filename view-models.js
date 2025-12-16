@@ -297,8 +297,18 @@ function buildEntityDetailViewModel(data, input) {
 }
 
 function buildEntityGraphViewModel(data, input) {
-  const { movementId, centerEntityId, depth, relationTypeFilter } = input;
-  const baseGraph = buildMovementGraphModel(data, { movementId, relationTypeFilter });
+  const {
+    movementId,
+    centerEntityId,
+    depth,
+    relationTypeFilter,
+    nodeTypeFilter
+  } = input;
+  const baseGraph = buildMovementGraphModel(data, {
+    movementId,
+    relationTypeFilter,
+    nodeTypeFilter
+  });
 
   if (!centerEntityId || !Number.isFinite(depth)) {
     return { ...baseGraph, centerEntityId };
@@ -340,10 +350,14 @@ function buildEntityGraphViewModel(data, input) {
 }
 
 function buildMovementGraphModel(data, input) {
-  const { movementId, relationTypeFilter } = input;
+  const { movementId, relationTypeFilter, nodeTypeFilter } = input;
   const relationFilterSet = Array.isArray(relationTypeFilter)
     ? new Set(relationTypeFilter)
     : null;
+  const nodeTypeFilterSet =
+    Array.isArray(nodeTypeFilter) && nodeTypeFilter.length
+      ? new Set(nodeTypeFilter)
+      : null;
 
   const lookups = {
     Movement: buildLookup(filterByMovement(data.movements, movementId)),
@@ -364,6 +378,7 @@ function buildMovementGraphModel(data, input) {
 
   const ensureNode = (type, id, fallbackName, fallbackKind) => {
     if (!id) return null;
+    if (nodeTypeFilterSet && !nodeTypeFilterSet.has(type)) return null;
     const existing = nodes.get(id);
     if (existing) return existing;
 
