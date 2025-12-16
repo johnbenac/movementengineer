@@ -3164,13 +3164,15 @@
           graphWorkbenchState.selection = null;
           graphWorkbenchState.focusEntityId = null;
         }
-      } else {
+      } else if (sel.type === 'relation') {
         const exists = relationIds.has(sel.id);
         if (!exists) {
           graphWorkbenchState.selection = null;
           graphWorkbenchState.focusEntityId = null;
         }
       }
+      // Non-entity/relation selections (e.g., media, notes, edges) remain valid so
+      // the workbench can show the non-editable fallback message.
     }
 
     if (graphWorkbenchState.focusEntityId && !visibleEntities.some(e => e.id === graphWorkbenchState.focusEntityId)) {
