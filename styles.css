@@ -1035,6 +1035,38 @@ a.text-link:hover {
   flex: 1;
 }
 
+.graph-filter-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+}
+
+.graph-filter-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.graph-filter-row .grow {
+  flex: 1;
+}
+
+.graph-filter-types {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.graph-filter-types .chip {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 6px 10px;
+}
+
 .graph-resize-handle {
   position: absolute;
   top: 0;
