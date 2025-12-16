@@ -2279,25 +2279,6 @@
     return { visibleEntities, visibleRelations, entityById };
   }
 
-  function buildGraphNodesAndLinks(visibleEntities, visibleRelations) {
-    // IMPORTANT: Graph nodes/links are COPIES so D3 doesn't mutate snapshot objects.
-    const nodes = visibleEntities.map(e => ({
-      id: e.id,
-      name: e.name || e.id,
-      kind: e.kind || '',
-      movementId: e.movementId
-    }));
-
-    const links = visibleRelations.map(r => ({
-      id: r.id,
-      source: r.fromEntityId,
-      target: r.toEntityId,
-      relationType: r.relationType || 'rel'
-    }));
-
-    return { nodes, links };
-  }
-
   function ensureGraphWorkbenchDom() {
     const root = document.getElementById('graph-workbench-root');
     if (!root) return null;
@@ -3138,6 +3119,12 @@
 
       return;
     }
+
+    // Fallback for non-entity, non-relation nodes/edges
+    const p = document.createElement('p');
+    p.className = 'muted';
+    p.textContent = 'Selected graph item is not editable in this workbench.';
+    dom.selectedBody.appendChild(p);
   }
 
   function renderGraphWorkbench() {
@@ -3260,13 +3247,16 @@
     // Render graph
     if (!workbenchGraphView) {
       workbenchGraphView = new EntityGraphView({
-        onNodeClick: id => {
-          graphWorkbenchState.selection = { type: 'entity', id };
-          graphWorkbenchState.focusEntityId = id;
+        onNodeClick: (id, node) => {
+          const type = node?.type || 'entity';
+          graphWorkbenchState.selection = { type, id };
+          graphWorkbenchState.focusEntityId = type === 'entity' ? id : null;
           renderGraphWorkbench();
         },
         onLinkClick: id => {
-          graphWorkbenchState.selection = { type: 'relation', id };
+          const relIndex = buildRelationIndex(normaliseArray(snapshot.relations));
+          const type = relIndex.has(id) ? 'relation' : 'edge';
+          graphWorkbenchState.selection = { type, id };
           renderGraphWorkbench();
         },
         onBackgroundClick: () => {
@@ -3277,7 +3267,9 @@
       });
     }
 
-    const graphData = buildGraphNodesAndLinks(visibleEntities, visibleRelations);
+    const graphData = ViewModels.buildMovementGraphModel(snapshot, {
+      movementId: currentMovementId
+    });
 
     const selectedEntityIdForGraph =
       graphWorkbenchState.selection && graphWorkbenchState.selection.type === 'entity'
