@@ -143,11 +143,29 @@
         return;
       }
 
-      const width = options.width || container.clientWidth || DEFAULT_WIDTH;
       const height = options.height || container.clientHeight || DEFAULT_HEIGHT;
 
       const nodeById = new Map(nodes.map(n => [n.id, n]));
       const links = normaliseLinks(graph, nodeById);
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'entity-graph-wrapper';
+
+      const canvas = document.createElement('div');
+      canvas.className = 'entity-graph-canvas graph-canvas';
+      canvas.style.minHeight = `${height}px`;
+      canvas.style.height = `${height}px`;
+
+      const summarySection =
+        this.showSummary &&
+        buildSummarySection({ nodes, links, centerEntityId: options.centerEntityId }, this.onNodeClick);
+
+      wrapper.appendChild(canvas);
+      if (summarySection) wrapper.appendChild(summarySection);
+      container.appendChild(wrapper);
+
+      const measuredWidth = Math.floor(canvas.getBoundingClientRect().width);
+      const width = options.width || measuredWidth || DEFAULT_WIDTH;
 
       // seed or restore positions
       nodes.forEach(n => {
@@ -177,14 +195,6 @@
         selectedRelationId: options.selectedRelationId,
         focusEntityId: options.focusEntityId
       };
-
-      const wrapper = document.createElement('div');
-      wrapper.className = 'entity-graph-wrapper';
-
-      const canvas = document.createElement('div');
-      canvas.className = 'entity-graph-canvas graph-canvas';
-      canvas.style.minHeight = `${height}px`;
-      canvas.style.height = `${height}px`;
 
       const svg = d3
         .select(canvas)
@@ -273,8 +283,9 @@
               d.fy = d.y;
             })
             .on('drag', (event, d) => {
-              d.fx = clamp(event.x, NODE_RADIUS * 2, width - NODE_RADIUS * 2);
-              d.fy = clamp(event.y, NODE_RADIUS * 2, height - NODE_RADIUS * 2);
+              const pad = NODE_RADIUS;
+              d.fx = clamp(event.x, pad, width - pad);
+              d.fy = clamp(event.y, pad, height - pad);
               this._persistPosition(d.id, d.fx, d.fy, true);
               this._hideContextMenu();
             })
@@ -371,7 +382,10 @@
 
         nodeLabel
           .attr('x', d => d.x)
-          .attr('y', d => d.y + NODE_RADIUS + 12);
+          .attr('y', d => {
+            const below = d.y + NODE_RADIUS + 12;
+            return below > height - 6 ? d.y - NODE_RADIUS - 8 : below;
+          });
       });
 
       if (options.focusEntityId && nodes.some(n => n.id === options.focusEntityId)) {
@@ -379,18 +393,6 @@
         this._focusOnNode(focusNode, width, height);
       }
 
-      wrapper.appendChild(canvas);
-
-      if (this.showSummary) {
-        wrapper.appendChild(
-          buildSummarySection(
-            { nodes, links, centerEntityId: options.centerEntityId },
-            this.onNodeClick
-          )
-        );
-      }
-
-      container.appendChild(wrapper);
       this._bindGlobalContextClose();
     }
 
