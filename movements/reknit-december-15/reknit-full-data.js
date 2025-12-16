@@ -31,7 +31,7 @@
         name: 'Charter and Safeguards',
         description:
           'The foundational “why/how” of Reknit: purpose, diagnosis, method, and explicit anti-capture safeguards.',
-        tags: ['charter', 'safeguards', 'why', 'how'],
+        tags: ['doc:charter', 'layer:why', 'layer:how', 'truthmode:policy', 'audience:public'],
         rootTextIds: ['txt-reknit-charter-root']
       },
       {
@@ -40,7 +40,7 @@
         name: 'Lexicon',
         description:
           'Definitions and shared language for core Reknit concepts (e.g., Home and Horizon).',
-        tags: ['lexicon', 'definitions'],
+        tags: ['doc:lexicon', 'layer:what', 'truthmode:reference', 'audience:public'],
         rootTextIds: ['txt-reknit-lexicon-root']
       },
       {
@@ -49,7 +49,7 @@
         name: 'Practice Guides',
         description:
           'Runnable instructions for the smallest viable set of Reknit practices.',
-        tags: ['practice_guides', 'instructions'],
+        tags: ['doc:guide', 'layer:how', 'truthmode:instruction', 'audience:participant'],
         rootTextIds: ['txt-reknit-practices-root']
       }
     ],
@@ -67,7 +67,18 @@
         label: 'Charter',
         content: null,
         mainFunction: 'teaching',
-        tags: ['charter', 'why', 'how', 'safeguards'],
+        tags: [
+          'doc:charter',
+          'layer:why',
+          'truthmode:policy',
+          'audience:public',
+          'power_surface',
+          'hazard:authority',
+          'hazard:coercion',
+          'hazard:privacy',
+          'hazard:relationships',
+          'hazard:money'
+        ],
         mentionsEntityIds: [
           'ent-reknit',
           'ent-home',
@@ -96,7 +107,7 @@ We do this by rebuilding the human substrate: relationships, consent, reflection
 
 Reknit is a toolkit-tradition. Take what helps. Leave what doesn’t. If a practice harms you, pressures you, or narrows your life, it is not required—and it may be a signal that something needs repair.`,
         mainFunction: 'teaching',
-        tags: ['purpose', 'why'],
+        tags: ['layer:why', 'truthmode:teaching', 'audience:public'],
         mentionsEntityIds: [
           'ent-reknit',
           'ent-attention',
@@ -119,7 +130,7 @@ Some platforms and institutions are optimized to extract attention, data, money,
 
 Reknit names this plainly without asking you to hate yourself, hate technology, or worship a new purity. The goal is not to “quit the world.” The goal is to live in the world with clearer consent, stronger boundaries, and more honest connection.`,
         mainFunction: 'commentary',
-        tags: ['diagnosis', 'threat_model'],
+        tags: ['layer:why', 'truthmode:analysis', 'audience:public', 'threat_model'],
         mentionsEntityIds: [
           'ent-technology-systems',
           'ent-extractive-incentives',
@@ -147,7 +158,7 @@ A tradition can hold:
 
 Reknit is designed to be forkable. No single person needs to run it. Small groups can adapt it locally, publish their changes, and still stay interoperable through shared safeguards.`,
         mainFunction: 'teaching',
-        tags: ['how', 'architecture', 'forkable'],
+        tags: ['layer:how', 'truthmode:teaching', 'audience:public', 'forkable'],
         mentionsEntityIds: ['ent-reknit', 'ent-community', 'ent-forking', 'ent-consent']
       },
       {
@@ -166,7 +177,7 @@ Without Horizon, Home becomes isolation—comfort that forgets responsibility.
 
 Reknit is a practice of weaving Home and Horizon together: steady enough to resist manipulation, open enough to keep growing.`,
         mainFunction: 'teaching',
-        tags: ['home', 'horizon', 'core_concept'],
+        tags: ['layer:what', 'truthmode:teaching', 'audience:public', 'core_concept'],
         mentionsEntityIds: ['ent-home', 'ent-horizon', 'ent-attention', 'ent-agency', 'ent-community']
       },
       {
@@ -184,7 +195,16 @@ Rituals are scaffolding: they help the body do what the mind already knows.
 
 If any story is used to demand obedience, isolate you, control your relationships, or silence your critique, it is being misused—and that misuse is a violation of Reknit’s safeguards.`,
         mainFunction: 'commentary',
-        tags: ['interpretation', 'anti_literalism', 'safeguards'],
+        tags: [
+          'layer:how',
+          'truthmode:teaching',
+          'audience:public',
+          'anti_literalism',
+          'power_surface',
+          'hazard:authority',
+          'hazard:coercion',
+          'hazard:relationships'
+        ],
         mentionsEntityIds: ['ent-attention', 'ent-agency', 'ent-community', 'ent-consent', 'ent-dignity']
       },
       {
@@ -208,7 +228,19 @@ Non‑negotiable safeguards:
 
 These safeguards are not vibes. They are explicit rules and practices that can be audited and forked.`,
         mainFunction: 'teaching',
-        tags: ['safeguards', 'anti_capture', 'power_surface'],
+        tags: [
+          'layer:how',
+          'truthmode:policy',
+          'audience:public',
+          'safeguards',
+          'anti_capture',
+          'power_surface',
+          'hazard:authority',
+          'hazard:coercion',
+          'hazard:privacy',
+          'hazard:relationships',
+          'hazard:money'
+        ],
         mentionsEntityIds: [
           'ent-consent',
           'ent-dignity',
@@ -233,7 +265,7 @@ Reknit is not a political party. Participants will have diverse politics. The sh
 
 Reknit does not require belief in a single metaphysics. Participation is practice-forward: what matters is what helps you become freer, kinder, more capable, and more connected.`,
         mainFunction: 'commentary',
-        tags: ['scope', 'boundaries', 'pluralism'],
+        tags: ['layer:why', 'truthmode:policy', 'audience:public', 'scope', 'boundaries', 'pluralism'],
         mentionsEntityIds: ['ent-reknit', 'ent-agency', 'ent-dignity', 'ent-community']
       },
 
@@ -249,7 +281,7 @@ Reknit does not require belief in a single metaphysics. Participation is practic
         label: 'Lexicon',
         content: null,
         mainFunction: 'commentary',
-        tags: ['lexicon', 'definitions'],
+        tags: ['doc:lexicon', 'layer:what', 'truthmode:reference', 'audience:public'],
         mentionsEntityIds: [
           'ent-home',
           'ent-horizon',
@@ -270,7 +302,7 @@ Reknit does not require belief in a single metaphysics. Participation is practic
 
 Home includes the body, the breath, the immediate relationships you can actually care for, and the values you are willing to live by when nobody is watching.`,
         mainFunction: 'commentary',
-        tags: ['definition', 'home'],
+        tags: ['layer:what', 'truthmode:reference', 'audience:public', 'lexicon:definition', 'home'],
         mentionsEntityIds: ['ent-home', 'ent-attention', 'ent-agency']
       },
       {
@@ -284,7 +316,7 @@ Home includes the body, the breath, the immediate relationships you can actually
 
 Horizon includes commitments, service, community repair, and the future you want to hand to others.`,
         mainFunction: 'commentary',
-        tags: ['definition', 'horizon'],
+        tags: ['layer:what', 'truthmode:reference', 'audience:public', 'lexicon:definition', 'horizon'],
         mentionsEntityIds: ['ent-horizon', 'ent-community', 'ent-dignity']
       },
       {
@@ -298,7 +330,7 @@ Horizon includes commitments, service, community repair, and the future you want
 
 Reknit treats attention as finite, trainable, and worth defending.`,
         mainFunction: 'commentary',
-        tags: ['definition', 'attention'],
+        tags: ['layer:what', 'truthmode:reference', 'audience:public', 'lexicon:definition', 'attention'],
         mentionsEntityIds: ['ent-attention', 'ent-agency']
       },
       {
@@ -312,7 +344,7 @@ Reknit treats attention as finite, trainable, and worth defending.`,
 
 Reknit treats agency as something communities can strengthen together—not something you must “bootstrap” alone.`,
         mainFunction: 'commentary',
-        tags: ['definition', 'agency'],
+        tags: ['layer:what', 'truthmode:reference', 'audience:public', 'lexicon:definition', 'agency'],
         mentionsEntityIds: ['ent-agency', 'ent-community', 'ent-consent']
       },
       {
@@ -326,7 +358,7 @@ Reknit treats agency as something communities can strengthen together—not some
 
 In Reknit, consent includes: consent to participate, consent to be contacted, consent to share, and consent to change your mind.`,
         mainFunction: 'commentary',
-        tags: ['definition', 'consent'],
+        tags: ['layer:what', 'truthmode:reference', 'audience:public', 'lexicon:definition', 'consent'],
         mentionsEntityIds: ['ent-consent', 'ent-dignity', 'ent-privacy']
       },
       {
@@ -340,7 +372,16 @@ In Reknit, consent includes: consent to participate, consent to be contacted, co
 
 It is not a badge. It is not a rank. Nobody owes you this label, and you do not owe it to anyone.`,
         mainFunction: 'commentary',
-        tags: ['definition', 'identity_language', 'power_surface'],
+        tags: [
+          'layer:what',
+          'truthmode:reference',
+          'audience:public',
+          'lexicon:demonym',
+          'identity_language',
+          'power_surface',
+          'hazard:identity',
+          'hazard:relationships'
+        ],
         mentionsEntityIds: ['ent-reknitter-demonym', 'ent-participant', 'ent-dignity']
       },
 
@@ -356,7 +397,7 @@ It is not a badge. It is not a rank. Nobody owes you this label, and you do not 
         label: 'Practice Guides',
         content: null,
         mainFunction: 'instructions',
-        tags: ['instructions', 'practices'],
+        tags: ['doc:guide', 'layer:how', 'truthmode:instruction', 'audience:participant'],
         mentionsEntityIds: ['ent-attention', 'ent-agency', 'ent-consent', 'ent-community']
       },
       {
@@ -388,7 +429,7 @@ It is not a badge. It is not a rank. Nobody owes you this label, and you do not 
    • If you miss a week, you’re not failing. You’re noticing.
    • If any step increases shame or panic, simplify it or stop.`,
         mainFunction: 'instructions',
-        tags: ['practice', 'discipline', 'home', 'horizon'],
+        tags: ['layer:how', 'truthmode:instruction', 'audience:participant', 'practice', 'discipline', 'home', 'horizon'],
         mentionsEntityIds: ['ent-home', 'ent-horizon', 'ent-attention', 'ent-agency']
       },
       {
@@ -427,7 +468,21 @@ Built-in anti-cult controls:
 • No secret “advanced” circles.
 • No attendance tracking used for status.`,
         mainFunction: 'instructions',
-        tags: ['practice', 'gathering', 'power_surface', 'anti_capture'],
+        tags: [
+          'layer:how',
+          'truthmode:ritual',
+          'audience:facilitator',
+          'practice',
+          'gathering',
+          'power_surface',
+          'anti_capture',
+          'hazard:authority',
+          'hazard:coercion',
+          'hazard:relationships',
+          'hazard:privacy',
+          'hazard:money',
+          'hazard:secrecy'
+        ],
         mentionsEntityIds: [
           'ent-community',
           'ent-consent',
@@ -1026,6 +1081,93 @@ If a future “center” forms, it must remain constrained by the safeguards in 
         tags: ['meta', 'scope', 'anti_capture', 'forkable']
       },
       {
+        id: 'note-reknit-risk-charter',
+        movementId: 'mov-reknit-december-15',
+        targetType: 'Text',
+        targetId: 'txt-reknit-charter-root',
+        author: 'system',
+        body: `RISK ASSESSMENT (trailhead): Charter language can be weaponized as authority or used to overreach privacy.
+
+Hazards to watch:
+• charismatic capture (treating charter as personal mandate)
+• scope creep into relationships or money handling
+• privacy overreach in the name of “safeguards”
+
+Mitigations (by ID):
+• Exit + critique: rl-exit-rights, rl-no-retaliation
+• Anti-authority and anti-secrecy: rl-no-hero-worship, rl-no-secret-teachings
+• Data and money boundaries: rl-data-minimization, rl-no-required-payments, rl-financial-transparency
+• Pluralism guardrail: rl-no-exclusive-allegiance`,
+        context: 'risk_assessment',
+        tags: [
+          'risk',
+          'power_surface',
+          'hazard:authority',
+          'hazard:coercion',
+          'hazard:privacy',
+          'hazard:relationships',
+          'hazard:money',
+          'mitigations-listed'
+        ]
+      },
+      {
+        id: 'note-reknit-risk-safeguards',
+        movementId: 'mov-reknit-december-15',
+        targetType: 'Text',
+        targetId: 'txt-reknit-safeguards',
+        author: 'system',
+        body: `RISK ASSESSMENT (trailhead): Safeguards can drift into control or bureaucracy if enforced coercively.
+
+Hazards:
+• using safeguards to shame or gatekeep
+• layering paperwork that discourages participation
+• conflating facilitation with authority
+
+Mitigations (by ID):
+• No retaliation and exit rights: rl-no-retaliation, rl-exit-rights
+• Authority dispersion: rl-facilitation-rotation, rl-no-hero-worship
+• Privacy protection: rl-no-required-disclosure, rl-data-minimization
+• Transparency on resources: rl-no-required-payments, rl-financial-transparency`,
+        context: 'risk_assessment',
+        tags: [
+          'risk',
+          'power_surface',
+          'hazard:authority',
+          'hazard:coercion',
+          'hazard:relationships',
+          'hazard:privacy',
+          'hazard:money',
+          'mitigations-listed'
+        ]
+      },
+      {
+        id: 'note-reknit-risk-stories',
+        movementId: 'mov-reknit-december-15',
+        targetType: 'Text',
+        targetId: 'txt-reknit-stories-metaphor',
+        author: 'system',
+        body: `RISK ASSESSMENT (trailhead): Metaphors and symbols can be misused as loyalty tests or to override consent.
+
+Hazards:
+• treating symbolic language as literal authority
+• using story cues to pressure disclosure or obedience
+• scapegoating outsiders via metaphor
+
+Mitigations (by ID):
+• Interpretation guardrails: txt-reknit-stories-metaphor, clm-critique-is-care
+• Anti-coercion rules: rl-no-retaliation, rl-no-secret-teachings
+• Exit + pluralism protections: rl-exit-rights, rl-no-exclusive-allegiance`,
+        context: 'risk_assessment',
+        tags: [
+          'risk',
+          'power_surface',
+          'hazard:authority',
+          'hazard:coercion',
+          'hazard:relationships',
+          'mitigations-listed'
+        ]
+      },
+      {
         id: 'note-reknit-risk-circle',
         movementId: 'mov-reknit-december-15',
         targetType: 'Practice',
@@ -1067,6 +1209,65 @@ Review cadence suggestion: quarterly (as a note update).`,
           'hazard:secrecy',
           'hazard:privacy',
           'hazard:money',
+          'mitigations-listed'
+        ]
+      },
+      {
+        id: 'note-reknit-risk-circle-text',
+        movementId: 'mov-reknit-december-15',
+        targetType: 'Text',
+        targetId: 'txt-reknit-practice-circle',
+        author: 'system',
+        body: `RISK ASSESSMENT (trailhead): The Reknit Circle script is a cohesion engine and must not be turned into compulsory attendance or confession.
+
+Hazards:
+• hosts accruing unchecked authority
+• social pressure to disclose or conform
+• money handling inside the gathering
+
+Mitigations (by ID):
+• Authority rotation + anti-worship: rl-facilitation-rotation, rl-no-hero-worship
+• Exit and privacy: rl-exit-rights, rl-no-required-disclosure, rl-data-minimization
+• Money boundaries: rl-no-required-payments, rl-financial-transparency
+• Anti-secrecy and pluralism: rl-no-secret-teachings, rl-no-exclusive-allegiance`,
+        context: 'risk_assessment',
+        tags: [
+          'risk',
+          'power_surface',
+          'hazard:authority',
+          'hazard:coercion',
+          'hazard:relationships',
+          'hazard:privacy',
+          'hazard:money',
+          'hazard:secrecy',
+          'mitigations-listed'
+        ]
+      },
+      {
+        id: 'note-reknit-risk-demonym-text',
+        movementId: 'mov-reknit-december-15',
+        targetType: 'Text',
+        targetId: 'txt-reknit-lexicon-reknitter',
+        author: 'system',
+        body: `RISK ASSESSMENT (trailhead): Identity language (“Reknitter”) can become a badge that pressures conformity.
+
+Hazards:
+• in-group policing or status claims
+• coercive correction of vocabulary
+• relationship strain from gatekeeping the label
+
+Mitigations (by ID):
+• Keep the demonym optional: txt-reknit-lexicon-reknitter
+• Exit and critique protection: rl-exit-rights, rl-no-retaliation
+• Anti-exclusivity: rl-no-exclusive-allegiance
+• Dignity and consent emphasis: clm-consent-and-dignity, clm-critique-is-care`,
+        context: 'risk_assessment',
+        tags: [
+          'risk',
+          'power_surface',
+          'hazard:identity',
+          'hazard:relationships',
+          'hazard:social_pressure',
           'mitigations-listed'
         ]
       },
