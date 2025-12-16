@@ -31,6 +31,25 @@
     selection: null, // { type: 'entity'|'relation', id }
     focusEntityId: null
   };
+
+  function normaliseSelectionType(type) {
+    return typeof type === 'string' ? type.toLowerCase() : null;
+  }
+
+  function setGraphWorkbenchSelection(selection) {
+    if (!selection || !selection.id) {
+      graphWorkbenchState.selection = null;
+      graphWorkbenchState.focusEntityId = null;
+      return;
+    }
+
+    const type = normaliseSelectionType(selection.type) || 'entity';
+    graphWorkbenchState.selection = { type, id: selection.id };
+
+    if (type === 'entity') {
+      graphWorkbenchState.focusEntityId = selection.id;
+    }
+  }
   const movementAssetStore = new Map();
   function clearMovementAssetsForIds(movementIds) {
     if (!movementIds || !movementIds.size) return;
@@ -2534,8 +2553,7 @@
     });
 
     dom.clearBtn.addEventListener('click', () => {
-      graphWorkbenchState.selection = null;
-      graphWorkbenchState.focusEntityId = null;
+      setGraphWorkbenchSelection(null);
       renderGraphWorkbench();
     });
 
@@ -2588,8 +2606,7 @@
         dom.createEntitySourceEntities.value = '';
         dom.createEntityNotes.value = '';
 
-        graphWorkbenchState.selection = { type: 'entity', id: entity.id };
-        graphWorkbenchState.focusEntityId = entity.id;
+        setGraphWorkbenchSelection({ type: 'entity', id: entity.id });
         renderGraphWorkbench();
       } catch (err) {
         alert(err instanceof Error ? err.message : 'Failed to create entity');
@@ -2644,7 +2661,7 @@
         dom.createRelationSourceEntities.value = '';
         dom.createRelationNotes.value = '';
 
-        graphWorkbenchState.selection = { type: 'relation', id: rel.id };
+        setGraphWorkbenchSelection({ type: 'relation', id: rel.id });
         renderGraphWorkbench();
       } catch (err) {
         alert(err instanceof Error ? err.message : 'Failed to create relation');
@@ -2703,7 +2720,7 @@
     }
 
     const selected =
-      graphWorkbenchState.selection && graphWorkbenchState.selection.type === 'entity'
+      normaliseSelectionType(graphWorkbenchState.selection?.type) === 'entity'
         ? graphWorkbenchState.selection.id
         : null;
 
@@ -2720,8 +2737,7 @@
       li.appendChild(left);
       li.appendChild(right);
       li.addEventListener('click', () => {
-        graphWorkbenchState.selection = { type: 'entity', id: e.id };
-        graphWorkbenchState.focusEntityId = e.id;
+        setGraphWorkbenchSelection({ type: 'entity', id: e.id });
         renderGraphWorkbench();
       });
 
@@ -2741,12 +2757,14 @@
       return;
     }
 
+    const selectionType = normaliseSelectionType(selection.type);
+
     const allEntities = normaliseArray(snapshot.entities);
     const allRelations = normaliseArray(snapshot.relations);
     const entityIndexAll = buildEntityIndex(allEntities);
     const relationIndexAll = buildRelationIndex(allRelations);
 
-    if (selection.type === 'entity') {
+    if (selectionType === 'entity') {
       const entity = entityIndexAll.get(selection.id);
       if (!entity) {
         dom.selectedBody.textContent = 'Selected entity not found.';
@@ -2864,7 +2882,7 @@
             : `${otherLabel} → ${r.relationType || 'rel'}`;
 
           li.addEventListener('click', () => {
-            graphWorkbenchState.selection = { type: 'relation', id: r.id };
+            setGraphWorkbenchSelection({ type: 'relation', id: r.id });
             renderGraphWorkbench();
           });
 
@@ -2922,8 +2940,7 @@
 
           DomainService.deleteItem(snapshot, 'entities', entity.id);
 
-          graphWorkbenchState.selection = null;
-          graphWorkbenchState.focusEntityId = null;
+          setGraphWorkbenchSelection(null);
 
           saveSnapshot({ show: false });
           setStatus('Entity deleted');
@@ -2937,7 +2954,7 @@
     }
 
     // Relation selection
-    if (selection.type === 'relation') {
+    if (selectionType === 'relation') {
       const rel = relationIndexAll.get(selection.id);
       if (!rel) {
         dom.selectedBody.textContent = 'Selected relation not found.';
@@ -2994,8 +3011,7 @@
       fromChip.className = 'chip clickable';
       fromChip.textContent = from ? (from.name || from.id) : rel.fromEntityId;
       fromChip.addEventListener('click', () => {
-        graphWorkbenchState.selection = { type: 'entity', id: rel.fromEntityId };
-        graphWorkbenchState.focusEntityId = rel.fromEntityId;
+        setGraphWorkbenchSelection({ type: 'entity', id: rel.fromEntityId });
         renderGraphWorkbench();
       });
 
@@ -3007,8 +3023,7 @@
       toChip.className = 'chip clickable';
       toChip.textContent = to ? (to.name || to.id) : rel.toEntityId;
       toChip.addEventListener('click', () => {
-        graphWorkbenchState.selection = { type: 'entity', id: rel.toEntityId };
-        graphWorkbenchState.focusEntityId = rel.toEntityId;
+        setGraphWorkbenchSelection({ type: 'entity', id: rel.toEntityId });
         renderGraphWorkbench();
       });
 
@@ -3108,7 +3123,7 @@
 
         try {
           DomainService.deleteItem(snapshot, 'relations', rel.id);
-          graphWorkbenchState.selection = null;
+          setGraphWorkbenchSelection(null);
           saveSnapshot({ show: false });
           setStatus('Relation deleted');
           renderGraphWorkbench();
@@ -3154,21 +3169,20 @@
     // Keep selection/focus valid for the current movement's dataset
     if (graphWorkbenchState.selection) {
       const sel = graphWorkbenchState.selection;
+      const selType = normaliseSelectionType(sel.type);
 
       const entityIds = new Set(visibleEntities.map(e => e.id));
       const relationIds = new Set(visibleRelations.map(r => r.id));
 
-      if (sel.type === 'entity') {
+      if (selType === 'entity') {
         const exists = entityIds.has(sel.id);
         if (!exists) {
-          graphWorkbenchState.selection = null;
-          graphWorkbenchState.focusEntityId = null;
+          setGraphWorkbenchSelection(null);
         }
-      } else if (sel.type === 'relation') {
+      } else if (selType === 'relation') {
         const exists = relationIds.has(sel.id);
         if (!exists) {
-          graphWorkbenchState.selection = null;
-          graphWorkbenchState.focusEntityId = null;
+          setGraphWorkbenchSelection(null);
         }
       }
       // Non-entity/relation selections (e.g., media, notes, edges) remain valid so
@@ -3250,20 +3264,18 @@
     if (!workbenchGraphView) {
       workbenchGraphView = new EntityGraphView({
         onNodeClick: (id, node) => {
-          const type = node?.type || 'entity';
-          graphWorkbenchState.selection = { type, id };
-          graphWorkbenchState.focusEntityId = type === 'entity' ? id : null;
+          const type = normaliseSelectionType(node?.type) || 'entity';
+          setGraphWorkbenchSelection({ type, id });
           renderGraphWorkbench();
         },
         onLinkClick: id => {
           const relIndex = buildRelationIndex(normaliseArray(snapshot.relations));
           const type = relIndex.has(id) ? 'relation' : 'edge';
-          graphWorkbenchState.selection = { type, id };
+          setGraphWorkbenchSelection({ type, id });
           renderGraphWorkbench();
         },
         onBackgroundClick: () => {
-          graphWorkbenchState.selection = null;
-          graphWorkbenchState.focusEntityId = null;
+          setGraphWorkbenchSelection(null);
           renderGraphWorkbench();
         }
       });
@@ -3273,15 +3285,15 @@
       movementId: currentMovementId
     });
 
+    const selectedType = normaliseSelectionType(
+      graphWorkbenchState.selection && graphWorkbenchState.selection.type
+    );
+
     const selectedEntityIdForGraph =
-      graphWorkbenchState.selection && graphWorkbenchState.selection.type === 'entity'
-        ? graphWorkbenchState.selection.id
-        : null;
+      selectedType === 'entity' ? graphWorkbenchState.selection.id : null;
 
     const selectedRelationIdForGraph =
-      graphWorkbenchState.selection && graphWorkbenchState.selection.type === 'relation'
-        ? graphWorkbenchState.selection.id
-        : null;
+      selectedType === 'relation' ? graphWorkbenchState.selection.id : null;
 
     workbenchGraphView.render(dom.canvas, graphData, {
       selectedEntityId: selectedEntityIdForGraph,
