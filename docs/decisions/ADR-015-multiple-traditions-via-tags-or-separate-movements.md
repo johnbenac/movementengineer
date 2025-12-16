@@ -8,7 +8,7 @@ Religious families often contain diverse schools, denominations or sects.  For e
 
 Instead of introducing a dedicated `Group` entity, we opted for two flexible patterns:
 
-1. **Separate Movement Records**: For major denominational differences, create distinct `Movement` entries (e.g. `rel-sunni`, `rel-shia`) with their own texts, claims, rules, practices and events.  Shared entities and claims can be referenced via the nullable `movementId` feature (see ADR‑014).
+1. **Separate Movement Records**: For major denominational differences, create distinct `Movement` entries (e.g. `rel-sunni`, `rel-shia`) with their own texts, claims, rules, practices and events. Reuse should happen via templates or explicit copying rather than nullable `movementId` shortcuts.
 
 2. **Tags on Records**: For smaller variations or overlapping schools within one movement file, use the `tags` field on `Claim`, `Rule`, `Practice`, `Event`, etc., to indicate the applicable tradition (e.g. tags: ["hanafi"], ["neo_confucian"], ["western_rite"]).  Tools can filter or display content by these tags.
 
@@ -31,4 +31,4 @@ Separate `Movement` entries give the clearest separation where theology and litu
 
 ### Mitigation
 - Establish naming conventions for tradition tags and document them (e.g. use recognised names like "maliki", "gelug" consistently).
-- Use shared entities and claims (ADR‑014) to reduce duplication across related movement snapshots.
+- Use movement templates to reduce duplication across related movement snapshots.

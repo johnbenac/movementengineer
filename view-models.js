@@ -43,12 +43,9 @@ function histogram(items, keyAccessor) {
   }, {});
 }
 
-function filterByMovement(items, movementId, includeShared = false) {
+function filterByMovement(items, movementId) {
   return normaliseArray(items).filter(
-    item =>
-      item &&
-      (item.movementId === movementId ||
-        (includeShared && item.movementId == null))
+    item => item && item.movementId === movementId
   );
 }
 
@@ -63,8 +60,8 @@ function buildMovementDashboardViewModel(data, input) {
   const practices = filterByMovement(data.practices, movementId);
   const events = filterByMovement(data.events, movementId);
   const rules = filterByMovement(data.rules, movementId);
-  const claims = filterByMovement(data.claims, movementId, true);
-  const media = filterByMovement(data.media, movementId, true);
+  const claims = filterByMovement(data.claims, movementId);
+  const media = filterByMovement(data.media, movementId);
 
   const textStats = {
     totalTexts: texts.length,
@@ -116,7 +113,7 @@ function buildCanonTreeViewModel(data, input) {
     ? collections.get(textCollectionId) || null
     : null;
   const texts = filterByMovement(data.texts, movementId);
-  const claims = filterByMovement(data.claims, movementId, true);
+  const claims = filterByMovement(data.claims, movementId);
   const events = filterByMovement(data.events, movementId);
   const entities = buildLookup(filterByMovement(data.entities, movementId));
 
@@ -303,7 +300,7 @@ function buildEntityGraphViewModel(data, input) {
   const { movementId, centerEntityId, depth, relationTypeFilter } = input;
   const entityLookup = buildLookup(data.entities);
 
-  let relations = filterByMovement(data.relations, movementId, true);
+  let relations = filterByMovement(data.relations, movementId);
   if (Array.isArray(relationTypeFilter) && relationTypeFilter.length > 0) {
     relations = relations.filter(rel =>
       relationTypeFilter.includes(rel.relationType)
@@ -508,7 +505,7 @@ function buildCalendarViewModel(data, input) {
 
 function buildClaimsExplorerViewModel(data, input) {
   const { movementId, categoryFilter, entityIdFilter } = input;
-  let claims = filterByMovement(data.claims, movementId, true);
+  let claims = filterByMovement(data.claims, movementId);
   if (Array.isArray(categoryFilter) && categoryFilter.length > 0) {
     claims = claims.filter(
       claim => claim.category && categoryFilter.includes(claim.category)
@@ -598,11 +595,11 @@ function buildRuleExplorerViewModel(data, input) {
 
 function buildAuthorityViewModel(data, input) {
   const { movementId } = input;
-  const claims = filterByMovement(data.claims, movementId, true);
+  const claims = filterByMovement(data.claims, movementId);
   const rules = filterByMovement(data.rules, movementId);
   const practices = filterByMovement(data.practices, movementId);
   const entities = filterByMovement(data.entities, movementId);
-  const relations = filterByMovement(data.relations, movementId, true);
+  const relations = filterByMovement(data.relations, movementId);
 
   const sources = new Map();
   const addSourceUsage = (label, key, id) => {
@@ -706,7 +703,7 @@ function buildAuthorityViewModel(data, input) {
 function buildMediaGalleryViewModel(data, input) {
   const { movementId, entityIdFilter, practiceIdFilter, eventIdFilter, textIdFilter } =
     input;
-  let media = filterByMovement(data.media, movementId, true);
+  let media = filterByMovement(data.media, movementId);
 
   media = media.filter(asset => {
     if (
@@ -767,7 +764,7 @@ function buildMediaGalleryViewModel(data, input) {
 
 function buildRelationExplorerViewModel(data, input) {
   const { movementId, relationTypeFilter, entityIdFilter } = input;
-  let relations = filterByMovement(data.relations, movementId, true);
+  let relations = filterByMovement(data.relations, movementId);
 
   if (Array.isArray(relationTypeFilter) && relationTypeFilter.length > 0) {
     relations = relations.filter(rel =>
@@ -841,7 +838,7 @@ function buildComparisonViewModel(data, input) {
 
 function buildNotesViewModel(data, input) {
   const { movementId, targetTypeFilter, targetIdFilter } = input;
-  let notes = filterByMovement(data.notes, movementId, true);
+  let notes = filterByMovement(data.notes, movementId);
   if (targetTypeFilter) {
     notes = notes.filter(note => note.targetType === targetTypeFilter);
   }

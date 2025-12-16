@@ -131,7 +131,7 @@
           "type": "string",
           "format": "id",
           "ref": "Movement",
-          "nullable": true
+          "required": true
         },
         "name": { "type": "string", "required": true },
         "kind": {
@@ -331,7 +331,7 @@
           "type": "string",
           "format": "id",
           "ref": "Movement",
-          "nullable": true
+          "required": true
         },
         "text": { "type": "string", "required": true },
         "category": { "type": "string", "nullable": true },
@@ -372,7 +372,7 @@
           "type": "string",
           "format": "id",
           "ref": "Movement",
-          "nullable": true
+          "required": true
         },
         "kind": {
           "type": "enum",
@@ -418,7 +418,7 @@
           "type": "string",
           "format": "id",
           "ref": "Movement",
-          "nullable": true
+          "required": true
         },
         "targetType": { "type": "string", "required": true },
         "targetId": { "type": "string", "format": "id", "required": true },
@@ -441,7 +441,7 @@
           "type": "string",
           "format": "id",
           "ref": "Movement",
-          "nullable": true
+          "required": true
         },
         "fromEntityId": {
           "type": "string",

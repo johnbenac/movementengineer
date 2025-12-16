@@ -50,7 +50,7 @@
           "required": true
         },
         "dimensions": {
-          "description": "Array of dimension objects { id, label, description?, valueKind, sourceKind, sourceCollection?, sourceFilterTags?, includeShared? }",
+          "description": "Array of dimension objects { id, label, description?, valueKind, sourceKind, sourceCollection?, sourceFilterTags? }",
           "type": "array",
           "items": { "type": "object" },
           "required": true
