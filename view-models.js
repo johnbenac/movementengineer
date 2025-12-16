@@ -49,6 +49,215 @@ function filterByMovement(items, movementId) {
   );
 }
 
+function buildMovementGraph(data, input) {
+  const { movementId } = input;
+
+  const nodes = new Map();
+  const edges = [];
+  const edgeKeys = new Set();
+
+  const ensureNode = (type, item, opts = {}) => {
+    if (!item || !item.id) return null;
+    if (type !== 'Movement' && item.movementId !== movementId) return null;
+    if (nodes.has(item.id)) return nodes.get(item.id);
+    const node = {
+      id: item.id,
+      name: opts.label || item.name || item.title || item.shortText || item.text || item.id,
+      kind: opts.kind || item.kind || type,
+      type,
+      tags: normaliseArray(item.tags)
+    };
+    nodes.set(node.id, node);
+    return node;
+  };
+
+  const addEdge = (fromId, toId, relationType, id = null) => {
+    if (!fromId || !toId || !nodes.has(fromId) || !nodes.has(toId)) return;
+    const key = `${fromId}::${relationType || 'rel'}::${toId}`;
+    if (edgeKeys.has(key)) return;
+    edgeKeys.add(key);
+    edges.push({
+      id: id || key,
+      fromId,
+      toId,
+      relationType: relationType || 'rel'
+    });
+  };
+
+  const movement = normaliseArray(data.movements).find(m => m.id === movementId);
+  if (movement) {
+    ensureNode('Movement', movement, { kind: 'movement' });
+  }
+
+  const textCollections = filterByMovement(data.textCollections, movementId);
+  const texts = filterByMovement(data.texts, movementId);
+  const entities = filterByMovement(data.entities, movementId);
+  const practices = filterByMovement(data.practices, movementId);
+  const events = filterByMovement(data.events, movementId);
+  const rules = filterByMovement(data.rules, movementId);
+  const claims = filterByMovement(data.claims, movementId);
+  const media = filterByMovement(data.media, movementId);
+  const notes = filterByMovement(data.notes, movementId);
+  const relations = filterByMovement(data.relations, movementId);
+
+  const textLookup = buildLookup(texts);
+  const entityLookup = buildLookup(entities);
+  const practiceLookup = buildLookup(practices);
+  const claimLookup = buildLookup(claims);
+  const ruleLookup = buildLookup(rules);
+  const eventLookup = buildLookup(events);
+  const mediaLookup = buildLookup(media);
+  const collectionLookup = buildLookup(textCollections);
+
+  // Nodes: ensure every item in the canon appears in the graph.
+  textCollections.forEach(tc => ensureNode('TextCollection', tc, { kind: 'text_collection' }));
+  texts.forEach(t => ensureNode('Text', t, { label: t.title || t.label, kind: t.level || 'text' }));
+  entities.forEach(e => ensureNode('Entity', e, { kind: e.kind || 'entity' }));
+  practices.forEach(p => ensureNode('Practice', p, { kind: p.kind || 'practice' }));
+  events.forEach(ev => ensureNode('Event', ev, { kind: ev.recurrence || 'event' }));
+  rules.forEach(r => ensureNode('Rule', r, { label: r.shortText || r.id, kind: r.kind || 'rule' }));
+  claims.forEach(c => ensureNode('Claim', c, { label: c.text || c.id, kind: c.category || 'claim' }));
+  media.forEach(m => ensureNode('Media', m, { label: m.title || m.uri, kind: m.kind || 'media' }));
+  notes.forEach(n => ensureNode('Note', n, { label: n.body || n.id, kind: 'note' }));
+
+  // Root edges to the movement for visibility/connectivity.
+  if (movement) {
+    nodes.forEach(node => {
+      if (node.id === movementId) return;
+      addEdge(movementId, node.id, 'includes_item');
+    });
+  }
+
+  // Text hierarchy and mentions.
+  texts.forEach(text => {
+    if (text.parentId && textLookup.has(text.parentId)) {
+      addEdge(text.parentId, text.id, 'contains_text');
+    }
+    normaliseArray(text.mentionsEntityIds).forEach(entId => {
+      if (entityLookup.has(entId)) addEdge(text.id, entId, 'mentions_entity');
+    });
+  });
+
+  // Collections to root texts.
+  textCollections.forEach(tc => {
+    normaliseArray(tc.rootTextIds).forEach(textId => {
+      if (textLookup.has(textId)) addEdge(tc.id, textId, 'root_text');
+    });
+  });
+
+  // Entity sourcing.
+  entities.forEach(entity => {
+    normaliseArray(entity.sourceEntityIds).forEach(sourceId => {
+      if (entityLookup.has(sourceId)) addEdge(entity.id, sourceId, 'source_entity');
+    });
+  });
+
+  // Practices.
+  practices.forEach(practice => {
+    normaliseArray(practice.involvedEntityIds).forEach(entId => {
+      if (entityLookup.has(entId)) addEdge(practice.id, entId, 'involves_entity');
+    });
+    normaliseArray(practice.instructionsTextIds).forEach(textId => {
+      if (textLookup.has(textId)) addEdge(practice.id, textId, 'instructions');
+    });
+    normaliseArray(practice.supportingClaimIds).forEach(claimId => {
+      if (claimLookup.has(claimId)) addEdge(practice.id, claimId, 'supported_by_claim');
+    });
+    normaliseArray(practice.sourceEntityIds).forEach(entId => {
+      if (entityLookup.has(entId)) addEdge(practice.id, entId, 'source_entity');
+    });
+  });
+
+  // Events / calendar items.
+  events.forEach(ev => {
+    normaliseArray(ev.mainPracticeIds).forEach(practiceId => {
+      if (practiceLookup.has(practiceId)) addEdge(ev.id, practiceId, 'main_practice');
+    });
+    normaliseArray(ev.mainEntityIds).forEach(entId => {
+      if (entityLookup.has(entId)) addEdge(ev.id, entId, 'features_entity');
+    });
+    normaliseArray(ev.readingTextIds).forEach(textId => {
+      if (textLookup.has(textId)) addEdge(ev.id, textId, 'reading');
+    });
+    normaliseArray(ev.supportingClaimIds).forEach(claimId => {
+      if (claimLookup.has(claimId)) addEdge(ev.id, claimId, 'supported_by_claim');
+    });
+  });
+
+  // Rules.
+  rules.forEach(rule => {
+    normaliseArray(rule.supportingTextIds).forEach(textId => {
+      if (textLookup.has(textId)) addEdge(rule.id, textId, 'supported_by_text');
+    });
+    normaliseArray(rule.supportingClaimIds).forEach(claimId => {
+      if (claimLookup.has(claimId)) addEdge(rule.id, claimId, 'supported_by_claim');
+    });
+    normaliseArray(rule.relatedPracticeIds).forEach(practiceId => {
+      if (practiceLookup.has(practiceId)) addEdge(rule.id, practiceId, 'related_practice');
+    });
+    normaliseArray(rule.sourceEntityIds).forEach(entId => {
+      if (entityLookup.has(entId)) addEdge(rule.id, entId, 'source_entity');
+    });
+  });
+
+  // Claims.
+  claims.forEach(claim => {
+    normaliseArray(claim.sourceTextIds).forEach(textId => {
+      if (textLookup.has(textId)) addEdge(claim.id, textId, 'source_text');
+    });
+    normaliseArray(claim.aboutEntityIds).forEach(entId => {
+      if (entityLookup.has(entId)) addEdge(claim.id, entId, 'about_entity');
+    });
+    normaliseArray(claim.sourceEntityIds).forEach(entId => {
+      if (entityLookup.has(entId)) addEdge(claim.id, entId, 'source_entity');
+    });
+  });
+
+  // Media assets.
+  media.forEach(asset => {
+    normaliseArray(asset.linkedEntityIds).forEach(entId => {
+      if (entityLookup.has(entId)) addEdge(asset.id, entId, 'depicts_entity');
+    });
+    normaliseArray(asset.linkedPracticeIds).forEach(practiceId => {
+      if (practiceLookup.has(practiceId)) addEdge(asset.id, practiceId, 'illustrates_practice');
+    });
+    normaliseArray(asset.linkedEventIds).forEach(eventId => {
+      if (eventLookup.has(eventId)) addEdge(asset.id, eventId, 'documents_event');
+    });
+    normaliseArray(asset.linkedTextIds).forEach(textId => {
+      if (textLookup.has(textId)) addEdge(asset.id, textId, 'linked_text');
+    });
+  });
+
+  // Notes.
+  notes.forEach(note => {
+    const targetType = (note.targetType || '').toLowerCase();
+    const targetId = note.targetId;
+    const targetExists =
+      (targetType === 'entity' && entityLookup.has(targetId)) ||
+      (targetType === 'practice' && practiceLookup.has(targetId)) ||
+      (targetType === 'event' && eventLookup.has(targetId)) ||
+      (targetType === 'text' && textLookup.has(targetId)) ||
+      (targetType === 'rule' && ruleLookup.has(targetId)) ||
+      (targetType === 'claim' && claimLookup.has(targetId)) ||
+      (targetType === 'media' && mediaLookup.has(targetId)) ||
+      (targetType === 'textcollection' && collectionLookup.has(targetId)) ||
+      (targetType === 'movement' && movement && movement.id === targetId);
+    if (targetExists) {
+      addEdge(note.id, targetId, 'note_on');
+    }
+  });
+
+  // Explicit relations between entities remain edges in the graph.
+  relations.forEach(rel => {
+    if (!rel.fromEntityId || !rel.toEntityId) return;
+    if (!entityLookup.has(rel.fromEntityId) || !entityLookup.has(rel.toEntityId)) return;
+    addEdge(rel.fromEntityId, rel.toEntityId, rel.relationType || 'rel', rel.id);
+  });
+
+  return { nodes: Array.from(nodes.values()), edges };
+}
+
 function buildMovementDashboardViewModel(data, input) {
   const { movementId } = input;
   const movements = buildLookup(data.movements);
@@ -298,25 +507,24 @@ function buildEntityDetailViewModel(data, input) {
 
 function buildEntityGraphViewModel(data, input) {
   const { movementId, centerEntityId, depth, relationTypeFilter } = input;
-  const entityLookup = buildLookup(data.entities);
+  const fullGraph = buildMovementGraph(data, { movementId });
 
-  let relations = filterByMovement(data.relations, movementId);
+  let edges = fullGraph.edges;
   if (Array.isArray(relationTypeFilter) && relationTypeFilter.length > 0) {
-    relations = relations.filter(rel =>
-      relationTypeFilter.includes(rel.relationType)
-    );
+    edges = edges.filter(edge => relationTypeFilter.includes(edge.relationType));
   }
 
+  let nodeIds = new Set(fullGraph.nodes.map(n => n.id));
   if (centerEntityId && Number.isFinite(depth)) {
     const adjacency = new Map();
-    relations.forEach(rel => {
-      const fromList = adjacency.get(rel.fromEntityId) || [];
-      fromList.push(rel.toEntityId);
-      adjacency.set(rel.fromEntityId, fromList);
+    edges.forEach(edge => {
+      const fromList = adjacency.get(edge.fromId) || [];
+      fromList.push(edge.toId);
+      adjacency.set(edge.fromId, fromList);
 
-      const toList = adjacency.get(rel.toEntityId) || [];
-      toList.push(rel.fromEntityId);
-      adjacency.set(rel.toEntityId, toList);
+      const toList = adjacency.get(edge.toId) || [];
+      toList.push(edge.fromId);
+      adjacency.set(edge.toId, toList);
     });
 
     const visited = new Set([centerEntityId]);
@@ -335,34 +543,11 @@ function buildEntityGraphViewModel(data, input) {
       if (frontier.length === 0) break;
     }
 
-    relations = relations.filter(
-      rel => visited.has(rel.fromEntityId) || visited.has(rel.toEntityId)
-    );
+    nodeIds = visited;
+    edges = edges.filter(edge => visited.has(edge.fromId) || visited.has(edge.toId));
   }
 
-  const nodeIds = new Set();
-  relations.forEach(rel => {
-    nodeIds.add(rel.fromEntityId);
-    nodeIds.add(rel.toEntityId);
-  });
-  if (centerEntityId) nodeIds.add(centerEntityId);
-
-  const nodes = Array.from(nodeIds).map(id => {
-    const entity = entityLookup.get(id);
-    return {
-      id,
-      name: entity ? entity.name : id,
-      kind: entity ? entity.kind ?? null : null,
-      tags: entity ? normaliseArray(entity.tags) : []
-    };
-  });
-
-  const edges = relations.map(rel => ({
-    id: rel.id,
-    fromId: rel.fromEntityId,
-    toId: rel.toEntityId,
-    relationType: rel.relationType
-  }));
+  const nodes = fullGraph.nodes.filter(node => nodeIds.has(node.id));
 
   return {
     nodes,
@@ -880,6 +1065,7 @@ function buildNotesViewModel(data, input) {
 }
 
 const ViewModels = {
+  buildMovementGraph,
   buildMovementDashboardViewModel,
   buildCanonTreeViewModel,
   buildEntityDetailViewModel,

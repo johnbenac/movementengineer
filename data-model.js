@@ -123,7 +123,7 @@
       }
     },
     "Entity": {
-      "description": "Anything that exists in the world of the movement: beings, places, objects, ideas. Relationships to other things are expressed via Relation records and one-way references from texts, practices, events, claims, and media.",
+      "description": "Anything that exists in the world of the movement: beings, places, objects, ideas. Relationships to other things are expressed through graph edges derived from references across the dataset (including explicit Relation edges).",
       "collectionName": "entities",
       "fields": {
         "id": { "type": "string", "format": "id", "required": true },
@@ -433,7 +433,7 @@
       }
     },
     "Relation": {
-      "description": "A typed relationship between two entities (for myth, hierarchy, membership, type-instance, etc.). Tools can infer 'general' vs 'particular' by conventions such as using relationType values like 'instance_of' or 'generalizes'.",
+      "description": "A typed relationship between two entities (for myth, hierarchy, membership, type-instance, etc.). Relations are first-class graph edges and sit alongside links implied by other records.",
       "collectionName": "relations",
       "fields": {
         "id": { "type": "string", "format": "id", "required": true },

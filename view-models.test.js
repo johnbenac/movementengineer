@@ -45,11 +45,31 @@ function testPracticeDetail() {
   );
 }
 
+function testGraphIncludesFullCanon() {
+  const vm = ViewModels.buildEntityGraphViewModel(data, {
+    movementId: 'mov-catholic',
+    centerEntityId: 'ent-god-trinity',
+    depth: 3,
+    relationTypeFilter: []
+  });
+
+  const ids = new Set(vm.nodes.map(n => n.id));
+  assert(ids.has('tc-catholic-bible'), 'Graph should include text collections');
+  assert(ids.has('txt-bible-root'), 'Graph should include canon texts');
+  assert(ids.has('pr-sunday-mass'), 'Graph should include practices');
+  assert(ids.has('ev-sunday-mass'), 'Graph should include calendar events');
+  assert(ids.has('clm-sunday-obligation'), 'Graph should include claims');
+  assert(ids.has('rl-sunday-mass-obligation'), 'Graph should include rules');
+  assert(ids.has('med-crucifix-photo'), 'Graph should include media assets');
+  assert(ids.has('note-mov-catholic-meta'), 'Graph should include notes');
+}
+
 function runTests() {
   console.log('Running view-model tests...');
   testMovementDashboard();
   testEntityDetail();
   testPracticeDetail();
+  testGraphIncludesFullCanon();
   console.log('All tests passed ✅');
 }
 
