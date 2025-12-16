@@ -68,18 +68,18 @@
 
     const chipRow = document.createElement('div');
     chipRow.className = 'chip-row wrap';
-    vm.nodes.forEach(node => {
-      const chip = document.createElement('span');
-      chip.className =
-        'chip' + (node.id === vm.centerEntityId ? ' chip-strong' : ' clickable');
-      chip.textContent =
-        (node.id === vm.centerEntityId ? '★ ' : '') + (node.name || node.id);
-      chip.title = node.kind || '';
-      if (node.id !== vm.centerEntityId && onNodeClick) {
-        chip.addEventListener('click', () => onNodeClick(node.id));
-      }
-      chipRow.appendChild(chip);
-    });
+      vm.nodes.forEach(node => {
+        const chip = document.createElement('span');
+        chip.className =
+          'chip' + (node.id === vm.centerEntityId ? ' chip-strong' : ' clickable');
+        chip.textContent =
+          (node.id === vm.centerEntityId ? '★ ' : '') + (node.name || node.id);
+        chip.title = node.kind || node.type || '';
+        if (node.id !== vm.centerEntityId && onNodeClick) {
+          chip.addEventListener('click', () => onNodeClick(node.id, node));
+        }
+        chipRow.appendChild(chip);
+      });
     aside.appendChild(chipRow);
 
     const edgesTitle = document.createElement('div');
@@ -138,7 +138,7 @@
       if (!nodes.length) {
         const p = document.createElement('p');
         p.className = 'hint';
-        p.textContent = 'No relations to graph yet.';
+        p.textContent = 'No graphable items yet.';
         container.appendChild(p);
         return;
       }
@@ -247,7 +247,7 @@
         .on('click', (event, d) => {
           event.stopPropagation();
           this._hideContextMenu();
-          if (this.onLinkClick) this.onLinkClick(d.id);
+          if (this.onLinkClick) this.onLinkClick(d.id, d);
         });
 
       linkGroup.append('path').attr('class', 'graph-link-hitbox');
@@ -298,7 +298,7 @@
         .on('click', (event, d) => {
           event.stopPropagation();
           this._hideContextMenu();
-          if (this.onNodeClick) this.onNodeClick(d.id);
+          if (this.onNodeClick) this.onNodeClick(d.id, d);
         })
         .on('contextmenu', (event, d) => this._showContextMenu(event, d));
 
