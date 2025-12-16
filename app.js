@@ -29,7 +29,10 @@
     searchKind: 'all',
     searchQuery: '',
     selection: null, // { type: 'entity'|'relation', id }
-    focusEntityId: null
+    focusEntityId: null,
+    subgraphCenterId: null,
+    subgraphHopDepth: null,
+    nodeTypeFilters: []
   };
 
   function normaliseSelectionType(type) {
@@ -2276,6 +2279,44 @@
     return map;
   }
 
+  function parseHopDepth(value) {
+    if (value === null || value === undefined) return null;
+    if (value === '') return null;
+    const num = Number(value);
+    if (!Number.isFinite(num) || num < 0) return null;
+    return Math.floor(num);
+  }
+
+  function applyGraphFilters(baseGraph, { centerId, hopDepth, nodeTypeFilters }) {
+    if (!baseGraph) return { nodes: [], edges: [] };
+    const hop = parseHopDepth(hopDepth);
+    let graph = baseGraph;
+
+    if (centerId && Number.isFinite(hop)) {
+      graph = ViewModels.buildEntityGraphViewModel(snapshot, {
+        movementId: currentMovementId,
+        centerEntityId: centerId,
+        depth: hop
+      });
+    }
+
+    const typeFilters = Array.isArray(nodeTypeFilters)
+      ? nodeTypeFilters.filter(Boolean)
+      : [];
+
+    if (typeFilters.length > 0) {
+      const allowed = new Set(typeFilters);
+      const nodes = (graph.nodes || []).filter(n => allowed.has(n.type));
+      const nodeIds = new Set(nodes.map(n => n.id));
+      const edges = (graph.edges || []).filter(
+        e => nodeIds.has(e.fromId) && nodeIds.has(e.toId)
+      );
+      graph = { ...graph, nodes, edges };
+    }
+
+    return graph;
+  }
+
   function getGraphDatasetForCurrentMovement() {
     const movementId = currentMovementId;
 
@@ -2446,6 +2487,36 @@
           <div class="graph-resize-handle right" title="Drag to resize"></div>
           <div class="pane-inner">
 
+            <details id="gw-filters" open>
+              <summary>Graph filters</summary>
+              <div class="details-body">
+                <div class="card graph-filter-panel">
+                  <div class="form-row">
+                    <label>Center node (optional)</label>
+                    <div class="form-row inline" style="margin-bottom:4px;">
+                      <input id="gw-center-node" class="form-control" list="gw-center-node-options" placeholder="Search by ID to focus..." />
+                      <datalist id="gw-center-node-options"></datalist>
+                      <button class="btn" type="button" id="gw-use-selection-btn">Use selection</button>
+                      <button class="btn" type="button" id="gw-clear-center-btn">Clear</button>
+                    </div>
+                    <div class="hint">Choose a node to limit hops from; leave blank to view the full graph.</div>
+                  </div>
+
+                  <div class="form-row">
+                    <label>Hop depth</label>
+                    <input id="gw-hop-depth" class="form-control" type="number" min="0" placeholder="All hops" />
+                    <div class="hint">Higher numbers show more hops away from the center node.</div>
+                  </div>
+
+                  <div class="form-row">
+                    <label>Visible node types</label>
+                    <div id="gw-node-type-filters" class="chip-row wrap"></div>
+                    <div class="hint">Select none to show every type.</div>
+                  </div>
+                </div>
+              </div>
+            </details>
+
             <details id="gw-search" open>
               <summary>Search</summary>
               <div class="details-body">
@@ -2481,6 +2552,13 @@
       searchKind: document.getElementById('gw-search-kind'),
       searchQuery: document.getElementById('gw-search-query'),
       searchResults: document.getElementById('gw-search-results'),
+
+      centerNodeInput: document.getElementById('gw-center-node'),
+      centerNodeDatalist: document.getElementById('gw-center-node-options'),
+      useSelectionBtn: document.getElementById('gw-use-selection-btn'),
+      clearCenterBtn: document.getElementById('gw-clear-center-btn'),
+      hopDepthInput: document.getElementById('gw-hop-depth'),
+      nodeTypeFilters: document.getElementById('gw-node-type-filters'),
 
       selectedBody: document.getElementById('gw-selected-body'),
 
@@ -2564,6 +2642,30 @@
 
     dom.searchQuery.addEventListener('input', () => {
       graphWorkbenchState.searchQuery = dom.searchQuery.value || '';
+      renderGraphWorkbench();
+    });
+
+    dom.centerNodeInput.addEventListener('change', () => {
+      const val = (dom.centerNodeInput.value || '').trim();
+      graphWorkbenchState.subgraphCenterId = val || null;
+      renderGraphWorkbench();
+    });
+
+    dom.useSelectionBtn.addEventListener('click', () => {
+      const sel = graphWorkbenchState.selection;
+      if (!sel || !sel.id) return;
+      graphWorkbenchState.subgraphCenterId = sel.id;
+      renderGraphWorkbench();
+    });
+
+    dom.clearCenterBtn.addEventListener('click', () => {
+      graphWorkbenchState.subgraphCenterId = null;
+      renderGraphWorkbench();
+    });
+
+    dom.hopDepthInput.addEventListener('input', () => {
+      const hop = parseHopDepth(dom.hopDepthInput.value);
+      graphWorkbenchState.subgraphHopDepth = hop;
       renderGraphWorkbench();
     });
 
@@ -2672,11 +2774,13 @@
     return dom;
   }
 
-  function renderGraphSearch(dom, visibleEntities) {
-    // Update kind filter options
-    const kinds = uniqueSorted(visibleEntities.map(e => e.kind));
-    const opts = [{ value: 'all', label: 'All kinds' }].concat(
-      kinds.map(k => ({ value: k, label: k }))
+  function renderGraphSearch(dom, graphNodes) {
+    const nodes = Array.isArray(graphNodes) ? graphNodes : [];
+
+    // Update type filter options
+    const types = uniqueSorted(nodes.map(n => n.type));
+    const opts = [{ value: 'all', label: 'All types' }].concat(
+      types.map(t => ({ value: t, label: t }))
     );
 
     // preserve selection if possible
@@ -2697,14 +2801,14 @@
 
     // compute filtered
     const q = (graphWorkbenchState.searchQuery || '').trim().toLowerCase();
-    const kindFilter = dom.searchKind.value || 'all';
+    const typeFilter = dom.searchKind.value || 'all';
 
-    const filtered = visibleEntities.filter(e => {
-      const matchesKind = kindFilter === 'all' || (e.kind || '') === kindFilter;
-      if (!matchesKind) return false;
+    const filtered = nodes.filter(e => {
+      const matchesType = typeFilter === 'all' || (e.type || '') === typeFilter;
+      if (!matchesType) return false;
       if (!q) return true;
       const hay = `${e.name || ''} ${(e.summary || '')}`.toLowerCase();
-      return hay.includes(q);
+      return hay.includes(q) || (e.id || '').toLowerCase().includes(q);
     });
 
     // render results
@@ -2719,10 +2823,7 @@
       return;
     }
 
-    const selected =
-      normaliseSelectionType(graphWorkbenchState.selection?.type) === 'entity'
-        ? graphWorkbenchState.selection.id
-        : null;
+    const selected = graphWorkbenchState.selection?.id || null;
 
     filtered.slice(0, 300).forEach(e => {
       const li = document.createElement('li');
@@ -2732,12 +2833,13 @@
 
       const right = document.createElement('span');
       right.className = 'meta';
-      right.textContent = e.kind || '—';
+      right.textContent = e.type || e.kind || '—';
 
       li.appendChild(left);
       li.appendChild(right);
       li.addEventListener('click', () => {
-        setGraphWorkbenchSelection({ type: 'entity', id: e.id });
+        const type = normaliseSelectionType(e.type) || 'entity';
+        setGraphWorkbenchSelection({ type, id: e.id });
         renderGraphWorkbench();
       });
 
@@ -3166,6 +3268,12 @@
     // Compute dataset
     const { visibleEntities, visibleRelations, entityById } = getGraphDatasetForCurrentMovement();
 
+    const graphModel = ViewModels.buildMovementGraphModel(snapshot, {
+      movementId: currentMovementId
+    });
+    const graphNodes = graphModel.nodes || [];
+    const graphNodeById = new Map(graphNodes.map(n => [n.id, n]));
+
     // Keep selection/focus valid for the current movement's dataset
     if (graphWorkbenchState.selection) {
       const sel = graphWorkbenchState.selection;
@@ -3191,6 +3299,10 @@
 
     if (graphWorkbenchState.focusEntityId && !visibleEntities.some(e => e.id === graphWorkbenchState.focusEntityId)) {
       graphWorkbenchState.focusEntityId = null;
+    }
+
+    if (graphWorkbenchState.subgraphCenterId && !graphNodeById.has(graphWorkbenchState.subgraphCenterId)) {
+      graphWorkbenchState.subgraphCenterId = null;
     }
 
     // Build datalist options (kinds + relation types)
@@ -3257,8 +3369,68 @@
     }
 
     // Render search + selected panels
-    renderGraphSearch(dom, visibleEntities);
+    renderGraphSearch(dom, graphNodes);
     renderSelected(dom, visibleEntities, visibleRelations, entityById);
+
+    // Render center + hop filter state
+    const nodeTypes = uniqueSorted(graphNodes.map(n => n.type));
+
+    const activeTypeFilters = (graphWorkbenchState.nodeTypeFilters || []).filter(t =>
+      nodeTypes.includes(t)
+    );
+    if (activeTypeFilters.length !== (graphWorkbenchState.nodeTypeFilters || []).length) {
+      graphWorkbenchState.nodeTypeFilters = activeTypeFilters;
+    }
+
+    clearElement(dom.centerNodeDatalist);
+    graphNodes
+      .slice()
+      .sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id))
+      .forEach(node => {
+        const opt = document.createElement('option');
+        opt.value = node.id;
+        opt.label = `${node.name || node.id} (${node.type || 'node'})`;
+        dom.centerNodeDatalist.appendChild(opt);
+      });
+
+    if (dom.centerNodeInput.value !== (graphWorkbenchState.subgraphCenterId || '')) {
+      dom.centerNodeInput.value = graphWorkbenchState.subgraphCenterId || '';
+    }
+    const hopDisplay =
+      graphWorkbenchState.subgraphHopDepth === null || graphWorkbenchState.subgraphHopDepth === undefined
+        ? ''
+        : graphWorkbenchState.subgraphHopDepth;
+    if (dom.hopDepthInput.value !== String(hopDisplay)) {
+      dom.hopDepthInput.value = hopDisplay;
+    }
+
+    clearElement(dom.nodeTypeFilters);
+    if (!nodeTypes.length) {
+      const span = document.createElement('span');
+      span.className = 'muted';
+      span.textContent = 'No node types to filter yet.';
+      dom.nodeTypeFilters.appendChild(span);
+    } else {
+      nodeTypes.forEach(type => {
+        const active = activeTypeFilters.includes(type);
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'chip' + (active ? ' chip-strong' : '');
+        btn.textContent = type || '—';
+        btn.title = active ? 'Click to hide this type' : 'Click to show only selected types';
+        btn.addEventListener('click', () => {
+          const next = new Set(graphWorkbenchState.nodeTypeFilters || []);
+          if (active) {
+            next.delete(type);
+          } else {
+            next.add(type);
+          }
+          graphWorkbenchState.nodeTypeFilters = Array.from(next);
+          renderGraphWorkbench();
+        });
+        dom.nodeTypeFilters.appendChild(btn);
+      });
+    }
 
     // Render graph
     if (!workbenchGraphView) {
@@ -3281,8 +3453,10 @@
       });
     }
 
-    const graphData = ViewModels.buildMovementGraphModel(snapshot, {
-      movementId: currentMovementId
+    const graphData = applyGraphFilters(graphModel, {
+      centerId: graphWorkbenchState.subgraphCenterId,
+      hopDepth: graphWorkbenchState.subgraphHopDepth,
+      nodeTypeFilters: graphWorkbenchState.nodeTypeFilters
     });
 
     const selectedType = normaliseSelectionType(
