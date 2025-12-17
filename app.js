@@ -634,6 +634,1726 @@
     targetEl.classList.remove('empty');
     try {
       if (window.marked && typeof window.marked.parse === 'function') {
+I’d pick **PR #121**.
+
+It’s the most complete and the cleanest implementation for what you actually want here: **a live markdown preview in the Canon editor + an optional “big editor” modal**, without accumulating event handlers or leaving the preview in a confusing state.
+
+## Why PR #121 is the best choice
+
+### ✅ Best UX (inline + modal)
+
+* You get **side‑by‑side editing + preview directly in the Canon card**, which is already a big improvement.
+* You also get a **modal editor** with its own preview for when the right‑pane card feels cramped (common once texts get long).
+
+PR #124 is decent, but only gives the inline editor—no “bigger workspace” mode.
+
+### ✅ Correct empty/disabled state handling
+
+PR #121 is the only one that clearly distinguishes:
+
+* “No text selected” → shows *Select a text to see its content.*
+* “Text selected but empty” → shows *Add markdown content to see a preview.*
+
+PR #124 (and #123) blur these cases, which makes the UI feel slightly “off” (preview says “No content yet” even when nothing is selected).
+
+### ✅ Good event binding hygiene
+
+PR #121 uses `isCanonMarkdownInitialized` to ensure handlers are attached once.
+
+PR #123 assigns `contentInput.oninput = ...` inside `renderCanonForms()`, which is workable but is a pattern that tends to drift into brittle/duplicated behavior as the file grows.
+
+PR #122 binds in `init()` which is also fine, but it has a subtle UX bug (see below).
+
+### ✅ Styling is more polished and contained
+
+PR #121 adds solid preview formatting (headers, code blocks, etc.) and a well‑structured modal layout.
+
+## Why not the others
+
+### PR #122 (runner up)
+
+It’s close, but has a real UX papercut:
+
+* `handleCanonContentInput()` uses fallback text **“Select a text to view its content.”** when content becomes empty.
+
+  * That’s wrong if a text *is* selected and you just cleared it.
+  * You’ll see “Select a text…” while clearly editing a selected text.
+
+It’s easy to fix, but as‑is PR #121 is already correct.
+
+### PR #123
+
+This is the weakest:
+
+* The “no selection” preview message is misleading (“No content yet…”).
+* Modal can’t be dismissed by clicking the backdrop or pressing Escape.
+* More handler wiring is done inside render paths.
+
+### PR #124
+
+If you wanted *minimal change / no modal*, this would be the pick.
+But:
+
+* It doesn’t distinguish “no selection” vs “empty content”.
+* No modal (which is often the main value-add once you have long canon texts).
+
+## One important follow-up (applies to all PRs)
+
+All four PRs use `marked.parse()` and then assign into `innerHTML`. If you ever import someone else’s dataset (JSON/ZIP), **a malicious canon text could inject HTML/JS**.
+
+Even if this is “local only”, it’s still worth addressing because import is a first-class feature.
+
+If you choose PR #121, the recommended next patch is:
+
+* either **sanitize** HTML output (e.g., DOMPurify), or
+* configure a renderer that **escapes raw HTML blocks**, so markdown can’t inject `<script>` / `onerror=` etc.
+
+## Tiny polish I’d make to PR #121 after merging
+
+Not required, but nice:
+
+* Close modal when clicking outside the modal (backdrop click).
+* Focus the textarea when modal opens.
+
+PR #121 already supports Escape-to-close, which is great.
+
+---
+
+**Bottom line:** merge **PR #121** unless you explicitly want the smallest footprint and no modal—then **PR #124** is the minimalist alternative.
+I’d pick **PR #121**.
+
+It’s the most complete and the cleanest implementation for what you actually want here: **a live markdown preview in the Canon editor + an optional “big editor” modal**, without accumulating event handlers or leaving the preview in a confusing state.
+
+## Why PR #121 is the best choice
+
+### ✅ Best UX (inline + modal)
+
+* You get **side‑by‑side editing + preview directly in the Canon card**, which is already a big improvement.
+* You also get a **modal editor** with its own preview for when the right‑pane card feels cramped (common once texts get long).
+
+PR #124 is decent, but only gives the inline editor—no “bigger workspace” mode.
+
+### ✅ Correct empty/disabled state handling
+
+PR #121 is the only one that clearly distinguishes:
+
+* “No text selected” → shows *Select a text to see its content.*
+* “Text selected but empty” → shows *Add markdown content to see a preview.*
+
+PR #124 (and #123) blur these cases, which makes the UI feel slightly “off” (preview says “No content yet” even when nothing is selected).
+
+### ✅ Good event binding hygiene
+
+PR #121 uses `isCanonMarkdownInitialized` to ensure handlers are attached once.
+
+PR #123 assigns `contentInput.oninput = ...` inside `renderCanonForms()`, which is workable but is a pattern that tends to drift into brittle/duplicated behavior as the file grows.
+
+PR #122 binds in `init()` which is also fine, but it has a subtle UX bug (see below).
+
+### ✅ Styling is more polished and contained
+
+PR #121 adds solid preview formatting (headers, code blocks, etc.) and a well‑structured modal layout.
+
+## Why not the others
+
+### PR #122 (runner up)
+
+It’s close, but has a real UX papercut:
+
+* `handleCanonContentInput()` uses fallback text **“Select a text to view its content.”** when content becomes empty.
+
+  * That’s wrong if a text *is* selected and you just cleared it.
+  * You’ll see “Select a text…” while clearly editing a selected text.
+
+It’s easy to fix, but as‑is PR #121 is already correct.
+
+### PR #123
+
+This is the weakest:
+
+* The “no selection” preview message is misleading (“No content yet…”).
+* Modal can’t be dismissed by clicking the backdrop or pressing Escape.
+* More handler wiring is done inside render paths.
+
+### PR #124
+
+If you wanted *minimal change / no modal*, this would be the pick.
+But:
+
+* It doesn’t distinguish “no selection” vs “empty content”.
+* No modal (which is often the main value-add once you have long canon texts).
+
+## One important follow-up (applies to all PRs)
+
+All four PRs use `marked.parse()` and then assign into `innerHTML`. If you ever import someone else’s dataset (JSON/ZIP), **a malicious canon text could inject HTML/JS**.
+
+Even if this is “local only”, it’s still worth addressing because import is a first-class feature.
+
+If you choose PR #121, the recommended next patch is:
+
+* either **sanitize** HTML output (e.g., DOMPurify), or
+* configure a renderer that **escapes raw HTML blocks**, so markdown can’t inject `<script>` / `onerror=` etc.
+
+## Tiny polish I’d make to PR #121 after merging
+
+Not required, but nice:
+
+* Close modal when clicking outside the modal (backdrop click).
+* Focus the textarea when modal opens.
+
+PR #121 already supports Escape-to-close, which is great.
+
+---
+
+**Bottom line:** merge **PR #121** unless you explicitly want the smallest footprint and no modal—then **PR #124** is the minimalist alternative.
+I’d pick **PR #121**.
+
+It’s the most complete and the cleanest implementation for what you actually want here: **a live markdown preview in the Canon editor + an optional “big editor” modal**, without accumulating event handlers or leaving the preview in a confusing state.
+
+## Why PR #121 is the best choice
+
+### ✅ Best UX (inline + modal)
+
+* You get **side‑by‑side editing + preview directly in the Canon card**, which is already a big improvement.
+* You also get a **modal editor** with its own preview for when the right‑pane card feels cramped (common once texts get long).
+
+PR #124 is decent, but only gives the inline editor—no “bigger workspace” mode.
+
+### ✅ Correct empty/disabled state handling
+
+PR #121 is the only one that clearly distinguishes:
+
+* “No text selected” → shows *Select a text to see its content.*
+* “Text selected but empty” → shows *Add markdown content to see a preview.*
+
+PR #124 (and #123) blur these cases, which makes the UI feel slightly “off” (preview says “No content yet” even when nothing is selected).
+
+### ✅ Good event binding hygiene
+
+PR #121 uses `isCanonMarkdownInitialized` to ensure handlers are attached once.
+
+PR #123 assigns `contentInput.oninput = ...` inside `renderCanonForms()`, which is workable but is a pattern that tends to drift into brittle/duplicated behavior as the file grows.
+
+PR #122 binds in `init()` which is also fine, but it has a subtle UX bug (see below).
+
+### ✅ Styling is more polished and contained
+
+PR #121 adds solid preview formatting (headers, code blocks, etc.) and a well‑structured modal layout.
+
+## Why not the others
+
+### PR #122 (runner up)
+
+It’s close, but has a real UX papercut:
+
+* `handleCanonContentInput()` uses fallback text **“Select a text to view its content.”** when content becomes empty.
+
+  * That’s wrong if a text *is* selected and you just cleared it.
+  * You’ll see “Select a text…” while clearly editing a selected text.
+
+It’s easy to fix, but as‑is PR #121 is already correct.
+
+### PR #123
+
+This is the weakest:
+
+* The “no selection” preview message is misleading (“No content yet…”).
+* Modal can’t be dismissed by clicking the backdrop or pressing Escape.
+* More handler wiring is done inside render paths.
+
+### PR #124
+
+If you wanted *minimal change / no modal*, this would be the pick.
+But:
+
+* It doesn’t distinguish “no selection” vs “empty content”.
+* No modal (which is often the main value-add once you have long canon texts).
+
+## One important follow-up (applies to all PRs)
+
+All four PRs use `marked.parse()` and then assign into `innerHTML`. If you ever import someone else’s dataset (JSON/ZIP), **a malicious canon text could inject HTML/JS**.
+
+Even if this is “local only”, it’s still worth addressing because import is a first-class feature.
+
+If you choose PR #121, the recommended next patch is:
+
+* either **sanitize** HTML output (e.g., DOMPurify), or
+* configure a renderer that **escapes raw HTML blocks**, so markdown can’t inject `<script>` / `onerror=` etc.
+
+## Tiny polish I’d make to PR #121 after merging
+
+Not required, but nice:
+
+* Close modal when clicking outside the modal (backdrop click).
+* Focus the textarea when modal opens.
+
+PR #121 already supports Escape-to-close, which is great.
+
+---
+
+**Bottom line:** merge **PR #121** unless you explicitly want the smallest footprint and no modal—then **PR #124** is the minimalist alternative.
+I’d pick **PR #121**.
+
+It’s the most complete and the cleanest implementation for what you actually want here: **a live markdown preview in the Canon editor + an optional “big editor” modal**, without accumulating event handlers or leaving the preview in a confusing state.
+
+## Why PR #121 is the best choice
+
+### ✅ Best UX (inline + modal)
+
+* You get **side‑by‑side editing + preview directly in the Canon card**, which is already a big improvement.
+* You also get a **modal editor** with its own preview for when the right‑pane card feels cramped (common once texts get long).
+
+PR #124 is decent, but only gives the inline editor—no “bigger workspace” mode.
+
+### ✅ Correct empty/disabled state handling
+
+PR #121 is the only one that clearly distinguishes:
+
+* “No text selected” → shows *Select a text to see its content.*
+* “Text selected but empty” → shows *Add markdown content to see a preview.*
+
+PR #124 (and #123) blur these cases, which makes the UI feel slightly “off” (preview says “No content yet” even when nothing is selected).
+
+### ✅ Good event binding hygiene
+
+PR #121 uses `isCanonMarkdownInitialized` to ensure handlers are attached once.
+
+PR #123 assigns `contentInput.oninput = ...` inside `renderCanonForms()`, which is workable but is a pattern that tends to drift into brittle/duplicated behavior as the file grows.
+
+PR #122 binds in `init()` which is also fine, but it has a subtle UX bug (see below).
+
+### ✅ Styling is more polished and contained
+
+PR #121 adds solid preview formatting (headers, code blocks, etc.) and a well‑structured modal layout.
+
+## Why not the others
+
+### PR #122 (runner up)
+
+It’s close, but has a real UX papercut:
+
+* `handleCanonContentInput()` uses fallback text **“Select a text to view its content.”** when content becomes empty.
+
+  * That’s wrong if a text *is* selected and you just cleared it.
+  * You’ll see “Select a text…” while clearly editing a selected text.
+
+It’s easy to fix, but as‑is PR #121 is already correct.
+
+### PR #123
+
+This is the weakest:
+
+* The “no selection” preview message is misleading (“No content yet…”).
+* Modal can’t be dismissed by clicking the backdrop or pressing Escape.
+* More handler wiring is done inside render paths.
+
+### PR #124
+
+If you wanted *minimal change / no modal*, this would be the pick.
+But:
+
+* It doesn’t distinguish “no selection” vs “empty content”.
+* No modal (which is often the main value-add once you have long canon texts).
+
+## One important follow-up (applies to all PRs)
+
+All four PRs use `marked.parse()` and then assign into `innerHTML`. If you ever import someone else’s dataset (JSON/ZIP), **a malicious canon text could inject HTML/JS**.
+
+Even if this is “local only”, it’s still worth addressing because import is a first-class feature.
+
+If you choose PR #121, the recommended next patch is:
+
+* either **sanitize** HTML output (e.g., DOMPurify), or
+* configure a renderer that **escapes raw HTML blocks**, so markdown can’t inject `<script>` / `onerror=` etc.
+
+## Tiny polish I’d make to PR #121 after merging
+
+Not required, but nice:
+
+* Close modal when clicking outside the modal (backdrop click).
+* Focus the textarea when modal opens.
+
+PR #121 already supports Escape-to-close, which is great.
+
+---
+
+**Bottom line:** merge **PR #121** unless you explicitly want the smallest footprint and no modal—then **PR #124** is the minimalist alternative.
+I’d pick **PR #121**.
+
+It’s the most complete and the cleanest implementation for what you actually want here: **a live markdown preview in the Canon editor + an optional “big editor” modal**, without accumulating event handlers or leaving the preview in a confusing state.
+
+## Why PR #121 is the best choice
+
+### ✅ Best UX (inline + modal)
+
+* You get **side‑by‑side editing + preview directly in the Canon card**, which is already a big improvement.
+* You also get a **modal editor** with its own preview for when the right‑pane card feels cramped (common once texts get long).
+
+PR #124 is decent, but only gives the inline editor—no “bigger workspace” mode.
+
+### ✅ Correct empty/disabled state handling
+
+PR #121 is the only one that clearly distinguishes:
+
+* “No text selected” → shows *Select a text to see its content.*
+* “Text selected but empty” → shows *Add markdown content to see a preview.*
+
+PR #124 (and #123) blur these cases, which makes the UI feel slightly “off” (preview says “No content yet” even when nothing is selected).
+
+### ✅ Good event binding hygiene
+
+PR #121 uses `isCanonMarkdownInitialized` to ensure handlers are attached once.
+
+PR #123 assigns `contentInput.oninput = ...` inside `renderCanonForms()`, which is workable but is a pattern that tends to drift into brittle/duplicated behavior as the file grows.
+
+PR #122 binds in `init()` which is also fine, but it has a subtle UX bug (see below).
+
+### ✅ Styling is more polished and contained
+
+PR #121 adds solid preview formatting (headers, code blocks, etc.) and a well‑structured modal layout.
+
+## Why not the others
+
+### PR #122 (runner up)
+
+It’s close, but has a real UX papercut:
+
+* `handleCanonContentInput()` uses fallback text **“Select a text to view its content.”** when content becomes empty.
+
+  * That’s wrong if a text *is* selected and you just cleared it.
+  * You’ll see “Select a text…” while clearly editing a selected text.
+
+It’s easy to fix, but as‑is PR #121 is already correct.
+
+### PR #123
+
+This is the weakest:
+
+* The “no selection” preview message is misleading (“No content yet…”).
+* Modal can’t be dismissed by clicking the backdrop or pressing Escape.
+* More handler wiring is done inside render paths.
+
+### PR #124
+
+If you wanted *minimal change / no modal*, this would be the pick.
+But:
+
+* It doesn’t distinguish “no selection” vs “empty content”.
+* No modal (which is often the main value-add once you have long canon texts).
+
+## One important follow-up (applies to all PRs)
+
+All four PRs use `marked.parse()` and then assign into `innerHTML`. If you ever import someone else’s dataset (JSON/ZIP), **a malicious canon text could inject HTML/JS**.
+
+Even if this is “local only”, it’s still worth addressing because import is a first-class feature.
+
+If you choose PR #121, the recommended next patch is:
+
+* either **sanitize** HTML output (e.g., DOMPurify), or
+* configure a renderer that **escapes raw HTML blocks**, so markdown can’t inject `<script>` / `onerror=` etc.
+
+## Tiny polish I’d make to PR #121 after merging
+
+Not required, but nice:
+
+* Close modal when clicking outside the modal (backdrop click).
+* Focus the textarea when modal opens.
+
+PR #121 already supports Escape-to-close, which is great.
+
+---
+
+**Bottom line:** merge **PR #121** unless you explicitly want the smallest footprint and no modal—then **PR #124** is the minimalist alternative.
+I’d pick **PR #121**.
+
+It’s the most complete and the cleanest implementation for what you actually want here: **a live markdown preview in the Canon editor + an optional “big editor” modal**, without accumulating event handlers or leaving the preview in a confusing state.
+
+## Why PR #121 is the best choice
+
+### ✅ Best UX (inline + modal)
+
+* You get **side‑by‑side editing + preview directly in the Canon card**, which is already a big improvement.
+* You also get a **modal editor** with its own preview for when the right‑pane card feels cramped (common once texts get long).
+
+PR #124 is decent, but only gives the inline editor—no “bigger workspace” mode.
+
+### ✅ Correct empty/disabled state handling
+
+PR #121 is the only one that clearly distinguishes:
+
+* “No text selected” → shows *Select a text to see its content.*
+* “Text selected but empty” → shows *Add markdown content to see a preview.*
+
+PR #124 (and #123) blur these cases, which makes the UI feel slightly “off” (preview says “No content yet” even when nothing is selected).
+
+### ✅ Good event binding hygiene
+
+PR #121 uses `isCanonMarkdownInitialized` to ensure handlers are attached once.
+
+PR #123 assigns `contentInput.oninput = ...` inside `renderCanonForms()`, which is workable but is a pattern that tends to drift into brittle/duplicated behavior as the file grows.
+
+PR #122 binds in `init()` which is also fine, but it has a subtle UX bug (see below).
+
+### ✅ Styling is more polished and contained
+
+PR #121 adds solid preview formatting (headers, code blocks, etc.) and a well‑structured modal layout.
+
+## Why not the others
+
+### PR #122 (runner up)
+
+It’s close, but has a real UX papercut:
+
+* `handleCanonContentInput()` uses fallback text **“Select a text to view its content.”** when content becomes empty.
+
+  * That’s wrong if a text *is* selected and you just cleared it.
+  * You’ll see “Select a text…” while clearly editing a selected text.
+
+It’s easy to fix, but as‑is PR #121 is already correct.
+
+### PR #123
+
+This is the weakest:
+
+* The “no selection” preview message is misleading (“No content yet…”).
+* Modal can’t be dismissed by clicking the backdrop or pressing Escape.
+* More handler wiring is done inside render paths.
+
+### PR #124
+
+If you wanted *minimal change / no modal*, this would be the pick.
+But:
+
+* It doesn’t distinguish “no selection” vs “empty content”.
+* No modal (which is often the main value-add once you have long canon texts).
+
+## One important follow-up (applies to all PRs)
+
+All four PRs use `marked.parse()` and then assign into `innerHTML`. If you ever import someone else’s dataset (JSON/ZIP), **a malicious canon text could inject HTML/JS**.
+
+Even if this is “local only”, it’s still worth addressing because import is a first-class feature.
+
+If you choose PR #121, the recommended next patch is:
+
+* either **sanitize** HTML output (e.g., DOMPurify), or
+* configure a renderer that **escapes raw HTML blocks**, so markdown can’t inject `<script>` / `onerror=` etc.
+
+## Tiny polish I’d make to PR #121 after merging
+
+Not required, but nice:
+
+* Close modal when clicking outside the modal (backdrop click).
+* Focus the textarea when modal opens.
+
+PR #121 already supports Escape-to-close, which is great.
+
+---
+
+**Bottom line:** merge **PR #121** unless you explicitly want the smallest footprint and no modal—then **PR #124** is the minimalist alternative.
+I’d pick **PR #121**.
+
+It’s the most complete and the cleanest implementation for what you actually want here: **a live markdown preview in the Canon editor + an optional “big editor” modal**, without accumulating event handlers or leaving the preview in a confusing state.
+
+## Why PR #121 is the best choice
+
+### ✅ Best UX (inline + modal)
+
+* You get **side‑by‑side editing + preview directly in the Canon card**, which is already a big improvement.
+* You also get a **modal editor** with its own preview for when the right‑pane card feels cramped (common once texts get long).
+
+PR #124 is decent, but only gives the inline editor—no “bigger workspace” mode.
+
+### ✅ Correct empty/disabled state handling
+
+PR #121 is the only one that clearly distinguishes:
+
+* “No text selected” → shows *Select a text to see its content.*
+* “Text selected but empty” → shows *Add markdown content to see a preview.*
+
+PR #124 (and #123) blur these cases, which makes the UI feel slightly “off” (preview says “No content yet” even when nothing is selected).
+
+### ✅ Good event binding hygiene
+
+PR #121 uses `isCanonMarkdownInitialized` to ensure handlers are attached once.
+
+PR #123 assigns `contentInput.oninput = ...` inside `renderCanonForms()`, which is workable but is a pattern that tends to drift into brittle/duplicated behavior as the file grows.
+
+PR #122 binds in `init()` which is also fine, but it has a subtle UX bug (see below).
+
+### ✅ Styling is more polished and contained
+
+PR #121 adds solid preview formatting (headers, code blocks, etc.) and a well‑structured modal layout.
+
+## Why not the others
+
+### PR #122 (runner up)
+
+It’s close, but has a real UX papercut:
+
+* `handleCanonContentInput()` uses fallback text **“Select a text to view its content.”** when content becomes empty.
+
+  * That’s wrong if a text *is* selected and you just cleared it.
+  * You’ll see “Select a text…” while clearly editing a selected text.
+
+It’s easy to fix, but as‑is PR #121 is already correct.
+
+### PR #123
+
+This is the weakest:
+
+* The “no selection” preview message is misleading (“No content yet…”).
+* Modal can’t be dismissed by clicking the backdrop or pressing Escape.
+* More handler wiring is done inside render paths.
+
+### PR #124
+
+If you wanted *minimal change / no modal*, this would be the pick.
+But:
+
+* It doesn’t distinguish “no selection” vs “empty content”.
+* No modal (which is often the main value-add once you have long canon texts).
+
+## One important follow-up (applies to all PRs)
+
+All four PRs use `marked.parse()` and then assign into `innerHTML`. If you ever import someone else’s dataset (JSON/ZIP), **a malicious canon text could inject HTML/JS**.
+
+Even if this is “local only”, it’s still worth addressing because import is a first-class feature.
+
+If you choose PR #121, the recommended next patch is:
+
+* either **sanitize** HTML output (e.g., DOMPurify), or
+* configure a renderer that **escapes raw HTML blocks**, so markdown can’t inject `<script>` / `onerror=` etc.
+
+## Tiny polish I’d make to PR #121 after merging
+
+Not required, but nice:
+
+* Close modal when clicking outside the modal (backdrop click).
+* Focus the textarea when modal opens.
+
+PR #121 already supports Escape-to-close, which is great.
+
+---
+
+**Bottom line:** merge **PR #121** unless you explicitly want the smallest footprint and no modal—then **PR #124** is the minimalist alternative.
+I’d pick **PR #121**.
+
+It’s the most complete and the cleanest implementation for what you actually want here: **a live markdown preview in the Canon editor + an optional “big editor” modal**, without accumulating event handlers or leaving the preview in a confusing state.
+
+## Why PR #121 is the best choice
+
+### ✅ Best UX (inline + modal)
+
+* You get **side‑by‑side editing + preview directly in the Canon card**, which is already a big improvement.
+* You also get a **modal editor** with its own preview for when the right‑pane card feels cramped (common once texts get long).
+
+PR #124 is decent, but only gives the inline editor—no “bigger workspace” mode.
+
+### ✅ Correct empty/disabled state handling
+
+PR #121 is the only one that clearly distinguishes:
+
+* “No text selected” → shows *Select a text to see its content.*
+* “Text selected but empty” → shows *Add markdown content to see a preview.*
+
+PR #124 (and #123) blur these cases, which makes the UI feel slightly “off” (preview says “No content yet” even when nothing is selected).
+
+### ✅ Good event binding hygiene
+
+PR #121 uses `isCanonMarkdownInitialized` to ensure handlers are attached once.
+
+PR #123 assigns `contentInput.oninput = ...` inside `renderCanonForms()`, which is workable but is a pattern that tends to drift into brittle/duplicated behavior as the file grows.
+
+PR #122 binds in `init()` which is also fine, but it has a subtle UX bug (see below).
+
+### ✅ Styling is more polished and contained
+
+PR #121 adds solid preview formatting (headers, code blocks, etc.) and a well‑structured modal layout.
+
+## Why not the others
+
+### PR #122 (runner up)
+
+It’s close, but has a real UX papercut:
+
+* `handleCanonContentInput()` uses fallback text **“Select a text to view its content.”** when content becomes empty.
+
+  * That’s wrong if a text *is* selected and you just cleared it.
+  * You’ll see “Select a text…” while clearly editing a selected text.
+
+It’s easy to fix, but as‑is PR #121 is already correct.
+
+### PR #123
+
+This is the weakest:
+
+* The “no selection” preview message is misleading (“No content yet…”).
+* Modal can’t be dismissed by clicking the backdrop or pressing Escape.
+* More handler wiring is done inside render paths.
+
+### PR #124
+
+If you wanted *minimal change / no modal*, this would be the pick.
+But:
+
+* It doesn’t distinguish “no selection” vs “empty content”.
+* No modal (which is often the main value-add once you have long canon texts).
+
+## One important follow-up (applies to all PRs)
+
+All four PRs use `marked.parse()` and then assign into `innerHTML`. If you ever import someone else’s dataset (JSON/ZIP), **a malicious canon text could inject HTML/JS**.
+
+Even if this is “local only”, it’s still worth addressing because import is a first-class feature.
+
+If you choose PR #121, the recommended next patch is:
+
+* either **sanitize** HTML output (e.g., DOMPurify), or
+* configure a renderer that **escapes raw HTML blocks**, so markdown can’t inject `<script>` / `onerror=` etc.
+
+## Tiny polish I’d make to PR #121 after merging
+
+Not required, but nice:
+
+* Close modal when clicking outside the modal (backdrop click).
+* Focus the textarea when modal opens.
+
+PR #121 already supports Escape-to-close, which is great.
+
+---
+
+**Bottom line:** merge **PR #121** unless you explicitly want the smallest footprint and no modal—then **PR #124** is the minimalist alternative.
+I’d pick **PR #121**.
+
+It’s the most complete and the cleanest implementation for what you actually want here: **a live markdown preview in the Canon editor + an optional “big editor” modal**, without accumulating event handlers or leaving the preview in a confusing state.
+
+## Why PR #121 is the best choice
+
+### ✅ Best UX (inline + modal)
+
+* You get **side‑by‑side editing + preview directly in the Canon card**, which is already a big improvement.
+* You also get a **modal editor** with its own preview for when the right‑pane card feels cramped (common once texts get long).
+
+PR #124 is decent, but only gives the inline editor—no “bigger workspace” mode.
+
+### ✅ Correct empty/disabled state handling
+
+PR #121 is the only one that clearly distinguishes:
+
+* “No text selected” → shows *Select a text to see its content.*
+* “Text selected but empty” → shows *Add markdown content to see a preview.*
+
+PR #124 (and #123) blur these cases, which makes the UI feel slightly “off” (preview says “No content yet” even when nothing is selected).
+
+### ✅ Good event binding hygiene
+
+PR #121 uses `isCanonMarkdownInitialized` to ensure handlers are attached once.
+
+PR #123 assigns `contentInput.oninput = ...` inside `renderCanonForms()`, which is workable but is a pattern that tends to drift into brittle/duplicated behavior as the file grows.
+
+PR #122 binds in `init()` which is also fine, but it has a subtle UX bug (see below).
+
+### ✅ Styling is more polished and contained
+
+PR #121 adds solid preview formatting (headers, code blocks, etc.) and a well‑structured modal layout.
+
+## Why not the others
+
+### PR #122 (runner up)
+
+It’s close, but has a real UX papercut:
+
+* `handleCanonContentInput()` uses fallback text **“Select a text to view its content.”** when content becomes empty.
+
+  * That’s wrong if a text *is* selected and you just cleared it.
+  * You’ll see “Select a text…” while clearly editing a selected text.
+
+It’s easy to fix, but as‑is PR #121 is already correct.
+
+### PR #123
+
+This is the weakest:
+
+* The “no selection” preview message is misleading (“No content yet…”).
+* Modal can’t be dismissed by clicking the backdrop or pressing Escape.
+* More handler wiring is done inside render paths.
+
+### PR #124
+
+If you wanted *minimal change / no modal*, this would be the pick.
+But:
+
+* It doesn’t distinguish “no selection” vs “empty content”.
+* No modal (which is often the main value-add once you have long canon texts).
+
+## One important follow-up (applies to all PRs)
+
+All four PRs use `marked.parse()` and then assign into `innerHTML`. If you ever import someone else’s dataset (JSON/ZIP), **a malicious canon text could inject HTML/JS**.
+
+Even if this is “local only”, it’s still worth addressing because import is a first-class feature.
+
+If you choose PR #121, the recommended next patch is:
+
+* either **sanitize** HTML output (e.g., DOMPurify), or
+* configure a renderer that **escapes raw HTML blocks**, so markdown can’t inject `<script>` / `onerror=` etc.
+
+## Tiny polish I’d make to PR #121 after merging
+
+Not required, but nice:
+
+* Close modal when clicking outside the modal (backdrop click).
+* Focus the textarea when modal opens.
+
+PR #121 already supports Escape-to-close, which is great.
+
+---
+
+**Bottom line:** merge **PR #121** unless you explicitly want the smallest footprint and no modal—then **PR #124** is the minimalist alternative.
+I’d pick **PR #121**.
+
+It’s the most complete and the cleanest implementation for what you actually want here: **a live markdown preview in the Canon editor + an optional “big editor” modal**, without accumulating event handlers or leaving the preview in a confusing state.
+
+## Why PR #121 is the best choice
+
+### ✅ Best UX (inline + modal)
+
+* You get **side‑by‑side editing + preview directly in the Canon card**, which is already a big improvement.
+* You also get a **modal editor** with its own preview for when the right‑pane card feels cramped (common once texts get long).
+
+PR #124 is decent, but only gives the inline editor—no “bigger workspace” mode.
+
+### ✅ Correct empty/disabled state handling
+
+PR #121 is the only one that clearly distinguishes:
+
+* “No text selected” → shows *Select a text to see its content.*
+* “Text selected but empty” → shows *Add markdown content to see a preview.*
+
+PR #124 (and #123) blur these cases, which makes the UI feel slightly “off” (preview says “No content yet” even when nothing is selected).
+
+### ✅ Good event binding hygiene
+
+PR #121 uses `isCanonMarkdownInitialized` to ensure handlers are attached once.
+
+PR #123 assigns `contentInput.oninput = ...` inside `renderCanonForms()`, which is workable but is a pattern that tends to drift into brittle/duplicated behavior as the file grows.
+
+PR #122 binds in `init()` which is also fine, but it has a subtle UX bug (see below).
+
+### ✅ Styling is more polished and contained
+
+PR #121 adds solid preview formatting (headers, code blocks, etc.) and a well‑structured modal layout.
+
+## Why not the others
+
+### PR #122 (runner up)
+
+It’s close, but has a real UX papercut:
+
+* `handleCanonContentInput()` uses fallback text **“Select a text to view its content.”** when content becomes empty.
+
+  * That’s wrong if a text *is* selected and you just cleared it.
+  * You’ll see “Select a text…” while clearly editing a selected text.
+
+It’s easy to fix, but as‑is PR #121 is already correct.
+
+### PR #123
+
+This is the weakest:
+
+* The “no selection” preview message is misleading (“No content yet…”).
+* Modal can’t be dismissed by clicking the backdrop or pressing Escape.
+* More handler wiring is done inside render paths.
+
+### PR #124
+
+If you wanted *minimal change / no modal*, this would be the pick.
+But:
+
+* It doesn’t distinguish “no selection” vs “empty content”.
+* No modal (which is often the main value-add once you have long canon texts).
+
+## One important follow-up (applies to all PRs)
+
+All four PRs use `marked.parse()` and then assign into `innerHTML`. If you ever import someone else’s dataset (JSON/ZIP), **a malicious canon text could inject HTML/JS**.
+
+Even if this is “local only”, it’s still worth addressing because import is a first-class feature.
+
+If you choose PR #121, the recommended next patch is:
+
+* either **sanitize** HTML output (e.g., DOMPurify), or
+* configure a renderer that **escapes raw HTML blocks**, so markdown can’t inject `<script>` / `onerror=` etc.
+
+## Tiny polish I’d make to PR #121 after merging
+
+Not required, but nice:
+
+* Close modal when clicking outside the modal (backdrop click).
+* Focus the textarea when modal opens.
+
+PR #121 already supports Escape-to-close, which is great.
+
+---
+
+**Bottom line:** merge **PR #121** unless you explicitly want the smallest footprint and no modal—then **PR #124** is the minimalist alternative.
+I’d pick **PR #121**.
+
+It’s the most complete and the cleanest implementation for what you actually want here: **a live markdown preview in the Canon editor + an optional “big editor” modal**, without accumulating event handlers or leaving the preview in a confusing state.
+
+## Why PR #121 is the best choice
+
+### ✅ Best UX (inline + modal)
+
+* You get **side‑by‑side editing + preview directly in the Canon card**, which is already a big improvement.
+* You also get a **modal editor** with its own preview for when the right‑pane card feels cramped (common once texts get long).
+
+PR #124 is decent, but only gives the inline editor—no “bigger workspace” mode.
+
+### ✅ Correct empty/disabled state handling
+
+PR #121 is the only one that clearly distinguishes:
+
+* “No text selected” → shows *Select a text to see its content.*
+* “Text selected but empty” → shows *Add markdown content to see a preview.*
+
+PR #124 (and #123) blur these cases, which makes the UI feel slightly “off” (preview says “No content yet” even when nothing is selected).
+
+### ✅ Good event binding hygiene
+
+PR #121 uses `isCanonMarkdownInitialized` to ensure handlers are attached once.
+
+PR #123 assigns `contentInput.oninput = ...` inside `renderCanonForms()`, which is workable but is a pattern that tends to drift into brittle/duplicated behavior as the file grows.
+
+PR #122 binds in `init()` which is also fine, but it has a subtle UX bug (see below).
+
+### ✅ Styling is more polished and contained
+
+PR #121 adds solid preview formatting (headers, code blocks, etc.) and a well‑structured modal layout.
+
+## Why not the others
+
+### PR #122 (runner up)
+
+It’s close, but has a real UX papercut:
+
+* `handleCanonContentInput()` uses fallback text **“Select a text to view its content.”** when content becomes empty.
+
+  * That’s wrong if a text *is* selected and you just cleared it.
+  * You’ll see “Select a text…” while clearly editing a selected text.
+
+It’s easy to fix, but as‑is PR #121 is already correct.
+
+### PR #123
+
+This is the weakest:
+
+* The “no selection” preview message is misleading (“No content yet…”).
+* Modal can’t be dismissed by clicking the backdrop or pressing Escape.
+* More handler wiring is done inside render paths.
+
+### PR #124
+
+If you wanted *minimal change / no modal*, this would be the pick.
+But:
+
+* It doesn’t distinguish “no selection” vs “empty content”.
+* No modal (which is often the main value-add once you have long canon texts).
+
+## One important follow-up (applies to all PRs)
+
+All four PRs use `marked.parse()` and then assign into `innerHTML`. If you ever import someone else’s dataset (JSON/ZIP), **a malicious canon text could inject HTML/JS**.
+
+Even if this is “local only”, it’s still worth addressing because import is a first-class feature.
+
+If you choose PR #121, the recommended next patch is:
+
+* either **sanitize** HTML output (e.g., DOMPurify), or
+* configure a renderer that **escapes raw HTML blocks**, so markdown can’t inject `<script>` / `onerror=` etc.
+
+## Tiny polish I’d make to PR #121 after merging
+
+Not required, but nice:
+
+* Close modal when clicking outside the modal (backdrop click).
+* Focus the textarea when modal opens.
+
+PR #121 already supports Escape-to-close, which is great.
+
+---
+
+**Bottom line:** merge **PR #121** unless you explicitly want the smallest footprint and no modal—then **PR #124** is the minimalist alternative.
+I’d pick **PR #121**.
+
+It’s the most complete and the cleanest implementation for what you actually want here: **a live markdown preview in the Canon editor + an optional “big editor” modal**, without accumulating event handlers or leaving the preview in a confusing state.
+
+## Why PR #121 is the best choice
+
+### ✅ Best UX (inline + modal)
+
+* You get **side‑by‑side editing + preview directly in the Canon card**, which is already a big improvement.
+* You also get a **modal editor** with its own preview for when the right‑pane card feels cramped (common once texts get long).
+
+PR #124 is decent, but only gives the inline editor—no “bigger workspace” mode.
+
+### ✅ Correct empty/disabled state handling
+
+PR #121 is the only one that clearly distinguishes:
+
+* “No text selected” → shows *Select a text to see its content.*
+* “Text selected but empty” → shows *Add markdown content to see a preview.*
+
+PR #124 (and #123) blur these cases, which makes the UI feel slightly “off” (preview says “No content yet” even when nothing is selected).
+
+### ✅ Good event binding hygiene
+
+PR #121 uses `isCanonMarkdownInitialized` to ensure handlers are attached once.
+
+PR #123 assigns `contentInput.oninput = ...` inside `renderCanonForms()`, which is workable but is a pattern that tends to drift into brittle/duplicated behavior as the file grows.
+
+PR #122 binds in `init()` which is also fine, but it has a subtle UX bug (see below).
+
+### ✅ Styling is more polished and contained
+
+PR #121 adds solid preview formatting (headers, code blocks, etc.) and a well‑structured modal layout.
+
+## Why not the others
+
+### PR #122 (runner up)
+
+It’s close, but has a real UX papercut:
+
+* `handleCanonContentInput()` uses fallback text **“Select a text to view its content.”** when content becomes empty.
+
+  * That’s wrong if a text *is* selected and you just cleared it.
+  * You’ll see “Select a text…” while clearly editing a selected text.
+
+It’s easy to fix, but as‑is PR #121 is already correct.
+
+### PR #123
+
+This is the weakest:
+
+* The “no selection” preview message is misleading (“No content yet…”).
+* Modal can’t be dismissed by clicking the backdrop or pressing Escape.
+* More handler wiring is done inside render paths.
+
+### PR #124
+
+If you wanted *minimal change / no modal*, this would be the pick.
+But:
+
+* It doesn’t distinguish “no selection” vs “empty content”.
+* No modal (which is often the main value-add once you have long canon texts).
+
+## One important follow-up (applies to all PRs)
+
+All four PRs use `marked.parse()` and then assign into `innerHTML`. If you ever import someone else’s dataset (JSON/ZIP), **a malicious canon text could inject HTML/JS**.
+
+Even if this is “local only”, it’s still worth addressing because import is a first-class feature.
+
+If you choose PR #121, the recommended next patch is:
+
+* either **sanitize** HTML output (e.g., DOMPurify), or
+* configure a renderer that **escapes raw HTML blocks**, so markdown can’t inject `<script>` / `onerror=` etc.
+
+## Tiny polish I’d make to PR #121 after merging
+
+Not required, but nice:
+
+* Close modal when clicking outside the modal (backdrop click).
+* Focus the textarea when modal opens.
+
+PR #121 already supports Escape-to-close, which is great.
+
+---
+
+**Bottom line:** merge **PR #121** unless you explicitly want the smallest footprint and no modal—then **PR #124** is the minimalist alternative.
+I’d pick **PR #121**.
+
+It’s the most complete and the cleanest implementation for what you actually want here: **a live markdown preview in the Canon editor + an optional “big editor” modal**, without accumulating event handlers or leaving the preview in a confusing state.
+
+## Why PR #121 is the best choice
+
+### ✅ Best UX (inline + modal)
+
+* You get **side‑by‑side editing + preview directly in the Canon card**, which is already a big improvement.
+* You also get a **modal editor** with its own preview for when the right‑pane card feels cramped (common once texts get long).
+
+PR #124 is decent, but only gives the inline editor—no “bigger workspace” mode.
+
+### ✅ Correct empty/disabled state handling
+
+PR #121 is the only one that clearly distinguishes:
+
+* “No text selected” → shows *Select a text to see its content.*
+* “Text selected but empty” → shows *Add markdown content to see a preview.*
+
+PR #124 (and #123) blur these cases, which makes the UI feel slightly “off” (preview says “No content yet” even when nothing is selected).
+
+### ✅ Good event binding hygiene
+
+PR #121 uses `isCanonMarkdownInitialized` to ensure handlers are attached once.
+
+PR #123 assigns `contentInput.oninput = ...` inside `renderCanonForms()`, which is workable but is a pattern that tends to drift into brittle/duplicated behavior as the file grows.
+
+PR #122 binds in `init()` which is also fine, but it has a subtle UX bug (see below).
+
+### ✅ Styling is more polished and contained
+
+PR #121 adds solid preview formatting (headers, code blocks, etc.) and a well‑structured modal layout.
+
+## Why not the others
+
+### PR #122 (runner up)
+
+It’s close, but has a real UX papercut:
+
+* `handleCanonContentInput()` uses fallback text **“Select a text to view its content.”** when content becomes empty.
+
+  * That’s wrong if a text *is* selected and you just cleared it.
+  * You’ll see “Select a text…” while clearly editing a selected text.
+
+It’s easy to fix, but as‑is PR #121 is already correct.
+
+### PR #123
+
+This is the weakest:
+
+* The “no selection” preview message is misleading (“No content yet…”).
+* Modal can’t be dismissed by clicking the backdrop or pressing Escape.
+* More handler wiring is done inside render paths.
+
+### PR #124
+
+If you wanted *minimal change / no modal*, this would be the pick.
+But:
+
+* It doesn’t distinguish “no selection” vs “empty content”.
+* No modal (which is often the main value-add once you have long canon texts).
+
+## One important follow-up (applies to all PRs)
+
+All four PRs use `marked.parse()` and then assign into `innerHTML`. If you ever import someone else’s dataset (JSON/ZIP), **a malicious canon text could inject HTML/JS**.
+
+Even if this is “local only”, it’s still worth addressing because import is a first-class feature.
+
+If you choose PR #121, the recommended next patch is:
+
+* either **sanitize** HTML output (e.g., DOMPurify), or
+* configure a renderer that **escapes raw HTML blocks**, so markdown can’t inject `<script>` / `onerror=` etc.
+
+## Tiny polish I’d make to PR #121 after merging
+
+Not required, but nice:
+
+* Close modal when clicking outside the modal (backdrop click).
+* Focus the textarea when modal opens.
+
+PR #121 already supports Escape-to-close, which is great.
+
+---
+
+**Bottom line:** merge **PR #121** unless you explicitly want the smallest footprint and no modal—then **PR #124** is the minimalist alternative.
+I’d pick **PR #121**.
+
+It’s the most complete and the cleanest implementation for what you actually want here: **a live markdown preview in the Canon editor + an optional “big editor” modal**, without accumulating event handlers or leaving the preview in a confusing state.
+
+## Why PR #121 is the best choice
+
+### ✅ Best UX (inline + modal)
+
+* You get **side‑by‑side editing + preview directly in the Canon card**, which is already a big improvement.
+* You also get a **modal editor** with its own preview for when the right‑pane card feels cramped (common once texts get long).
+
+PR #124 is decent, but only gives the inline editor—no “bigger workspace” mode.
+
+### ✅ Correct empty/disabled state handling
+
+PR #121 is the only one that clearly distinguishes:
+
+* “No text selected” → shows *Select a text to see its content.*
+* “Text selected but empty” → shows *Add markdown content to see a preview.*
+
+PR #124 (and #123) blur these cases, which makes the UI feel slightly “off” (preview says “No content yet” even when nothing is selected).
+
+### ✅ Good event binding hygiene
+
+PR #121 uses `isCanonMarkdownInitialized` to ensure handlers are attached once.
+
+PR #123 assigns `contentInput.oninput = ...` inside `renderCanonForms()`, which is workable but is a pattern that tends to drift into brittle/duplicated behavior as the file grows.
+
+PR #122 binds in `init()` which is also fine, but it has a subtle UX bug (see below).
+
+### ✅ Styling is more polished and contained
+
+PR #121 adds solid preview formatting (headers, code blocks, etc.) and a well‑structured modal layout.
+
+## Why not the others
+
+### PR #122 (runner up)
+
+It’s close, but has a real UX papercut:
+
+* `handleCanonContentInput()` uses fallback text **“Select a text to view its content.”** when content becomes empty.
+
+  * That’s wrong if a text *is* selected and you just cleared it.
+  * You’ll see “Select a text…” while clearly editing a selected text.
+
+It’s easy to fix, but as‑is PR #121 is already correct.
+
+### PR #123
+
+This is the weakest:
+
+* The “no selection” preview message is misleading (“No content yet…”).
+* Modal can’t be dismissed by clicking the backdrop or pressing Escape.
+* More handler wiring is done inside render paths.
+
+### PR #124
+
+If you wanted *minimal change / no modal*, this would be the pick.
+But:
+
+* It doesn’t distinguish “no selection” vs “empty content”.
+* No modal (which is often the main value-add once you have long canon texts).
+
+## One important follow-up (applies to all PRs)
+
+All four PRs use `marked.parse()` and then assign into `innerHTML`. If you ever import someone else’s dataset (JSON/ZIP), **a malicious canon text could inject HTML/JS**.
+
+Even if this is “local only”, it’s still worth addressing because import is a first-class feature.
+
+If you choose PR #121, the recommended next patch is:
+
+* either **sanitize** HTML output (e.g., DOMPurify), or
+* configure a renderer that **escapes raw HTML blocks**, so markdown can’t inject `<script>` / `onerror=` etc.
+
+## Tiny polish I’d make to PR #121 after merging
+
+Not required, but nice:
+
+* Close modal when clicking outside the modal (backdrop click).
+* Focus the textarea when modal opens.
+
+PR #121 already supports Escape-to-close, which is great.
+
+---
+
+**Bottom line:** merge **PR #121** unless you explicitly want the smallest footprint and no modal—then **PR #124** is the minimalist alternative.
+I’d pick **PR #121**.
+
+It’s the most complete and the cleanest implementation for what you actually want here: **a live markdown preview in the Canon editor + an optional “big editor” modal**, without accumulating event handlers or leaving the preview in a confusing state.
+
+## Why PR #121 is the best choice
+
+### ✅ Best UX (inline + modal)
+
+* You get **side‑by‑side editing + preview directly in the Canon card**, which is already a big improvement.
+* You also get a **modal editor** with its own preview for when the right‑pane card feels cramped (common once texts get long).
+
+PR #124 is decent, but only gives the inline editor—no “bigger workspace” mode.
+
+### ✅ Correct empty/disabled state handling
+
+PR #121 is the only one that clearly distinguishes:
+
+* “No text selected” → shows *Select a text to see its content.*
+* “Text selected but empty” → shows *Add markdown content to see a preview.*
+
+PR #124 (and #123) blur these cases, which makes the UI feel slightly “off” (preview says “No content yet” even when nothing is selected).
+
+### ✅ Good event binding hygiene
+
+PR #121 uses `isCanonMarkdownInitialized` to ensure handlers are attached once.
+
+PR #123 assigns `contentInput.oninput = ...` inside `renderCanonForms()`, which is workable but is a pattern that tends to drift into brittle/duplicated behavior as the file grows.
+
+PR #122 binds in `init()` which is also fine, but it has a subtle UX bug (see below).
+
+### ✅ Styling is more polished and contained
+
+PR #121 adds solid preview formatting (headers, code blocks, etc.) and a well‑structured modal layout.
+
+## Why not the others
+
+### PR #122 (runner up)
+
+It’s close, but has a real UX papercut:
+
+* `handleCanonContentInput()` uses fallback text **“Select a text to view its content.”** when content becomes empty.
+
+  * That’s wrong if a text *is* selected and you just cleared it.
+  * You’ll see “Select a text…” while clearly editing a selected text.
+
+It’s easy to fix, but as‑is PR #121 is already correct.
+
+### PR #123
+
+This is the weakest:
+
+* The “no selection” preview message is misleading (“No content yet…”).
+* Modal can’t be dismissed by clicking the backdrop or pressing Escape.
+* More handler wiring is done inside render paths.
+
+### PR #124
+
+If you wanted *minimal change / no modal*, this would be the pick.
+But:
+
+* It doesn’t distinguish “no selection” vs “empty content”.
+* No modal (which is often the main value-add once you have long canon texts).
+
+## One important follow-up (applies to all PRs)
+
+All four PRs use `marked.parse()` and then assign into `innerHTML`. If you ever import someone else’s dataset (JSON/ZIP), **a malicious canon text could inject HTML/JS**.
+
+Even if this is “local only”, it’s still worth addressing because import is a first-class feature.
+
+If you choose PR #121, the recommended next patch is:
+
+* either **sanitize** HTML output (e.g., DOMPurify), or
+* configure a renderer that **escapes raw HTML blocks**, so markdown can’t inject `<script>` / `onerror=` etc.
+
+## Tiny polish I’d make to PR #121 after merging
+
+Not required, but nice:
+
+* Close modal when clicking outside the modal (backdrop click).
+* Focus the textarea when modal opens.
+
+PR #121 already supports Escape-to-close, which is great.
+
+---
+
+**Bottom line:** merge **PR #121** unless you explicitly want the smallest footprint and no modal—then **PR #124** is the minimalist alternative.
+I’d pick **PR #121**.
+
+It’s the most complete and the cleanest implementation for what you actually want here: **a live markdown preview in the Canon editor + an optional “big editor” modal**, without accumulating event handlers or leaving the preview in a confusing state.
+
+## Why PR #121 is the best choice
+
+### ✅ Best UX (inline + modal)
+
+* You get **side‑by‑side editing + preview directly in the Canon card**, which is already a big improvement.
+* You also get a **modal editor** with its own preview for when the right‑pane card feels cramped (common once texts get long).
+
+PR #124 is decent, but only gives the inline editor—no “bigger workspace” mode.
+
+### ✅ Correct empty/disabled state handling
+
+PR #121 is the only one that clearly distinguishes:
+
+* “No text selected” → shows *Select a text to see its content.*
+* “Text selected but empty” → shows *Add markdown content to see a preview.*
+
+PR #124 (and #123) blur these cases, which makes the UI feel slightly “off” (preview says “No content yet” even when nothing is selected).
+
+### ✅ Good event binding hygiene
+
+PR #121 uses `isCanonMarkdownInitialized` to ensure handlers are attached once.
+
+PR #123 assigns `contentInput.oninput = ...` inside `renderCanonForms()`, which is workable but is a pattern that tends to drift into brittle/duplicated behavior as the file grows.
+
+PR #122 binds in `init()` which is also fine, but it has a subtle UX bug (see below).
+
+### ✅ Styling is more polished and contained
+
+PR #121 adds solid preview formatting (headers, code blocks, etc.) and a well‑structured modal layout.
+
+## Why not the others
+
+### PR #122 (runner up)
+
+It’s close, but has a real UX papercut:
+
+* `handleCanonContentInput()` uses fallback text **“Select a text to view its content.”** when content becomes empty.
+
+  * That’s wrong if a text *is* selected and you just cleared it.
+  * You’ll see “Select a text…” while clearly editing a selected text.
+
+It’s easy to fix, but as‑is PR #121 is already correct.
+
+### PR #123
+
+This is the weakest:
+
+* The “no selection” preview message is misleading (“No content yet…”).
+* Modal can’t be dismissed by clicking the backdrop or pressing Escape.
+* More handler wiring is done inside render paths.
+
+### PR #124
+
+If you wanted *minimal change / no modal*, this would be the pick.
+But:
+
+* It doesn’t distinguish “no selection” vs “empty content”.
+* No modal (which is often the main value-add once you have long canon texts).
+
+## One important follow-up (applies to all PRs)
+
+All four PRs use `marked.parse()` and then assign into `innerHTML`. If you ever import someone else’s dataset (JSON/ZIP), **a malicious canon text could inject HTML/JS**.
+
+Even if this is “local only”, it’s still worth addressing because import is a first-class feature.
+
+If you choose PR #121, the recommended next patch is:
+
+* either **sanitize** HTML output (e.g., DOMPurify), or
+* configure a renderer that **escapes raw HTML blocks**, so markdown can’t inject `<script>` / `onerror=` etc.
+
+## Tiny polish I’d make to PR #121 after merging
+
+Not required, but nice:
+
+* Close modal when clicking outside the modal (backdrop click).
+* Focus the textarea when modal opens.
+
+PR #121 already supports Escape-to-close, which is great.
+
+---
+
+**Bottom line:** merge **PR #121** unless you explicitly want the smallest footprint and no modal—then **PR #124** is the minimalist alternative.
+I’d pick **PR #121**.
+
+It’s the most complete and the cleanest implementation for what you actually want here: **a live markdown preview in the Canon editor + an optional “big editor” modal**, without accumulating event handlers or leaving the preview in a confusing state.
+
+## Why PR #121 is the best choice
+
+### ✅ Best UX (inline + modal)
+
+* You get **side‑by‑side editing + preview directly in the Canon card**, which is already a big improvement.
+* You also get a **modal editor** with its own preview for when the right‑pane card feels cramped (common once texts get long).
+
+PR #124 is decent, but only gives the inline editor—no “bigger workspace” mode.
+
+### ✅ Correct empty/disabled state handling
+
+PR #121 is the only one that clearly distinguishes:
+
+* “No text selected” → shows *Select a text to see its content.*
+* “Text selected but empty” → shows *Add markdown content to see a preview.*
+
+PR #124 (and #123) blur these cases, which makes the UI feel slightly “off” (preview says “No content yet” even when nothing is selected).
+
+### ✅ Good event binding hygiene
+
+PR #121 uses `isCanonMarkdownInitialized` to ensure handlers are attached once.
+
+PR #123 assigns `contentInput.oninput = ...` inside `renderCanonForms()`, which is workable but is a pattern that tends to drift into brittle/duplicated behavior as the file grows.
+
+PR #122 binds in `init()` which is also fine, but it has a subtle UX bug (see below).
+
+### ✅ Styling is more polished and contained
+
+PR #121 adds solid preview formatting (headers, code blocks, etc.) and a well‑structured modal layout.
+
+## Why not the others
+
+### PR #122 (runner up)
+
+It’s close, but has a real UX papercut:
+
+* `handleCanonContentInput()` uses fallback text **“Select a text to view its content.”** when content becomes empty.
+
+  * That’s wrong if a text *is* selected and you just cleared it.
+  * You’ll see “Select a text…” while clearly editing a selected text.
+
+It’s easy to fix, but as‑is PR #121 is already correct.
+
+### PR #123
+
+This is the weakest:
+
+* The “no selection” preview message is misleading (“No content yet…”).
+* Modal can’t be dismissed by clicking the backdrop or pressing Escape.
+* More handler wiring is done inside render paths.
+
+### PR #124
+
+If you wanted *minimal change / no modal*, this would be the pick.
+But:
+
+* It doesn’t distinguish “no selection” vs “empty content”.
+* No modal (which is often the main value-add once you have long canon texts).
+
+## One important follow-up (applies to all PRs)
+
+All four PRs use `marked.parse()` and then assign into `innerHTML`. If you ever import someone else’s dataset (JSON/ZIP), **a malicious canon text could inject HTML/JS**.
+
+Even if this is “local only”, it’s still worth addressing because import is a first-class feature.
+
+If you choose PR #121, the recommended next patch is:
+
+* either **sanitize** HTML output (e.g., DOMPurify), or
+* configure a renderer that **escapes raw HTML blocks**, so markdown can’t inject `<script>` / `onerror=` etc.
+
+## Tiny polish I’d make to PR #121 after merging
+
+Not required, but nice:
+
+* Close modal when clicking outside the modal (backdrop click).
+* Focus the textarea when modal opens.
+
+PR #121 already supports Escape-to-close, which is great.
+
+---
+
+**Bottom line:** merge **PR #121** unless you explicitly want the smallest footprint and no modal—then **PR #124** is the minimalist alternative.
+I’d pick **PR #121**.
+
+It’s the most complete and the cleanest implementation for what you actually want here: **a live markdown preview in the Canon editor + an optional “big editor” modal**, without accumulating event handlers or leaving the preview in a confusing state.
+
+## Why PR #121 is the best choice
+
+### ✅ Best UX (inline + modal)
+
+* You get **side‑by‑side editing + preview directly in the Canon card**, which is already a big improvement.
+* You also get a **modal editor** with its own preview for when the right‑pane card feels cramped (common once texts get long).
+
+PR #124 is decent, but only gives the inline editor—no “bigger workspace” mode.
+
+### ✅ Correct empty/disabled state handling
+
+PR #121 is the only one that clearly distinguishes:
+
+* “No text selected” → shows *Select a text to see its content.*
+* “Text selected but empty” → shows *Add markdown content to see a preview.*
+
+PR #124 (and #123) blur these cases, which makes the UI feel slightly “off” (preview says “No content yet” even when nothing is selected).
+
+### ✅ Good event binding hygiene
+
+PR #121 uses `isCanonMarkdownInitialized` to ensure handlers are attached once.
+
+PR #123 assigns `contentInput.oninput = ...` inside `renderCanonForms()`, which is workable but is a pattern that tends to drift into brittle/duplicated behavior as the file grows.
+
+PR #122 binds in `init()` which is also fine, but it has a subtle UX bug (see below).
+
+### ✅ Styling is more polished and contained
+
+PR #121 adds solid preview formatting (headers, code blocks, etc.) and a well‑structured modal layout.
+
+## Why not the others
+
+### PR #122 (runner up)
+
+It’s close, but has a real UX papercut:
+
+* `handleCanonContentInput()` uses fallback text **“Select a text to view its content.”** when content becomes empty.
+
+  * That’s wrong if a text *is* selected and you just cleared it.
+  * You’ll see “Select a text…” while clearly editing a selected text.
+
+It’s easy to fix, but as‑is PR #121 is already correct.
+
+### PR #123
+
+This is the weakest:
+
+* The “no selection” preview message is misleading (“No content yet…”).
+* Modal can’t be dismissed by clicking the backdrop or pressing Escape.
+* More handler wiring is done inside render paths.
+
+### PR #124
+
+If you wanted *minimal change / no modal*, this would be the pick.
+But:
+
+* It doesn’t distinguish “no selection” vs “empty content”.
+* No modal (which is often the main value-add once you have long canon texts).
+
+## One important follow-up (applies to all PRs)
+
+All four PRs use `marked.parse()` and then assign into `innerHTML`. If you ever import someone else’s dataset (JSON/ZIP), **a malicious canon text could inject HTML/JS**.
+
+Even if this is “local only”, it’s still worth addressing because import is a first-class feature.
+
+If you choose PR #121, the recommended next patch is:
+
+* either **sanitize** HTML output (e.g., DOMPurify), or
+* configure a renderer that **escapes raw HTML blocks**, so markdown can’t inject `<script>` / `onerror=` etc.
+
+## Tiny polish I’d make to PR #121 after merging
+
+Not required, but nice:
+
+* Close modal when clicking outside the modal (backdrop click).
+* Focus the textarea when modal opens.
+
+PR #121 already supports Escape-to-close, which is great.
+
+---
+
+**Bottom line:** merge **PR #121** unless you explicitly want the smallest footprint and no modal—then **PR #124** is the minimalist alternative.
+I’d pick **PR #121**.
+
+It’s the most complete and the cleanest implementation for what you actually want here: **a live markdown preview in the Canon editor + an optional “big editor” modal**, without accumulating event handlers or leaving the preview in a confusing state.
+
+## Why PR #121 is the best choice
+
+### ✅ Best UX (inline + modal)
+
+* You get **side‑by‑side editing + preview directly in the Canon card**, which is already a big improvement.
+* You also get a **modal editor** with its own preview for when the right‑pane card feels cramped (common once texts get long).
+
+PR #124 is decent, but only gives the inline editor—no “bigger workspace” mode.
+
+### ✅ Correct empty/disabled state handling
+
+PR #121 is the only one that clearly distinguishes:
+
+* “No text selected” → shows *Select a text to see its content.*
+* “Text selected but empty” → shows *Add markdown content to see a preview.*
+
+PR #124 (and #123) blur these cases, which makes the UI feel slightly “off” (preview says “No content yet” even when nothing is selected).
+
+### ✅ Good event binding hygiene
+
+PR #121 uses `isCanonMarkdownInitialized` to ensure handlers are attached once.
+
+PR #123 assigns `contentInput.oninput = ...` inside `renderCanonForms()`, which is workable but is a pattern that tends to drift into brittle/duplicated behavior as the file grows.
+
+PR #122 binds in `init()` which is also fine, but it has a subtle UX bug (see below).
+
+### ✅ Styling is more polished and contained
+
+PR #121 adds solid preview formatting (headers, code blocks, etc.) and a well‑structured modal layout.
+
+## Why not the others
+
+### PR #122 (runner up)
+
+It’s close, but has a real UX papercut:
+
+* `handleCanonContentInput()` uses fallback text **“Select a text to view its content.”** when content becomes empty.
+
+  * That’s wrong if a text *is* selected and you just cleared it.
+  * You’ll see “Select a text…” while clearly editing a selected text.
+
+It’s easy to fix, but as‑is PR #121 is already correct.
+
+### PR #123
+
+This is the weakest:
+
+* The “no selection” preview message is misleading (“No content yet…”).
+* Modal can’t be dismissed by clicking the backdrop or pressing Escape.
+* More handler wiring is done inside render paths.
+
+### PR #124
+
+If you wanted *minimal change / no modal*, this would be the pick.
+But:
+
+* It doesn’t distinguish “no selection” vs “empty content”.
+* No modal (which is often the main value-add once you have long canon texts).
+
+## One important follow-up (applies to all PRs)
+
+All four PRs use `marked.parse()` and then assign into `innerHTML`. If you ever import someone else’s dataset (JSON/ZIP), **a malicious canon text could inject HTML/JS**.
+
+Even if this is “local only”, it’s still worth addressing because import is a first-class feature.
+
+If you choose PR #121, the recommended next patch is:
+
+* either **sanitize** HTML output (e.g., DOMPurify), or
+* configure a renderer that **escapes raw HTML blocks**, so markdown can’t inject `<script>` / `onerror=` etc.
+
+## Tiny polish I’d make to PR #121 after merging
+
+Not required, but nice:
+
+* Close modal when clicking outside the modal (backdrop click).
+* Focus the textarea when modal opens.
+
+PR #121 already supports Escape-to-close, which is great.
+
+---
+
+**Bottom line:** merge **PR #121** unless you explicitly want the smallest footprint and no modal—then **PR #124** is the minimalist alternative.
+I’d pick **PR #121**.
+
+It’s the most complete and the cleanest implementation for what you actually want here: **a live markdown preview in the Canon editor + an optional “big editor” modal**, without accumulating event handlers or leaving the preview in a confusing state.
+
+## Why PR #121 is the best choice
+
+### ✅ Best UX (inline + modal)
+
+* You get **side‑by‑side editing + preview directly in the Canon card**, which is already a big improvement.
+* You also get a **modal editor** with its own preview for when the right‑pane card feels cramped (common once texts get long).
+
+PR #124 is decent, but only gives the inline editor—no “bigger workspace” mode.
+
+### ✅ Correct empty/disabled state handling
+
+PR #121 is the only one that clearly distinguishes:
+
+* “No text selected” → shows *Select a text to see its content.*
+* “Text selected but empty” → shows *Add markdown content to see a preview.*
+
+PR #124 (and #123) blur these cases, which makes the UI feel slightly “off” (preview says “No content yet” even when nothing is selected).
+
+### ✅ Good event binding hygiene
+
+PR #121 uses `isCanonMarkdownInitialized` to ensure handlers are attached once.
+
+PR #123 assigns `contentInput.oninput = ...` inside `renderCanonForms()`, which is workable but is a pattern that tends to drift into brittle/duplicated behavior as the file grows.
+
+PR #122 binds in `init()` which is also fine, but it has a subtle UX bug (see below).
+
+### ✅ Styling is more polished and contained
+
+PR #121 adds solid preview formatting (headers, code blocks, etc.) and a well‑structured modal layout.
+
+## Why not the others
+
+### PR #122 (runner up)
+
+It’s close, but has a real UX papercut:
+
+* `handleCanonContentInput()` uses fallback text **“Select a text to view its content.”** when content becomes empty.
+
+  * That’s wrong if a text *is* selected and you just cleared it.
+  * You’ll see “Select a text…” while clearly editing a selected text.
+
+It’s easy to fix, but as‑is PR #121 is already correct.
+
+### PR #123
+
+This is the weakest:
+
+* The “no selection” preview message is misleading (“No content yet…”).
+* Modal can’t be dismissed by clicking the backdrop or pressing Escape.
+* More handler wiring is done inside render paths.
+
+### PR #124
+
+If you wanted *minimal change / no modal*, this would be the pick.
+But:
+
+* It doesn’t distinguish “no selection” vs “empty content”.
+* No modal (which is often the main value-add once you have long canon texts).
+
+## One important follow-up (applies to all PRs)
+
+All four PRs use `marked.parse()` and then assign into `innerHTML`. If you ever import someone else’s dataset (JSON/ZIP), **a malicious canon text could inject HTML/JS**.
+
+Even if this is “local only”, it’s still worth addressing because import is a first-class feature.
+
+If you choose PR #121, the recommended next patch is:
+
+* either **sanitize** HTML output (e.g., DOMPurify), or
+* configure a renderer that **escapes raw HTML blocks**, so markdown can’t inject `<script>` / `onerror=` etc.
+
+## Tiny polish I’d make to PR #121 after merging
+
+Not required, but nice:
+
+* Close modal when clicking outside the modal (backdrop click).
+* Focus the textarea when modal opens.
+
+PR #121 already supports Escape-to-close, which is great.
+
+---
+
+**Bottom line:** merge **PR #121** unless you explicitly want the smallest footprint and no modal—then **PR #124** is the minimalist alternative.
         const parsed = window.marked.parse(content);
         if (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') {
           targetEl.innerHTML = window.DOMPurify.sanitize(parsed);
