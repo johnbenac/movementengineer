@@ -163,13 +163,16 @@ function buildCanonTreeViewModel(data, input) {
 
     nodesById[text.id] = {
       id: text.id,
+      parentId: text.parentId || null,
       level: text.level,
       title: text.title,
       label: text.label,
       mainFunction: text.mainFunction ?? null,
       tags: normaliseArray(text.tags),
+      content: text.content || '',
       hasContent: Boolean(text.content && text.content.trim()),
       childIds: childrenByParent.get(text.id) || [],
+      mentionsEntityIds: normaliseArray(text.mentionsEntityIds),
       mentionsEntities,
       referencedByClaims: referencedByClaims.get(text.id) || [],
       usedInEvents: usedInEvents.get(text.id) || []

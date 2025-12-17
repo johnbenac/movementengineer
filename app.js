@@ -17,6 +17,14 @@
   let currentCollectionName = 'entities';
   let currentItemId = null;
   let currentTextId = null;
+  const DEFAULT_CANON_FILTERS = {
+    search: '',
+    tag: '',
+    mention: '',
+    parent: '',
+    child: ''
+  };
+  let canonFilters = { ...DEFAULT_CANON_FILTERS };
   let navigationStack = [];
   let navigationIndex = -1;
   let entityGraphView = null;
@@ -248,6 +256,7 @@
     currentMovementId = id || null;
     currentItemId = null; // reset item selection in collection editor
     currentTextId = null;
+    canonFilters = { ...DEFAULT_CANON_FILTERS };
     renderMovementList();
     renderActiveTab();
     closeSidebarOnMobile();
@@ -615,6 +624,167 @@
     return false;
   }
 
+  function getReachableCanonTextIds(vm) {
+    const reachable = new Set();
+    if (!vm || !Array.isArray(vm.roots)) return reachable;
+
+    const stack = vm.roots.map(root => root.id);
+    while (stack.length) {
+      const id = stack.pop();
+      if (reachable.has(id)) continue;
+      reachable.add(id);
+      const node = vm.nodesById[id];
+      if (node && Array.isArray(node.childIds)) {
+        node.childIds.forEach(childId => {
+          if (!reachable.has(childId)) stack.push(childId);
+        });
+      }
+    }
+
+    return reachable;
+  }
+
+  function doesCanonNodeMatchFilters(node, filters) {
+    if (!node) return false;
+
+    if (filters.tag) {
+      const tags = Array.isArray(node.tags) ? node.tags : [];
+      if (!tags.includes(filters.tag)) return false;
+    }
+
+    if (filters.mention) {
+      const mentions = Array.isArray(node.mentionsEntityIds)
+        ? node.mentionsEntityIds
+        : [];
+      if (!mentions.includes(filters.mention)) return false;
+    }
+
+    if (filters.parent) {
+      if (filters.parent === '__root__') {
+        if (node.parentId !== null) return false;
+      } else if (node.parentId !== filters.parent) {
+        return false;
+      }
+    }
+
+    if (filters.child) {
+      const childIds = Array.isArray(node.childIds) ? node.childIds : [];
+      if (!childIds.includes(filters.child)) return false;
+    }
+
+    const query = (filters.search || '').trim().toLowerCase();
+    if (query) {
+      const haystack = [
+        node.title,
+        node.label,
+        node.mainFunction,
+        node.level,
+        Array.isArray(node.tags) ? node.tags.join(' ') : '',
+        (node.mentionsEntities || [])
+          .map(ent => ent.name || ent.id)
+          .join(' '),
+        node.content
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      if (!haystack.includes(query)) return false;
+    }
+
+    return true;
+  }
+
+  function populateCanonFilterControls({ texts, reachableIds, entities }) {
+    const tagSelect = document.getElementById('canon-tag-filter');
+    const mentionSelect = document.getElementById('canon-mention-filter');
+    const parentSelect = document.getElementById('canon-parent-filter');
+    const childSelect = document.getElementById('canon-child-filter');
+    const searchInput = document.getElementById('canon-search');
+
+    if (searchInput) searchInput.value = canonFilters.search;
+
+    const reachableTexts = texts.filter(t => reachableIds.has(t.id));
+    const textLookup = new Map(reachableTexts.map(t => [t.id, t]));
+
+    const tagOptions = Array.from(
+      new Set(
+        reachableTexts.flatMap(text =>
+          Array.isArray(text.tags) ? text.tags.filter(Boolean) : []
+        )
+      )
+    ).sort((a, b) => a.localeCompare(b));
+    ensureSelectOptions(
+      tagSelect,
+      tagOptions.map(tag => ({ value: tag, label: tag })),
+      'Any tag'
+    );
+    if (!tagOptions.includes(canonFilters.tag)) canonFilters.tag = '';
+    if (tagSelect) tagSelect.value = canonFilters.tag;
+
+    const mentionIds = new Set();
+    reachableTexts.forEach(text => {
+      (text.mentionsEntityIds || []).forEach(id => mentionIds.add(id));
+    });
+    const mentionOptions = Array.from(mentionIds)
+      .map(id => {
+        const ent = entities.get(id);
+        const label = ent
+          ? `${ent.name || ent.id}${ent.kind ? ` (${ent.kind})` : ''}`
+          : id;
+        return { value: id, label };
+      })
+      .sort((a, b) => a.label.localeCompare(b.label));
+    ensureSelectOptions(
+      mentionSelect,
+      mentionOptions,
+      'Any entity mention'
+    );
+    if (!mentionIds.has(canonFilters.mention)) canonFilters.mention = '';
+    if (mentionSelect) mentionSelect.value = canonFilters.mention;
+
+    let hasRootOption = false;
+    const parentOptions = [];
+    reachableTexts.forEach(text => {
+      if (text.parentId) {
+        parentOptions.push({
+          value: text.parentId,
+          label: getLabelForItem(textLookup.get(text.parentId))
+        });
+      } else {
+        hasRootOption = true;
+      }
+    });
+
+    const parentOptionMap = new Map();
+    parentOptions.forEach(opt => {
+      if (!opt || !opt.value) return;
+      const prev = parentOptionMap.get(opt.value);
+      if (!prev || prev.label.length < (opt.label || '').length) {
+        parentOptionMap.set(opt.value, opt);
+      }
+    });
+
+    const mergedParentOptions = hasRootOption
+      ? [{ value: '__root__', label: 'Root texts' }]
+      : [];
+    mergedParentOptions.push(...Array.from(parentOptionMap.values()));
+    mergedParentOptions.sort((a, b) => a.label.localeCompare(b.label));
+    ensureSelectOptions(parentSelect, mergedParentOptions, 'Any parent');
+    if (!mergedParentOptions.some(opt => opt.value === canonFilters.parent)) {
+      canonFilters.parent = '';
+    }
+    if (parentSelect) parentSelect.value = canonFilters.parent;
+
+    const childOptions = reachableTexts
+      .map(text => ({ value: text.id, label: getLabelForItem(text) }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+    ensureSelectOptions(childSelect, childOptions, 'Any child');
+    if (!childOptions.some(opt => opt.value === canonFilters.child)) {
+      canonFilters.child = '';
+    }
+    if (childSelect) childSelect.value = canonFilters.child;
+  }
+
   function renderMarkdownPreview(targetEl, content, { enabled = true } = {}) {
     if (!targetEl) return;
 
@@ -954,6 +1124,15 @@
       ? ownCollections.find(tc => tc.id === textCollectionId)
       : null;
 
+    const movementTexts = (snapshot.texts || []).filter(
+      t => t.movementId === currentMovementId
+    );
+    const movementEntities = new Map(
+      (snapshot.entities || [])
+        .filter(ent => ent.movementId === currentMovementId)
+        .map(ent => [ent.id, ent])
+    );
+
     const vm = ViewModels.buildCanonTreeViewModel(snapshot, {
       movementId: currentMovementId,
       textCollectionId: textCollectionId || null
@@ -967,6 +1146,49 @@
       currentTextId = null;
     }
 
+    const reachableIds = getReachableCanonTextIds(vm);
+    populateCanonFilterControls({
+      texts: movementTexts,
+      reachableIds,
+      entities: movementEntities
+    });
+
+    const hasFilters = Object.values(canonFilters).some(Boolean);
+    const visibleIds = hasFilters ? new Set() : new Set(reachableIds);
+
+    if (hasFilters) {
+      const matches = new Set();
+      reachableIds.forEach(id => {
+        const node = vm.nodesById[id];
+        if (doesCanonNodeMatchFilters(node, canonFilters)) {
+          matches.add(id);
+        }
+      });
+
+      const parentMap = new Map();
+      reachableIds.forEach(id => {
+        const node = vm.nodesById[id];
+        parentMap.set(id, node ? node.parentId || null : null);
+      });
+
+      const addWithAncestors = id => {
+        if (!reachableIds.has(id) || visibleIds.has(id)) return;
+        visibleIds.add(id);
+        const parentId = parentMap.get(id);
+        if (parentId) addWithAncestors(parentId);
+      };
+
+      matches.forEach(addWithAncestors);
+
+      if (canonFilters.child && reachableIds.has(canonFilters.child)) {
+        addWithAncestors(canonFilters.child);
+      }
+    }
+
+    if (currentTextId && !visibleIds.has(currentTextId)) {
+      currentTextId = null;
+    }
+
     if (!vm.roots || vm.roots.length === 0) {
       currentTextId = null;
       const p = document.createElement('p');
@@ -977,10 +1199,25 @@
       return;
     }
 
+    const filteredRoots = vm.roots.filter(root => visibleIds.has(root.id));
+
+    if (!filteredRoots.length) {
+      currentTextId = null;
+      const p = document.createElement('p');
+      p.className = 'hint';
+      p.textContent = hasFilters
+        ? 'No texts matched the current filters.'
+        : 'No texts found for this movement.';
+      treeContainer.appendChild(p);
+      renderCanonForms({ collection: activeCollection, roots: [], nodesById: vm.nodesById });
+      return;
+    }
+
     const ul = document.createElement('ul');
     ul.className = 'text-tree';
 
     const renderNode = node => {
+      if (!visibleIds.has(node.id)) return null;
       const li = document.createElement('li');
       li.className = 'text-node';
       if (node.id === currentTextId) li.classList.add('selected');
@@ -1068,26 +1305,45 @@
         childUl.className = 'text-tree';
         node.childIds.forEach(id => {
           const child = vm.nodesById[id];
-          if (child) {
-            childUl.appendChild(renderNode(child));
-          }
+          if (!child || !visibleIds.has(id)) return;
+          const rendered = renderNode(child);
+          if (rendered) childUl.appendChild(rendered);
         });
-        li.appendChild(childUl);
+        if (childUl.childNodes.length) li.appendChild(childUl);
       }
 
       return li;
     };
 
-    vm.roots.forEach(root => {
-      ul.appendChild(renderNode(root));
+    filteredRoots.forEach(root => {
+      const rendered = renderNode(root);
+      if (rendered) ul.appendChild(rendered);
     });
     treeContainer.appendChild(ul);
 
     renderCanonForms({
       collection: activeCollection,
-      roots: vm.roots,
+      roots: filteredRoots,
       nodesById: vm.nodesById
     });
+  }
+
+  function handleCanonFilterChange() {
+    const searchInput = document.getElementById('canon-search');
+    const tagSelect = document.getElementById('canon-tag-filter');
+    const mentionSelect = document.getElementById('canon-mention-filter');
+    const parentSelect = document.getElementById('canon-parent-filter');
+    const childSelect = document.getElementById('canon-child-filter');
+
+    canonFilters = {
+      search: searchInput ? searchInput.value.trim() : '',
+      tag: tagSelect ? tagSelect.value : '',
+      mention: mentionSelect ? mentionSelect.value : '',
+      parent: parentSelect ? parentSelect.value : '',
+      child: childSelect ? childSelect.value : ''
+    };
+
+    renderCanonView();
   }
 
   function addTextCollection() {
@@ -5473,6 +5729,17 @@
         renderCanonView
       );
     }
+    addListenerById('canon-search', 'input', handleCanonFilterChange);
+    [
+      'canon-tag-filter',
+      'canon-mention-filter',
+      'canon-parent-filter',
+      'canon-child-filter'
+    ].forEach(id => addListenerById(id, 'change', handleCanonFilterChange));
+    addListenerById('btn-clear-canon-filters', 'click', () => {
+      canonFilters = { ...DEFAULT_CANON_FILTERS };
+      renderCanonView();
+    });
     addListenerById('btn-add-text-collection', 'click', addTextCollection);
     addListenerById('btn-save-text-collection', 'click', saveTextCollection);
     addListenerById('btn-delete-text-collection', 'click', deleteTextCollection);
