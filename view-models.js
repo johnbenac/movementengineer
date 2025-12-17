@@ -107,7 +107,14 @@ function buildMovementDashboardViewModel(data, input) {
 }
 
 function buildCanonTreeViewModel(data, input) {
-  const { movementId, textCollectionId } = input;
+  const { movementId, textCollectionId, filters = {} } = input;
+  const {
+    searchTerm = '',
+    tags = [],
+    mentionId = null,
+    parentId = null,
+    childId = null
+  } = filters;
   const collections = buildLookup(data.textCollections);
   const collection = textCollectionId
     ? collections.get(textCollectionId) || null
@@ -116,6 +123,7 @@ function buildCanonTreeViewModel(data, input) {
   const claims = filterByMovement(data.claims, movementId);
   const events = filterByMovement(data.events, movementId);
   const entities = buildLookup(filterByMovement(data.entities, movementId));
+  const textLookup = buildLookup(texts);
 
   const childrenByParent = new Map();
   texts.forEach(text => {
@@ -123,6 +131,29 @@ function buildCanonTreeViewModel(data, input) {
     bucket.push(text.id);
     childrenByParent.set(text.parentId || null, bucket);
   });
+
+  let allowedTextIds = null;
+  if (collection && Array.isArray(collection.rootTextIds)) {
+    allowedTextIds = new Set();
+    const stack = collection.rootTextIds.slice();
+    while (stack.length) {
+      const id = stack.pop();
+      if (allowedTextIds.has(id)) continue;
+      allowedTextIds.add(id);
+      (childrenByParent.get(id) || []).forEach(childId => stack.push(childId));
+    }
+  }
+
+  const childAncestorSet = new Set();
+  if (childId) {
+    let cursor = childId;
+    while (cursor) {
+      const node = textLookup.get(cursor);
+      if (!node || childAncestorSet.has(node.id)) break;
+      childAncestorSet.add(node.id);
+      cursor = node.parentId || null;
+    }
+  }
 
   const referencedByClaims = new Map();
   claims.forEach(claim => {
@@ -151,7 +182,48 @@ function buildCanonTreeViewModel(data, input) {
   });
 
   const nodesById = {};
-  texts.forEach(text => {
+  const filteredTexts = texts.filter(text => {
+    if (allowedTextIds && !allowedTextIds.has(text.id)) return false;
+    const haystack = [
+      text.title,
+      text.label,
+      text.mainFunction,
+      normaliseArray(text.tags).join(' '),
+      text.content
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+    const normalisedSearch = (searchTerm || '').toLowerCase();
+    const matchesSearch = normalisedSearch
+      ? haystack.includes(normalisedSearch)
+      : true;
+
+    const normalisedTags = normaliseArray(text.tags);
+    const requiredTags = normaliseArray(tags);
+    const matchesTags = requiredTags.length
+      ? requiredTags.every(tag => normalisedTags.includes(tag))
+      : true;
+
+    const mentions = normaliseArray(text.mentionsEntityIds);
+    const matchesMention = mentionId ? mentions.includes(mentionId) : true;
+    const matchesParent = parentId ? text.parentId === parentId : true;
+    const matchesChild = childAncestorSet.size
+      ? childAncestorSet.has(text.id)
+      : true;
+
+    return (
+      matchesSearch &&
+      matchesTags &&
+      matchesMention &&
+      matchesParent &&
+      matchesChild
+    );
+  });
+
+  const filteredIds = new Set(filteredTexts.map(t => t.id));
+
+  filteredTexts.forEach(text => {
     const mentionsEntities = normaliseArray(text.mentionsEntityIds)
       .map(id => entities.get(id))
       .filter(Boolean)
@@ -169,7 +241,9 @@ function buildCanonTreeViewModel(data, input) {
       mainFunction: text.mainFunction ?? null,
       tags: normaliseArray(text.tags),
       hasContent: Boolean(text.content && text.content.trim()),
-      childIds: childrenByParent.get(text.id) || [],
+      childIds: (childrenByParent.get(text.id) || []).filter(id =>
+        filteredIds.has(id)
+      ),
       mentionsEntities,
       referencedByClaims: referencedByClaims.get(text.id) || [],
       usedInEvents: usedInEvents.get(text.id) || []
@@ -181,11 +255,14 @@ function buildCanonTreeViewModel(data, input) {
     collection.rootTextIds.forEach(id => {
       if (nodesById[id]) roots.push(nodesById[id]);
     });
-  } else {
-    (childrenByParent.get(null) || []).forEach(id => {
-      if (nodesById[id]) roots.push(nodesById[id]);
-    });
   }
+
+  Object.values(nodesById).forEach(node => {
+    const parentId = (textLookup.get(node.id) || {}).parentId || null;
+    if (!filteredIds.has(parentId) && !roots.includes(node)) {
+      roots.push(node);
+    }
+  });
 
   return {
     collection,

@@ -65,6 +65,7 @@
   let isPopulatingMovementForm = false;
   let isPopulatingEditor = false;
   let isPopulatingCanonForms = false;
+  let isPopulatingCanonFilters = false;
   let isCanonMarkdownInitialized = false;
 
   function updateDirtyState() {
@@ -482,6 +483,28 @@
     }
   }
 
+  function ensureMultiSelectOptions(selectEl, options, includeEmptyLabel) {
+    if (!selectEl) return;
+    const previous = getSelectedValues(selectEl);
+    clearElement(selectEl);
+    if (includeEmptyLabel) {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = includeEmptyLabel;
+      selectEl.appendChild(opt);
+    }
+    options.forEach(optData => {
+      const opt = document.createElement('option');
+      opt.value = optData.value;
+      opt.textContent = optData.label;
+      selectEl.appendChild(opt);
+    });
+    previous.forEach(value => {
+      const option = Array.from(selectEl.options).find(o => o.value === value);
+      if (option) option.selected = true;
+    });
+  }
+
   // ---- Movement explorer (view-model-driven views) ----
 
   function renderMovementSection(name) {
@@ -569,10 +592,110 @@
       .filter(Boolean);
   }
 
+  function getSelectedValues(selectEl) {
+    if (!selectEl) return [];
+    return Array.from(selectEl.selectedOptions || [])
+      .map(opt => opt.value)
+      .filter(Boolean);
+  }
+
   function getActiveTextCollection() {
     const select = document.getElementById('canon-collection-select');
     if (!select) return null;
     return (snapshot.textCollections || []).find(tc => tc.id === select.value);
+  }
+
+  function populateCanonFilterOptions(texts, entities) {
+    const tagsSelect = document.getElementById('canon-filter-tags');
+    const mentionSelect = document.getElementById('canon-filter-mention');
+    const parentSelect = document.getElementById('canon-filter-parent');
+    const childSelect = document.getElementById('canon-filter-child');
+
+    if (!tagsSelect && !mentionSelect && !parentSelect && !childSelect) return;
+
+    isPopulatingCanonFilters = true;
+
+    try {
+      const uniqueTags = Array.from(
+        new Set(
+          texts.flatMap(text => normaliseArray(text.tags))
+        )
+      ).sort((a, b) => a.localeCompare(b));
+      ensureMultiSelectOptions(
+        tagsSelect,
+        uniqueTags.map(tag => ({ value: tag, label: tag })),
+        'Any tag'
+      );
+
+      const mentionableIds = new Set();
+      texts.forEach(text => {
+        normaliseArray(text.mentionsEntityIds).forEach(id => mentionableIds.add(id));
+      });
+      const entitiesById = new Map();
+      normaliseArray(entities).forEach(e => {
+        if (e && e.id) entitiesById.set(e.id, e);
+      });
+      const mentionOptions = Array.from(mentionableIds)
+        .map(id => {
+          const entity = entitiesById.get(id);
+          const label = entity
+            ? `${entity.name || entity.id}${entity.kind ? ` (${entity.kind})` : ''}`
+            : id;
+          return { value: id, label };
+        })
+        .sort((a, b) => a.label.localeCompare(b.label));
+      ensureSelectOptions(mentionSelect, mentionOptions, 'Any mention');
+
+      const textOptions = texts
+        .slice()
+        .sort((a, b) => getLabelForItem(a).localeCompare(getLabelForItem(b)))
+        .map(text => ({ value: text.id, label: getLabelForItem(text) }));
+      ensureSelectOptions(parentSelect, textOptions, 'Any parent');
+      ensureSelectOptions(childSelect, textOptions, 'Any child');
+    } finally {
+      isPopulatingCanonFilters = false;
+    }
+  }
+
+  function getCanonFilterValues() {
+    const searchInput = document.getElementById('canon-filter-search');
+    const tagsSelect = document.getElementById('canon-filter-tags');
+    const mentionSelect = document.getElementById('canon-filter-mention');
+    const parentSelect = document.getElementById('canon-filter-parent');
+    const childSelect = document.getElementById('canon-filter-child');
+
+    return {
+      searchTerm: searchInput ? searchInput.value.trim() : '',
+      tags: getSelectedValues(tagsSelect),
+      mentionId: mentionSelect ? mentionSelect.value || null : null,
+      parentId: parentSelect ? parentSelect.value || null : null,
+      childId: childSelect ? childSelect.value || null : null
+    };
+  }
+
+  function bindCanonFilterListeners() {
+    const searchInput = document.getElementById('canon-filter-search');
+    const tagsSelect = document.getElementById('canon-filter-tags');
+    const mentionSelect = document.getElementById('canon-filter-mention');
+    const parentSelect = document.getElementById('canon-filter-parent');
+    const childSelect = document.getElementById('canon-filter-child');
+
+    const controls = [
+      { el: searchInput, event: 'input' },
+      { el: tagsSelect, event: 'change' },
+      { el: mentionSelect, event: 'change' },
+      { el: parentSelect, event: 'change' },
+      { el: childSelect, event: 'change' }
+    ];
+
+    controls.forEach(({ el, event }) => {
+      if (!el || el.dataset.bound === 'true') return;
+      el.addEventListener(event, () => {
+        if (isPopulatingCanonFilters) return;
+        renderCanonView();
+      });
+      el.dataset.bound = 'true';
+    });
   }
 
   function collectDescendants(textId, nodesById, acc = new Set()) {
@@ -954,16 +1077,32 @@
       ? ownCollections.find(tc => tc.id === textCollectionId)
       : null;
 
+    const textsForMovement = (snapshot.texts || []).filter(
+      t => t.movementId === currentMovementId
+    );
+    const entitiesForMovement = (snapshot.entities || []).filter(
+      e => e.movementId === currentMovementId
+    );
+
+    populateCanonFilterOptions(textsForMovement, entitiesForMovement);
+    bindCanonFilterListeners();
+
+    const filters = getCanonFilterValues();
+    const hasActiveFilters = Boolean(
+      filters.searchTerm ||
+        filters.tags.length ||
+        filters.mentionId ||
+        filters.parentId ||
+        filters.childId
+    );
+
     const vm = ViewModels.buildCanonTreeViewModel(snapshot, {
       movementId: currentMovementId,
-      textCollectionId: textCollectionId || null
+      textCollectionId: textCollectionId || null,
+      filters
     });
 
-    if (
-      currentTextId &&
-      textCollectionId &&
-      !isTextInActiveTree(currentTextId, vm)
-    ) {
+    if (currentTextId && !isTextInActiveTree(currentTextId, vm)) {
       currentTextId = null;
     }
 
@@ -971,7 +1110,9 @@
       currentTextId = null;
       const p = document.createElement('p');
       p.className = 'hint';
-      p.textContent = 'No texts found for this movement.';
+      p.textContent = hasActiveFilters
+        ? 'No texts match the selected filters.'
+        : 'No texts found for this movement.';
       treeContainer.appendChild(p);
       renderCanonForms({ collection: activeCollection, roots: [], nodesById: {} });
       return;
