@@ -2434,6 +2434,33 @@
 
   const labelForNodeType = type => GRAPH_NODE_TYPE_LABELS[type] || type || 'Unknown';
 
+  const GRAPH_NODE_COLOR_PALETTE = [
+    '#2563eb',
+    '#ea580c',
+    '#16a34a',
+    '#7c3aed',
+    '#0891b2',
+    '#b91c1c',
+    '#c026d3',
+    '#0d9488'
+  ];
+
+  const hashToGraphColor = text => {
+    if (!text) return '#1f2937';
+    let hash = 0;
+    for (let i = 0; i < text.length; i += 1) {
+      hash = (hash << 5) - hash + text.charCodeAt(i);
+      hash |= 0;
+    }
+    const idx = Math.abs(hash) % GRAPH_NODE_COLOR_PALETTE.length;
+    return GRAPH_NODE_COLOR_PALETTE[idx];
+  };
+
+  const colorForGraphNode = node => {
+    if (window.EntityGraphView?.colorForNode) return EntityGraphView.colorForNode(node);
+    return hashToGraphColor(node?.kind || node?.type);
+  };
+
   const GRAPH_NODE_EDIT_CONFIG = {
     textcollection: {
       collection: 'textCollections',
@@ -3181,10 +3208,17 @@
       const chip = document.createElement('label');
       chip.className = 'chip';
 
+      const sampleNode = nodes.find(n => n.type === type) || { type };
+      const color = colorForGraphNode(sampleNode);
+      chip.style.backgroundColor = color;
+      chip.style.borderColor = color;
+      chip.style.color = '#fff';
+
       const cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.value = type;
       cb.checked = selectedTypes.has(type);
+      cb.style.accentColor = color;
       cb.addEventListener('change', () => {
         if (cb.checked) {
           if (!graphWorkbenchState.filterNodeTypes.includes(type)) {

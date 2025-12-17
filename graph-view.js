@@ -33,6 +33,11 @@
     return PALETTE[idx];
   }
 
+  function colorForNode(node) {
+    if (!node) return hashToColor(null);
+    return hashToColor(node.kind || node.type);
+  }
+
   function normaliseLinks(graph, nodeById) {
     const edges = Array.isArray(graph?.edges) ? graph.edges : graph?.links || [];
     return edges
@@ -232,7 +237,7 @@
       svg.call(this.zoomBehavior);
       if (this.lastTransform) svg.call(this.zoomBehavior.transform, this.lastTransform);
 
-      const nodeFill = n => hashToColor(n.kind);
+      const nodeFill = n => colorForNode(n);
       const labelFor = n => {
         const s = n.name || n.id;
         return s.length > 18 ? s.slice(0, 17) + '…' : s;
@@ -565,6 +570,9 @@
       this._restartLayout();
     }
   }
+
+  EntityGraphView.hashToColor = hashToColor;
+  EntityGraphView.colorForNode = colorForNode;
 
   window.EntityGraphView = EntityGraphView;
 })();
