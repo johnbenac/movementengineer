@@ -23,6 +23,16 @@
   // ---- Graph Workbench (new) ----
   let workbenchGraphView = null;
   let graphWorkbenchDom = null;
+  const GRAPH_NODE_PALETTE = [
+    '#2563eb',
+    '#ea580c',
+    '#16a34a',
+    '#7c3aed',
+    '#0891b2',
+    '#b91c1c',
+    '#c026d3',
+    '#0d9488'
+  ];
   let graphWorkbenchState = {
     leftWidth: 360,
     rightWidth: 420,
@@ -37,6 +47,22 @@
 
   function normaliseSelectionType(type) {
     return typeof type === 'string' ? type.toLowerCase() : null;
+  }
+
+  function hashToColor(text) {
+    if (!text) return '#1f2937';
+    let hash = 0;
+    for (let i = 0; i < text.length; i += 1) {
+      hash = (hash << 5) - hash + text.charCodeAt(i);
+      hash |= 0; // convert to 32bit
+    }
+    const idx = Math.abs(hash) % GRAPH_NODE_PALETTE.length;
+    return GRAPH_NODE_PALETTE[idx];
+  }
+
+  function colorForNode(node) {
+    if (!node) return '#1f2937';
+    return hashToColor(node.kind || node.type || '');
   }
 
   function setGraphWorkbenchSelection(selection) {
@@ -3143,6 +3169,12 @@
     const nodes = normaliseArray(baseGraph?.nodes);
     const nodeTypes = uniqueSorted(nodes.map(n => n.type));
     const nodeMap = new Map(nodes.map(n => [n.id, n]));
+    const nodeSampleByType = new Map();
+    nodes.forEach(n => {
+      if (n && n.type && !nodeSampleByType.has(n.type)) {
+        nodeSampleByType.set(n.type, n);
+      }
+    });
 
     graphWorkbenchState.filterNodeTypes = graphWorkbenchState.filterNodeTypes.filter(t =>
       nodeTypes.includes(t)
@@ -3180,11 +3212,19 @@
     nodeTypes.forEach(type => {
       const chip = document.createElement('label');
       chip.className = 'chip';
+      const sampleNode = nodeSampleByType.get(type);
+      const chipColor = colorForNode(sampleNode);
+      if (chipColor) {
+        chip.style.backgroundColor = chipColor;
+        chip.style.borderColor = chipColor;
+        chip.style.color = '#fff';
+      }
 
       const cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.value = type;
       cb.checked = selectedTypes.has(type);
+      if (chipColor) cb.style.accentColor = chipColor;
       cb.addEventListener('change', () => {
         if (cb.checked) {
           if (!graphWorkbenchState.filterNodeTypes.includes(type)) {
