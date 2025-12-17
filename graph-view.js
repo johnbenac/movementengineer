@@ -6,37 +6,13 @@
   const NODE_RADIUS = 18;
   const ARROW_ID = 'graph-shared-arrow';
 
-  const PALETTE = [
-    '#2563eb',
-    '#ea580c',
-    '#16a34a',
-    '#7c3aed',
-    '#0891b2',
-    '#b91c1c',
-    '#c026d3',
-    '#0d9488'
-  ];
+  const colorForNodeType =
+    (typeof window !== 'undefined' && window.EntityGraphColors?.colorForNodeType) ||
+    (() => '#1f2937');
 
   function clearElement(el) {
     if (!el) return;
     while (el.firstChild) el.removeChild(el.firstChild);
-  }
-
-  function hashToColor(text) {
-    if (!text) return '#1f2937';
-    let hash = 0;
-    for (let i = 0; i < text.length; i += 1) {
-      hash = (hash << 5) - hash + text.charCodeAt(i);
-      hash |= 0; // convert to 32bit
-    }
-    const idx = Math.abs(hash) % PALETTE.length;
-    return PALETTE[idx];
-  }
-
-  if (typeof window !== 'undefined') {
-    window.EntityGraphColors = window.EntityGraphColors || {};
-    window.EntityGraphColors.hashToColor = hashToColor;
-    window.EntityGraphColors.palette = PALETTE.slice();
   }
 
   function normaliseLinks(graph, nodeById) {
@@ -238,7 +214,7 @@
       svg.call(this.zoomBehavior);
       if (this.lastTransform) svg.call(this.zoomBehavior.transform, this.lastTransform);
 
-      const nodeFill = n => hashToColor(n.type || n.kind);
+      const nodeFill = n => colorForNodeType(n.type || n.kind);
       const labelFor = n => {
         const s = n.name || n.id;
         return s.length > 18 ? s.slice(0, 17) + '…' : s;
