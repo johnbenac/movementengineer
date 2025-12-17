@@ -3180,6 +3180,14 @@
     nodeTypes.forEach(type => {
       const chip = document.createElement('label');
       chip.className = 'chip';
+      const colorForType = (typeof window !== 'undefined' && window.graphColorForType)
+        ? window.graphColorForType(type)
+        : null;
+      if (colorForType) {
+        chip.style.backgroundColor = colorForType;
+        chip.style.borderColor = colorForType;
+        chip.style.color = '#fff';
+      }
 
       const cb = document.createElement('input');
       cb.type = 'checkbox';
