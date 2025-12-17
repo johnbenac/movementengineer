@@ -760,6 +760,158 @@ button.danger:hover {
   margin-top: 0.15rem;
 }
 
+.markdown-row {
+  align-items: stretch;
+}
+
+.markdown-row-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.markdown-row-actions button {
+  padding: 0.35rem 0.6rem;
+  font-size: 0.85rem;
+}
+
+.markdown-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.75rem;
+  align-items: stretch;
+}
+
+.markdown-input {
+  min-height: 220px;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.markdown-preview-panel {
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  background: #fff;
+  padding: 0.75rem;
+  min-height: 220px;
+  overflow-y: auto;
+  font-size: 0.9rem;
+}
+
+.markdown-preview-panel.empty {
+  color: #6b7280;
+  font-style: italic;
+}
+
+.markdown-preview-panel h1,
+.markdown-preview-panel h2,
+.markdown-preview-panel h3,
+.markdown-preview-panel h4 {
+  margin-top: 0.6em;
+  margin-bottom: 0.35em;
+}
+
+.markdown-preview-panel p {
+  margin: 0.4em 0;
+}
+
+.markdown-preview-panel ul,
+.markdown-preview-panel ol {
+  padding-left: 1.15rem;
+}
+
+.markdown-preview-panel code {
+  background: #f3f4f6;
+  padding: 0.1rem 0.2rem;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+.markdown-preview-panel pre {
+  background: #111827;
+  color: #e5e7eb;
+  padding: 0.75rem;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+.markdown-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1200;
+}
+
+.markdown-modal {
+  background: #fff;
+  max-width: 960px;
+  width: 96%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.25);
+}
+
+.markdown-modal-header,
+.markdown-modal-footer {
+  padding: 0.9rem 1.1rem;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.markdown-modal-footer {
+  border-bottom: none;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.markdown-modal-body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 0.6rem;
+  padding: 0.9rem 1.1rem;
+  background: #fff;
+  overflow: hidden;
+}
+
+.markdown-editor-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.markdown-editor {
+  flex: 1;
+  width: 100%;
+  resize: none;
+  padding: 0.6rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.95rem;
+  box-sizing: border-box;
+}
+
+.markdown-preview {
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 0.9rem;
+  overflow-y: auto;
+  background: #fff;
+  font-size: 0.95rem;
+}
+
 /* Detail sections / cards */
 
 .detail-section {

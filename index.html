@@ -6,6 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="./styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.9/dist/purify.min.js"></script>
 </head>
   <body>
     <header class="top-bar">
@@ -244,9 +246,25 @@
                   <label for="canon-text-mentions">Mentions entity IDs (comma‑separated)</label>
                   <input id="canon-text-mentions" type="text" />
                 </div>
-                <div class="form-row">
-                  <label for="canon-text-content">Content</label>
-                  <textarea id="canon-text-content" rows="5"></textarea>
+                <div class="form-row markdown-row">
+                  <div class="markdown-row-header">
+                    <label for="canon-text-content">Content</label>
+                    <div class="markdown-row-actions">
+                      <button id="btn-open-canon-markdown" type="button">
+                        Open markdown editor
+                      </button>
+                    </div>
+                  </div>
+                  <div class="markdown-editor-grid">
+                    <textarea
+                      id="canon-text-content"
+                      class="markdown-input"
+                      rows="8"
+                    ></textarea>
+                    <div id="canon-text-preview" class="markdown-preview-panel">
+                      <p class="muted">Add markdown content to see a preview.</p>
+                    </div>
+                  </div>
                 </div>
                 <div class="form-row">
                   <label class="inline">
