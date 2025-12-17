@@ -939,6 +939,13 @@
     const select = document.getElementById('canon-collection-select');
     if (!select) return;
 
+    const searchInput = document.getElementById('canon-filter-query');
+    const tagInput = document.getElementById('canon-filter-tags');
+    const tagDatalist = document.getElementById('canon-filter-tag-options');
+    const mentionFilter = document.getElementById('canon-filter-mention');
+    const parentFilter = document.getElementById('canon-filter-parent');
+    const childFilter = document.getElementById('canon-filter-child');
+
     const allCollections = snapshot.textCollections || [];
     const ownCollections = allCollections.filter(
       tc => tc.movementId === currentMovementId
@@ -954,9 +961,55 @@
       ? ownCollections.find(tc => tc.id === textCollectionId)
       : null;
 
+    const movementTexts = normaliseArray(snapshot.texts).filter(
+      t => t.movementId === currentMovementId
+    );
+    const movementEntities = normaliseArray(snapshot.entities).filter(
+      e => e.movementId === currentMovementId
+    );
+
+    const tagOptions = uniqueSorted(
+      movementTexts.flatMap(text => normaliseArray(text.tags))
+    ).map(tag => ({ value: tag, label: tag }));
+    if (tagDatalist) {
+      clearElement(tagDatalist);
+      tagOptions.forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt.value;
+        tagDatalist.appendChild(option);
+      });
+    }
+
+    const textOptionLabel = text =>
+      [text.label, text.title].filter(Boolean).join(' – ') || text.id;
+    const textOptions = movementTexts
+      .map(text => ({ value: text.id, label: textOptionLabel(text) }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+
+    const mentionOptions = uniqueSorted(
+      movementTexts.flatMap(text => normaliseArray(text.mentionsEntityIds))
+    )
+      .map(id => {
+        const entity = movementEntities.find(e => e.id === id);
+        const label = entity ? `${entity.name} (${id})` : id;
+        return { value: id, label };
+      })
+      .sort((a, b) => a.label.localeCompare(b.label));
+
+    ensureSelectOptions(mentionFilter, mentionOptions, 'Any mention');
+    ensureSelectOptions(parentFilter, textOptions, 'Any parent');
+    ensureSelectOptions(childFilter, textOptions, 'Any child');
+
     const vm = ViewModels.buildCanonTreeViewModel(snapshot, {
       movementId: currentMovementId,
-      textCollectionId: textCollectionId || null
+      textCollectionId: textCollectionId || null,
+      filters: {
+        searchQuery: searchInput ? searchInput.value : '',
+        tags: parseCsvInput(tagInput ? tagInput.value : ''),
+        mentionIds: mentionFilter && mentionFilter.value ? [mentionFilter.value] : [],
+        parentId: parentFilter ? parentFilter.value || null : null,
+        childId: childFilter ? childFilter.value || null : null
+      }
     });
 
     if (
@@ -971,7 +1024,9 @@
       currentTextId = null;
       const p = document.createElement('p');
       p.className = 'hint';
-      p.textContent = 'No texts found for this movement.';
+      p.textContent = vm.isFilterActive
+        ? 'No texts match these filters.'
+        : 'No texts found for this movement.';
       treeContainer.appendChild(p);
       renderCanonForms({ collection: activeCollection, roots: [], nodesById: {} });
       return;
@@ -5473,6 +5528,20 @@
         renderCanonView
       );
     }
+    ['canon-filter-query', 'canon-filter-tags'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('input', renderCanonView);
+      }
+    });
+    ['canon-filter-mention', 'canon-filter-parent', 'canon-filter-child'].forEach(
+      id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.addEventListener('change', renderCanonView);
+        }
+      }
+    );
     addListenerById('btn-add-text-collection', 'click', addTextCollection);
     addListenerById('btn-save-text-collection', 'click', saveTextCollection);
     addListenerById('btn-delete-text-collection', 'click', deleteTextCollection);

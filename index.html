@@ -186,6 +186,38 @@
               </button>
             </div>
           </div>
+          <div class="subtab-toolbar canon-filters">
+            <label class="grow">
+              Search texts
+              <input
+                id="canon-filter-query"
+                type="search"
+                placeholder="Search title, label, tags, content"
+              />
+            </label>
+            <label>
+              Tags
+              <input
+                id="canon-filter-tags"
+                type="text"
+                list="canon-filter-tag-options"
+                placeholder="Any tag"
+              />
+              <datalist id="canon-filter-tag-options"></datalist>
+            </label>
+            <label>
+              Mentions entity
+              <select id="canon-filter-mention"></select>
+            </label>
+            <label>
+              Parent text
+              <select id="canon-filter-parent"></select>
+            </label>
+            <label>
+              Child text
+              <select id="canon-filter-child"></select>
+            </label>
+          </div>
           <div class="split">
             <div class="list-pane">
               <div id="canon-tree" class="tree-container"></div>

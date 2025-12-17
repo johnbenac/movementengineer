@@ -107,7 +107,7 @@ function buildMovementDashboardViewModel(data, input) {
 }
 
 function buildCanonTreeViewModel(data, input) {
-  const { movementId, textCollectionId } = input;
+  const { movementId, textCollectionId, filters = {} } = input;
   const collections = buildLookup(data.textCollections);
   const collection = textCollectionId
     ? collections.get(textCollectionId) || null
@@ -163,11 +163,13 @@ function buildCanonTreeViewModel(data, input) {
 
     nodesById[text.id] = {
       id: text.id,
+      parentId: text.parentId ?? null,
       level: text.level,
       title: text.title,
       label: text.label,
       mainFunction: text.mainFunction ?? null,
       tags: normaliseArray(text.tags),
+      content: text.content || '',
       hasContent: Boolean(text.content && text.content.trim()),
       childIds: childrenByParent.get(text.id) || [],
       mentionsEntities,
@@ -176,21 +178,114 @@ function buildCanonTreeViewModel(data, input) {
     };
   });
 
-  const roots = [];
-  if (collection && Array.isArray(collection.rootTextIds)) {
-    collection.rootTextIds.forEach(id => {
-      if (nodesById[id]) roots.push(nodesById[id]);
+  const normalisedFilters = {
+    searchQuery: (filters.searchQuery || '').trim().toLowerCase(),
+    tags: normaliseArray(filters.tags).map(tag => tag.toLowerCase()),
+    mentionIds: normaliseArray(filters.mentionIds),
+    parentId: filters.parentId || null,
+    childId: filters.childId || null
+  };
+
+  const isFilterActive = Boolean(
+    normalisedFilters.searchQuery ||
+      normalisedFilters.tags.length ||
+      normalisedFilters.mentionIds.length ||
+      normalisedFilters.parentId ||
+      normalisedFilters.childId
+  );
+
+  const matchesFilters = node => {
+    if (normalisedFilters.parentId && node.parentId !== normalisedFilters.parentId)
+      return false;
+
+    if (
+      normalisedFilters.childId &&
+      !normaliseArray(node.childIds).includes(normalisedFilters.childId)
+    )
+      return false;
+
+    if (
+      normalisedFilters.tags.length &&
+      !normalisedFilters.tags.every(tag =>
+        normaliseArray(node.tags).some(t => (t || '').toLowerCase() === tag)
+      )
+    )
+      return false;
+
+    if (
+      normalisedFilters.mentionIds.length &&
+      !normalisedFilters.mentionIds.every(id =>
+        normaliseArray(node.mentionsEntities).some(ent => ent.id === id)
+      )
+    )
+      return false;
+
+    if (!normalisedFilters.searchQuery) return true;
+
+    const haystack = [
+      node.id,
+      node.title,
+      node.label,
+      node.mainFunction,
+      normaliseArray(node.tags).join(' '),
+      node.hasContent ? node.content || '' : ''
+    ]
+      .join(' ')
+      .toLowerCase();
+
+    return haystack.includes(normalisedFilters.searchQuery);
+  };
+
+  let filteredNodesById = nodesById;
+
+  if (isFilterActive) {
+    const matches = new Set();
+    Object.values(nodesById).forEach(node => {
+      if (matchesFilters(node)) {
+        matches.add(node.id);
+      }
     });
-  } else {
-    (childrenByParent.get(null) || []).forEach(id => {
-      if (nodesById[id]) roots.push(nodesById[id]);
+
+    const include = new Set();
+    const includeAncestors = nodeId => {
+      if (!nodeId || include.has(nodeId)) return;
+      include.add(nodeId);
+      const parentId = nodesById[nodeId]?.parentId;
+      if (parentId) includeAncestors(parentId);
+    };
+
+    matches.forEach(includeAncestors);
+    if (normalisedFilters.childId && nodesById[normalisedFilters.childId]) {
+      includeAncestors(normalisedFilters.childId);
+    }
+
+    filteredNodesById = {};
+    include.forEach(id => {
+      const node = nodesById[id];
+      if (!node) return;
+      filteredNodesById[id] = {
+        ...node,
+        childIds: normaliseArray(node.childIds).filter(cid => include.has(cid))
+      };
     });
   }
+
+  const rootCandidates = collection
+    ? normaliseArray(collection.rootTextIds)
+    : Object.values(filteredNodesById)
+        .filter(node => !node.parentId)
+        .map(node => node.id);
+
+  const roots = [];
+  rootCandidates.forEach(id => {
+    if (filteredNodesById[id]) roots.push(filteredNodesById[id]);
+  });
 
   return {
     collection,
     roots,
-    nodesById
+    nodesById: filteredNodesById,
+    isFilterActive
   };
 }
 
