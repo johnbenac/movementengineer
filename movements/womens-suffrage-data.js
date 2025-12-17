@@ -1,6 +1,6 @@
 (function registerMovementDataset() {
 const dataset = {
-  "version": "3.4",
+  "version": "3.5",
   "movements": [
     {
       "id": "mov-womens-suffrage",
@@ -369,26 +369,6 @@ const dataset = {
         "meta",
         "example"
       ]
-    }
-  ],
-  "relations": [
-    {
-      "id": "rel-rallies-support-amendment",
-      "movementId": "mov-womens-suffrage",
-      "fromEntityId": "ent-voting-rights",
-      "toEntityId": "ent-nineteenth-amendment",
-      "relationType": "supported_by",
-      "tags": [
-        "organizing"
-      ],
-      "supportingClaimIds": [
-        "clm-vote-equality"
-      ],
-      "sourcesOfTruth": [
-        "movement histories"
-      ],
-      "sourceEntityIds": [],
-      "notes": "Organizing pressure connected the claim for equal voting rights to the legal amendment that enacted it."
     }
   ]
 };

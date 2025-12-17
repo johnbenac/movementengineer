@@ -6,7 +6,7 @@ One of our goals is to allow multiple congregations to run different versions of
 
 ## Decision
 
-We decided **not** to include embedded versioning, timestamps or revision tracking inside the movement schema.  The only version field is at the document level (e.g. `version: "3.4"`) to indicate the schema version.  We rely on Git for history, branching and merging of movement snapshots.  Changes to movement data are represented as patches or new snapshots at new commits.  Congruently, we plan to define separate `Patch` and `CommunityConfig` documents to describe deltas and per‑congregation selections rather than embedding these in the core model.
+We decided **not** to include embedded versioning, timestamps or revision tracking inside the movement schema.  The only version field is at the document level (e.g. `version: "3.5"`) to indicate the schema version.  We rely on Git for history, branching and merging of movement snapshots.  Changes to movement data are represented as patches or new snapshots at new commits.  Congruently, we plan to define separate `Patch` and `CommunityConfig` documents to describe deltas and per‑congregation selections rather than embedding these in the core model.
 
 ## Rationale
 

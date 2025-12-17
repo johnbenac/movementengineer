@@ -1,11 +1,11 @@
 /*
  * View Model builders for Movement Engineer.
  *
- * These functions translate raw collection data (as described by data-model v3.4)
+ * These functions translate raw collection data (as described by data-model v3.5)
  * into derived shapes optimised for specific UI needs. Each builder expects a
  * `data` object containing arrays named after the collections:
  * movements, textCollections, texts, entities, practices, events,
- * rules, claims, media, notes, relations.
+ * rules, claims, media, notes.
  *
  * The output mirrors the canonical view models described in the project brief.
  */
@@ -250,39 +250,27 @@ function buildEntityDetailViewModel(data, input) {
       title: asset.title
     }));
 
-  const relationsOut = normaliseArray(data.relations)
-    .filter(rel => rel.fromEntityId === entityId)
-    .map(rel => ({
-      id: rel.id,
-      relationType: rel.relationType,
-      to: (() => {
-        const target = entityLookup.get(rel.toEntityId);
-        return target
-          ? {
-              id: target.id,
-              name: target.name,
-              kind: target.kind ?? null
-            }
-          : { id: rel.toEntityId, name: rel.toEntityId, kind: null };
-      })()
-    }));
-
-  const relationsIn = normaliseArray(data.relations)
-    .filter(rel => rel.toEntityId === entityId)
-    .map(rel => ({
-      id: rel.id,
-      relationType: rel.relationType,
-      from: (() => {
-        const source = entityLookup.get(rel.fromEntityId);
-        return source
-          ? {
-              id: source.id,
-              name: source.name,
-              kind: source.kind ?? null
-            }
-          : { id: rel.fromEntityId, name: rel.fromEntityId, kind: null };
-      })()
-    }));
+  const graph = entity?.movementId
+    ? buildMovementGraphModel(data, { movementId: entity.movementId })
+    : { nodes: [], edges: [] };
+  const graphNodeLookup = new Map(
+    normaliseArray(graph.nodes).map(node => [node.id, node])
+  );
+  const connections = normaliseArray(graph.edges)
+    .filter(edge => edge.fromId === entityId || edge.toId === entityId)
+    .map(edge => {
+      const outgoing = edge.fromId === entityId;
+      const otherId = outgoing ? edge.toId : edge.fromId;
+      const other = graphNodeLookup.get(otherId);
+      return {
+        id: edge.id,
+        relationType: edge.relationType || 'rel',
+        direction: outgoing ? 'out' : 'in',
+        other: other
+          ? { id: other.id, name: other.name, type: other.type }
+          : { id: otherId, name: otherId, type: 'Unknown' }
+      };
+    });
 
   return {
     entity,
@@ -291,8 +279,7 @@ function buildEntityDetailViewModel(data, input) {
     practices,
     events,
     media,
-    relationsOut,
-    relationsIn
+    connections
   };
 }
 
@@ -355,7 +342,6 @@ function buildMovementGraphModel(data, input) {
     Rule: buildLookup(filterByMovement(data.rules, movementId)),
     Claim: buildLookup(filterByMovement(data.claims, movementId)),
     MediaAsset: buildLookup(filterByMovement(data.media, movementId)),
-    Relation: buildLookup(filterByMovement(data.relations, movementId)),
     Note: buildLookup(filterByMovement(data.notes, movementId))
   };
 
@@ -532,13 +518,6 @@ function buildMovementGraphModel(data, input) {
       ensureNode(note.targetType, note.targetId, note.targetId, null);
       pushEdge(note.id, note.targetId, 'annotates');
     }
-  });
-
-  // Explicit relations (entity ↔ entity)
-  filterByMovement(data.relations, movementId).forEach(rel => {
-    ensureNode('Entity', rel.fromEntityId, rel.fromEntityId, null);
-    ensureNode('Entity', rel.toEntityId, rel.toEntityId, null);
-    pushEdge(rel.fromEntityId, rel.toEntityId, rel.relationType || 'rel', rel.id);
   });
 
   return { nodes: Array.from(nodes.values()), edges };
@@ -838,7 +817,6 @@ function buildAuthorityViewModel(data, input) {
   const rules = filterByMovement(data.rules, movementId);
   const practices = filterByMovement(data.practices, movementId);
   const entities = filterByMovement(data.entities, movementId);
-  const relations = filterByMovement(data.relations, movementId);
 
   const sources = new Map();
   const addSourceUsage = (label, key, id) => {
@@ -849,8 +827,7 @@ function buildAuthorityViewModel(data, input) {
         usedByClaims: [],
         usedByRules: [],
         usedByPractices: [],
-        usedByEntities: [],
-        usedByRelations: []
+        usedByEntities: []
       };
     if (!record[key].includes(id)) {
       record[key].push(id);
@@ -878,11 +855,6 @@ function buildAuthorityViewModel(data, input) {
       addSourceUsage(label, 'usedByEntities', entity.id)
     );
   });
-  relations.forEach(relation => {
-    normaliseArray(relation.sourcesOfTruth).forEach(label =>
-      addSourceUsage(label, 'usedByRelations', relation.id)
-    );
-  });
 
   const authorityEntitiesLookup = buildLookup(data.entities);
   const authorityEntities = new Map();
@@ -897,8 +869,7 @@ function buildAuthorityViewModel(data, input) {
           claims: [],
           rules: [],
           practices: [],
-          entities: [],
-          relations: []
+          entities: []
         }
       };
     if (!base.usedAsSourceIn[key].includes(id)) {
@@ -925,11 +896,6 @@ function buildAuthorityViewModel(data, input) {
   entities.forEach(ent => {
     normaliseArray(ent.sourceEntityIds).forEach(entityId =>
       addEntityUsage(entityId, 'entities', ent.id)
-    );
-  });
-  relations.forEach(rel => {
-    normaliseArray(rel.sourceEntityIds).forEach(entityId =>
-      addEntityUsage(entityId, 'relations', rel.id)
     );
   });
 
@@ -1001,49 +967,6 @@ function buildMediaGalleryViewModel(data, input) {
   return { items };
 }
 
-function buildRelationExplorerViewModel(data, input) {
-  const { movementId, relationTypeFilter, entityIdFilter } = input;
-  let relations = filterByMovement(data.relations, movementId);
-
-  if (Array.isArray(relationTypeFilter) && relationTypeFilter.length > 0) {
-    relations = relations.filter(rel =>
-      relationTypeFilter.includes(rel.relationType)
-    );
-  }
-  if (entityIdFilter) {
-    relations = relations.filter(
-      rel =>
-        rel.fromEntityId === entityIdFilter || rel.toEntityId === entityIdFilter
-    );
-  }
-
-  const entityLookup = buildLookup(data.entities);
-  const claimLookup = buildLookup(data.claims);
-
-  const relationRows = relations.map(rel => {
-    const from = entityLookup.get(rel.fromEntityId);
-    const to = entityLookup.get(rel.toEntityId);
-    return {
-      id: rel.id,
-      relationType: rel.relationType,
-      from: from
-        ? { id: from.id, name: from.name, kind: from.kind ?? null }
-        : { id: rel.fromEntityId, name: rel.fromEntityId, kind: null },
-      to: to
-        ? { id: to.id, name: to.name, kind: to.kind ?? null }
-        : { id: rel.toEntityId, name: rel.toEntityId, kind: null },
-      tags: normaliseArray(rel.tags),
-      supportingClaims: normaliseArray(rel.supportingClaimIds)
-        .map(id => claimLookup.get(id))
-        .filter(Boolean)
-        .map(claim => ({ id: claim.id, text: claim.text })),
-      sourcesOfTruth: normaliseArray(rel.sourcesOfTruth)
-    };
-  });
-
-  return { relations: relationRows };
-}
-
 function buildComparisonViewModel(data, input) {
   const { movementIds } = input;
 
@@ -1085,17 +1008,16 @@ function buildNotesViewModel(data, input) {
     notes = notes.filter(note => note.targetId === targetIdFilter);
   }
 
-  const lookups = {
-    Movement: buildLookup(data.movements),
-    TextNode: buildLookup(data.texts),
-    Entity: buildLookup(data.entities),
-    Practice: buildLookup(data.practices),
-    Event: buildLookup(data.events),
-    Rule: buildLookup(data.rules),
-    Claim: buildLookup(data.claims),
-    MediaAsset: buildLookup(data.media),
-    Relation: buildLookup(data.relations)
-  };
+    const lookups = {
+      Movement: buildLookup(data.movements),
+      TextNode: buildLookup(data.texts),
+      Entity: buildLookup(data.entities),
+      Practice: buildLookup(data.practices),
+      Event: buildLookup(data.events),
+      Rule: buildLookup(data.rules),
+      Claim: buildLookup(data.claims),
+      MediaAsset: buildLookup(data.media)
+    };
 
   const resolveLabel = (targetType, targetId) => {
     const lookup = lookups[targetType];
@@ -1131,7 +1053,6 @@ const ViewModels = {
   buildRuleExplorerViewModel,
   buildAuthorityViewModel,
   buildMediaGalleryViewModel,
-  buildRelationExplorerViewModel,
   buildComparisonViewModel,
   buildNotesViewModel
 };

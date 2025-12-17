@@ -11,12 +11,11 @@
     'rules',
     'claims',
     'media',
-    'notes',
-    'relations'
+    'notes'
   ];
 
   function ensureCollections(snapshot) {
-    const normalized = { version: snapshot.version || '3.4' };
+    const normalized = { version: snapshot.version || '3.5' };
     COLLECTION_NAMES.forEach(name => {
       const value = snapshot[name];
       normalized[name] = Array.isArray(value) ? value : [];
@@ -25,7 +24,7 @@
   }
 
   function mergeSnapshots(snapshots) {
-    const merged = { version: '3.4' };
+    const merged = { version: '3.5' };
     COLLECTION_NAMES.forEach(name => {
       merged[name] = [];
     });
