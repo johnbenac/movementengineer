@@ -3648,13 +3648,7 @@
 
       btnDelete.addEventListener('click', () => {
         const ok = window.confirm(
-          'Delete this entity?
-
-' +
-            (entity.name || entity.id) +
-            '
-
-This cannot be undone.'
+          `Delete this entity?\n\n${entity.name || entity.id}\n\nThis cannot be undone.`
         );
         if (!ok) return;
 
