@@ -1,6 +1,6 @@
 (function () {
   const dataset = {
-    version: '3.4',
+    version: '3.5',
 
     movements: [
       {
@@ -1322,93 +1322,6 @@ Design note:
 If the demonym starts functioning as a loyalty marker, the correct response is to de-emphasize it or drop it.`,
         context: 'risk_assessment',
         tags: ['risk', 'power_surface', 'hazard:identity', 'hazard:social_pressure', 'mitigations-listed']
-      }
-    ],
-
-    relations: [
-      {
-        id: 'rel-home-anchors-horizon',
-        movementId: 'mov-reknit-december-15',
-        fromEntityId: 'ent-home',
-        toEntityId: 'ent-horizon',
-        relationType: 'anchors',
-        tags: ['home', 'horizon'],
-        supportingClaimIds: ['clm-reknit-purpose'],
-        sourcesOfTruth: ['The Reknit Charter'],
-        sourceEntityIds: [],
-        notes: 'Without Home, Horizon becomes coercion; without Horizon, Home becomes isolation.'
-      },
-      {
-        id: 'rel-attention-enables-agency',
-        movementId: 'mov-reknit-december-15',
-        fromEntityId: 'ent-attention',
-        toEntityId: 'ent-agency',
-        relationType: 'enables',
-        tags: ['attention', 'agency'],
-        supportingClaimIds: ['clm-attention-is-finite'],
-        sourcesOfTruth: ['Reknit Lexicon'],
-        sourceEntityIds: [],
-        notes: 'Attention is the steering wheel; agency depends on where attention goes.'
-      },
-      {
-        id: 'rel-consent-protects-dignity',
-        movementId: 'mov-reknit-december-15',
-        fromEntityId: 'ent-consent',
-        toEntityId: 'ent-dignity',
-        relationType: 'protects',
-        tags: ['consent', 'dignity'],
-        supportingClaimIds: ['clm-consent-and-dignity'],
-        sourcesOfTruth: ['The Reknit Charter'],
-        sourceEntityIds: [],
-        notes: 'Consent is a practical boundary that defends dignity from coercion.'
-      },
-      {
-        id: 'rel-community-supports-agency',
-        movementId: 'mov-reknit-december-15',
-        fromEntityId: 'ent-community',
-        toEntityId: 'ent-agency',
-        relationType: 'supports',
-        tags: ['community', 'agency'],
-        supportingClaimIds: ['clm-reknit-purpose'],
-        sourcesOfTruth: ['The Reknit Charter'],
-        sourceEntityIds: [],
-        notes: 'Agency is easier when you are not alone.'
-      },
-      {
-        id: 'rel-extractive-incentives-distort-attention',
-        movementId: 'mov-reknit-december-15',
-        fromEntityId: 'ent-extractive-incentives',
-        toEntityId: 'ent-attention',
-        relationType: 'distorts',
-        tags: ['incentives', 'attention', 'threat_model'],
-        supportingClaimIds: ['clm-reknit-purpose'],
-        sourcesOfTruth: ['The Reknit Charter'],
-        sourceEntityIds: [],
-        notes: 'When incentives reward engagement at all costs, attention becomes the product.'
-      },
-      {
-        id: 'rel-technology-systems-shape-attention',
-        movementId: 'mov-reknit-december-15',
-        fromEntityId: 'ent-technology-systems',
-        toEntityId: 'ent-attention',
-        relationType: 'shapes',
-        tags: ['technology', 'attention'],
-        supportingClaimIds: ['clm-attention-is-finite'],
-        sourcesOfTruth: ['The Reknit Charter'],
-        sourceEntityIds: [],
-        notes: 'Ranking, feedback loops, and feeds can shape what people repeatedly attend to.'
-      },
-      {
-        id: 'rel-forking-enables-pluralism',
-        movementId: 'mov-reknit-december-15',
-        fromEntityId: 'ent-forking',
-        toEntityId: 'ent-community',
-        relationType: 'enables_pluralism_for',
-        tags: ['forking', 'pluralism'],
-        supportingClaimIds: ['clm-forking-is-allowed'],
-        sourcesOfTruth: ['The Reknit Charter'],
-        sourceEntityIds: [],
-        notes: 'Forking reduces central capture by making exit-with-continuity real.'
       }
     ]
   };

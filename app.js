@@ -320,7 +320,6 @@
       case 'authority':
       case 'media':
       case 'graph':
-      case 'relations':
       case 'notes':
         renderMovementSection(tabName);
         break;
@@ -515,7 +514,6 @@
         authority: $('#authority-sources'),
         media: $('#media-gallery'),
         graph: $('#graph-workbench-root'),
-        relations: $('#relations-table-wrapper'),
         notes: $('#notes-table-wrapper')
       };
       const target = containers[name];
@@ -557,9 +555,6 @@
         break;
       case 'graph':
         renderGraphWorkbench();
-        break;
-      case 'relations':
-        renderRelationsView();
         break;
       case 'notes':
         renderNotesView();
@@ -1683,24 +1678,48 @@
       });
     }
 
-    if (
-      (vm.relationsOut && vm.relationsOut.length) ||
-      (vm.relationsIn && vm.relationsIn.length)
-    ) {
-      mkSection('Relations', section => {
+    if (vm.connections && vm.connections.length) {
+      mkSection('Connections (derived)', section => {
         const ul = document.createElement('ul');
-        vm.relationsOut.forEach(r => {
+        const typeToCollection = {
+          Movement: 'movements',
+          TextCollection: 'textCollections',
+          TextNode: 'texts',
+          Entity: 'entities',
+          Practice: 'practices',
+          Event: 'events',
+          Rule: 'rules',
+          Claim: 'claims',
+          MediaAsset: 'media',
+          Note: 'notes'
+        };
+
+        vm.connections.forEach(conn => {
           const li = document.createElement('li');
-          li.textContent = `→ ${r.relationType} → ${r.to.name}`;
+          const arrow = conn.direction === 'incoming' ? '←' : '→';
+          const otherLabel = conn.node.name || conn.node.id;
+          const meta = conn.node.type ? ` (${labelForNodeType(conn.node.type)})` : '';
+          li.textContent = `${arrow} ${conn.relationType || 'link'} ${arrow} ${otherLabel}${meta}`;
           li.style.cursor = 'pointer';
-          li.addEventListener('click', () => jumpToEntity(r.to.id));
-          ul.appendChild(li);
-        });
-        vm.relationsIn.forEach(r => {
-          const li = document.createElement('li');
-          li.textContent = `← ${r.relationType} ← ${r.from.name}`;
-          li.style.cursor = 'pointer';
-          li.addEventListener('click', () => jumpToEntity(r.from.id));
+
+          const targetCollection = typeToCollection[conn.node.type];
+          li.addEventListener('click', () => {
+            if (targetCollection) {
+              jumpToReferencedItem(targetCollection, conn.node.id);
+            }
+          });
+
+          if (conn.source) {
+            const reason = document.createElement('div');
+            reason.className = 'hint';
+            const fieldLabel = conn.source.field
+              ? `.${conn.source.field}`
+              : '';
+            reason.textContent =
+              `Edge derived from ${conn.source.collection || 'record'} ${conn.source.id || ''}${fieldLabel}`.trim();
+            li.appendChild(reason);
+          }
+
           ul.appendChild(li);
         });
         section.appendChild(ul);
@@ -2318,8 +2337,7 @@
           `Claims: ${s.usedByClaims.length}`,
           `Rules: ${s.usedByRules.length}`,
           `Practices: ${s.usedByPractices.length}`,
-          `Entities: ${s.usedByEntities.length}`,
-          `Relations: ${s.usedByRelations.length}`
+          `Entities: ${s.usedByEntities.length}`
         ].join(' · ');
         card.appendChild(meta);
 
@@ -2348,8 +2366,7 @@
           `Claims: ${e.usedAsSourceIn.claims.length}`,
           `Rules: ${e.usedAsSourceIn.rules.length}`,
           `Practices: ${e.usedAsSourceIn.practices.length}`,
-          `Entities: ${e.usedAsSourceIn.entities.length}`,
-          `Relations: ${e.usedAsSourceIn.relations.length}`
+          `Entities: ${e.usedAsSourceIn.entities.length}`
         ].join(' · ');
         card.appendChild(meta);
 
@@ -2543,127 +2560,8 @@
     });
   }
 
-  // ---- Relations (buildRelationExplorerViewModel) ----
-
-  function renderRelationsView() {
-    const wrapper = document.getElementById('relations-table-wrapper');
-    const typeSelect = document.getElementById('relations-type-filter');
-    const entSelect = document.getElementById('relations-entity-filter');
-    if (!wrapper || !typeSelect || !entSelect) return;
-    clearElement(wrapper);
-
-    const allRelations = (snapshot.relations || []).filter(
-      r => r.movementId === currentMovementId
-    );
-    const relationTypes = Array.from(
-      new Set(allRelations.map(r => r.relationType).filter(Boolean))
-    ).sort();
-
-    const entities = (snapshot.entities || []).filter(
-      e => e.movementId === currentMovementId
-    );
-
-    ensureSelectOptions(
-      typeSelect,
-      relationTypes.map(t => ({ value: t, label: t })),
-      'All'
-    );
-    ensureSelectOptions(
-      entSelect,
-      entities
-        .slice()
-        .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
-        .map(e => ({ value: e.id, label: e.name || e.id })),
-      'Any'
-    );
-
-    const typeVal = typeSelect.value || '';
-    const entVal = entSelect.value || '';
-
-    const vm = ViewModels.buildRelationExplorerViewModel(snapshot, {
-      movementId: currentMovementId,
-      relationTypeFilter: typeVal ? [typeVal] : [],
-      entityIdFilter: entVal || null
-    });
-
-    if (!vm.relations || vm.relations.length === 0) {
-      const p = document.createElement('p');
-      p.className = 'hint';
-      p.textContent = 'No relations match this filter.';
-      wrapper.appendChild(p);
-      return;
-    }
-
-    const table = document.createElement('table');
-    const headerRow = document.createElement('tr');
-    ['Type', 'From', 'To', 'Tags', 'Supporting claims', 'Sources of truth'].forEach(
-      h => {
-        const th = document.createElement('th');
-        th.textContent = h;
-        headerRow.appendChild(th);
-      }
-    );
-    table.appendChild(headerRow);
-
-    vm.relations.forEach(r => {
-      const tr = document.createElement('tr');
-
-      const tdType = document.createElement('td');
-      tdType.textContent = r.relationType;
-      tr.appendChild(tdType);
-
-      const tdFrom = document.createElement('td');
-      const fromLink = document.createElement('a');
-      fromLink.href = '#';
-      fromLink.textContent = r.from.name || r.from.id;
-      fromLink.className = 'entity-link';
-      fromLink.addEventListener('click', ev => {
-        ev.preventDefault();
-        jumpToEntity(r.from.id);
-      });
-      tdFrom.appendChild(fromLink);
-      tr.appendChild(tdFrom);
-
-      const tdTo = document.createElement('td');
-      const toLink = document.createElement('a');
-      toLink.href = '#';
-      toLink.textContent = r.to.name || r.to.id;
-      toLink.className = 'entity-link';
-      toLink.addEventListener('click', ev => {
-        ev.preventDefault();
-        jumpToEntity(r.to.id);
-      });
-      tdTo.appendChild(toLink);
-      tr.appendChild(tdTo);
-
-      const tdTags = document.createElement('td');
-      tdTags.textContent = (r.tags || []).join(', ');
-      tr.appendChild(tdTags);
-
-      const tdClaims = document.createElement('td');
-      if (r.supportingClaims && r.supportingClaims.length) {
-        const ul = document.createElement('ul');
-        r.supportingClaims.forEach(c => {
-          const li = document.createElement('li');
-          li.textContent = c.text;
-          ul.appendChild(li);
-        });
-        tdClaims.appendChild(ul);
-      }
-      tr.appendChild(tdClaims);
-
-      const tdSources = document.createElement('td');
-      tdSources.textContent = (r.sourcesOfTruth || []).join(', ');
-      tr.appendChild(tdSources);
-
-      table.appendChild(tr);
-    });
-
-    wrapper.appendChild(table);
-  }
-
   // ============================================================
-  // Graph Workbench (Entities + Relations) — Ontorum-style panes
+  // Graph Workbench — Ontorum-style panes
   // ============================================================
 
   function normaliseArray(value) {
@@ -2862,19 +2760,10 @@
     return map;
   }
 
-  function buildRelationIndex(relations) {
-    const map = new Map();
-    (relations || []).forEach(r => {
-      if (r && r.id) map.set(r.id, r);
-    });
-    return map;
-  }
-
   function getGraphDatasetForCurrentMovement() {
     const movementId = currentMovementId;
 
     const allEntities = normaliseArray(snapshot && snapshot.entities);
-    const allRelations = normaliseArray(snapshot && snapshot.relations);
 
     const visibleEntities = allEntities.filter(
       e => e && e.movementId === movementId
@@ -2882,14 +2771,7 @@
 
     const entityById = buildEntityIndex(visibleEntities);
 
-    const visibleRelations = allRelations.filter(r => {
-      if (!r) return false;
-      if (r.movementId !== movementId) return false;
-      if (!r.fromEntityId || !r.toEntityId) return false;
-      return entityById.has(r.fromEntityId) && entityById.has(r.toEntityId);
-    });
-
-    return { visibleEntities, visibleRelations, entityById };
+    return { visibleEntities, entityById };
   }
 
   function ensureGraphWorkbenchDom() {
@@ -2955,70 +2837,6 @@
               </div>
             </details>
 
-            <details id="gw-create-relation">
-              <summary>Add Relation</summary>
-              <div class="details-body">
-                <div id="gw-add-relation-hint" class="hint">
-                  Select an entity in the graph to create a relation from/to it.
-                </div>
-
-                <form id="gw-add-relation-form" class="graph-form">
-                  <div class="form-row">
-                    <label>Direction</label>
-                    <div class="form-row inline" style="margin-bottom:0;">
-                      <label style="flex:none;">
-                        <input type="radio" name="gw-rel-direction" value="outgoing" checked />
-                        Outgoing (selected → target)
-                      </label>
-                      <label style="flex:none;">
-                        <input type="radio" name="gw-rel-direction" value="incoming" />
-                        Incoming (source → selected)
-                      </label>
-                    </div>
-                  </div>
-
-                  <div class="form-row">
-                    <label>Relation type *</label>
-                    <input id="gw-add-relation-type" class="form-control" list="gw-relation-type-options" required placeholder="e.g. inspired_by, teacher_of..." />
-                    <datalist id="gw-relation-type-options"></datalist>
-                  </div>
-
-                  <div class="form-row">
-                    <label>Target entity *</label>
-                    <select id="gw-add-relation-target" class="form-control" required></select>
-                  </div>
-
-                  <div class="form-row">
-                    <label>Tags (comma separated)</label>
-                    <input id="gw-add-relation-tags" class="form-control" type="text" placeholder="tag1, tag2" />
-                  </div>
-
-                  <div class="form-row">
-                    <label>Supporting claim IDs (comma separated)</label>
-                    <input id="gw-add-relation-claims" class="form-control" type="text" placeholder="claim-1, claim-2" />
-                  </div>
-
-                  <div class="form-row">
-                    <label>Sources of truth (comma separated)</label>
-                    <input id="gw-add-relation-sources" class="form-control" type="text" placeholder="book, tradition, archive..." />
-                  </div>
-
-                  <div class="form-row">
-                    <label>Source entity IDs (comma separated)</label>
-                    <input id="gw-add-relation-source-entities" class="form-control" type="text" placeholder="ent-123, ent-456" />
-                  </div>
-
-                  <div class="form-row">
-                    <label>Notes</label>
-                    <textarea id="gw-add-relation-notes" class="form-control" rows="3"></textarea>
-                  </div>
-
-                  <div class="form-row inline">
-                    <button class="btn btn-primary" type="submit" id="gw-add-relation-submit">Create Relation</button>
-                  </div>
-                </form>
-              </div>
-            </details>
 
           </div>
         </div>
@@ -3129,17 +2947,6 @@
       createEntitySourceEntities: document.getElementById('gw-add-entity-source-entities'),
       createEntityNotes: document.getElementById('gw-add-entity-notes'),
       entityKindDatalist: document.getElementById('gw-entity-kind-options'),
-
-      createRelationHint: document.getElementById('gw-add-relation-hint'),
-      createRelationForm: document.getElementById('gw-add-relation-form'),
-      createRelationType: document.getElementById('gw-add-relation-type'),
-      createRelationTarget: document.getElementById('gw-add-relation-target'),
-      createRelationTags: document.getElementById('gw-add-relation-tags'),
-      createRelationClaims: document.getElementById('gw-add-relation-claims'),
-      createRelationSources: document.getElementById('gw-add-relation-sources'),
-      createRelationSourceEntities: document.getElementById('gw-add-relation-source-entities'),
-      createRelationNotes: document.getElementById('gw-add-relation-notes'),
-      relationTypeDatalist: document.getElementById('gw-relation-type-options'),
 
       leftHandle: root.querySelector('.graph-resize-handle.left'),
       rightHandle: root.querySelector('.graph-resize-handle.right')
@@ -3287,60 +3094,6 @@
       }
     });
 
-    // Create relation
-    dom.createRelationForm.addEventListener('submit', e => {
-      e.preventDefault();
-      if (!currentMovementId) return;
-
-      const sel = graphWorkbenchState.selection;
-      if (!sel || sel.type !== 'entity') return;
-
-      const selectedEntityId = sel.id;
-      const relationType = (dom.createRelationType.value || '').trim();
-      const targetId = dom.createRelationTarget.value;
-
-      if (!relationType || !targetId) return;
-
-      const direction = (dom.createRelationForm.querySelector('input[name="gw-rel-direction"]:checked') || {}).value || 'outgoing';
-      const outgoing = direction === 'outgoing';
-
-      const fromEntityId = outgoing ? selectedEntityId : targetId;
-      const toEntityId = outgoing ? targetId : selectedEntityId;
-
-      const tags = parseCsvInput(dom.createRelationTags.value);
-      const supportingClaimIds = parseCsvInput(dom.createRelationClaims.value);
-      const sourcesOfTruth = parseCsvInput(dom.createRelationSources.value);
-      const sourceEntityIds = parseCsvInput(dom.createRelationSourceEntities.value);
-      const notes = (dom.createRelationNotes.value || '').trim() || null;
-
-      try {
-        const rel = DomainService.addNewItem(snapshot, 'relations', currentMovementId);
-        rel.fromEntityId = fromEntityId;
-        rel.toEntityId = toEntityId;
-        rel.relationType = relationType;
-        rel.tags = tags;
-        rel.supportingClaimIds = supportingClaimIds;
-        rel.sourcesOfTruth = sourcesOfTruth;
-        rel.sourceEntityIds = sourceEntityIds;
-        rel.notes = notes;
-
-        DomainService.upsertItem(snapshot, 'relations', rel);
-        saveSnapshot({ show: false });
-        setStatus('Relation created');
-
-        dom.createRelationType.value = '';
-        dom.createRelationTags.value = '';
-        dom.createRelationClaims.value = '';
-        dom.createRelationSources.value = '';
-        dom.createRelationSourceEntities.value = '';
-        dom.createRelationNotes.value = '';
-
-        setGraphWorkbenchSelection({ type: 'relation', id: rel.id });
-        renderGraphWorkbench();
-      } catch (err) {
-        alert(err instanceof Error ? err.message : 'Failed to create relation');
-      }
-    });
 
     graphWorkbenchDom = dom;
     return dom;
@@ -3713,14 +3466,15 @@
     });
   }
 
-  function renderSelected(dom, visibleEntities, visibleRelations, entityById, baseGraphNodes) {
+
+  function renderSelected(dom, visibleEntities, entityById, baseGraph) {
     clearElement(dom.selectedBody);
 
     const selection = graphWorkbenchState.selection;
     if (!selection) {
       const p = document.createElement('p');
       p.className = 'muted';
-      p.textContent = 'Click an entity or relation to view/edit details.';
+      p.textContent = 'Click a node or edge to view/edit details.';
       dom.selectedBody.appendChild(p);
       return;
     }
@@ -3728,9 +3482,62 @@
     const selectionType = normaliseSelectionType(selection.type);
 
     const allEntities = normaliseArray(snapshot.entities);
-    const allRelations = normaliseArray(snapshot.relations);
     const entityIndexAll = buildEntityIndex(allEntities);
-    const relationIndexAll = buildRelationIndex(allRelations);
+    const nodes = normaliseArray(baseGraph?.nodes);
+    const edges = normaliseArray(baseGraph?.edges);
+    const nodeIndex = new Map(nodes.map(n => [n.id, n]));
+
+    if (selectionType === 'edge') {
+      const edgeCard = document.createElement('div');
+      edgeCard.className = 'card';
+      edgeCard.style.padding = '10px';
+      edgeCard.style.marginBottom = '10px';
+
+      const edge = edges.find(e => e.id === selection.id);
+      if (!edge) {
+        edgeCard.textContent = 'Selected edge not found in this graph.';
+        dom.selectedBody.appendChild(edgeCard);
+        return;
+      }
+
+      const from = nodeIndex.get(edge.fromId);
+      const to = nodeIndex.get(edge.toId);
+
+      const title = document.createElement('p');
+      title.className = 'graph-selected-title';
+      title.textContent = edge.relationType || 'Edge';
+
+      const subtitle = document.createElement('p');
+      subtitle.className = 'graph-selected-subtitle';
+      const fromLabel = from ? from.name || from.id : edge.fromId;
+      const toLabel = to ? to.name || to.id : edge.toId;
+      subtitle.textContent = `${fromLabel} → ${edge.relationType || 'link'} → ${toLabel}`;
+
+      edgeCard.appendChild(title);
+      edgeCard.appendChild(subtitle);
+
+      if (edge.source) {
+        const info = document.createElement('p');
+        info.className = 'hint';
+        const fieldLabel = edge.source.field ? `.${edge.source.field}` : '';
+        info.textContent = `Edge derived from ${edge.source.collection || 'record'}${fieldLabel} on ${edge.source.id || 'unknown'}.`;
+        edgeCard.appendChild(info);
+
+        if (edge.source.collection && edge.source.id) {
+          const btn = document.createElement('button');
+          btn.className = 'btn';
+          btn.type = 'button';
+          btn.textContent = 'Jump to source record';
+          btn.addEventListener('click', () =>
+            jumpToReferencedItem(edge.source.collection, edge.source.id)
+          );
+          edgeCard.appendChild(btn);
+        }
+      }
+
+      dom.selectedBody.appendChild(edgeCard);
+      return;
+    }
 
     if (selectionType === 'entity') {
       const entity = entityIndexAll.get(selection.id);
@@ -3770,7 +3577,6 @@
       header.appendChild(actions);
       dom.selectedBody.appendChild(header);
 
-      // form
       const form = document.createElement('form');
       form.className = 'graph-form';
 
@@ -3816,54 +3622,6 @@
 
       dom.selectedBody.appendChild(form);
 
-      // relations list
-      const out = visibleRelations.filter(r => r.fromEntityId === entity.id);
-      const inc = visibleRelations.filter(r => r.toEntityId === entity.id);
-
-      function renderRelList(label, rels, arrow) {
-        const heading = document.createElement('div');
-        heading.className = 'section-heading small';
-        heading.textContent = `${label} (${rels.length})`;
-        dom.selectedBody.appendChild(heading);
-
-        if (!rels.length) {
-          const p = document.createElement('p');
-          p.className = 'muted';
-          p.textContent = '—';
-          dom.selectedBody.appendChild(p);
-          return;
-        }
-
-        const ul = document.createElement('ul');
-        ul.style.margin = '0';
-        ul.style.paddingLeft = '18px';
-
-        rels.forEach(r => {
-          const li = document.createElement('li');
-          const otherId = arrow === '→' ? r.toEntityId : r.fromEntityId;
-          const other = entityById.get(otherId) || entityIndexAll.get(otherId);
-          const otherLabel = other ? (other.name || other.id) : otherId;
-
-          li.style.cursor = 'pointer';
-          li.textContent = arrow === '→'
-            ? `${r.relationType || 'rel'} → ${otherLabel}`
-            : `${otherLabel} → ${r.relationType || 'rel'}`;
-
-          li.addEventListener('click', () => {
-            setGraphWorkbenchSelection({ type: 'relation', id: r.id });
-            renderGraphWorkbench();
-          });
-
-          ul.appendChild(li);
-        });
-
-        dom.selectedBody.appendChild(ul);
-      }
-
-      renderRelList('Outgoing relations', out, '→');
-      renderRelList('Incoming relations', inc, '←');
-
-      // Save handler
       btnSave.addEventListener('click', () => {
         const fd = new FormData(form);
         const updated = {
@@ -3888,28 +3646,21 @@
         }
       });
 
-      // Delete handler (also delete connected relations)
       btnDelete.addEventListener('click', () => {
         const ok = window.confirm(
-          'Delete this entity AND all relations that reference it?\n\n' +
-          (entity.name || entity.id) +
-          '\n\nThis cannot be undone.'
+          'Delete this entity?
+
+' +
+            (entity.name || entity.id) +
+            '
+
+This cannot be undone.'
         );
         if (!ok) return;
 
         try {
-          // delete relations pointing to/from this entity
-          const rels = normaliseArray(snapshot.relations).filter(r =>
-            r && (r.fromEntityId === entity.id || r.toEntityId === entity.id)
-          );
-          rels.forEach(r => {
-            DomainService.deleteItem(snapshot, 'relations', r.id);
-          });
-
           DomainService.deleteItem(snapshot, 'entities', entity.id);
-
           setGraphWorkbenchSelection(null);
-
           saveSnapshot({ show: false });
           setStatus('Entity deleted');
           renderGraphWorkbench();
@@ -3921,190 +3672,6 @@
       return;
     }
 
-    // Relation selection
-    if (selectionType === 'relation') {
-      const rel = relationIndexAll.get(selection.id);
-      if (!rel) {
-        dom.selectedBody.textContent = 'Selected relation not found.';
-        return;
-      }
-
-      const from = entityIndexAll.get(rel.fromEntityId);
-      const to = entityIndexAll.get(rel.toEntityId);
-
-      const header = document.createElement('div');
-      header.className = 'graph-selected-header';
-
-      const titleWrap = document.createElement('div');
-      const title = document.createElement('p');
-      title.className = 'graph-selected-title';
-      title.textContent = rel.relationType || 'Relation';
-      const subtitle = document.createElement('p');
-      subtitle.className = 'graph-selected-subtitle';
-      subtitle.textContent = `Relation · ${rel.id}`;
-      titleWrap.appendChild(title);
-      titleWrap.appendChild(subtitle);
-
-      const actions = document.createElement('div');
-      const btnSave = document.createElement('button');
-      btnSave.className = 'btn btn-primary';
-      btnSave.type = 'button';
-      btnSave.textContent = 'Save';
-
-      const btnDelete = document.createElement('button');
-      btnDelete.className = 'btn btn-danger';
-      btnDelete.type = 'button';
-      btnDelete.textContent = 'Delete';
-
-      actions.appendChild(btnSave);
-      actions.appendChild(btnDelete);
-
-      header.appendChild(titleWrap);
-      header.appendChild(actions);
-      dom.selectedBody.appendChild(header);
-
-      // quick sandwich preview
-      const preview = document.createElement('div');
-      preview.className = 'card';
-      preview.style.padding = '10px';
-      preview.style.marginBottom = '10px';
-
-      const line = document.createElement('div');
-      line.style.display = 'flex';
-      line.style.gap = '8px';
-      line.style.flexWrap = 'wrap';
-      line.style.alignItems = 'center';
-
-      const fromChip = document.createElement('span');
-      fromChip.className = 'chip clickable';
-      fromChip.textContent = from ? (from.name || from.id) : rel.fromEntityId;
-      fromChip.addEventListener('click', () => {
-        setGraphWorkbenchSelection({ type: 'entity', id: rel.fromEntityId });
-        renderGraphWorkbench();
-      });
-
-      const mid = document.createElement('span');
-      mid.style.opacity = '0.8';
-      mid.textContent = `→ ${rel.relationType || 'rel'} →`;
-
-      const toChip = document.createElement('span');
-      toChip.className = 'chip clickable';
-      toChip.textContent = to ? (to.name || to.id) : rel.toEntityId;
-      toChip.addEventListener('click', () => {
-        setGraphWorkbenchSelection({ type: 'entity', id: rel.toEntityId });
-        renderGraphWorkbench();
-      });
-
-      line.appendChild(fromChip);
-      line.appendChild(mid);
-      line.appendChild(toChip);
-
-      preview.appendChild(line);
-      dom.selectedBody.appendChild(preview);
-
-      // form
-      const form = document.createElement('form');
-      form.className = 'graph-form';
-
-      function addInput(label, name, value, opts) {
-        const row = document.createElement('div');
-        row.className = 'form-row';
-        const l = document.createElement('label');
-        l.textContent = label;
-        const input = document.createElement('input');
-        input.className = 'form-control';
-        input.name = name;
-        input.value = value || '';
-        if (opts && opts.readOnly) input.readOnly = true;
-        row.appendChild(l);
-        row.appendChild(input);
-        form.appendChild(row);
-      }
-
-      function addTextarea(label, name, value, rows) {
-        const row = document.createElement('div');
-        row.className = 'form-row';
-        const l = document.createElement('label');
-        l.textContent = label;
-        const ta = document.createElement('textarea');
-        ta.className = 'form-control';
-        ta.name = name;
-        ta.rows = rows || 3;
-        ta.value = value || '';
-        row.appendChild(l);
-        row.appendChild(ta);
-        form.appendChild(row);
-      }
-
-      addInput('ID', 'id', rel.id, { readOnly: true });
-      addInput('Movement ID', 'movementId', rel.movementId || '', {});
-      addInput('From entity ID', 'fromEntityId', rel.fromEntityId || '', {});
-      addInput('To entity ID', 'toEntityId', rel.toEntityId || '', {});
-      addInput('Relation type', 'relationType', rel.relationType || '', {});
-      addInput('Tags (csv)', 'tags', normaliseArray(rel.tags).join(', '), {});
-      addInput('Supporting claim IDs (csv)', 'supportingClaimIds', normaliseArray(rel.supportingClaimIds).join(', '), {});
-      addInput('Sources of truth (csv)', 'sourcesOfTruth', normaliseArray(rel.sourcesOfTruth).join(', '), {});
-      addInput('Source entity IDs (csv)', 'sourceEntityIds', normaliseArray(rel.sourceEntityIds).join(', '), {});
-      addTextarea('Notes', 'notes', rel.notes || '', 3);
-
-      dom.selectedBody.appendChild(form);
-
-      btnSave.addEventListener('click', () => {
-        const fd = new FormData(form);
-
-        const updated = {
-          ...rel,
-          movementId: (fd.get('movementId') || '').toString().trim() || null,
-          fromEntityId: (fd.get('fromEntityId') || '').toString().trim(),
-          toEntityId: (fd.get('toEntityId') || '').toString().trim(),
-          relationType: (fd.get('relationType') || '').toString().trim() || rel.relationType,
-          tags: parseCsvInput((fd.get('tags') || '').toString()),
-          supportingClaimIds: parseCsvInput((fd.get('supportingClaimIds') || '').toString()),
-          sourcesOfTruth: parseCsvInput((fd.get('sourcesOfTruth') || '').toString()),
-          sourceEntityIds: parseCsvInput((fd.get('sourceEntityIds') || '').toString()),
-          notes: (fd.get('notes') || '').toString().trim() || null
-        };
-
-        // basic validation: endpoints must exist in *current* graph dataset
-        if (!updated.fromEntityId || !updated.toEntityId) {
-          alert('Relation must have fromEntityId and toEntityId.');
-          return;
-        }
-
-        try {
-          DomainService.upsertItem(snapshot, 'relations', updated);
-          saveSnapshot({ show: false });
-          setStatus('Relation saved');
-          renderGraphWorkbench();
-        } catch (err) {
-          alert(err instanceof Error ? err.message : 'Failed to save relation');
-        }
-      });
-
-      btnDelete.addEventListener('click', () => {
-        const ok = window.confirm(
-          'Delete this relation?\n\n' +
-          (rel.relationType || rel.id) +
-          '\n\nThis cannot be undone.'
-        );
-        if (!ok) return;
-
-        try {
-          DomainService.deleteItem(snapshot, 'relations', rel.id);
-          setGraphWorkbenchSelection(null);
-          saveSnapshot({ show: false });
-          setStatus('Relation deleted');
-          renderGraphWorkbench();
-        } catch (err) {
-          alert(err instanceof Error ? err.message : 'Failed to delete relation');
-        }
-      });
-
-      return;
-    }
-
-    // Other node types
-    const nodeIndex = new Map(normaliseArray(baseGraphNodes).map(n => [n.id, n]));
     const node = nodeIndex.get(selection.id);
 
     if (node) {
@@ -4174,9 +3741,8 @@
     const baseNodeIds = new Set(normaliseArray(baseGraph.nodes).map(n => n.id));
     const baseEdgeIds = new Set(normaliseArray(baseGraph.edges).map(e => e.id));
 
-    const { visibleEntities, visibleRelations, entityById } = getGraphDatasetForCurrentMovement();
+    const { visibleEntities, entityById } = getGraphDatasetForCurrentMovement();
     const entityIds = new Set(visibleEntities.map(e => e.id));
-    const relationIds = new Set(visibleRelations.map(r => r.id));
 
     if (graphWorkbenchState.selection) {
       const sel = graphWorkbenchState.selection;
@@ -4187,8 +3753,8 @@
         if (!exists) {
           setGraphWorkbenchSelection(null);
         }
-      } else if (selType === 'relation') {
-        const exists = relationIds.has(sel.id) || baseEdgeIds.has(sel.id);
+      } else if (selType === 'edge') {
+        const exists = baseEdgeIds.has(sel.id);
         if (!exists) {
           setGraphWorkbenchSelection(null);
         }
@@ -4199,7 +3765,7 @@
 
     renderGraphWorkbenchFilters(dom, baseGraph);
 
-    // Build datalist options (kinds + relation types)
+    // Build datalist options (kinds)
     const kinds = uniqueSorted(visibleEntities.map(e => e.kind));
     clearElement(dom.entityKindDatalist);
     kinds.forEach(k => {
@@ -4208,63 +3774,9 @@
       dom.entityKindDatalist.appendChild(opt);
     });
 
-    const relTypes = uniqueSorted(visibleRelations.map(r => r.relationType));
-    clearElement(dom.relationTypeDatalist);
-    relTypes.forEach(t => {
-      const opt = document.createElement('option');
-      opt.value = t;
-      dom.relationTypeDatalist.appendChild(opt);
-    });
-
-    // Relation target dropdown
-    const sel = graphWorkbenchState.selection;
-    const selectedEntityId = sel && sel.type === 'entity' ? sel.id : null;
-
-    clearElement(dom.createRelationTarget);
-    const placeholder = document.createElement('option');
-    placeholder.value = '';
-    placeholder.textContent = selectedEntityId ? 'Select target entity…' : 'Select an entity first…';
-    dom.createRelationTarget.appendChild(placeholder);
-
-    if (selectedEntityId) {
-      // group by kind for readability
-      const byKind = new Map();
-      visibleEntities.forEach(e => {
-        if (!e || e.id === selectedEntityId) return;
-        const k = e.kind || '—';
-        if (!byKind.has(k)) byKind.set(k, []);
-        byKind.get(k).push(e);
-      });
-
-      Array.from(byKind.keys()).sort().forEach(kind => {
-        const og = document.createElement('optgroup');
-        og.label = kind;
-        byKind.get(kind)
-          .slice()
-          .sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id))
-          .forEach(e => {
-            const opt = document.createElement('option');
-            opt.value = e.id;
-            opt.textContent = (e.name || e.id) + ` (${e.id})`;
-            og.appendChild(opt);
-          });
-        dom.createRelationTarget.appendChild(og);
-      });
-
-      dom.createRelationHint.textContent = 'Create a relation relative to the currently selected entity.';
-      dom.createRelationForm.querySelectorAll('input,select,textarea,button').forEach(el => {
-        el.disabled = false;
-      });
-    } else {
-      dom.createRelationHint.textContent = 'Select an entity in the graph to create a relation from/to it.';
-      dom.createRelationForm.querySelectorAll('input,select,textarea,button').forEach(el => {
-        el.disabled = true;
-      });
-    }
-
     // Render search + selected panels
     renderGraphSearch(dom, baseGraph.nodes);
-    renderSelected(dom, visibleEntities, visibleRelations, entityById, baseGraph.nodes);
+    renderSelected(dom, visibleEntities, entityById, baseGraph);
 
     // Render graph
     if (!workbenchGraphView) {
@@ -4276,9 +3788,7 @@
           renderGraphWorkbench();
         },
         onLinkClick: id => {
-          const relIndex = buildRelationIndex(normaliseArray(snapshot.relations));
-          const type = relIndex.has(id) ? 'relation' : 'edge';
-          setGraphWorkbenchSelection({ type, id });
+          setGraphWorkbenchSelection({ type: 'edge', id });
           renderGraphWorkbench();
         },
         onBackgroundClick: () => {
@@ -4300,19 +3810,15 @@
 
     const selectedNodeIdForGraph =
       graphWorkbenchState.selection &&
-      selectedType !== 'relation' &&
       selectedType !== 'edge'
         ? graphWorkbenchState.selection.id
         : null;
-
-    const selectedRelationIdForGraph =
-      selectedType === 'relation' ? graphWorkbenchState.selection.id : null;
 
     graphWorkbenchState.focusEntityId = graphWorkbenchState.filterCenterId;
 
     workbenchGraphView.render(dom.canvas, filteredGraph, {
       selectedEntityId: selectedNodeIdForGraph,
-      selectedRelationId: selectedRelationIdForGraph,
+      selectedEdgeId: selectedType === 'edge' ? graphWorkbenchState.selection.id : null,
       focusEntityId: graphWorkbenchState.filterCenterId
     });
   }
@@ -4955,17 +4461,6 @@
       { label: 'Context', key: 'context', type: 'paragraph' },
       { label: 'Body', key: 'body', type: 'paragraph' },
       { label: 'Tags', key: 'tags', type: 'chips' }
-    ],
-    relations: [
-      { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
-      { label: 'From', key: 'fromEntityId', type: 'id', ref: 'entities' },
-      { label: 'To', key: 'toEntityId', type: 'id', ref: 'entities' },
-      { label: 'Type', key: 'relationType' },
-      { label: 'Tags', key: 'tags', type: 'chips' },
-      { label: 'Supporting claims', key: 'supportingClaimIds', type: 'idList', ref: 'claims' },
-      { label: 'Sources of truth', key: 'sourcesOfTruth', type: 'chips' },
-      { label: 'Source entities', key: 'sourceEntityIds', type: 'idList', ref: 'entities' },
-      { label: 'Notes', key: 'notes', type: 'paragraph' }
     ]
   };
 
@@ -5674,7 +5169,7 @@
       });
     }
 
-    // Calendar / claims / rules / media / relations / notes filters react on change
+    // Calendar / claims / rules / media / notes filters react on change
     const calendarFilter = document.getElementById(
       'calendar-recurrence-filter'
     );
@@ -5718,19 +5213,6 @@
         el.addEventListener('change', renderMediaView);
       }
     });
-
-    const relTypeFilter = document.getElementById(
-      'relations-type-filter'
-    );
-    const relEntFilter = document.getElementById(
-      'relations-entity-filter'
-    );
-    if (relTypeFilter) {
-      relTypeFilter.addEventListener('change', renderRelationsView);
-    }
-    if (relEntFilter) {
-      relEntFilter.addEventListener('change', renderRelationsView);
-    }
 
     const notesTypeFilter = document.getElementById(
       'notes-target-type-filter'

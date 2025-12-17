@@ -19,8 +19,7 @@
     'rules',
     'claims',
     'media',
-    'notes',
-    'relations'
+    'notes'
   ];
 
   const COLLECTIONS_WITH_MOVEMENT_ID = new Set([
@@ -32,8 +31,7 @@
     'rules',
     'claims',
     'media',
-    'notes',
-    'relations'
+    'notes'
   ]);
 
   function createEmptySnapshot() {
@@ -71,6 +69,7 @@
 
   function ensureAllCollections(data) {
     const obj = data || {};
+    delete obj.relations;
     COLLECTION_NAMES.forEach(name => {
       if (!Array.isArray(obj[name])) obj[name] = [];
     });

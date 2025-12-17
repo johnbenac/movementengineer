@@ -291,8 +291,7 @@ function applyTemplateToMovement(data, template, options) {
     rules: normaliseArray(srcData.rules).slice(),
     claims: normaliseArray(srcData.claims).slice(),
     media: normaliseArray(srcData.media).slice(),
-    notes: normaliseArray(srcData.notes).slice(),
-    relations: normaliseArray(srcData.relations).slice()
+    notes: normaliseArray(srcData.notes).slice()
   };
 
   const rules = normaliseArray(tmpl.rules);
