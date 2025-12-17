@@ -85,9 +85,18 @@
 
     const list = document.createElement('ul');
     list.className = 'edge-list';
-    vm.links.forEach(edge => {
-      const from = vm.nodes.find(n => n.id === edge.source.id);
-      const to = vm.nodes.find(n => n.id === edge.target.id);
+    const nodesById = new Map(vm.nodes.map(n => [n.id, n]));
+    const sortedLinks = [...vm.links].sort((a, b) => {
+      const fromA = nodesById.get(a.source.id);
+      const fromB = nodesById.get(b.source.id);
+      const labelA = (fromA?.name || a.source.id || '').toLowerCase();
+      const labelB = (fromB?.name || b.source.id || '').toLowerCase();
+      return labelA.localeCompare(labelB);
+    });
+
+    sortedLinks.forEach(edge => {
+      const from = nodesById.get(edge.source.id);
+      const to = nodesById.get(edge.target.id);
       const li = document.createElement('li');
       li.textContent = `${from ? from.name : edge.source.id} — ${edge.relationType} → ${
         to ? to.name : edge.target.id
