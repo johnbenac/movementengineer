@@ -28,7 +28,7 @@
     rightWidth: 420,
     searchKind: 'all',
     searchQuery: '',
-    selection: null, // { type: 'entity'|'relation', id }
+    selection: null, // { type: 'entity'|'edge', id }
     focusEntityId: null,
     filterCenterId: null,
     filterDepth: null,
@@ -311,7 +311,6 @@
       case 'authority':
       case 'media':
       case 'graph':
-      case 'relations':
       case 'notes':
         renderMovementSection(tabName);
         break;
@@ -506,7 +505,6 @@
         authority: $('#authority-sources'),
         media: $('#media-gallery'),
         graph: $('#graph-workbench-root'),
-        relations: $('#relations-table-wrapper'),
         notes: $('#notes-table-wrapper')
       };
       const target = containers[name];
@@ -548,9 +546,6 @@
         break;
       case 'graph':
         renderGraphWorkbench();
-        break;
-      case 'relations':
-        renderRelationsView();
         break;
       case 'notes':
         renderNotesView();
@@ -1427,24 +1422,24 @@
       });
     }
 
-    if (
-      (vm.relationsOut && vm.relationsOut.length) ||
-      (vm.relationsIn && vm.relationsIn.length)
-    ) {
-      mkSection('Relations', section => {
+    if (vm.connections && vm.connections.length) {
+      mkSection('Connections (derived)', section => {
         const ul = document.createElement('ul');
-        vm.relationsOut.forEach(r => {
+        vm.connections.forEach(conn => {
           const li = document.createElement('li');
-          li.textContent = `→ ${r.relationType} → ${r.to.name}`;
-          li.style.cursor = 'pointer';
-          li.addEventListener('click', () => jumpToEntity(r.to.id));
-          ul.appendChild(li);
-        });
-        vm.relationsIn.forEach(r => {
-          const li = document.createElement('li');
-          li.textContent = `← ${r.relationType} ← ${r.from.name}`;
-          li.style.cursor = 'pointer';
-          li.addEventListener('click', () => jumpToEntity(r.from.id));
+          const arrow = conn.direction === 'out' ? '→' : '←';
+          const label = `${arrow} ${conn.relationType} ${arrow} ${conn.node.name || conn.node.id}`;
+          li.textContent = label;
+          if (conn.node.type === 'Entity') {
+            li.style.cursor = 'pointer';
+            li.addEventListener('click', () => jumpToEntity(conn.node.id));
+          }
+          if (conn.source) {
+            const hint = document.createElement('div');
+            hint.className = 'hint';
+            hint.textContent = `Derived from ${conn.source.collection} ${conn.source.id} (${conn.source.field})`;
+            li.appendChild(hint);
+          }
           ul.appendChild(li);
         });
         section.appendChild(ul);
@@ -2062,8 +2057,7 @@
           `Claims: ${s.usedByClaims.length}`,
           `Rules: ${s.usedByRules.length}`,
           `Practices: ${s.usedByPractices.length}`,
-          `Entities: ${s.usedByEntities.length}`,
-          `Relations: ${s.usedByRelations.length}`
+          `Entities: ${s.usedByEntities.length}`
         ].join(' · ');
         card.appendChild(meta);
 
@@ -2092,8 +2086,7 @@
           `Claims: ${e.usedAsSourceIn.claims.length}`,
           `Rules: ${e.usedAsSourceIn.rules.length}`,
           `Practices: ${e.usedAsSourceIn.practices.length}`,
-          `Entities: ${e.usedAsSourceIn.entities.length}`,
-          `Relations: ${e.usedAsSourceIn.relations.length}`
+          `Entities: ${e.usedAsSourceIn.entities.length}`
         ].join(' · ');
         card.appendChild(meta);
 
@@ -2287,1586 +2280,129 @@
     });
   }
 
-  // ---- Relations (buildRelationExplorerViewModel) ----
-
-  function renderRelationsView() {
-    const wrapper = document.getElementById('relations-table-wrapper');
-    const typeSelect = document.getElementById('relations-type-filter');
-    const entSelect = document.getElementById('relations-entity-filter');
-    if (!wrapper || !typeSelect || !entSelect) return;
-    clearElement(wrapper);
-
-    const allRelations = (snapshot.relations || []).filter(
-      r => r.movementId === currentMovementId
-    );
-    const relationTypes = Array.from(
-      new Set(allRelations.map(r => r.relationType).filter(Boolean))
-    ).sort();
-
-    const entities = (snapshot.entities || []).filter(
-      e => e.movementId === currentMovementId
-    );
-
-    ensureSelectOptions(
-      typeSelect,
-      relationTypes.map(t => ({ value: t, label: t })),
-      'All'
-    );
-    ensureSelectOptions(
-      entSelect,
-      entities
-        .slice()
-        .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
-        .map(e => ({ value: e.id, label: e.name || e.id })),
-      'Any'
-    );
-
-    const typeVal = typeSelect.value || '';
-    const entVal = entSelect.value || '';
-
-    const vm = ViewModels.buildRelationExplorerViewModel(snapshot, {
-      movementId: currentMovementId,
-      relationTypeFilter: typeVal ? [typeVal] : [],
-      entityIdFilter: entVal || null
-    });
-
-    if (!vm.relations || vm.relations.length === 0) {
-      const p = document.createElement('p');
-      p.className = 'hint';
-      p.textContent = 'No relations match this filter.';
-      wrapper.appendChild(p);
-      return;
-    }
-
-    const table = document.createElement('table');
-    const headerRow = document.createElement('tr');
-    ['Type', 'From', 'To', 'Tags', 'Supporting claims', 'Sources of truth'].forEach(
-      h => {
-        const th = document.createElement('th');
-        th.textContent = h;
-        headerRow.appendChild(th);
-      }
-    );
-    table.appendChild(headerRow);
-
-    vm.relations.forEach(r => {
-      const tr = document.createElement('tr');
-
-      const tdType = document.createElement('td');
-      tdType.textContent = r.relationType;
-      tr.appendChild(tdType);
-
-      const tdFrom = document.createElement('td');
-      const fromLink = document.createElement('a');
-      fromLink.href = '#';
-      fromLink.textContent = r.from.name || r.from.id;
-      fromLink.className = 'entity-link';
-      fromLink.addEventListener('click', ev => {
-        ev.preventDefault();
-        jumpToEntity(r.from.id);
-      });
-      tdFrom.appendChild(fromLink);
-      tr.appendChild(tdFrom);
-
-      const tdTo = document.createElement('td');
-      const toLink = document.createElement('a');
-      toLink.href = '#';
-      toLink.textContent = r.to.name || r.to.id;
-      toLink.className = 'entity-link';
-      toLink.addEventListener('click', ev => {
-        ev.preventDefault();
-        jumpToEntity(r.to.id);
-      });
-      tdTo.appendChild(toLink);
-      tr.appendChild(tdTo);
-
-      const tdTags = document.createElement('td');
-      tdTags.textContent = (r.tags || []).join(', ');
-      tr.appendChild(tdTags);
-
-      const tdClaims = document.createElement('td');
-      if (r.supportingClaims && r.supportingClaims.length) {
-        const ul = document.createElement('ul');
-        r.supportingClaims.forEach(c => {
-          const li = document.createElement('li');
-          li.textContent = c.text;
-          ul.appendChild(li);
-        });
-        tdClaims.appendChild(ul);
-      }
-      tr.appendChild(tdClaims);
-
-      const tdSources = document.createElement('td');
-      tdSources.textContent = (r.sourcesOfTruth || []).join(', ');
-      tr.appendChild(tdSources);
-
-      table.appendChild(tr);
-    });
-
-    wrapper.appendChild(table);
-  }
-
-  // ============================================================
-  // Graph Workbench (Entities + Relations) — Ontorum-style panes
-  // ============================================================
-
-  function normaliseArray(value) {
-    return Array.isArray(value) ? value : [];
-  }
-
-  function uniqueSorted(values) {
-    return Array.from(new Set(values.filter(Boolean))).sort((a, b) =>
-      String(a).localeCompare(String(b), undefined, { sensitivity: 'base' })
-    );
-  }
-
-  const GRAPH_NODE_TYPE_LABELS = {
-    Entity: 'Entity',
-    TextCollection: 'Canon collection',
-    TextNode: 'Canon text',
-    Practice: 'Practice',
-    Event: 'Calendar event',
-    Rule: 'Rule',
-    Claim: 'Claim',
-    MediaAsset: 'Media',
-    Note: 'Note'
-  };
-
-  const labelForNodeType = type => GRAPH_NODE_TYPE_LABELS[type] || type || 'Unknown';
-
-  const GRAPH_NODE_EDIT_CONFIG = {
-    textcollection: {
-      collection: 'textCollections',
-      label: 'Canon collection',
-      fields: [
-        { label: 'ID', name: 'id', readOnly: true },
-        { label: 'Movement ID', name: 'movementId' },
-        { label: 'Name', name: 'name' },
-        { label: 'Description', name: 'description', type: 'textarea', rows: 3, nullable: true },
-        { label: 'Tags (csv)', name: 'tags', type: 'csv' },
-        { label: 'Root text IDs (csv)', name: 'rootTextIds', type: 'csv' }
-      ]
-    },
-    textnode: {
-      collection: 'texts',
-      label: 'Canon text',
-      fields: [
-        { label: 'ID', name: 'id', readOnly: true },
-        { label: 'Movement ID', name: 'movementId' },
-        { label: 'Parent ID', name: 'parentId', nullable: true },
-        { label: 'Level', name: 'level' },
-        { label: 'Title', name: 'title' },
-        { label: 'Label', name: 'label' },
-        { label: 'Content', name: 'content', type: 'textarea', rows: 4, nullable: true },
-        { label: 'Main function', name: 'mainFunction', nullable: true },
-        { label: 'Tags (csv)', name: 'tags', type: 'csv' },
-        { label: 'Mentions entity IDs (csv)', name: 'mentionsEntityIds', type: 'csv' }
-      ]
-    },
-    practice: {
-      collection: 'practices',
-      label: 'Practice',
-      fields: [
-        { label: 'ID', name: 'id', readOnly: true },
-        { label: 'Movement ID', name: 'movementId' },
-        { label: 'Name', name: 'name' },
-        { label: 'Kind', name: 'kind', nullable: true },
-        { label: 'Description', name: 'description', type: 'textarea', rows: 3, nullable: true },
-        { label: 'Frequency', name: 'frequency', nullable: true },
-        { label: 'Is public', name: 'isPublic', type: 'checkbox' },
-        { label: 'Notes', name: 'notes', type: 'textarea', rows: 3, nullable: true },
-        { label: 'Tags (csv)', name: 'tags', type: 'csv' },
-        { label: 'Involved entity IDs (csv)', name: 'involvedEntityIds', type: 'csv' },
-        { label: 'Instruction text IDs (csv)', name: 'instructionsTextIds', type: 'csv' },
-        { label: 'Supporting claim IDs (csv)', name: 'supportingClaimIds', type: 'csv' },
-        { label: 'Sources of truth (csv)', name: 'sourcesOfTruth', type: 'csv' },
-        { label: 'Source entity IDs (csv)', name: 'sourceEntityIds', type: 'csv' }
-      ]
-    },
-    event: {
-      collection: 'events',
-      label: 'Calendar event',
-      fields: [
-        { label: 'ID', name: 'id', readOnly: true },
-        { label: 'Movement ID', name: 'movementId' },
-        { label: 'Name', name: 'name' },
-        { label: 'Description', name: 'description', type: 'textarea', rows: 3, nullable: true },
-        { label: 'Recurrence', name: 'recurrence', nullable: true },
-        { label: 'Timing rule', name: 'timingRule', nullable: true },
-        { label: 'Notes', name: 'notes', type: 'textarea', rows: 3, nullable: true },
-        { label: 'Tags (csv)', name: 'tags', type: 'csv' },
-        { label: 'Main practice IDs (csv)', name: 'mainPracticeIds', type: 'csv' },
-        { label: 'Main entity IDs (csv)', name: 'mainEntityIds', type: 'csv' },
-        { label: 'Reading text IDs (csv)', name: 'readingTextIds', type: 'csv' },
-        { label: 'Supporting claim IDs (csv)', name: 'supportingClaimIds', type: 'csv' }
-      ]
-    },
-    rule: {
-      collection: 'rules',
-      label: 'Rule',
-      fields: [
-        { label: 'ID', name: 'id', readOnly: true },
-        { label: 'Movement ID', name: 'movementId' },
-        { label: 'Short text', name: 'shortText' },
-        { label: 'Kind', name: 'kind', nullable: true },
-        { label: 'Details', name: 'details', type: 'textarea', rows: 3, nullable: true },
-        { label: 'Applies to (csv)', name: 'appliesTo', type: 'csv' },
-        { label: 'Domain (csv)', name: 'domain', type: 'csv' },
-        { label: 'Tags (csv)', name: 'tags', type: 'csv' },
-        { label: 'Supporting text IDs (csv)', name: 'supportingTextIds', type: 'csv' },
-        { label: 'Supporting claim IDs (csv)', name: 'supportingClaimIds', type: 'csv' },
-        { label: 'Related practice IDs (csv)', name: 'relatedPracticeIds', type: 'csv' },
-        { label: 'Sources of truth (csv)', name: 'sourcesOfTruth', type: 'csv' },
-        { label: 'Source entity IDs (csv)', name: 'sourceEntityIds', type: 'csv' }
-      ]
-    },
-    claim: {
-      collection: 'claims',
-      label: 'Claim',
-      fields: [
-        { label: 'ID', name: 'id', readOnly: true },
-        { label: 'Movement ID', name: 'movementId' },
-        { label: 'Text', name: 'text', type: 'textarea', rows: 3 },
-        { label: 'Category', name: 'category', nullable: true },
-        { label: 'Tags (csv)', name: 'tags', type: 'csv' },
-        { label: 'Source text IDs (csv)', name: 'sourceTextIds', type: 'csv' },
-        { label: 'About entity IDs (csv)', name: 'aboutEntityIds', type: 'csv' },
-        { label: 'Sources of truth (csv)', name: 'sourcesOfTruth', type: 'csv' },
-        { label: 'Source entity IDs (csv)', name: 'sourceEntityIds', type: 'csv' },
-        { label: 'Notes', name: 'notes', type: 'textarea', rows: 3, nullable: true }
-      ]
-    },
-    mediaasset: {
-      collection: 'media',
-      label: 'Media',
-      fields: [
-        { label: 'ID', name: 'id', readOnly: true },
-        { label: 'Movement ID', name: 'movementId' },
-        { label: 'Kind', name: 'kind', nullable: true },
-        { label: 'URI', name: 'uri' },
-        { label: 'Title', name: 'title' },
-        { label: 'Description', name: 'description', type: 'textarea', rows: 3, nullable: true },
-        { label: 'Tags (csv)', name: 'tags', type: 'csv' },
-        { label: 'Linked entity IDs (csv)', name: 'linkedEntityIds', type: 'csv' },
-        { label: 'Linked practice IDs (csv)', name: 'linkedPracticeIds', type: 'csv' },
-        { label: 'Linked event IDs (csv)', name: 'linkedEventIds', type: 'csv' },
-        { label: 'Linked text IDs (csv)', name: 'linkedTextIds', type: 'csv' }
-      ]
-    },
-    note: {
-      collection: 'notes',
-      label: 'Note',
-      fields: [
-        { label: 'ID', name: 'id', readOnly: true },
-        { label: 'Movement ID', name: 'movementId' },
-        { label: 'Target type', name: 'targetType' },
-        { label: 'Target ID', name: 'targetId' },
-        { label: 'Author', name: 'author', nullable: true },
-        { label: 'Body', name: 'body', type: 'textarea', rows: 3 },
-        { label: 'Context', name: 'context', type: 'textarea', rows: 2, nullable: true },
-        { label: 'Tags (csv)', name: 'tags', type: 'csv' }
-      ]
-    }
-  };
-
-  function buildEntityIndex(entities) {
-    const map = new Map();
-    (entities || []).forEach(e => {
-      if (e && e.id) map.set(e.id, e);
-    });
-    return map;
-  }
-
-  function buildRelationIndex(relations) {
-    const map = new Map();
-    (relations || []).forEach(r => {
-      if (r && r.id) map.set(r.id, r);
-    });
-    return map;
-  }
-
-  function getGraphDatasetForCurrentMovement() {
-    const movementId = currentMovementId;
-
-    const allEntities = normaliseArray(snapshot && snapshot.entities);
-    const allRelations = normaliseArray(snapshot && snapshot.relations);
-
-    const visibleEntities = allEntities.filter(
-      e => e && e.movementId === movementId
-    );
-
-    const entityById = buildEntityIndex(visibleEntities);
-
-    const visibleRelations = allRelations.filter(r => {
-      if (!r) return false;
-      if (r.movementId !== movementId) return false;
-      if (!r.fromEntityId || !r.toEntityId) return false;
-      return entityById.has(r.fromEntityId) && entityById.has(r.toEntityId);
-    });
-
-    return { visibleEntities, visibleRelations, entityById };
-  }
+  // ---- Graph workbench (derived edges) ----
 
   function ensureGraphWorkbenchDom() {
     const root = document.getElementById('graph-workbench-root');
     if (!root) return null;
-
-    if (graphWorkbenchDom && graphWorkbenchDom.root === root) {
-      return graphWorkbenchDom;
-    }
+    if (graphWorkbenchDom && graphWorkbenchDom.root === root) return graphWorkbenchDom;
 
     root.innerHTML = `
-      <div id="graph-workbench" class="graph-workbench"
-           style="--graph-left-width:${graphWorkbenchState.leftWidth}px; --graph-right-width:${graphWorkbenchState.rightWidth}px;">
+      <div class="graph-workbench">
         <div class="graph-pane">
-          <div class="graph-resize-handle left" title="Drag to resize"></div>
-          <div class="pane-inner">
-
-            <details id="gw-create-entity" open>
-              <summary>Add Entity</summary>
-              <div class="details-body">
-                <form id="gw-add-entity-form" class="graph-form">
-                  <div class="form-row">
-                    <label>Name *</label>
-                    <input id="gw-add-entity-name" class="form-control" type="text" required />
-                  </div>
-
-                  <div class="form-row">
-                    <label>Kind</label>
-                    <input id="gw-add-entity-kind" class="form-control" list="gw-entity-kind-options" placeholder="e.g. being, place, object..." />
-                    <datalist id="gw-entity-kind-options"></datalist>
-                  </div>
-
-                  <div class="form-row">
-                    <label>Summary</label>
-                    <textarea id="gw-add-entity-summary" class="form-control" rows="3"></textarea>
-                  </div>
-
-                  <div class="form-row">
-                    <label>Tags (comma separated)</label>
-                    <input id="gw-add-entity-tags" class="form-control" type="text" placeholder="tag1, tag2" />
-                  </div>
-
-                  <div class="form-row">
-                    <label>Sources of truth (comma separated)</label>
-                    <input id="gw-add-entity-sources" class="form-control" type="text" placeholder="book, tradition, archive..." />
-                  </div>
-
-                  <div class="form-row">
-                    <label>Source entity IDs (comma separated)</label>
-                    <input id="gw-add-entity-source-entities" class="form-control" type="text" placeholder="ent-123, ent-456" />
-                    <div class="hint">Tip: use the Search pane to copy IDs.</div>
-                  </div>
-
-                  <div class="form-row">
-                    <label>Notes</label>
-                    <textarea id="gw-add-entity-notes" class="form-control" rows="3"></textarea>
-                  </div>
-
-                  <div class="form-row inline">
-                    <button class="btn btn-primary" type="submit">Create Entity</button>
-                  </div>
-                </form>
-              </div>
-            </details>
-
-            <details id="gw-create-relation">
-              <summary>Add Relation</summary>
-              <div class="details-body">
-                <div id="gw-add-relation-hint" class="hint">
-                  Select an entity in the graph to create a relation from/to it.
-                </div>
-
-                <form id="gw-add-relation-form" class="graph-form">
-                  <div class="form-row">
-                    <label>Direction</label>
-                    <div class="form-row inline" style="margin-bottom:0;">
-                      <label style="flex:none;">
-                        <input type="radio" name="gw-rel-direction" value="outgoing" checked />
-                        Outgoing (selected → target)
-                      </label>
-                      <label style="flex:none;">
-                        <input type="radio" name="gw-rel-direction" value="incoming" />
-                        Incoming (source → selected)
-                      </label>
-                    </div>
-                  </div>
-
-                  <div class="form-row">
-                    <label>Relation type *</label>
-                    <input id="gw-add-relation-type" class="form-control" list="gw-relation-type-options" required placeholder="e.g. inspired_by, teacher_of..." />
-                    <datalist id="gw-relation-type-options"></datalist>
-                  </div>
-
-                  <div class="form-row">
-                    <label>Target entity *</label>
-                    <select id="gw-add-relation-target" class="form-control" required></select>
-                  </div>
-
-                  <div class="form-row">
-                    <label>Tags (comma separated)</label>
-                    <input id="gw-add-relation-tags" class="form-control" type="text" placeholder="tag1, tag2" />
-                  </div>
-
-                  <div class="form-row">
-                    <label>Supporting claim IDs (comma separated)</label>
-                    <input id="gw-add-relation-claims" class="form-control" type="text" placeholder="claim-1, claim-2" />
-                  </div>
-
-                  <div class="form-row">
-                    <label>Sources of truth (comma separated)</label>
-                    <input id="gw-add-relation-sources" class="form-control" type="text" placeholder="book, tradition, archive..." />
-                  </div>
-
-                  <div class="form-row">
-                    <label>Source entity IDs (comma separated)</label>
-                    <input id="gw-add-relation-source-entities" class="form-control" type="text" placeholder="ent-123, ent-456" />
-                  </div>
-
-                  <div class="form-row">
-                    <label>Notes</label>
-                    <textarea id="gw-add-relation-notes" class="form-control" rows="3"></textarea>
-                  </div>
-
-                  <div class="form-row inline">
-                    <button class="btn btn-primary" type="submit" id="gw-add-relation-submit">Create Relation</button>
-                  </div>
-                </form>
-              </div>
-            </details>
-
+          <div class="subtab-toolbar">
+            <label>
+              Center:
+              <select id="graph-workbench-center"></select>
+            </label>
+            <label>
+              Depth:
+              <input id="graph-workbench-depth" type="number" min="1" placeholder="all" />
+            </label>
           </div>
+          <div id="graph-workbench-canvas" class="graph-canvas"></div>
         </div>
-
-        <div class="graph-pane">
+        <div class="graph-sidepane">
           <div class="pane-inner">
-            <div class="graph-toolbar">
-              <span class="toolbar-spacer"></span>
-
-              <button class="btn" type="button" id="gw-fit-btn">Fit</button>
-              <button class="btn" type="button" id="gw-clear-selection-btn">Clear</button>
-            </div>
-
-            <div id="gw-canvas" class="graph-canvas card"></div>
-          </div>
-        </div>
-
-        <div class="graph-pane">
-          <div class="graph-resize-handle right" title="Drag to resize"></div>
-          <div class="pane-inner">
-
-            <details id="gw-filters" open>
-              <summary>Filters</summary>
-              <div class="details-body">
-                <div class="card">
-                  <div class="form-row">
-                    <label>Center node</label>
-                    <div id="gw-filter-center-label" class="hint">No center selected; showing full graph.</div>
-                    <div class="form-row inline" style="margin-bottom:0;">
-                      <button class="btn" type="button" id="gw-filter-use-selection">Use selected</button>
-                      <button class="btn" type="button" id="gw-filter-clear-center">Clear</button>
-                    </div>
-                  </div>
-
-                  <div class="form-row inline" style="align-items:flex-end;">
-                    <div style="flex:1;">
-                      <label>Hops</label>
-                      <input id="gw-filter-depth" class="form-control" type="number" min="0" step="1" placeholder="∞ (no limit)" />
-                    </div>
-                    <button class="btn" type="button" id="gw-filter-depth-clear" title="No hop limit">∞</button>
-                  </div>
-
-                  <div class="form-row">
-                    <label>Node types</label>
-                    <div id="gw-filter-types" class="chip-row wrap"></div>
-                    <div class="hint">Select none to show all node types.</div>
-                  </div>
-
-                  <div class="form-row inline">
-                    <button class="btn" type="button" id="gw-filter-reset">Reset filters</button>
-                  </div>
-                </div>
-              </div>
-            </details>
-
-            <details id="gw-search" open>
-              <summary>Search</summary>
-              <div class="details-body">
-                <div class="search-panel card">
-                  <div class="search-controls">
-                    <select id="gw-search-kind" class="form-control"></select>
-                    <input id="gw-search-query" class="form-control" type="text" placeholder="Search by name/summary..." />
-                  </div>
-                  <ul id="gw-search-results" class="graph-search-results"></ul>
-                </div>
-              </div>
-            </details>
-
-            <details id="gw-selected" open>
-              <summary>Selected</summary>
-              <div class="details-body">
-                <div id="gw-selected-body" class="card graph-selected-body"></div>
-              </div>
-            </details>
-
+            <h3>Selection</h3>
+            <div id="graph-workbench-selection"></div>
           </div>
         </div>
       </div>
     `;
 
-    const dom = {
+    graphWorkbenchDom = {
       root,
-      workbench: document.getElementById('graph-workbench'),
-      canvas: document.getElementById('gw-canvas'),
-      fitBtn: document.getElementById('gw-fit-btn'),
-      clearBtn: document.getElementById('gw-clear-selection-btn'),
-
-      filterCenterLabel: document.getElementById('gw-filter-center-label'),
-      filterUseSelection: document.getElementById('gw-filter-use-selection'),
-      filterClearCenter: document.getElementById('gw-filter-clear-center'),
-      filterDepth: document.getElementById('gw-filter-depth'),
-      filterDepthClear: document.getElementById('gw-filter-depth-clear'),
-      filterTypes: document.getElementById('gw-filter-types'),
-      filterReset: document.getElementById('gw-filter-reset'),
-
-      searchKind: document.getElementById('gw-search-kind'),
-      searchQuery: document.getElementById('gw-search-query'),
-      searchResults: document.getElementById('gw-search-results'),
-
-      selectedBody: document.getElementById('gw-selected-body'),
-
-      createEntityForm: document.getElementById('gw-add-entity-form'),
-      createEntityName: document.getElementById('gw-add-entity-name'),
-      createEntityKind: document.getElementById('gw-add-entity-kind'),
-      createEntitySummary: document.getElementById('gw-add-entity-summary'),
-      createEntityTags: document.getElementById('gw-add-entity-tags'),
-      createEntitySources: document.getElementById('gw-add-entity-sources'),
-      createEntitySourceEntities: document.getElementById('gw-add-entity-source-entities'),
-      createEntityNotes: document.getElementById('gw-add-entity-notes'),
-      entityKindDatalist: document.getElementById('gw-entity-kind-options'),
-
-      createRelationHint: document.getElementById('gw-add-relation-hint'),
-      createRelationForm: document.getElementById('gw-add-relation-form'),
-      createRelationType: document.getElementById('gw-add-relation-type'),
-      createRelationTarget: document.getElementById('gw-add-relation-target'),
-      createRelationTags: document.getElementById('gw-add-relation-tags'),
-      createRelationClaims: document.getElementById('gw-add-relation-claims'),
-      createRelationSources: document.getElementById('gw-add-relation-sources'),
-      createRelationSourceEntities: document.getElementById('gw-add-relation-source-entities'),
-      createRelationNotes: document.getElementById('gw-add-relation-notes'),
-      relationTypeDatalist: document.getElementById('gw-relation-type-options'),
-
-      leftHandle: root.querySelector('.graph-resize-handle.left'),
-      rightHandle: root.querySelector('.graph-resize-handle.right')
+      canvas: document.getElementById('graph-workbench-canvas'),
+      centerSelect: document.getElementById('graph-workbench-center'),
+      depthInput: document.getElementById('graph-workbench-depth'),
+      selectionPane: document.getElementById('graph-workbench-selection')
     };
 
-    // resize handles
-    function attachResize(handleEl, side) {
-      if (!handleEl) return;
-      handleEl.addEventListener('mousedown', e => {
-        e.preventDefault();
-        const startX = e.clientX;
-        const startLeft = graphWorkbenchState.leftWidth;
-        const startRight = graphWorkbenchState.rightWidth;
-
-        function onMove(ev) {
-          const dx = ev.clientX - startX;
-          if (side === 'left') {
-            const next = Math.max(240, startLeft + dx);
-            graphWorkbenchState.leftWidth = next;
-          } else {
-            // dragging right handle left/right changes right pane width inversely
-            const next = Math.max(260, startRight - dx);
-            graphWorkbenchState.rightWidth = next;
-          }
-          if (dom.workbench) {
-            dom.workbench.style.setProperty('--graph-left-width', graphWorkbenchState.leftWidth + 'px');
-            dom.workbench.style.setProperty('--graph-right-width', graphWorkbenchState.rightWidth + 'px');
-          }
-        }
-
-        function onUp() {
-          window.removeEventListener('mousemove', onMove);
-          window.removeEventListener('mouseup', onUp);
-        }
-
-        window.addEventListener('mousemove', onMove);
-        window.addEventListener('mouseup', onUp);
-      });
-    }
-
-    attachResize(dom.leftHandle, 'left');
-    attachResize(dom.rightHandle, 'right');
-
-    // wiring: filters + buttons
-    dom.fitBtn.addEventListener('click', () => {
-      if (workbenchGraphView) workbenchGraphView.fit();
-    });
-
-    dom.clearBtn.addEventListener('click', () => {
-      setGraphWorkbenchSelection(null);
-      renderGraphWorkbench();
-    });
-
-    dom.filterDepth.addEventListener('input', () => {
-      const raw = dom.filterDepth.value;
-      if (raw === '') {
-        graphWorkbenchState.filterDepth = null;
-      } else {
-        const n = parseInt(raw, 10);
-        graphWorkbenchState.filterDepth = Number.isFinite(n) && n >= 0 ? n : null;
-      }
-      renderGraphWorkbench();
-    });
-
-    dom.filterDepthClear.addEventListener('click', () => {
-      graphWorkbenchState.filterDepth = null;
-      dom.filterDepth.value = '';
-      renderGraphWorkbench();
-    });
-
-    dom.filterUseSelection.addEventListener('click', () => {
-      const sel = graphWorkbenchState.selection;
-      if (!sel || !sel.id) return;
-      const t = normaliseSelectionType(sel.type);
-      if (t === 'relation' || t === 'edge') return;
-      graphWorkbenchState.filterCenterId = sel.id;
-      renderGraphWorkbench();
-    });
-
-    dom.filterClearCenter.addEventListener('click', () => {
-      graphWorkbenchState.filterCenterId = null;
-      renderGraphWorkbench();
-    });
-
-    dom.filterReset.addEventListener('click', () => {
-      graphWorkbenchState.filterCenterId = null;
-      graphWorkbenchState.filterDepth = null;
-      graphWorkbenchState.filterNodeTypes = [];
-      renderGraphWorkbench();
-    });
-
-    dom.searchKind.addEventListener('change', () => {
-      graphWorkbenchState.searchKind = dom.searchKind.value || 'all';
-      renderGraphWorkbench(); // cheap enough; also updates result list selection highlights
-    });
-
-    dom.searchQuery.addEventListener('input', () => {
-      graphWorkbenchState.searchQuery = dom.searchQuery.value || '';
-      renderGraphWorkbench();
-    });
-
-    // Create entity
-    dom.createEntityForm.addEventListener('submit', e => {
-      e.preventDefault();
-      if (!currentMovementId) return;
-
-      const name = (dom.createEntityName.value || '').trim();
-      if (!name) return;
-
-      const kind = (dom.createEntityKind.value || '').trim() || null;
-      const summary = (dom.createEntitySummary.value || '').trim() || null;
-      const tags = parseCsvInput(dom.createEntityTags.value);
-      const sourcesOfTruth = parseCsvInput(dom.createEntitySources.value);
-      const sourceEntityIds = parseCsvInput(dom.createEntitySourceEntities.value);
-      const notes = (dom.createEntityNotes.value || '').trim() || null;
-
-      try {
-        const entity = DomainService.addNewItem(snapshot, 'entities', currentMovementId);
-        // Fill fields (data-model.js fields)
-        entity.name = name;
-        entity.kind = kind;
-        entity.summary = summary;
-        entity.tags = tags;
-        entity.sourcesOfTruth = sourcesOfTruth;
-        entity.sourceEntityIds = sourceEntityIds;
-        entity.notes = notes;
-
-        DomainService.upsertItem(snapshot, 'entities', entity);
-        saveSnapshot({ show: false });
-        setStatus('Entity created');
-
-        // Reset form
-        dom.createEntityName.value = '';
-        dom.createEntityKind.value = '';
-        dom.createEntitySummary.value = '';
-        dom.createEntityTags.value = '';
-        dom.createEntitySources.value = '';
-        dom.createEntitySourceEntities.value = '';
-        dom.createEntityNotes.value = '';
-
-        setGraphWorkbenchSelection({ type: 'entity', id: entity.id });
-        renderGraphWorkbench();
-      } catch (err) {
-        alert(err instanceof Error ? err.message : 'Failed to create entity');
-      }
-    });
-
-    // Create relation
-    dom.createRelationForm.addEventListener('submit', e => {
-      e.preventDefault();
-      if (!currentMovementId) return;
-
-      const sel = graphWorkbenchState.selection;
-      if (!sel || sel.type !== 'entity') return;
-
-      const selectedEntityId = sel.id;
-      const relationType = (dom.createRelationType.value || '').trim();
-      const targetId = dom.createRelationTarget.value;
-
-      if (!relationType || !targetId) return;
-
-      const direction = (dom.createRelationForm.querySelector('input[name="gw-rel-direction"]:checked') || {}).value || 'outgoing';
-      const outgoing = direction === 'outgoing';
-
-      const fromEntityId = outgoing ? selectedEntityId : targetId;
-      const toEntityId = outgoing ? targetId : selectedEntityId;
-
-      const tags = parseCsvInput(dom.createRelationTags.value);
-      const supportingClaimIds = parseCsvInput(dom.createRelationClaims.value);
-      const sourcesOfTruth = parseCsvInput(dom.createRelationSources.value);
-      const sourceEntityIds = parseCsvInput(dom.createRelationSourceEntities.value);
-      const notes = (dom.createRelationNotes.value || '').trim() || null;
-
-      try {
-        const rel = DomainService.addNewItem(snapshot, 'relations', currentMovementId);
-        rel.fromEntityId = fromEntityId;
-        rel.toEntityId = toEntityId;
-        rel.relationType = relationType;
-        rel.tags = tags;
-        rel.supportingClaimIds = supportingClaimIds;
-        rel.sourcesOfTruth = sourcesOfTruth;
-        rel.sourceEntityIds = sourceEntityIds;
-        rel.notes = notes;
-
-        DomainService.upsertItem(snapshot, 'relations', rel);
-        saveSnapshot({ show: false });
-        setStatus('Relation created');
-
-        dom.createRelationType.value = '';
-        dom.createRelationTags.value = '';
-        dom.createRelationClaims.value = '';
-        dom.createRelationSources.value = '';
-        dom.createRelationSourceEntities.value = '';
-        dom.createRelationNotes.value = '';
-
-        setGraphWorkbenchSelection({ type: 'relation', id: rel.id });
-        renderGraphWorkbench();
-      } catch (err) {
-        alert(err instanceof Error ? err.message : 'Failed to create relation');
-      }
-    });
-
-    graphWorkbenchDom = dom;
-    return dom;
+    return graphWorkbenchDom;
   }
 
-  function renderGraphSearch(dom, baseGraphNodes) {
-    const nodes = normaliseArray(baseGraphNodes);
+  function renderGraphSelection(selection, graph) {
+    const dom = graphWorkbenchDom;
+    if (!dom || !dom.selectionPane) return;
+    const container = dom.selectionPane;
+    clearElement(container);
 
-    // Update type filter options
-    const nodeTypes = uniqueSorted(nodes.map(n => n.type));
-    const opts = [{ value: 'all', label: 'All types' }].concat(
-      nodeTypes.map(t => ({ value: t, label: labelForNodeType(t) }))
-    );
-
-    const prev = dom.searchKind.value || graphWorkbenchState.searchKind || 'all';
-    clearElement(dom.searchKind);
-    opts.forEach(o => {
-      const opt = document.createElement('option');
-      opt.value = o.value;
-      opt.textContent = o.label;
-      dom.searchKind.appendChild(opt);
-    });
-    dom.searchKind.value = opts.some(o => o.value === prev) ? prev : 'all';
-
-    if (dom.searchQuery.value !== (graphWorkbenchState.searchQuery || '')) {
-      dom.searchQuery.value = graphWorkbenchState.searchQuery || '';
-    }
-
-    const q = (graphWorkbenchState.searchQuery || '').trim().toLowerCase();
-    const typeFilter = dom.searchKind.value || 'all';
-
-    const filtered = nodes.filter(node => {
-      const matchesType = typeFilter === 'all' || node.type === typeFilter;
-      if (!matchesType) return false;
-      if (!q) return true;
-      const hay = `${node.name || ''} ${node.id || ''} ${(node.kind || '')}`.toLowerCase();
-      return hay.includes(q);
-    });
-
-    clearElement(dom.searchResults);
-
-    if (!filtered.length) {
-      const li = document.createElement('li');
-      li.className = 'muted';
-      li.style.padding = '10px';
-      li.textContent = 'No matches.';
-      dom.searchResults.appendChild(li);
-      return;
-    }
-
-    const selType = normaliseSelectionType(graphWorkbenchState.selection?.type);
-    const selectedNodeId =
-      selType && selType !== 'relation' && selType !== 'edge'
-        ? graphWorkbenchState.selection.id
-        : null;
-
-    filtered
-      .slice(0, 300)
-      .sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id))
-      .forEach(node => {
-        const li = document.createElement('li');
-        li.className =
-          'graph-search-item' + (selectedNodeId === node.id ? ' selected' : '');
-        const left = document.createElement('span');
-        left.textContent = node.name || node.id;
-
-        const right = document.createElement('span');
-        right.className = 'meta';
-        right.textContent = `${labelForNodeType(node.type)} · ${node.id}`;
-
-        li.appendChild(left);
-        li.appendChild(right);
-        li.addEventListener('click', () => {
-          const type = normaliseSelectionType(node.type) || 'node';
-          setGraphWorkbenchSelection({ type, id: node.id });
-          graphWorkbenchState.filterCenterId = node.id;
-          renderGraphWorkbench();
-        });
-
-        dom.searchResults.appendChild(li);
-      });
-  }
-
-  function renderGraphWorkbenchFilters(dom, baseGraph) {
-    const nodes = normaliseArray(baseGraph?.nodes);
-    const nodeTypes = uniqueSorted(nodes.map(n => n.type));
-    const nodeMap = new Map(nodes.map(n => [n.id, n]));
-
-    graphWorkbenchState.filterNodeTypes = graphWorkbenchState.filterNodeTypes.filter(t =>
-      nodeTypes.includes(t)
-    );
-
-    if (graphWorkbenchState.filterCenterId && !nodeMap.has(graphWorkbenchState.filterCenterId)) {
-      graphWorkbenchState.filterCenterId = null;
-    }
-
-    const centerNode = graphWorkbenchState.filterCenterId
-      ? nodeMap.get(graphWorkbenchState.filterCenterId)
-      : null;
-
-    if (dom.filterCenterLabel) {
-      dom.filterCenterLabel.textContent = centerNode
-        ? `${centerNode.name || centerNode.id} (${labelForNodeType(centerNode.type)}) [${centerNode.id}]`
-        : 'No center selected; showing full graph.';
-    }
-
-    if (dom.filterDepth) {
-      const desired =
-        graphWorkbenchState.filterDepth === null || graphWorkbenchState.filterDepth === undefined
-          ? ''
-          : String(graphWorkbenchState.filterDepth);
-      if (dom.filterDepth.value !== desired) {
-        dom.filterDepth.value = desired;
-      }
-    }
-
-    if (!dom.filterTypes) return;
-    clearElement(dom.filterTypes);
-
-    const selectedTypes = new Set(graphWorkbenchState.filterNodeTypes);
-
-    nodeTypes.forEach(type => {
-      const chip = document.createElement('label');
-      chip.className = 'chip';
-
-      const cb = document.createElement('input');
-      cb.type = 'checkbox';
-      cb.value = type;
-      cb.checked = selectedTypes.has(type);
-      cb.addEventListener('change', () => {
-        if (cb.checked) {
-          if (!graphWorkbenchState.filterNodeTypes.includes(type)) {
-            graphWorkbenchState.filterNodeTypes = graphWorkbenchState.filterNodeTypes
-              .concat(type)
-              .filter(Boolean);
-          }
-        } else {
-          graphWorkbenchState.filterNodeTypes = graphWorkbenchState.filterNodeTypes.filter(
-            t => t !== type
-          );
-        }
-        renderGraphWorkbench();
-      });
-
-      const label = document.createElement('span');
-      label.textContent = labelForNodeType(type);
-
-      chip.appendChild(cb);
-      chip.appendChild(label);
-      dom.filterTypes.appendChild(chip);
-    });
-  }
-
-  function renderGenericNodeEditor(dom, node, config) {
-    const item = (snapshot[config.collection] || []).find(it => it && it.id === node.id);
-
-    if (!item) {
-      dom.selectedBody.textContent = 'Selected item not found.';
-      return;
-    }
-
-    const header = document.createElement('div');
-    header.className = 'graph-selected-header';
-
-    const titleWrap = document.createElement('div');
-    const title = document.createElement('p');
-    title.className = 'graph-selected-title';
-    title.textContent = item.name || item.title || item.shortText || item.text || node.id;
-
-    const subtitle = document.createElement('p');
-    subtitle.className = 'graph-selected-subtitle';
-    subtitle.textContent = `${config.label} · ${node.id}`;
-    titleWrap.appendChild(title);
-    titleWrap.appendChild(subtitle);
-
-    const actions = document.createElement('div');
-    const btnSave = document.createElement('button');
-    btnSave.className = 'btn btn-primary';
-    btnSave.type = 'button';
-    btnSave.textContent = 'Save';
-
-    const btnDelete = document.createElement('button');
-    btnDelete.className = 'btn btn-danger';
-    btnDelete.type = 'button';
-    btnDelete.textContent = 'Delete';
-
-    actions.appendChild(btnSave);
-    actions.appendChild(btnDelete);
-
-    header.appendChild(titleWrap);
-    header.appendChild(actions);
-    dom.selectedBody.appendChild(header);
-
-    const form = document.createElement('form');
-    form.className = 'form-stack';
-    form.addEventListener('submit', ev => ev.preventDefault());
-
-    const formatterCsv = value => normaliseArray(value).join(', ');
-
-    config.fields.forEach(field => {
-      const value = item[field.name];
-      const initialValue =
-        field.type === 'csv' ? formatterCsv(value) : value === null ? '' : value || '';
-
-      if (field.name === 'content') {
-        const row = document.createElement('div');
-        row.className = 'form-row markdown-row';
-
-        const header = document.createElement('div');
-        header.className = 'markdown-row-header';
-        const label = document.createElement('span');
-        label.textContent = field.label;
-        header.appendChild(label);
-
-        const actions = document.createElement('div');
-        actions.className = 'markdown-row-actions';
-        const openBtn = document.createElement('button');
-        openBtn.type = 'button';
-        openBtn.textContent = 'Open markdown editor';
-        actions.appendChild(openBtn);
-        header.appendChild(actions);
-
-        const grid = document.createElement('div');
-        grid.className = 'markdown-editor-grid';
-
-        const control = document.createElement('textarea');
-        control.className = 'markdown-input form-control';
-        control.name = field.name;
-        control.rows = field.rows || 6;
-        control.value = initialValue;
-        if (field.readOnly) control.readOnly = true;
-
-        const preview = document.createElement('div');
-        preview.className = 'markdown-preview-panel';
-        renderMarkdownPreview(preview, control.value, { enabled: true });
-
-        control.addEventListener('input', () => {
-          renderMarkdownPreview(preview, control.value, { enabled: true });
-        });
-
-        openBtn.addEventListener('click', () => {
-          if (control.readOnly) return;
-          openMarkdownModal({
-            title: 'Edit canon text',
-            initial: control.value,
-            onSave: value => {
-              control.value = value;
-              renderMarkdownPreview(preview, value, { enabled: true });
-            },
-            onClose: () => {
-              renderMarkdownPreview(preview, control.value, { enabled: true });
-            }
-          });
-        });
-
-        grid.appendChild(control);
-        grid.appendChild(preview);
-
-        row.appendChild(header);
-        row.appendChild(grid);
-        form.appendChild(row);
-        return;
-      }
-
-      const row = document.createElement('label');
-      row.className = 'form-row';
-      row.style.marginBottom = '10px';
-
-      const label = document.createElement('span');
-      label.textContent = field.label;
-      label.style.display = 'block';
-      label.style.fontWeight = '600';
-      label.style.marginBottom = '4px';
-
-      row.appendChild(label);
-
-      let control;
-
-      if (field.type === 'textarea') {
-        control = document.createElement('textarea');
-        control.className = 'form-control';
-        control.name = field.name;
-        control.rows = field.rows || 3;
-        control.value = initialValue;
-      } else if (field.type === 'checkbox') {
-        control = document.createElement('input');
-        control.type = 'checkbox';
-        control.name = field.name;
-        control.checked = Boolean(value);
-      } else {
-        control = document.createElement('input');
-        control.type = 'text';
-        control.className = 'form-control';
-        control.name = field.name;
-        control.value = initialValue;
-      }
-
-      if (field.readOnly) {
-        control.readOnly = true;
-      }
-
-      row.appendChild(control);
-      form.appendChild(row);
-    });
-
-    dom.selectedBody.appendChild(form);
-
-    btnSave.addEventListener('click', () => {
-      const fd = new FormData(form);
-      const updated = { ...item };
-
-      config.fields.forEach(field => {
-        let rawValue;
-        if (field.type === 'checkbox') {
-          const el = form.querySelector(`[name="${field.name}"]`);
-          rawValue = el && 'checked' in el ? el.checked : false;
-        } else {
-          rawValue = fd.get(field.name);
-        }
-
-        if (field.readOnly) return;
-
-        const rawString = rawValue === null ? '' : rawValue.toString();
-        let parsedValue;
-
-        if (field.type === 'csv') {
-          parsedValue = parseCsvInput(rawString);
-        } else if (field.type === 'checkbox') {
-          parsedValue = Boolean(rawValue);
-        } else {
-          parsedValue = rawString.trim();
-        }
-
-        if (field.nullable && parsedValue === '') {
-          updated[field.name] = null;
-        } else {
-          updated[field.name] = parsedValue;
-        }
-      });
-
-      try {
-        DomainService.upsertItem(snapshot, config.collection, updated);
-        saveSnapshot({ show: false });
-        setStatus(`${config.label} saved`);
-        renderGraphWorkbench();
-      } catch (err) {
-        alert(err instanceof Error ? err.message : 'Failed to save item');
-      }
-    });
-
-    btnDelete.addEventListener('click', () => {
-      const ok = window.confirm(
-        `Delete this ${config.label.toLowerCase()}?\n\n${item.name || item.title || item.id}\n\nThis cannot be undone.`
-      );
-      if (!ok) return;
-
-      try {
-        DomainService.deleteItem(snapshot, config.collection, item.id);
-        setGraphWorkbenchSelection(null);
-        saveSnapshot({ show: false });
-        setStatus(`${config.label} deleted`);
-        renderGraphWorkbench();
-      } catch (err) {
-        alert(err instanceof Error ? err.message : 'Failed to delete item');
-      }
-    });
-  }
-
-  function renderSelected(dom, visibleEntities, visibleRelations, entityById, baseGraphNodes) {
-    clearElement(dom.selectedBody);
-
-    const selection = graphWorkbenchState.selection;
     if (!selection) {
       const p = document.createElement('p');
-      p.className = 'muted';
-      p.textContent = 'Click an entity or relation to view/edit details.';
-      dom.selectedBody.appendChild(p);
+      p.className = 'hint';
+      p.textContent = 'Click a node or edge to inspect its connections.';
+      container.appendChild(p);
       return;
     }
 
-    const selectionType = normaliseSelectionType(selection.type);
+    const nodesById = new Map(normaliseArray(graph.nodes).map(n => [n.id, n]));
+    const edgesById = new Map(normaliseArray(graph.edges).map(e => [e.id, e]));
 
-    const allEntities = normaliseArray(snapshot.entities);
-    const allRelations = normaliseArray(snapshot.relations);
-    const entityIndexAll = buildEntityIndex(allEntities);
-    const relationIndexAll = buildRelationIndex(allRelations);
-
-    if (selectionType === 'entity') {
-      const entity = entityIndexAll.get(selection.id);
-      if (!entity) {
-        dom.selectedBody.textContent = 'Selected entity not found.';
-        return;
-      }
-
-      const header = document.createElement('div');
-      header.className = 'graph-selected-header';
-
-      const titleWrap = document.createElement('div');
-      const title = document.createElement('p');
-      title.className = 'graph-selected-title';
-      title.textContent = entity.name || entity.id;
-      const subtitle = document.createElement('p');
-      subtitle.className = 'graph-selected-subtitle';
-      subtitle.textContent = `Entity · ${entity.kind || '—'} · ${entity.id}`;
-      titleWrap.appendChild(title);
-      titleWrap.appendChild(subtitle);
-
-      const actions = document.createElement('div');
-      const btnSave = document.createElement('button');
-      btnSave.className = 'btn btn-primary';
-      btnSave.type = 'button';
-      btnSave.textContent = 'Save';
-
-      const btnDelete = document.createElement('button');
-      btnDelete.className = 'btn btn-danger';
-      btnDelete.type = 'button';
-      btnDelete.textContent = 'Delete';
-
-      actions.appendChild(btnSave);
-      actions.appendChild(btnDelete);
-
-      header.appendChild(titleWrap);
-      header.appendChild(actions);
-      dom.selectedBody.appendChild(header);
-
-      // form
-      const form = document.createElement('form');
-      form.className = 'graph-form';
-
-      function addInput(label, name, value, opts) {
-        const row = document.createElement('div');
-        row.className = 'form-row';
-        const l = document.createElement('label');
-        l.textContent = label;
-        const input = document.createElement('input');
-        input.className = 'form-control';
-        input.name = name;
-        input.value = value || '';
-        if (opts && opts.readOnly) input.readOnly = true;
-        row.appendChild(l);
-        row.appendChild(input);
-        form.appendChild(row);
-      }
-
-      function addTextarea(label, name, value, rows) {
-        const row = document.createElement('div');
-        row.className = 'form-row';
-        const l = document.createElement('label');
-        l.textContent = label;
-        const ta = document.createElement('textarea');
-        ta.className = 'form-control';
-        ta.name = name;
-        ta.rows = rows || 3;
-        ta.value = value || '';
-        row.appendChild(l);
-        row.appendChild(ta);
-        form.appendChild(row);
-      }
-
-      addInput('ID', 'id', entity.id, { readOnly: true });
-      addInput('Movement ID', 'movementId', entity.movementId || '', {});
-      addInput('Kind', 'kind', entity.kind || '', {});
-      addInput('Name', 'name', entity.name || '', {});
-      addTextarea('Summary', 'summary', entity.summary || '', 3);
-      addInput('Tags (csv)', 'tags', normaliseArray(entity.tags).join(', '), {});
-      addInput('Sources of truth (csv)', 'sourcesOfTruth', normaliseArray(entity.sourcesOfTruth).join(', '), {});
-      addInput('Source entity IDs (csv)', 'sourceEntityIds', normaliseArray(entity.sourceEntityIds).join(', '), {});
-      addTextarea('Notes', 'notes', entity.notes || '', 3);
-
-      dom.selectedBody.appendChild(form);
-
-      // relations list
-      const out = visibleRelations.filter(r => r.fromEntityId === entity.id);
-      const inc = visibleRelations.filter(r => r.toEntityId === entity.id);
-
-      function renderRelList(label, rels, arrow) {
-        const heading = document.createElement('div');
-        heading.className = 'section-heading small';
-        heading.textContent = `${label} (${rels.length})`;
-        dom.selectedBody.appendChild(heading);
-
-        if (!rels.length) {
-          const p = document.createElement('p');
-          p.className = 'muted';
-          p.textContent = '—';
-          dom.selectedBody.appendChild(p);
-          return;
-        }
-
-        const ul = document.createElement('ul');
-        ul.style.margin = '0';
-        ul.style.paddingLeft = '18px';
-
-        rels.forEach(r => {
-          const li = document.createElement('li');
-          const otherId = arrow === '→' ? r.toEntityId : r.fromEntityId;
-          const other = entityById.get(otherId) || entityIndexAll.get(otherId);
-          const otherLabel = other ? (other.name || other.id) : otherId;
-
-          li.style.cursor = 'pointer';
-          li.textContent = arrow === '→'
-            ? `${r.relationType || 'rel'} → ${otherLabel}`
-            : `${otherLabel} → ${r.relationType || 'rel'}`;
-
-          li.addEventListener('click', () => {
-            setGraphWorkbenchSelection({ type: 'relation', id: r.id });
-            renderGraphWorkbench();
-          });
-
-          ul.appendChild(li);
-        });
-
-        dom.selectedBody.appendChild(ul);
-      }
-
-      renderRelList('Outgoing relations', out, '→');
-      renderRelList('Incoming relations', inc, '←');
-
-      // Save handler
-      btnSave.addEventListener('click', () => {
-        const fd = new FormData(form);
-        const updated = {
-          ...entity,
-          movementId: (fd.get('movementId') || '').toString().trim() || null,
-          kind: (fd.get('kind') || '').toString().trim() || null,
-          name: (fd.get('name') || '').toString().trim() || entity.name,
-          summary: (fd.get('summary') || '').toString().trim() || null,
-          tags: parseCsvInput((fd.get('tags') || '').toString()),
-          sourcesOfTruth: parseCsvInput((fd.get('sourcesOfTruth') || '').toString()),
-          sourceEntityIds: parseCsvInput((fd.get('sourceEntityIds') || '').toString()),
-          notes: (fd.get('notes') || '').toString().trim() || null
-        };
-
-        try {
-          DomainService.upsertItem(snapshot, 'entities', updated);
-          saveSnapshot({ show: false });
-          setStatus('Entity saved');
-          renderGraphWorkbench();
-        } catch (err) {
-          alert(err instanceof Error ? err.message : 'Failed to save entity');
-        }
-      });
-
-      // Delete handler (also delete connected relations)
-      btnDelete.addEventListener('click', () => {
-        const ok = window.confirm(
-          'Delete this entity AND all relations that reference it?\n\n' +
-          (entity.name || entity.id) +
-          '\n\nThis cannot be undone.'
-        );
-        if (!ok) return;
-
-        try {
-          // delete relations pointing to/from this entity
-          const rels = normaliseArray(snapshot.relations).filter(r =>
-            r && (r.fromEntityId === entity.id || r.toEntityId === entity.id)
-          );
-          rels.forEach(r => {
-            DomainService.deleteItem(snapshot, 'relations', r.id);
-          });
-
-          DomainService.deleteItem(snapshot, 'entities', entity.id);
-
-          setGraphWorkbenchSelection(null);
-
-          saveSnapshot({ show: false });
-          setStatus('Entity deleted');
-          renderGraphWorkbench();
-        } catch (err) {
-          alert(err instanceof Error ? err.message : 'Failed to delete entity');
-        }
-      });
-
-      return;
-    }
-
-    // Relation selection
-    if (selectionType === 'relation') {
-      const rel = relationIndexAll.get(selection.id);
-      if (!rel) {
-        dom.selectedBody.textContent = 'Selected relation not found.';
-        return;
-      }
-
-      const from = entityIndexAll.get(rel.fromEntityId);
-      const to = entityIndexAll.get(rel.toEntityId);
-
-      const header = document.createElement('div');
-      header.className = 'graph-selected-header';
-
-      const titleWrap = document.createElement('div');
-      const title = document.createElement('p');
-      title.className = 'graph-selected-title';
-      title.textContent = rel.relationType || 'Relation';
-      const subtitle = document.createElement('p');
-      subtitle.className = 'graph-selected-subtitle';
-      subtitle.textContent = `Relation · ${rel.id}`;
-      titleWrap.appendChild(title);
-      titleWrap.appendChild(subtitle);
-
-      const actions = document.createElement('div');
-      const btnSave = document.createElement('button');
-      btnSave.className = 'btn btn-primary';
-      btnSave.type = 'button';
-      btnSave.textContent = 'Save';
-
-      const btnDelete = document.createElement('button');
-      btnDelete.className = 'btn btn-danger';
-      btnDelete.type = 'button';
-      btnDelete.textContent = 'Delete';
-
-      actions.appendChild(btnSave);
-      actions.appendChild(btnDelete);
-
-      header.appendChild(titleWrap);
-      header.appendChild(actions);
-      dom.selectedBody.appendChild(header);
-
-      // quick sandwich preview
-      const preview = document.createElement('div');
-      preview.className = 'card';
-      preview.style.padding = '10px';
-      preview.style.marginBottom = '10px';
-
-      const line = document.createElement('div');
-      line.style.display = 'flex';
-      line.style.gap = '8px';
-      line.style.flexWrap = 'wrap';
-      line.style.alignItems = 'center';
-
-      const fromChip = document.createElement('span');
-      fromChip.className = 'chip clickable';
-      fromChip.textContent = from ? (from.name || from.id) : rel.fromEntityId;
-      fromChip.addEventListener('click', () => {
-        setGraphWorkbenchSelection({ type: 'entity', id: rel.fromEntityId });
-        renderGraphWorkbench();
-      });
-
-      const mid = document.createElement('span');
-      mid.style.opacity = '0.8';
-      mid.textContent = `→ ${rel.relationType || 'rel'} →`;
-
-      const toChip = document.createElement('span');
-      toChip.className = 'chip clickable';
-      toChip.textContent = to ? (to.name || to.id) : rel.toEntityId;
-      toChip.addEventListener('click', () => {
-        setGraphWorkbenchSelection({ type: 'entity', id: rel.toEntityId });
-        renderGraphWorkbench();
-      });
-
-      line.appendChild(fromChip);
-      line.appendChild(mid);
-      line.appendChild(toChip);
-
-      preview.appendChild(line);
-      dom.selectedBody.appendChild(preview);
-
-      // form
-      const form = document.createElement('form');
-      form.className = 'graph-form';
-
-      function addInput(label, name, value, opts) {
-        const row = document.createElement('div');
-        row.className = 'form-row';
-        const l = document.createElement('label');
-        l.textContent = label;
-        const input = document.createElement('input');
-        input.className = 'form-control';
-        input.name = name;
-        input.value = value || '';
-        if (opts && opts.readOnly) input.readOnly = true;
-        row.appendChild(l);
-        row.appendChild(input);
-        form.appendChild(row);
-      }
-
-      function addTextarea(label, name, value, rows) {
-        const row = document.createElement('div');
-        row.className = 'form-row';
-        const l = document.createElement('label');
-        l.textContent = label;
-        const ta = document.createElement('textarea');
-        ta.className = 'form-control';
-        ta.name = name;
-        ta.rows = rows || 3;
-        ta.value = value || '';
-        row.appendChild(l);
-        row.appendChild(ta);
-        form.appendChild(row);
-      }
-
-      addInput('ID', 'id', rel.id, { readOnly: true });
-      addInput('Movement ID', 'movementId', rel.movementId || '', {});
-      addInput('From entity ID', 'fromEntityId', rel.fromEntityId || '', {});
-      addInput('To entity ID', 'toEntityId', rel.toEntityId || '', {});
-      addInput('Relation type', 'relationType', rel.relationType || '', {});
-      addInput('Tags (csv)', 'tags', normaliseArray(rel.tags).join(', '), {});
-      addInput('Supporting claim IDs (csv)', 'supportingClaimIds', normaliseArray(rel.supportingClaimIds).join(', '), {});
-      addInput('Sources of truth (csv)', 'sourcesOfTruth', normaliseArray(rel.sourcesOfTruth).join(', '), {});
-      addInput('Source entity IDs (csv)', 'sourceEntityIds', normaliseArray(rel.sourceEntityIds).join(', '), {});
-      addTextarea('Notes', 'notes', rel.notes || '', 3);
-
-      dom.selectedBody.appendChild(form);
-
-      btnSave.addEventListener('click', () => {
-        const fd = new FormData(form);
-
-        const updated = {
-          ...rel,
-          movementId: (fd.get('movementId') || '').toString().trim() || null,
-          fromEntityId: (fd.get('fromEntityId') || '').toString().trim(),
-          toEntityId: (fd.get('toEntityId') || '').toString().trim(),
-          relationType: (fd.get('relationType') || '').toString().trim() || rel.relationType,
-          tags: parseCsvInput((fd.get('tags') || '').toString()),
-          supportingClaimIds: parseCsvInput((fd.get('supportingClaimIds') || '').toString()),
-          sourcesOfTruth: parseCsvInput((fd.get('sourcesOfTruth') || '').toString()),
-          sourceEntityIds: parseCsvInput((fd.get('sourceEntityIds') || '').toString()),
-          notes: (fd.get('notes') || '').toString().trim() || null
-        };
-
-        // basic validation: endpoints must exist in *current* graph dataset
-        if (!updated.fromEntityId || !updated.toEntityId) {
-          alert('Relation must have fromEntityId and toEntityId.');
-          return;
-        }
-
-        try {
-          DomainService.upsertItem(snapshot, 'relations', updated);
-          saveSnapshot({ show: false });
-          setStatus('Relation saved');
-          renderGraphWorkbench();
-        } catch (err) {
-          alert(err instanceof Error ? err.message : 'Failed to save relation');
-        }
-      });
-
-      btnDelete.addEventListener('click', () => {
-        const ok = window.confirm(
-          'Delete this relation?\n\n' +
-          (rel.relationType || rel.id) +
-          '\n\nThis cannot be undone.'
-        );
-        if (!ok) return;
-
-        try {
-          DomainService.deleteItem(snapshot, 'relations', rel.id);
-          setGraphWorkbenchSelection(null);
-          saveSnapshot({ show: false });
-          setStatus('Relation deleted');
-          renderGraphWorkbench();
-        } catch (err) {
-          alert(err instanceof Error ? err.message : 'Failed to delete relation');
-        }
-      });
-
-      return;
-    }
-
-    // Other node types
-    const nodeIndex = new Map(normaliseArray(baseGraphNodes).map(n => [n.id, n]));
-    const node = nodeIndex.get(selection.id);
-
-    if (node) {
-      const config = GRAPH_NODE_EDIT_CONFIG[normaliseSelectionType(node.type)];
-
-      if (config) {
-        renderGenericNodeEditor(dom, node, config);
-        return;
-      }
-
-      const card = document.createElement('div');
-      card.className = 'card';
-      card.style.padding = '10px';
-      card.style.marginBottom = '10px';
+    if (selection.type === 'edge') {
+      const edge = edgesById.get(selection.id);
+      if (!edge) return renderGraphSelection(null, graph);
+      const from = nodesById.get(edge.fromId) || { id: edge.fromId };
+      const to = nodesById.get(edge.toId) || { id: edge.toId };
 
       const title = document.createElement('p');
       title.className = 'graph-selected-title';
-      title.textContent = node.name || node.id;
+      title.textContent = `${from.name || from.id} — ${edge.relationType} → ${to.name || to.id}`;
+      container.appendChild(title);
 
-      const subtitle = document.createElement('p');
-      subtitle.className = 'graph-selected-subtitle';
-      subtitle.textContent = `${labelForNodeType(node.type)} · ${node.id}`;
+      const meta = document.createElement('p');
+      meta.className = 'meta';
+      meta.textContent = `${from.type || 'node'} → ${to.type || 'node'}`;
+      container.appendChild(meta);
 
-      const hint = document.createElement('p');
-      hint.className = 'hint';
-      hint.textContent = 'Editing is not available for this node type yet.';
-
-      card.appendChild(title);
-      card.appendChild(subtitle);
-      card.appendChild(hint);
-
-      dom.selectedBody.appendChild(card);
+      if (edge.source) {
+        const source = document.createElement('p');
+        source.className = 'hint';
+        source.textContent = `Derived from ${edge.source.collection} ${edge.source.id} (${edge.source.field})`;
+        container.appendChild(source);
+      }
       return;
     }
 
-    const p = document.createElement('p');
-    p.className = 'muted';
-    p.textContent = 'Selected item not found in this graph.';
-    dom.selectedBody.appendChild(p);
+    const node = nodesById.get(selection.id);
+    if (!node) return renderGraphSelection(null, graph);
+
+    const title = document.createElement('p');
+    title.className = 'graph-selected-title';
+    title.textContent = `${node.name || node.id} (${node.type || 'node'})`;
+    container.appendChild(title);
+
+    const connections = normaliseArray(graph.edges).filter(
+      e => e.fromId === node.id || e.toId === node.id
+    );
+    if (!connections.length) {
+      const p = document.createElement('p');
+      p.className = 'hint';
+      p.textContent = 'No connections yet.';
+      container.appendChild(p);
+      return;
+    }
+
+    const list = document.createElement('ul');
+    connections.forEach(edge => {
+      const otherId = edge.fromId === node.id ? edge.toId : edge.fromId;
+      const other = nodesById.get(otherId) || { id: otherId };
+      const li = document.createElement('li');
+      li.textContent = `${edge.fromId === node.id ? '→' : '←'} ${edge.relationType} ${other.name || other.id}`;
+      list.appendChild(li);
+    });
+    container.appendChild(list);
   }
 
   function renderGraphWorkbench() {
     const root = document.getElementById('graph-workbench-root');
     if (!root) return;
 
-    // If no movement selected, show hint and bail (consistent with other tabs)
     if (!currentMovementId) {
       clearElement(root);
       const p = document.createElement('p');
       p.className = 'hint';
-      p.textContent = 'Create or select a movement on the left to use the graph editor.';
+      p.textContent = 'Create or select a movement on the left to explore the graph.';
       root.appendChild(p);
       return;
     }
@@ -3874,122 +2410,58 @@
     const dom = ensureGraphWorkbenchDom();
     if (!dom) return;
 
-    // keep CSS widths in sync
-    dom.workbench.style.setProperty('--graph-left-width', graphWorkbenchState.leftWidth + 'px');
-    dom.workbench.style.setProperty('--graph-right-width', graphWorkbenchState.rightWidth + 'px');
-
     const baseGraph = ViewModels.buildMovementGraphModel(snapshot, {
       movementId: currentMovementId
     });
 
-    const baseNodeIds = new Set(normaliseArray(baseGraph.nodes).map(n => n.id));
-    const baseEdgeIds = new Set(normaliseArray(baseGraph.edges).map(e => e.id));
+    const sortedNodes = normaliseArray(baseGraph.nodes).slice().sort((a, b) =>
+      (a.name || a.id).localeCompare(b.name || b.id)
+    );
 
-    const { visibleEntities, visibleRelations, entityById } = getGraphDatasetForCurrentMovement();
-    const entityIds = new Set(visibleEntities.map(e => e.id));
-    const relationIds = new Set(visibleRelations.map(r => r.id));
-
-    if (graphWorkbenchState.selection) {
-      const sel = graphWorkbenchState.selection;
-      const selType = normaliseSelectionType(sel.type);
-
-      if (selType === 'entity') {
-        const exists = baseNodeIds.has(sel.id) && entityIds.has(sel.id);
-        if (!exists) {
-          setGraphWorkbenchSelection(null);
-        }
-      } else if (selType === 'relation') {
-        const exists = relationIds.has(sel.id) || baseEdgeIds.has(sel.id);
-        if (!exists) {
-          setGraphWorkbenchSelection(null);
-        }
-      } else if (sel && !baseNodeIds.has(sel.id)) {
-        setGraphWorkbenchSelection(null);
-      }
-    }
-
-    renderGraphWorkbenchFilters(dom, baseGraph);
-
-    // Build datalist options (kinds + relation types)
-    const kinds = uniqueSorted(visibleEntities.map(e => e.kind));
-    clearElement(dom.entityKindDatalist);
-    kinds.forEach(k => {
+    clearElement(dom.centerSelect);
+    sortedNodes.forEach(node => {
       const opt = document.createElement('option');
-      opt.value = k;
-      dom.entityKindDatalist.appendChild(opt);
+      opt.value = node.id;
+      opt.textContent = `${node.name || node.id} (${node.type})`;
+      dom.centerSelect.appendChild(opt);
     });
 
-    const relTypes = uniqueSorted(visibleRelations.map(r => r.relationType));
-    clearElement(dom.relationTypeDatalist);
-    relTypes.forEach(t => {
-      const opt = document.createElement('option');
-      opt.value = t;
-      dom.relationTypeDatalist.appendChild(opt);
-    });
-
-    // Relation target dropdown
-    const sel = graphWorkbenchState.selection;
-    const selectedEntityId = sel && sel.type === 'entity' ? sel.id : null;
-
-    clearElement(dom.createRelationTarget);
-    const placeholder = document.createElement('option');
-    placeholder.value = '';
-    placeholder.textContent = selectedEntityId ? 'Select target entity…' : 'Select an entity first…';
-    dom.createRelationTarget.appendChild(placeholder);
-
-    if (selectedEntityId) {
-      // group by kind for readability
-      const byKind = new Map();
-      visibleEntities.forEach(e => {
-        if (!e || e.id === selectedEntityId) return;
-        const k = e.kind || '—';
-        if (!byKind.has(k)) byKind.set(k, []);
-        byKind.get(k).push(e);
-      });
-
-      Array.from(byKind.keys()).sort().forEach(kind => {
-        const og = document.createElement('optgroup');
-        og.label = kind;
-        byKind.get(kind)
-          .slice()
-          .sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id))
-          .forEach(e => {
-            const opt = document.createElement('option');
-            opt.value = e.id;
-            opt.textContent = (e.name || e.id) + ` (${e.id})`;
-            og.appendChild(opt);
-          });
-        dom.createRelationTarget.appendChild(og);
-      });
-
-      dom.createRelationHint.textContent = 'Create a relation relative to the currently selected entity.';
-      dom.createRelationForm.querySelectorAll('input,select,textarea,button').forEach(el => {
-        el.disabled = false;
-      });
-    } else {
-      dom.createRelationHint.textContent = 'Select an entity in the graph to create a relation from/to it.';
-      dom.createRelationForm.querySelectorAll('input,select,textarea,button').forEach(el => {
-        el.disabled = true;
-      });
+    if (!graphWorkbenchState.filterCenterId && sortedNodes[0]) {
+      graphWorkbenchState.filterCenterId = sortedNodes[0].id;
+    }
+    if (graphWorkbenchState.filterCenterId) {
+      dom.centerSelect.value = graphWorkbenchState.filterCenterId;
     }
 
-    // Render search + selected panels
-    renderGraphSearch(dom, baseGraph.nodes);
-    renderSelected(dom, visibleEntities, visibleRelations, entityById, baseGraph.nodes);
+    dom.centerSelect.onchange = () => {
+      graphWorkbenchState.filterCenterId = dom.centerSelect.value || null;
+      renderGraphWorkbench();
+    };
 
-    // Render graph
+    if (dom.depthInput) {
+      dom.depthInput.value = graphWorkbenchState.filterDepth || '';
+      dom.depthInput.oninput = () => {
+        const depthVal = parseInt(dom.depthInput.value, 10);
+        graphWorkbenchState.filterDepth = Number.isFinite(depthVal) ? depthVal : null;
+        renderGraphWorkbench();
+      };
+    }
+
+    const filteredGraph = ViewModels.filterGraphModel(baseGraph, {
+      centerNodeId: graphWorkbenchState.filterCenterId,
+      depth: graphWorkbenchState.filterDepth,
+      nodeTypeFilter: graphWorkbenchState.filterNodeTypes
+    });
+
     if (!workbenchGraphView) {
       workbenchGraphView = new EntityGraphView({
-        onNodeClick: (id, node) => {
-          const type = normaliseSelectionType(node?.type) || 'node';
-          setGraphWorkbenchSelection({ type, id });
+        onNodeClick: id => {
+          setGraphWorkbenchSelection({ type: 'entity', id });
           graphWorkbenchState.filterCenterId = id;
           renderGraphWorkbench();
         },
-        onLinkClick: id => {
-          const relIndex = buildRelationIndex(normaliseArray(snapshot.relations));
-          const type = relIndex.has(id) ? 'relation' : 'edge';
-          setGraphWorkbenchSelection({ type, id });
+        onLinkClick: (id, edge) => {
+          setGraphWorkbenchSelection({ type: 'edge', id: id || edge?.id });
           renderGraphWorkbench();
         },
         onBackgroundClick: () => {
@@ -3999,33 +2471,15 @@
       });
     }
 
-    const filteredGraph = ViewModels.filterGraphModel(baseGraph, {
-      centerNodeId: graphWorkbenchState.filterCenterId,
-      depth: graphWorkbenchState.filterDepth,
-      nodeTypeFilter: graphWorkbenchState.filterNodeTypes
-    });
-
-    const selectedType = normaliseSelectionType(
-      graphWorkbenchState.selection && graphWorkbenchState.selection.type
-    );
-
-    const selectedNodeIdForGraph =
-      graphWorkbenchState.selection &&
-      selectedType !== 'relation' &&
-      selectedType !== 'edge'
-        ? graphWorkbenchState.selection.id
-        : null;
-
-    const selectedRelationIdForGraph =
-      selectedType === 'relation' ? graphWorkbenchState.selection.id : null;
-
-    graphWorkbenchState.focusEntityId = graphWorkbenchState.filterCenterId;
-
     workbenchGraphView.render(dom.canvas, filteredGraph, {
-      selectedEntityId: selectedNodeIdForGraph,
-      selectedRelationId: selectedRelationIdForGraph,
-      focusEntityId: graphWorkbenchState.filterCenterId
+      centerEntityId: graphWorkbenchState.filterCenterId,
+      selectedEntityId:
+        graphWorkbenchState.selection && graphWorkbenchState.selection.type === 'entity'
+          ? graphWorkbenchState.selection.id
+          : null
     });
+
+    renderGraphSelection(graphWorkbenchState.selection, baseGraph);
   }
 
   // ---- Notes (buildNotesViewModel) ----
@@ -4666,17 +3120,6 @@
       { label: 'Context', key: 'context', type: 'paragraph' },
       { label: 'Body', key: 'body', type: 'paragraph' },
       { label: 'Tags', key: 'tags', type: 'chips' }
-    ],
-    relations: [
-      { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
-      { label: 'From', key: 'fromEntityId', type: 'id', ref: 'entities' },
-      { label: 'To', key: 'toEntityId', type: 'id', ref: 'entities' },
-      { label: 'Type', key: 'relationType' },
-      { label: 'Tags', key: 'tags', type: 'chips' },
-      { label: 'Supporting claims', key: 'supportingClaimIds', type: 'idList', ref: 'claims' },
-      { label: 'Sources of truth', key: 'sourcesOfTruth', type: 'chips' },
-      { label: 'Source entities', key: 'sourceEntityIds', type: 'idList', ref: 'entities' },
-      { label: 'Notes', key: 'notes', type: 'paragraph' }
     ]
   };
 
@@ -5385,7 +3828,7 @@
       });
     }
 
-    // Calendar / claims / rules / media / relations / notes filters react on change
+    // Calendar / claims / rules / media / notes filters react on change
     const calendarFilter = document.getElementById(
       'calendar-recurrence-filter'
     );
@@ -5429,19 +3872,6 @@
         el.addEventListener('change', renderMediaView);
       }
     });
-
-    const relTypeFilter = document.getElementById(
-      'relations-type-filter'
-    );
-    const relEntFilter = document.getElementById(
-      'relations-entity-filter'
-    );
-    if (relTypeFilter) {
-      relTypeFilter.addEventListener('change', renderRelationsView);
-    }
-    if (relEntFilter) {
-      relEntFilter.addEventListener('change', renderRelationsView);
-    }
 
     const notesTypeFilter = document.getElementById(
       'notes-target-type-filter'

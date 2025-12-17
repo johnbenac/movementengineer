@@ -1,11 +1,11 @@
 /*
  * View Model builders for Movement Engineer.
  *
- * These functions translate raw collection data (as described by data-model v3.4)
+ * These functions translate raw collection data (as described by data-model v3.5)
  * into derived shapes optimised for specific UI needs. Each builder expects a
  * `data` object containing arrays named after the collections:
  * movements, textCollections, texts, entities, practices, events,
- * rules, claims, media, notes, relations.
+ * rules, claims, media, notes.
  *
  * The output mirrors the canonical view models described in the project brief.
  */
@@ -250,39 +250,30 @@ function buildEntityDetailViewModel(data, input) {
       title: asset.title
     }));
 
-  const relationsOut = normaliseArray(data.relations)
-    .filter(rel => rel.fromEntityId === entityId)
-    .map(rel => ({
-      id: rel.id,
-      relationType: rel.relationType,
-      to: (() => {
-        const target = entityLookup.get(rel.toEntityId);
-        return target
-          ? {
-              id: target.id,
-              name: target.name,
-              kind: target.kind ?? null
-            }
-          : { id: rel.toEntityId, name: rel.toEntityId, kind: null };
-      })()
-    }));
-
-  const relationsIn = normaliseArray(data.relations)
-    .filter(rel => rel.toEntityId === entityId)
-    .map(rel => ({
-      id: rel.id,
-      relationType: rel.relationType,
-      from: (() => {
-        const source = entityLookup.get(rel.fromEntityId);
-        return source
-          ? {
-              id: source.id,
-              name: source.name,
-              kind: source.kind ?? null
-            }
-          : { id: rel.fromEntityId, name: rel.fromEntityId, kind: null };
-      })()
-    }));
+  const graph = buildMovementGraphModel(data, { movementId: entity?.movementId });
+  const graphNodeLookup = new Map(normaliseArray(graph.nodes).map(n => [n.id, n]));
+  const connections = normaliseArray(graph.edges)
+    .filter(edge => edge.fromId === entityId || edge.toId === entityId)
+    .map(edge => {
+      const outgoing = edge.fromId === entityId;
+      const neighbourId = outgoing ? edge.toId : edge.fromId;
+      const neighbour = graphNodeLookup.get(neighbourId);
+      const node = neighbour
+        ? {
+            id: neighbour.id,
+            name: neighbour.name,
+            type: neighbour.type,
+            kind: neighbour.kind ?? null
+          }
+        : { id: neighbourId, name: neighbourId, type: null, kind: null };
+      return {
+        id: edge.id,
+        relationType: edge.relationType,
+        direction: outgoing ? 'out' : 'in',
+        node,
+        source: edge.source || null
+      };
+    });
 
   return {
     entity,
@@ -291,8 +282,7 @@ function buildEntityDetailViewModel(data, input) {
     practices,
     events,
     media,
-    relationsOut,
-    relationsIn
+    connections
   };
 }
 
@@ -355,7 +345,6 @@ function buildMovementGraphModel(data, input) {
     Rule: buildLookup(filterByMovement(data.rules, movementId)),
     Claim: buildLookup(filterByMovement(data.claims, movementId)),
     MediaAsset: buildLookup(filterByMovement(data.media, movementId)),
-    Relation: buildLookup(filterByMovement(data.relations, movementId)),
     Note: buildLookup(filterByMovement(data.notes, movementId))
   };
 
@@ -385,12 +374,12 @@ function buildMovementGraphModel(data, input) {
     return node;
   };
 
-  const pushEdge = (fromId, toId, relationType, idHint) => {
+  const pushEdge = (fromId, toId, relationType, idHint, source) => {
     if (!fromId || !toId || !relationType) return;
     if (relationFilterSet && !relationFilterSet.has(relationType)) return;
     if (!nodes.has(fromId) || !nodes.has(toId)) return;
     const id = idHint || `${fromId}-${relationType}-${toId}-${edges.length}`;
-    edges.push({ id, fromId, toId, relationType });
+    edges.push({ id, fromId, toId, relationType, source: source || null });
   };
 
   // Entities
@@ -398,7 +387,11 @@ function buildMovementGraphModel(data, input) {
     ensureNode('Entity', entity.id, entity.name, entity.kind ?? null);
     normaliseArray(entity.sourceEntityIds).forEach(srcId => {
       ensureNode('Entity', srcId, srcId, null);
-      pushEdge(srcId, entity.id, 'authority_for');
+      pushEdge(srcId, entity.id, 'authority_for', null, {
+        collection: 'entities',
+        id: entity.id,
+        field: 'sourceEntityIds'
+      });
     });
   });
 
@@ -407,7 +400,11 @@ function buildMovementGraphModel(data, input) {
     ensureNode('TextCollection', col.id, col.name, null);
     normaliseArray(col.rootTextIds).forEach(textId => {
       ensureNode('TextNode', textId, textId, null);
-      pushEdge(col.id, textId, 'canon_root');
+      pushEdge(col.id, textId, 'canon_root', null, {
+        collection: 'textCollections',
+        id: col.id,
+        field: 'rootTextIds'
+      });
     });
   });
 
@@ -415,11 +412,19 @@ function buildMovementGraphModel(data, input) {
     ensureNode('TextNode', text.id, text.title || text.label, null);
     if (text.parentId) {
       ensureNode('TextNode', text.parentId, text.parentId, null);
-      pushEdge(text.parentId, text.id, 'contains_text');
+      pushEdge(text.parentId, text.id, 'contains_text', null, {
+        collection: 'texts',
+        id: text.id,
+        field: 'parentId'
+      });
     }
     normaliseArray(text.mentionsEntityIds).forEach(entityId => {
       ensureNode('Entity', entityId, entityId, null);
-      pushEdge(text.id, entityId, 'mentions');
+      pushEdge(text.id, entityId, 'mentions', null, {
+        collection: 'texts',
+        id: text.id,
+        field: 'mentionsEntityIds'
+      });
     });
   });
 
@@ -428,19 +433,35 @@ function buildMovementGraphModel(data, input) {
     ensureNode('Practice', practice.id, practice.name, practice.kind ?? null);
     normaliseArray(practice.involvedEntityIds).forEach(entityId => {
       ensureNode('Entity', entityId, entityId, null);
-      pushEdge(practice.id, entityId, 'involves');
+      pushEdge(practice.id, entityId, 'involves', null, {
+        collection: 'practices',
+        id: practice.id,
+        field: 'involvedEntityIds'
+      });
     });
     normaliseArray(practice.instructionsTextIds).forEach(textId => {
       ensureNode('TextNode', textId, textId, null);
-      pushEdge(practice.id, textId, 'instructions');
+      pushEdge(practice.id, textId, 'instructions', null, {
+        collection: 'practices',
+        id: practice.id,
+        field: 'instructionsTextIds'
+      });
     });
     normaliseArray(practice.supportingClaimIds).forEach(claimId => {
       ensureNode('Claim', claimId, claimId, null);
-      pushEdge(claimId, practice.id, 'supports_practice');
+      pushEdge(claimId, practice.id, 'supports_practice', null, {
+        collection: 'practices',
+        id: practice.id,
+        field: 'supportingClaimIds'
+      });
     });
     normaliseArray(practice.sourceEntityIds).forEach(srcId => {
       ensureNode('Entity', srcId, srcId, null);
-      pushEdge(srcId, practice.id, 'authority_for');
+      pushEdge(srcId, practice.id, 'authority_for', null, {
+        collection: 'practices',
+        id: practice.id,
+        field: 'sourceEntityIds'
+      });
     });
   });
 
@@ -449,19 +470,35 @@ function buildMovementGraphModel(data, input) {
     ensureNode('Event', event.id, event.name, event.recurrence ?? null);
     normaliseArray(event.mainPracticeIds).forEach(practiceId => {
       ensureNode('Practice', practiceId, practiceId, null);
-      pushEdge(event.id, practiceId, 'uses_practice');
+      pushEdge(event.id, practiceId, 'uses_practice', null, {
+        collection: 'events',
+        id: event.id,
+        field: 'mainPracticeIds'
+      });
     });
     normaliseArray(event.mainEntityIds).forEach(entityId => {
       ensureNode('Entity', entityId, entityId, null);
-      pushEdge(event.id, entityId, 'focuses_on');
+      pushEdge(event.id, entityId, 'focuses_on', null, {
+        collection: 'events',
+        id: event.id,
+        field: 'mainEntityIds'
+      });
     });
     normaliseArray(event.readingTextIds).forEach(textId => {
       ensureNode('TextNode', textId, textId, null);
-      pushEdge(event.id, textId, 'reads');
+      pushEdge(event.id, textId, 'reads', null, {
+        collection: 'events',
+        id: event.id,
+        field: 'readingTextIds'
+      });
     });
     normaliseArray(event.supportingClaimIds).forEach(claimId => {
       ensureNode('Claim', claimId, claimId, null);
-      pushEdge(claimId, event.id, 'supports_event');
+      pushEdge(claimId, event.id, 'supports_event', null, {
+        collection: 'events',
+        id: event.id,
+        field: 'supportingClaimIds'
+      });
     });
   });
 
@@ -470,19 +507,35 @@ function buildMovementGraphModel(data, input) {
     ensureNode('Rule', rule.id, rule.shortText, rule.kind ?? null);
     normaliseArray(rule.supportingTextIds).forEach(textId => {
       ensureNode('TextNode', textId, textId, null);
-      pushEdge(textId, rule.id, 'supports_rule');
+      pushEdge(textId, rule.id, 'supports_rule', null, {
+        collection: 'rules',
+        id: rule.id,
+        field: 'supportingTextIds'
+      });
     });
     normaliseArray(rule.supportingClaimIds).forEach(claimId => {
       ensureNode('Claim', claimId, claimId, null);
-      pushEdge(claimId, rule.id, 'supports_rule');
+      pushEdge(claimId, rule.id, 'supports_rule', null, {
+        collection: 'rules',
+        id: rule.id,
+        field: 'supportingClaimIds'
+      });
     });
     normaliseArray(rule.relatedPracticeIds).forEach(practiceId => {
       ensureNode('Practice', practiceId, practiceId, null);
-      pushEdge(rule.id, practiceId, 'fulfilled_by');
+      pushEdge(rule.id, practiceId, 'fulfilled_by', null, {
+        collection: 'rules',
+        id: rule.id,
+        field: 'relatedPracticeIds'
+      });
     });
     normaliseArray(rule.sourceEntityIds).forEach(srcId => {
       ensureNode('Entity', srcId, srcId, null);
-      pushEdge(srcId, rule.id, 'authority_for');
+      pushEdge(srcId, rule.id, 'authority_for', null, {
+        collection: 'rules',
+        id: rule.id,
+        field: 'sourceEntityIds'
+      });
     });
   });
 
@@ -491,15 +544,27 @@ function buildMovementGraphModel(data, input) {
     ensureNode('Claim', claim.id, claim.text, claim.category ?? null);
     normaliseArray(claim.sourceTextIds).forEach(textId => {
       ensureNode('TextNode', textId, textId, null);
-      pushEdge(textId, claim.id, 'supports_claim');
+      pushEdge(textId, claim.id, 'supports_claim', null, {
+        collection: 'claims',
+        id: claim.id,
+        field: 'sourceTextIds'
+      });
     });
     normaliseArray(claim.aboutEntityIds).forEach(entityId => {
       ensureNode('Entity', entityId, entityId, null);
-      pushEdge(claim.id, entityId, 'about');
+      pushEdge(claim.id, entityId, 'about', null, {
+        collection: 'claims',
+        id: claim.id,
+        field: 'aboutEntityIds'
+      });
     });
     normaliseArray(claim.sourceEntityIds).forEach(srcId => {
       ensureNode('Entity', srcId, srcId, null);
-      pushEdge(srcId, claim.id, 'authority_for');
+      pushEdge(srcId, claim.id, 'authority_for', null, {
+        collection: 'claims',
+        id: claim.id,
+        field: 'sourceEntityIds'
+      });
     });
   });
 
@@ -508,19 +573,35 @@ function buildMovementGraphModel(data, input) {
     ensureNode('MediaAsset', asset.id, asset.title, asset.kind ?? null);
     normaliseArray(asset.linkedEntityIds).forEach(entityId => {
       ensureNode('Entity', entityId, entityId, null);
-      pushEdge(asset.id, entityId, 'depicts');
+      pushEdge(asset.id, entityId, 'depicts', null, {
+        collection: 'media',
+        id: asset.id,
+        field: 'linkedEntityIds'
+      });
     });
     normaliseArray(asset.linkedPracticeIds).forEach(practiceId => {
       ensureNode('Practice', practiceId, practiceId, null);
-      pushEdge(asset.id, practiceId, 'depicts');
+      pushEdge(asset.id, practiceId, 'depicts', null, {
+        collection: 'media',
+        id: asset.id,
+        field: 'linkedPracticeIds'
+      });
     });
     normaliseArray(asset.linkedEventIds).forEach(eventId => {
       ensureNode('Event', eventId, eventId, null);
-      pushEdge(asset.id, eventId, 'depicts');
+      pushEdge(asset.id, eventId, 'depicts', null, {
+        collection: 'media',
+        id: asset.id,
+        field: 'linkedEventIds'
+      });
     });
     normaliseArray(asset.linkedTextIds).forEach(textId => {
       ensureNode('TextNode', textId, textId, null);
-      pushEdge(asset.id, textId, 'depicts');
+      pushEdge(asset.id, textId, 'depicts', null, {
+        collection: 'media',
+        id: asset.id,
+        field: 'linkedTextIds'
+      });
     });
   });
 
@@ -530,15 +611,12 @@ function buildMovementGraphModel(data, input) {
     ensureNode('Note', note.id, preview, null);
     if (note.targetType && note.targetId) {
       ensureNode(note.targetType, note.targetId, note.targetId, null);
-      pushEdge(note.id, note.targetId, 'annotates');
+      pushEdge(note.id, note.targetId, 'annotates', null, {
+        collection: 'notes',
+        id: note.id,
+        field: 'targetId'
+      });
     }
-  });
-
-  // Explicit relations (entity ↔ entity)
-  filterByMovement(data.relations, movementId).forEach(rel => {
-    ensureNode('Entity', rel.fromEntityId, rel.fromEntityId, null);
-    ensureNode('Entity', rel.toEntityId, rel.toEntityId, null);
-    pushEdge(rel.fromEntityId, rel.toEntityId, rel.relationType || 'rel', rel.id);
   });
 
   return { nodes: Array.from(nodes.values()), edges };
@@ -838,7 +916,6 @@ function buildAuthorityViewModel(data, input) {
   const rules = filterByMovement(data.rules, movementId);
   const practices = filterByMovement(data.practices, movementId);
   const entities = filterByMovement(data.entities, movementId);
-  const relations = filterByMovement(data.relations, movementId);
 
   const sources = new Map();
   const addSourceUsage = (label, key, id) => {
@@ -849,8 +926,7 @@ function buildAuthorityViewModel(data, input) {
         usedByClaims: [],
         usedByRules: [],
         usedByPractices: [],
-        usedByEntities: [],
-        usedByRelations: []
+        usedByEntities: []
       };
     if (!record[key].includes(id)) {
       record[key].push(id);
@@ -878,11 +954,6 @@ function buildAuthorityViewModel(data, input) {
       addSourceUsage(label, 'usedByEntities', entity.id)
     );
   });
-  relations.forEach(relation => {
-    normaliseArray(relation.sourcesOfTruth).forEach(label =>
-      addSourceUsage(label, 'usedByRelations', relation.id)
-    );
-  });
 
   const authorityEntitiesLookup = buildLookup(data.entities);
   const authorityEntities = new Map();
@@ -897,8 +968,7 @@ function buildAuthorityViewModel(data, input) {
           claims: [],
           rules: [],
           practices: [],
-          entities: [],
-          relations: []
+          entities: []
         }
       };
     if (!base.usedAsSourceIn[key].includes(id)) {
@@ -925,11 +995,6 @@ function buildAuthorityViewModel(data, input) {
   entities.forEach(ent => {
     normaliseArray(ent.sourceEntityIds).forEach(entityId =>
       addEntityUsage(entityId, 'entities', ent.id)
-    );
-  });
-  relations.forEach(rel => {
-    normaliseArray(rel.sourceEntityIds).forEach(entityId =>
-      addEntityUsage(entityId, 'relations', rel.id)
     );
   });
 
@@ -1001,49 +1066,6 @@ function buildMediaGalleryViewModel(data, input) {
   return { items };
 }
 
-function buildRelationExplorerViewModel(data, input) {
-  const { movementId, relationTypeFilter, entityIdFilter } = input;
-  let relations = filterByMovement(data.relations, movementId);
-
-  if (Array.isArray(relationTypeFilter) && relationTypeFilter.length > 0) {
-    relations = relations.filter(rel =>
-      relationTypeFilter.includes(rel.relationType)
-    );
-  }
-  if (entityIdFilter) {
-    relations = relations.filter(
-      rel =>
-        rel.fromEntityId === entityIdFilter || rel.toEntityId === entityIdFilter
-    );
-  }
-
-  const entityLookup = buildLookup(data.entities);
-  const claimLookup = buildLookup(data.claims);
-
-  const relationRows = relations.map(rel => {
-    const from = entityLookup.get(rel.fromEntityId);
-    const to = entityLookup.get(rel.toEntityId);
-    return {
-      id: rel.id,
-      relationType: rel.relationType,
-      from: from
-        ? { id: from.id, name: from.name, kind: from.kind ?? null }
-        : { id: rel.fromEntityId, name: rel.fromEntityId, kind: null },
-      to: to
-        ? { id: to.id, name: to.name, kind: to.kind ?? null }
-        : { id: rel.toEntityId, name: rel.toEntityId, kind: null },
-      tags: normaliseArray(rel.tags),
-      supportingClaims: normaliseArray(rel.supportingClaimIds)
-        .map(id => claimLookup.get(id))
-        .filter(Boolean)
-        .map(claim => ({ id: claim.id, text: claim.text })),
-      sourcesOfTruth: normaliseArray(rel.sourcesOfTruth)
-    };
-  });
-
-  return { relations: relationRows };
-}
-
 function buildComparisonViewModel(data, input) {
   const { movementIds } = input;
 
@@ -1093,8 +1115,7 @@ function buildNotesViewModel(data, input) {
     Event: buildLookup(data.events),
     Rule: buildLookup(data.rules),
     Claim: buildLookup(data.claims),
-    MediaAsset: buildLookup(data.media),
-    Relation: buildLookup(data.relations)
+    MediaAsset: buildLookup(data.media)
   };
 
   const resolveLabel = (targetType, targetId) => {
@@ -1131,7 +1152,6 @@ const ViewModels = {
   buildRuleExplorerViewModel,
   buildAuthorityViewModel,
   buildMediaGalleryViewModel,
-  buildRelationExplorerViewModel,
   buildComparisonViewModel,
   buildNotesViewModel
 };

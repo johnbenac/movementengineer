@@ -2,7 +2,7 @@
  * Comparison & Template Services for Movement Engineer.
  *
  * These functions operate on plain JavaScript objects that follow:
- * - the v3.4 movement data model (data-model.js)
+ * - the v3.5 movement data model (data-model.js)
  * - the comparison/meta models (comparison-model.js, ADR-018)
  *
  * They are pure and environment-agnostic: no DOM, no fetch, no FS.
@@ -291,8 +291,7 @@ function applyTemplateToMovement(data, template, options) {
     rules: normaliseArray(srcData.rules).slice(),
     claims: normaliseArray(srcData.claims).slice(),
     media: normaliseArray(srcData.media).slice(),
-    notes: normaliseArray(srcData.notes).slice(),
-    relations: normaliseArray(srcData.relations).slice()
+    notes: normaliseArray(srcData.notes).slice()
   };
 
   const rules = normaliseArray(tmpl.rules);

@@ -6,7 +6,7 @@ We discussed multiple serialisation formats for storing and sharing movement dat
 
 ## Decision
 
-We chose **plain JSON** as the canonical storage and interchange format for movement data.  Each movement snapshot is represented as a JSON object with top‑level arrays for each collection (`movements`, `textCollections`, `texts`, `entities`, `practices`, `events`, `rules`, `claims`, `media`, `notes`, `relations`).  The meta‑schema (defining entities, fields, types and enums) is itself expressed in JSON (e.g. `version`, `enums`, `entities`).  We treat JSON‑LD and RDF as optional export formats that can be generated from our canonical JSON but are not part of our daily workflow.
+We chose **plain JSON** as the canonical storage and interchange format for movement data.  Each movement snapshot is represented as a JSON object with top‑level arrays for each collection (`movements`, `textCollections`, `texts`, `entities`, `practices`, `events`, `rules`, `claims`, `media`, `notes`).  The meta‑schema (defining entities, fields, types and enums) is itself expressed in JSON (e.g. `version`, `enums`, `entities`).  We treat JSON‑LD and RDF as optional export formats that can be generated from our canonical JSON but are not part of our daily workflow.
 
 ## Rationale
 

@@ -1,6 +1,6 @@
 (function () {
 const dataset = {
-  "version": "3.4",
+  "version": "3.5",
   "movements": [
     {
       "id": "mov-catholic",
@@ -1575,7 +1575,7 @@ const dataset = {
       "targetType": "Movement",
       "targetId": "mov-catholic",
       "author": "system",
-      "body": "This file is an illustrative example of the v3.4 movement data model applied to the Roman Catholic Church. It is not exhaustive or official doctrine, but highlights how texts, entities, practices, events, claims, rules, media, and relations can be structured.",
+      "body": "This file is an illustrative example of the v3.5 movement data model applied to the Roman Catholic Church. It is not exhaustive or official doctrine, but highlights how texts, entities, practices, events, claims, rules, media, and relations can be structured.",
       "context": "designer",
       "tags": [
         "meta",
@@ -1597,107 +1597,7 @@ const dataset = {
       ]
     }
   ],
-  "relations": [
-    {
-      "id": "rel-mary-mother-of-jesus",
-      "movementId": "mov-catholic",
-      "fromEntityId": "ent-virgin-mary",
-      "toEntityId": "ent-jesus-christ",
-      "relationType": "mother_of",
-      "tags": [
-        "mary",
-        "family"
-      ],
-      "supportingClaimIds": [
-        "clm-mary-mother-of-god"
-      ],
-      "sourcesOfTruth": [
-        "Bible",
-        "Ecumenical councils"
-      ],
-      "sourceEntityIds": [
-        "ent-bible-book"
-      ],
-      "notes": "Expresses the relationship that underlies the Marian title Mother of God."
-    },
-    {
-      "id": "rel-jesus-second-person-of-trinity",
-      "movementId": "mov-catholic",
-      "fromEntityId": "ent-jesus-christ",
-      "toEntityId": "ent-god-trinity",
-      "relationType": "second_person_of_trinity",
-      "tags": [
-        "christology",
-        "trinity"
-      ],
-      "supportingClaimIds": [
-        "clm-trinity-central"
-      ],
-      "sourcesOfTruth": [
-        "Nicene Creed",
-        "Catechism of the Catholic Church"
-      ],
-      "sourceEntityIds": [
-        "ent-catechism"
-      ],
-      "notes": "Links the historical person of Jesus with the doctrinal statement about the Trinity."
-    },
-    {
-      "id": "rel-parish-part-of-diocese",
-      "movementId": "mov-catholic",
-      "fromEntityId": "ent-parish-local",
-      "toEntityId": "ent-diocese",
-      "relationType": "part_of",
-      "tags": [
-        "structure",
-        "jurisdiction"
-      ],
-      "supportingClaimIds": [],
-      "sourcesOfTruth": [
-        "Canon law"
-      ],
-      "sourceEntityIds": [],
-      "notes": "Shows that the local parish is part of a larger diocesan structure."
-    },
-    {
-      "id": "rel-pope-leads-church",
-      "movementId": "mov-catholic",
-      "fromEntityId": "ent-pope-office",
-      "toEntityId": "ent-church-universal",
-      "relationType": "leads",
-      "tags": [
-        "governance"
-      ],
-      "supportingClaimIds": [],
-      "sourcesOfTruth": [
-        "Catholic tradition",
-        "Canon law"
-      ],
-      "sourceEntityIds": [],
-      "notes": "Expresses the Pope's role as visible head of the Catholic Church on earth."
-    },
-    {
-      "id": "rel-eucharist-host-sign-of-christ",
-      "movementId": "mov-catholic",
-      "fromEntityId": "ent-eucharist-host",
-      "toEntityId": "ent-jesus-christ",
-      "relationType": "sacramental_sign_of",
-      "tags": [
-        "eucharist",
-        "sacrament"
-      ],
-      "supportingClaimIds": [
-        "clm-real-presence-eucharist"
-      ],
-      "sourcesOfTruth": [
-        "Catechism of the Catholic Church"
-      ],
-      "sourceEntityIds": [
-        "ent-catechism"
-      ],
-      "notes": "The consecrated host is the sacramental sign and presence of Christ in the Eucharist."
-    }
-  ]
+
 };
 
 if (typeof module !== 'undefined') {

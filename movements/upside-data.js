@@ -1,6 +1,6 @@
 (function registerMovementDataset() {
 const dataset = {
-  "version": "3.4",
+  "version": "3.5",
   "movements": [
     {
       "id": "mov-upside",
@@ -2211,7 +2211,7 @@ const dataset = {
       "targetType": "Movement",
       "targetId": "mov-upside",
       "author": "system",
-      "body": "Illustrative application of the v3.4 movement data model to the Upside: focusing on the eight Signs, the main festivals and one background report treated as canon. Not exhaustive, but enough for tools to traverse signs, festivals and their mythic and anthropological grounding.",
+      "body": "Illustrative application of the v3.5 movement data model to the Upside: focusing on the eight Signs, the main festivals and one background report treated as canon. Not exhaustive, but enough for tools to traverse signs, festivals and their mythic and anthropological grounding.",
       "context": "designer",
       "tags": [
         "meta",
@@ -2233,88 +2233,7 @@ const dataset = {
       ]
     }
   ],
-  "relations": [
-    {
-      "id": "rel-beast-preys-on-band",
-      "movementId": "mov-upside",
-      "fromEntityId": "ent-beast",
-      "toEntityId": "ent-band",
-      "relationType": "preys_on",
-      "tags": [
-        "mythic",
-        "predation"
-      ],
-      "supportingClaimIds": [
-        "clm-hominins-became-apex"
-      ],
-      "sourcesOfTruth": [
-        "Hominin–Carnivore Background",
-        "Upside core myth"
-      ],
-      "sourceEntityIds": [],
-      "notes": "Expresses the baseline condition that the Band begins as prey in the fields of the Beasts, both in deep time and in the digital Below."
-    },
-    {
-      "id": "rel-fire-protects-band",
-      "movementId": "mov-upside",
-      "fromEntityId": "ent-fire",
-      "toEntityId": "ent-band",
-      "relationType": "protects",
-      "tags": [
-        "fire",
-        "protection"
-      ],
-      "supportingClaimIds": [
-        "clm-fire-guards-camp"
-      ],
-      "sourcesOfTruth": [
-        "Background Report: Hominin–Carnivore Dynamics and the Emergence of Humans as Apex Predators",
-        "Night of the First Fire (placeholder)"
-      ],
-      "sourceEntityIds": [],
-      "notes": "Links ancestral use of fire to Upside imagery of campfires and festival flames that keep predators at the edge of the light."
-    },
-    {
-      "id": "rel-law-impossibility-governs-severance",
-      "movementId": "mov-upside",
-      "fromEntityId": "ent-law-impossibility",
-      "toEntityId": "ent-sign-02-severance",
-      "relationType": "governs",
-      "tags": [
-        "principle",
-        "severance"
-      ],
-      "supportingClaimIds": [
-        "clm-law-impossibility"
-      ],
-      "sourcesOfTruth": [
-        "Day of Severance",
-        "Day of Gathering"
-      ],
-      "sourceEntityIds": [],
-      "notes": "States that the Sign of Severance is one way Upsiders apply the Law of Impossibility in practice."
-    },
-    {
-      "id": "rel-vault-home-for-gathering",
-      "movementId": "mov-upside",
-      "fromEntityId": "ent-vault",
-      "toEntityId": "ent-sign-03-gathering",
-      "relationType": "home_for",
-      "tags": [
-        "vault",
-        "gathering"
-      ],
-      "supportingClaimIds": [
-        "clm-data-deserves-home"
-      ],
-      "sourcesOfTruth": [
-        "Sign 03 - Gathering",
-        "Day of Gathering"
-      ],
-      "sourceEntityIds": [],
-      "notes": "Expresses that the Vault is the intended home for the embers reclaimed by the Sign and Day of Gathering."
-    }
-  ]
+
 };
 
 if (typeof module !== 'undefined') {

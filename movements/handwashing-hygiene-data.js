@@ -1,6 +1,6 @@
 (function registerMovementDataset() {
 const dataset = {
-  "version": "3.4",
+  "version": "3.5",
   "movements": [
     {
       "id": "mov-handwashing-hygiene",
@@ -491,44 +491,7 @@ const dataset = {
       ]
     }
   ],
-  "relations": [
-    {
-      "id": "rel-semmelweis-proves-protocol",
-      "movementId": "mov-handwashing-hygiene",
-      "fromEntityId": "ent-ignaz-semmelweis",
-      "toEntityId": "ent-handwashing-protocol",
-      "relationType": "justifies",
-      "tags": [
-        "evidence"
-      ],
-      "supportingClaimIds": [
-        "clm-cleanliness-saves-lives"
-      ],
-      "sourcesOfTruth": [
-        "clinical reports"
-      ],
-      "sourceEntityIds": [],
-      "notes": "Semmelweis's data provided early proof that handwashing stopped lethal infections."
-    },
-    {
-      "id": "rel-nightingale-visualizes-data",
-      "movementId": "mov-handwashing-hygiene",
-      "fromEntityId": "ent-florence-nightingale",
-      "toEntityId": "ent-polar-area-diagram",
-      "relationType": "created",
-      "tags": [
-        "data_viz"
-      ],
-      "supportingClaimIds": [
-        "clm-cleanliness-saves-lives"
-      ],
-      "sourcesOfTruth": [
-        "statistical reports"
-      ],
-      "sourceEntityIds": [],
-      "notes": "She used the diagrams to persuade leaders that sanitation should be funded and enforced."
-    }
-  ]
+
 };
 
 if (typeof module !== 'undefined') {

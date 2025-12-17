@@ -180,19 +180,6 @@
           context: null,
           tags: []
         };
-      case 'relations':
-        return {
-          id: generateId('rel-'),
-          movementId: rid,
-          fromEntityId: '',
-          toEntityId: '',
-          relationType: 'related_to',
-          tags: [],
-          supportingClaimIds: [],
-          sourcesOfTruth: [],
-          sourceEntityIds: [],
-          notes: null
-        };
       default:
         return { id: generateId('id-') };
     }

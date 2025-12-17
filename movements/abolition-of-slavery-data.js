@@ -1,6 +1,6 @@
 (function registerMovementDataset() {
 const dataset = {
-  "version": "3.4",
+  "version": "3.5",
   "movements": [
     {
       "id": "mov-abolition",
@@ -321,8 +321,7 @@ const dataset = {
   "rules": [],
   "claims": [],
   "media": [],
-  "notes": [],
-  "relations": []
+  "notes": []
 };
 
 if (typeof module !== 'undefined') {

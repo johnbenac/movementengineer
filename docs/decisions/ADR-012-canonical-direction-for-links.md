@@ -1,5 +1,7 @@
 # ADR-012: Canonical Direction for Cross‑Object Links
 
+> Update (schema 3.5): The dedicated `Relation` collection has been removed. Cross-object links are now derived solely from canonical outbound references.
+
 ## Context
 
 In earlier versions of the schema, we mirrored relationships between objects: `Entity` had arrays such as `relatedTextIds`, `relatedPracticeIds` and `relatedEventIds`, while `TextNode` stored `mentionsEntityIds`, `Practice` stored `involvedEntityIds` and so on.  Maintaining these bidirectional links led to mismatches: items were linked in one direction but not the other.  We debated introducing validation to keep them in sync or removing one side of each relationship.  Since our tools can derive reverse associations at runtime, it was unnecessary for authors to manually maintain both directions.  The schema needed a clear rule to prevent inconsistency and cognitive load.

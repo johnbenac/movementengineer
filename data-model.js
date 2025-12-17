@@ -1,5 +1,5 @@
 {
-  "version": "3.4",
+  "version": "3.5",
   "enums": {
     "TextLevel": {
       "description": "How large a piece of text is.",
@@ -123,7 +123,7 @@
       }
     },
     "Entity": {
-      "description": "Anything that exists in the world of the movement: beings, places, objects, ideas. Relationships to other things are expressed via Relation records and one-way references from texts, practices, events, claims, and media.",
+      "description": "Anything that exists in the world of the movement: beings, places, objects, ideas. Connections to other records are derived from the references those records make (claims, events, texts, media, etc.).",
       "collectionName": "entities",
       "fields": {
         "id": { "type": "string", "format": "id", "required": true },
@@ -429,59 +429,6 @@
           "type": "array",
           "items": { "type": "string" },
           "required": true
-        }
-      }
-    },
-    "Relation": {
-      "description": "A typed relationship between two entities (for myth, hierarchy, membership, type-instance, etc.). Tools can infer 'general' vs 'particular' by conventions such as using relationType values like 'instance_of' or 'generalizes'.",
-      "collectionName": "relations",
-      "fields": {
-        "id": { "type": "string", "format": "id", "required": true },
-        "movementId": {
-          "type": "string",
-          "format": "id",
-          "ref": "Movement",
-          "required": true
-        },
-        "fromEntityId": {
-          "type": "string",
-          "format": "id",
-          "ref": "Entity",
-          "required": true
-        },
-        "toEntityId": {
-          "type": "string",
-          "format": "id",
-          "ref": "Entity",
-          "required": true
-        },
-        "relationType": {
-          "type": "string",
-          "required": true
-        },
-        "tags": {
-          "type": "array",
-          "items": { "type": "string" },
-          "required": true
-        },
-        "supportingClaimIds": {
-          "type": "array",
-          "items": { "type": "string", "format": "id", "ref": "Claim" },
-          "required": true
-        },
-        "sourcesOfTruth": {
-          "type": "array",
-          "items": { "type": "string" },
-          "required": true
-        },
-        "sourceEntityIds": {
-          "type": "array",
-          "items": { "type": "string", "format": "id", "ref": "Entity" },
-          "required": true
-        },
-        "notes": {
-          "type": "string",
-          "nullable": true
         }
       }
     }

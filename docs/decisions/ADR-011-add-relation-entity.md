@@ -1,5 +1,7 @@
 # ADR-011: Introduce `Relation` Entity for Typed Links
 
+> Update (schema 3.5): The dedicated `Relation` collection has been removed in favour of deriving graph edges from existing outbound references. This ADR remains for historical context.
+
 ## Context
 
 During modelling we encountered many relationships between entities that required more detail than a simple list of IDs.  Examples include genealogical links (mother_of, father_of), membership in hierarchies (parish part_of diocese), doctrinal relations (Jesus is second_person_of Trinity), and ontological relationships (host is sacramental_sign_of Christ).  Originally we stored these connections in one large array on each entity (`relatedEntityIds`), but this provided no type information and invited inconsistencies.  Mirroring the same relationship on both entities also led to mismatches.  We needed a structured, extensible way to record typed edges without cluttering the `Entity` schema with dozens of optional fields.
