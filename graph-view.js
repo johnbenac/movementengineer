@@ -33,6 +33,12 @@
     return PALETTE[idx];
   }
 
+  if (typeof window !== 'undefined') {
+    window.EntityGraphColors = window.EntityGraphColors || {};
+    window.EntityGraphColors.hashToColor = hashToColor;
+    window.EntityGraphColors.palette = PALETTE.slice();
+  }
+
   function normaliseLinks(graph, nodeById) {
     const edges = Array.isArray(graph?.edges) ? graph.edges : graph?.links || [];
     return edges
@@ -232,7 +238,7 @@
       svg.call(this.zoomBehavior);
       if (this.lastTransform) svg.call(this.zoomBehavior.transform, this.lastTransform);
 
-      const nodeFill = n => hashToColor(n.kind);
+      const nodeFill = n => hashToColor(n.type || n.kind);
       const labelFor = n => {
         const s = n.name || n.id;
         return s.length > 18 ? s.slice(0, 17) + '…' : s;
