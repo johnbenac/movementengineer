@@ -373,7 +373,8 @@ button.danger:hover {
 }
 
 .subtab-toolbar select,
-.subtab-toolbar input[type="text"] {
+.subtab-toolbar input[type="text"],
+.subtab-toolbar input[type="search"] {
   font-size: 0.8rem;
   padding: 0.25rem 0.4rem;
   border-radius: 4px;
@@ -383,6 +384,14 @@ button.danger:hover {
 
 .subtab-toolbar .grow {
   flex: 1;
+}
+
+.canon-filters {
+  gap: 0.8rem;
+}
+
+.canon-filters label {
+  min-width: 180px;
 }
 
 /* Split view in collections tab */

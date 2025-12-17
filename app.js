@@ -939,6 +939,12 @@
     const select = document.getElementById('canon-collection-select');
     if (!select) return;
 
+    const searchInput = document.getElementById('canon-filter-search');
+    const tagFilter = document.getElementById('canon-filter-tag');
+    const mentionFilter = document.getElementById('canon-filter-mention');
+    const parentFilter = document.getElementById('canon-filter-parent');
+    const childFilter = document.getElementById('canon-filter-child');
+
     const allCollections = snapshot.textCollections || [];
     const ownCollections = allCollections.filter(
       tc => tc.movementId === currentMovementId
@@ -949,14 +955,77 @@
     }));
     ensureSelectOptions(select, options, 'All texts (no collection filter)');
 
+    const movementTexts = (snapshot.texts || []).filter(
+      t => t.movementId === currentMovementId
+    );
+
+    const getTextLabel = text => {
+      const labelPart = text.label ? text.label + ' ' : '';
+      return (labelPart + (text.title || '')).trim() || text.id;
+    };
+
+    const textOptions = movementTexts
+      .map(text => ({
+        value: text.id,
+        label: getTextLabel(text)
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+
+    if (tagFilter) {
+      const tagOptions = uniqueSorted(
+        movementTexts.flatMap(text => normaliseArray(text.tags))
+      ).map(tag => ({ value: tag, label: tag }));
+      ensureSelectOptions(tagFilter, tagOptions, 'Any tag');
+    }
+
+    if (mentionFilter) {
+      const entityLookup = new Map(
+        (snapshot.entities || [])
+          .filter(e => e.movementId === currentMovementId)
+          .map(e => [e.id, e])
+      );
+
+      const mentionOptions = uniqueSorted(
+        movementTexts.flatMap(text => normaliseArray(text.mentionsEntityIds))
+      ).map(id => {
+        const entity = entityLookup.get(id);
+        const label = entity
+          ? `${entity.name || entity.id}${
+              entity.kind ? ` (${entity.kind})` : ''
+            }`
+          : id;
+        return { value: id, label };
+      });
+      ensureSelectOptions(mentionFilter, mentionOptions, 'Any mention');
+    }
+
+    if (parentFilter) {
+      const parentOptions = textOptions.map(opt => ({ ...opt }));
+      parentOptions.unshift({ value: '__root__', label: 'Root (no parent)' });
+      ensureSelectOptions(parentFilter, parentOptions, 'Any parent');
+    }
+
+    if (childFilter) {
+      ensureSelectOptions(childFilter, textOptions, 'Any child');
+    }
+
     const textCollectionId = select.value || null;
     const activeCollection = textCollectionId
       ? ownCollections.find(tc => tc.id === textCollectionId)
       : null;
 
+    const filters = {
+      search: searchInput ? searchInput.value.trim() : '',
+      tag: tagFilter ? tagFilter.value : '',
+      mention: mentionFilter ? mentionFilter.value : '',
+      parentId: parentFilter ? parentFilter.value : '',
+      childId: childFilter ? childFilter.value : ''
+    };
+
     const vm = ViewModels.buildCanonTreeViewModel(snapshot, {
       movementId: currentMovementId,
-      textCollectionId: textCollectionId || null
+      textCollectionId: textCollectionId || null,
+      filters
     });
 
     if (
@@ -971,7 +1040,9 @@
       currentTextId = null;
       const p = document.createElement('p');
       p.className = 'hint';
-      p.textContent = 'No texts found for this movement.';
+      p.textContent = vm.filtersApplied
+        ? 'No texts match these filters.'
+        : 'No texts found for this movement.';
       treeContainer.appendChild(p);
       renderCanonForms({ collection: activeCollection, roots: [], nodesById: {} });
       return;
@@ -5473,6 +5544,16 @@
         renderCanonView
       );
     }
+    const canonFilters = [
+      { id: 'canon-filter-search', event: 'input' },
+      { id: 'canon-filter-tag', event: 'change' },
+      { id: 'canon-filter-mention', event: 'change' },
+      { id: 'canon-filter-parent', event: 'change' },
+      { id: 'canon-filter-child', event: 'change' }
+    ];
+    canonFilters.forEach(({ id, event }) =>
+      addListenerById(id, event, renderCanonView)
+    );
     addListenerById('btn-add-text-collection', 'click', addTextCollection);
     addListenerById('btn-save-text-collection', 'click', saveTextCollection);
     addListenerById('btn-delete-text-collection', 'click', deleteTextCollection);

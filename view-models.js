@@ -107,7 +107,7 @@ function buildMovementDashboardViewModel(data, input) {
 }
 
 function buildCanonTreeViewModel(data, input) {
-  const { movementId, textCollectionId } = input;
+  const { movementId, textCollectionId, filters = {} } = input;
   const collections = buildLookup(data.textCollections);
   const collection = textCollectionId
     ? collections.get(textCollectionId) || null
@@ -117,12 +117,80 @@ function buildCanonTreeViewModel(data, input) {
   const events = filterByMovement(data.events, movementId);
   const entities = buildLookup(filterByMovement(data.entities, movementId));
 
+  const parentById = new Map();
+  texts.forEach(text => parentById.set(text.id, text.parentId || null));
+
   const childrenByParent = new Map();
   texts.forEach(text => {
     const bucket = childrenByParent.get(text.parentId || null) || [];
     bucket.push(text.id);
     childrenByParent.set(text.parentId || null, bucket);
   });
+
+  const searchQuery = (filters.search || '').toLowerCase();
+  const tagFilter = filters.tag || '';
+  const mentionFilter = filters.mention || '';
+  const parentFilter = filters.parentId || '';
+  const childFilter = filters.childId || '';
+  const hasFilters = Boolean(
+    searchQuery || tagFilter || mentionFilter || parentFilter || childFilter
+  );
+
+  const textMatchesFilters = text => {
+    if (!text) return false;
+    if (tagFilter && !normaliseArray(text.tags).includes(tagFilter)) return false;
+    if (
+      mentionFilter &&
+      !normaliseArray(text.mentionsEntityIds).includes(mentionFilter)
+    ) {
+      return false;
+    }
+    if (parentFilter) {
+      const parentId = parentById.get(text.id) || null;
+      if (parentFilter === '__root__') {
+        if (parentId !== null) return false;
+      } else if (parentId !== parentFilter) {
+        return false;
+      }
+    }
+    if (childFilter) {
+      const children = childrenByParent.get(text.id) || [];
+      if (!children.includes(childFilter)) return false;
+    }
+    if (searchQuery) {
+      const haystack = [
+        text.title,
+        text.label,
+        text.mainFunction,
+        normaliseArray(text.tags).join(' '),
+        text.content
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      if (!haystack.includes(searchQuery)) return false;
+    }
+
+    return true;
+  };
+
+  let allowedIds = new Set(texts.map(t => t.id));
+
+  if (hasFilters) {
+    const directMatches = texts.filter(textMatchesFilters).map(t => t.id);
+    const allowed = new Set();
+    const addAncestors = id => {
+      let current = id;
+      while (current) {
+        if (allowed.has(current)) break;
+        allowed.add(current);
+        current = parentById.get(current) || null;
+      }
+    };
+
+    directMatches.forEach(addAncestors);
+    allowedIds = allowed;
+  }
 
   const referencedByClaims = new Map();
   claims.forEach(claim => {
@@ -152,6 +220,8 @@ function buildCanonTreeViewModel(data, input) {
 
   const nodesById = {};
   texts.forEach(text => {
+    if (!allowedIds.has(text.id)) return;
+
     const mentionsEntities = normaliseArray(text.mentionsEntityIds)
       .map(id => entities.get(id))
       .filter(Boolean)
@@ -169,7 +239,9 @@ function buildCanonTreeViewModel(data, input) {
       mainFunction: text.mainFunction ?? null,
       tags: normaliseArray(text.tags),
       hasContent: Boolean(text.content && text.content.trim()),
-      childIds: childrenByParent.get(text.id) || [],
+      childIds: (childrenByParent.get(text.id) || []).filter(childId =>
+        allowedIds.has(childId)
+      ),
       mentionsEntities,
       referencedByClaims: referencedByClaims.get(text.id) || [],
       usedInEvents: usedInEvents.get(text.id) || []
@@ -190,7 +262,8 @@ function buildCanonTreeViewModel(data, input) {
   return {
     collection,
     roots,
-    nodesById
+    nodesById,
+    filtersApplied: hasFilters
   };
 }
 
