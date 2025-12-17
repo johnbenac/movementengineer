@@ -77,7 +77,6 @@
         <button class="tab" data-tab="authority">Authority</button>
         <button class="tab" data-tab="media">Media</button>
         <button class="tab" data-tab="graph">Graph</button>
-        <button class="tab" data-tab="relations">Relations</button>
         <button class="tab" data-tab="notes">Notes</button>
         <button class="tab" data-tab="data">Collections</button>
         <button class="tab" data-tab="comparison">Comparison</button>
@@ -479,31 +478,6 @@
         </div>
       </section>
 
-      <!-- Relations -->
-      <section id="tab-relations" class="tab-panel">
-        <div class="panel-body">
-          <h2>Relations</h2>
-          <p class="hint">
-            Browse relations by type or entity to see how movement entities connect.
-          </p>
-          <div class="subtab-toolbar">
-            <label>
-              Relation type:
-              <select id="relations-type-filter">
-                <option value="">All</option>
-              </select>
-            </label>
-            <label>
-              Entity:
-              <select id="relations-entity-filter">
-                <option value="">Any</option>
-              </select>
-            </label>
-          </div>
-          <div id="relations-table-wrapper" class="table-wrapper"></div>
-        </div>
-      </section>
-
       <!-- Notes -->
       <section id="tab-notes" class="tab-panel">
         <div class="panel-body">
@@ -548,7 +522,6 @@
                 <option value="texts">texts</option>
                 <option value="media">media</option>
                 <option value="notes">notes</option>
-                <option value="relations">relations</option>
               </select>
             </label>
 

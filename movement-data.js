@@ -11,21 +11,23 @@
     'rules',
     'claims',
     'media',
-    'notes',
-    'relations'
+    'notes'
   ];
 
   function ensureCollections(snapshot) {
-    const normalized = { version: snapshot.version || '3.4' };
+    const cleaned = { ...snapshot };
+    delete cleaned.relations;
+
+    const normalized = { version: cleaned.version || '3.5' };
     COLLECTION_NAMES.forEach(name => {
-      const value = snapshot[name];
+      const value = cleaned[name];
       normalized[name] = Array.isArray(value) ? value : [];
     });
     return normalized;
   }
 
   function mergeSnapshots(snapshots) {
-    const merged = { version: '3.4' };
+    const merged = { version: '3.5' };
     COLLECTION_NAMES.forEach(name => {
       merged[name] = [];
     });

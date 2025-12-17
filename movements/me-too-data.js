@@ -1,6 +1,6 @@
 (function registerMovementDataset() {
 const dataset = {
-  "version": "3.4",
+  "version": "3.5",
   "movements": [
     {
       "id": "mov-me-too",
@@ -266,26 +266,6 @@ const dataset = {
         "meta",
         "example"
       ]
-    }
-  ],
-  "relations": [
-    {
-      "id": "rel-stories-amplify-change",
-      "movementId": "mov-me-too",
-      "fromEntityId": "ent-survivor-stories",
-      "toEntityId": "ent-metoo-phrase",
-      "relationType": "amplified_by",
-      "tags": [
-        "awareness"
-      ],
-      "supportingClaimIds": [
-        "clm-believe-survivors"
-      ],
-      "sourcesOfTruth": [
-        "media coverage"
-      ],
-      "sourceEntityIds": [],
-      "notes": "The hashtag created a channel for stories to be seen and counted together."
     }
   ]
 };

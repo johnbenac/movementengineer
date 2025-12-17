@@ -188,7 +188,7 @@
         height,
         centerEntityId: options.centerEntityId,
         selectedEntityId: options.selectedEntityId,
-        selectedRelationId: options.selectedRelationId,
+        selectedEdgeId: options.selectedEdgeId,
         focusEntityId: options.focusEntityId
       };
 
@@ -236,8 +236,7 @@
         .join('g')
         .attr('class', d => {
           const selected =
-            this.currentGraph.selectedRelationId &&
-            this.currentGraph.selectedRelationId === d.id;
+            this.currentGraph.selectedEdgeId && this.currentGraph.selectedEdgeId === d.id;
           return 'graph-link' + (selected ? ' selected' : '');
         })
         .on('click', (event, d) => {
