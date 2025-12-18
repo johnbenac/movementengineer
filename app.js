@@ -573,6 +573,28 @@
       .filter(Boolean);
   }
 
+  function applyTextCollectionFormToSnapshot() {
+    if (isPopulatingCanonForms) return null;
+
+    const collection = getActiveTextCollection();
+    if (!collection) return null;
+
+    const nameInput = document.getElementById('canon-collection-name');
+    const descInput = document.getElementById('canon-collection-description');
+    const tagsInput = document.getElementById('canon-collection-tags');
+    if (!nameInput || !descInput || !tagsInput) return collection;
+
+    const updated = {
+      ...collection,
+      name: nameInput.value.trim() || collection.name,
+      description: descInput.value,
+      tags: parseCsvInput(tagsInput.value)
+    };
+
+    DomainService.upsertItem(snapshot, 'textCollections', updated);
+    return updated;
+  }
+
   function getActiveTextCollection() {
     const select = document.getElementById('canon-collection-select');
     if (!select) return null;
@@ -1365,22 +1387,9 @@
   }
 
   function saveTextCollection() {
-    if (isPopulatingCanonForms) return;
-    const collection = getActiveTextCollection();
-    if (!collection) return;
+    const updated = applyTextCollectionFormToSnapshot();
+    if (!updated) return;
 
-    const nameInput = document.getElementById('canon-collection-name');
-    const descInput = document.getElementById('canon-collection-description');
-    const tagsInput = document.getElementById('canon-collection-tags');
-
-    const updated = {
-      ...collection,
-      name: nameInput.value.trim() || collection.name,
-      description: descInput.value,
-      tags: parseCsvInput(tagsInput.value)
-    };
-
-    DomainService.upsertItem(snapshot, 'textCollections', updated);
     saveSnapshot({ show: false });
     setStatus('Collection saved');
     renderCanonView();
@@ -1406,10 +1415,10 @@
       alert('Select a movement first.');
       return;
     }
+    const collection = applyTextCollectionFormToSnapshot();
     try {
       const text = DomainService.addNewItem(snapshot, 'texts', currentMovementId);
       text.parentId = null;
-      const collection = getActiveTextCollection();
       if (collection) {
         const roots = new Set(collection.rootTextIds || []);
         roots.add(text.id);
@@ -1433,6 +1442,7 @@
       alert('Select a movement first.');
       return;
     }
+    applyTextCollectionFormToSnapshot();
     try {
       const text = DomainService.addNewItem(snapshot, 'texts', currentMovementId);
       text.parentId = currentTextId;
@@ -1447,6 +1457,7 @@
 
   function saveCurrentTextNode() {
     if (isPopulatingCanonForms) return;
+    const activeCollection = applyTextCollectionFormToSnapshot();
     if (!currentTextId) return;
     const text = (snapshot.texts || []).find(t => t.id === currentTextId);
     if (!text) return;
@@ -1488,7 +1499,7 @@
 
     DomainService.upsertItem(snapshot, 'texts', updated);
 
-    const collection = getActiveTextCollection();
+    const collection = activeCollection || getActiveTextCollection();
     if (collection) {
       const roots = new Set(collection.rootTextIds || []);
       if (rootCheckbox.checked) {
@@ -1505,6 +1516,7 @@
   }
 
   function deleteCurrentTextNode() {
+    applyTextCollectionFormToSnapshot();
     if (!currentTextId) return;
     const vm = ViewModels.buildCanonTreeViewModel(snapshot, {
       movementId: currentMovementId,
