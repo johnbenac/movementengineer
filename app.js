@@ -45,6 +45,11 @@
     filterNodeTypes: []
   };
 
+  let lastLibraryViewModel = null;
+  let librarySearchResults = [];
+  let librarySearchActiveIndex = -1;
+  let lastLibrarySearchQuery = '';
+
   function normaliseSelectionType(type) {
     return typeof type === 'string' ? type.toLowerCase() : null;
   }
@@ -1406,6 +1411,7 @@
     if (breadcrumb) clearElement(breadcrumb);
 
     if (!currentMovementId) {
+      clearLibrarySearchResults();
       shelfList.appendChild(renderEmptyHint('Create or select a movement first.'));
       bookList.appendChild(renderEmptyHint('Choose a movement to see books.'));
       tocTree.appendChild(renderEmptyHint('No table of contents to show.'));
@@ -1422,6 +1428,8 @@
       searchQuery
     });
 
+    lastLibraryViewModel = vm;
+
     if (!currentShelfId && vm.shelves.length) {
       currentShelfId = vm.shelves[0].id;
     }
@@ -1432,10 +1440,13 @@
       currentTextId = currentBookId;
     }
 
+    renderLibrarySearchResults(vm);
     renderShelfPane(vm);
     renderBooksPane(vm);
     renderTocPane(vm);
     renderNodeEditor(vm);
+
+    requestAnimationFrame(scrollActiveLibraryNodeIntoView);
   }
 
   function renderEmptyHint(text) {
@@ -1443,6 +1454,141 @@
     p.className = 'library-empty';
     p.textContent = text;
     return p;
+  }
+
+  function clearLibrarySearchResults() {
+    const container = document.getElementById('library-search-results');
+    if (!container) return;
+    clearElement(container);
+    container.style.display = 'none';
+    librarySearchResults = [];
+    librarySearchActiveIndex = -1;
+    lastLibrarySearchQuery = '';
+  }
+
+  function setActiveLibrarySearchIndex(index) {
+    librarySearchActiveIndex = index;
+    const items = document.querySelectorAll(
+      '#library-search-results .library-search-result'
+    );
+    items.forEach((item, idx) => {
+      item.classList.toggle('active', idx === librarySearchActiveIndex);
+    });
+  }
+
+  function selectLibrarySearchResult(result) {
+    if (!result) return;
+    currentTextId = result.nodeId;
+    currentBookId = result.bookId || result.nodeId;
+    const shelfIds = result.shelfIds || [];
+    if (shelfIds.length) currentShelfId = shelfIds[0];
+    renderLibraryView();
+  }
+
+  function renderLibrarySearchResults(vm) {
+    const container = document.getElementById('library-search-results');
+    const searchInput = document.getElementById('library-search');
+    if (!container || !searchInput) return;
+
+    clearElement(container);
+
+    const query = searchInput.value.trim();
+    const hasQueryChanged = query !== lastLibrarySearchQuery;
+    lastLibrarySearchQuery = query;
+
+    librarySearchResults = vm?.searchResults || [];
+
+    if (!query || !librarySearchResults.length) {
+      container.style.display = 'none';
+      librarySearchActiveIndex = -1;
+      return;
+    }
+
+    container.style.display = '';
+    if (librarySearchActiveIndex < 0 || hasQueryChanged) {
+      librarySearchActiveIndex = 0;
+    }
+    librarySearchActiveIndex = Math.min(
+      librarySearchActiveIndex,
+      librarySearchResults.length - 1
+    );
+
+    const list = document.createElement('ul');
+    list.className = 'library-search-results-list';
+
+    librarySearchResults.forEach((result, index) => {
+      const item = document.createElement('li');
+      item.className = 'library-search-result';
+      if (index === librarySearchActiveIndex) item.classList.add('active');
+
+      const path = document.createElement('div');
+      path.className = 'library-search-path';
+      path.textContent = result.pathLabel || result.nodeId;
+      item.appendChild(path);
+
+      const meta = document.createElement('div');
+      meta.className = 'library-search-meta';
+      const metaBits = [result.nodeId];
+      if (result.bookId && result.bookId !== result.nodeId) {
+        metaBits.push(`Book ${result.bookId}`);
+      }
+      if (result.shelfIds?.length) {
+        metaBits.push(`Shelf ${result.shelfIds[0]}`);
+      }
+      meta.textContent = metaBits.join(' · ');
+      item.appendChild(meta);
+
+      if (result.matchSnippet) {
+        const snippet = document.createElement('div');
+        snippet.className = 'library-search-snippet';
+        snippet.textContent = result.matchSnippet;
+        item.appendChild(snippet);
+      }
+
+      item.addEventListener('mouseenter', () => setActiveLibrarySearchIndex(index));
+      item.addEventListener('click', () => selectLibrarySearchResult(result));
+
+      list.appendChild(item);
+    });
+
+    container.appendChild(list);
+  }
+
+  function handleLibrarySearchKeydown(event) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.target.value = '';
+      renderLibraryView();
+      return;
+    }
+
+    if (!librarySearchResults.length || !lastLibraryViewModel) return;
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      const next = (librarySearchActiveIndex + 1) % librarySearchResults.length;
+      setActiveLibrarySearchIndex(next);
+      renderLibrarySearchResults(lastLibraryViewModel);
+      return;
+    }
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      const prev =
+        (librarySearchActiveIndex - 1 + librarySearchResults.length) %
+        librarySearchResults.length;
+      setActiveLibrarySearchIndex(prev);
+      renderLibrarySearchResults(lastLibraryViewModel);
+      return;
+    }
+
+    if (event.key === 'Enter') {
+      const result = librarySearchResults[librarySearchActiveIndex];
+      if (result) {
+        event.preventDefault();
+        selectLibrarySearchResult(result);
+      }
+    }
   }
 
   function renderShelfPane(vm) {
@@ -1498,6 +1644,12 @@
         unshelvedList.appendChild(card);
       });
     }
+  }
+
+  function scrollActiveLibraryNodeIntoView() {
+    const active = document.querySelector('#toc-tree .toc-node.active');
+    if (!active) return;
+    active.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
   function renderBooksPane(vm) {
@@ -1706,6 +1858,8 @@
     mentionsInput.value = normaliseArray(activeNode.mentionsEntityIds).join(', ');
     const contentInput = document.createElement('textarea');
     contentInput.rows = 8;
+    contentInput.className = 'markdown-input';
+    contentInput.placeholder = 'Add markdown content...';
     contentInput.value = activeNode.content || '';
 
     const parentSelect = document.createElement('select');
@@ -1810,8 +1964,7 @@
       { label: 'Main function', field: mainFunctionInput },
       { label: 'Tags (comma separated)', field: tagsInput },
       { label: 'Mentions entity IDs', field: mentionsInput },
-      { label: 'Parent', field: parentSelect },
-      { label: 'Content', field: contentInput }
+      { label: 'Parent', field: parentSelect }
     ].forEach(row => {
       const wrapper = document.createElement('div');
       const labelEl = document.createElement('div');
@@ -1821,6 +1974,54 @@
       wrapper.appendChild(row.field);
       textEditor.appendChild(wrapper);
     });
+
+    const contentRow = document.createElement('div');
+    contentRow.className = 'markdown-row';
+
+    const contentHeader = document.createElement('div');
+    contentHeader.className = 'markdown-row-header';
+    const contentLabel = document.createElement('span');
+    contentLabel.textContent = 'Content';
+    const contentActions = document.createElement('div');
+    contentActions.className = 'markdown-row-actions';
+    const openMarkdownBtn = document.createElement('button');
+    openMarkdownBtn.type = 'button';
+    openMarkdownBtn.textContent = 'Open markdown editor';
+    contentActions.appendChild(openMarkdownBtn);
+    contentHeader.appendChild(contentLabel);
+    contentHeader.appendChild(contentActions);
+
+    const markdownGrid = document.createElement('div');
+    markdownGrid.className = 'markdown-editor-grid';
+
+    const preview = document.createElement('div');
+    preview.className = 'markdown-preview-panel';
+    renderMarkdownPreview(preview, contentInput.value, { enabled: true });
+
+    contentInput.addEventListener('input', () => {
+      renderMarkdownPreview(preview, contentInput.value, { enabled: true });
+    });
+
+    openMarkdownBtn.addEventListener('click', () => {
+      openMarkdownModal({
+        title: 'Edit text content',
+        initial: contentInput.value,
+        onSave: value => {
+          contentInput.value = value;
+          renderMarkdownPreview(preview, value, { enabled: true });
+        },
+        onClose: () => {
+          renderMarkdownPreview(preview, contentInput.value, { enabled: true });
+        }
+      });
+    });
+
+    markdownGrid.appendChild(contentInput);
+    markdownGrid.appendChild(preview);
+
+    contentRow.appendChild(contentHeader);
+    contentRow.appendChild(markdownGrid);
+    textEditor.appendChild(contentRow);
 
     if (shelfMembership.childNodes.length) textEditor.appendChild(shelfMembership);
 
@@ -4535,8 +4736,16 @@
   function jumpToText(textId) {
     if (!textId) return;
     activateTab('canon');
+    const vm = ViewModels.buildLibraryEditorViewModel(snapshot, {
+      movementId: currentMovementId,
+      activeNodeId: textId
+    });
+    const bookId = vm.bookIdByNodeId[textId] || textId;
+    currentBookId = bookId;
     currentTextId = textId;
-    renderCanonView();
+    const shelves = vm.shelvesByBookId[bookId] || [];
+    if (shelves.length) currentShelfId = shelves[0];
+    renderLibraryView();
   }
 
   // ---- Dashboard (ViewModels) ----
@@ -5815,6 +6024,7 @@
       practiceSelect.addEventListener('change', renderPracticesView);
     }
     addListenerById('library-search', 'input', renderLibraryView);
+    addListenerById('library-search', 'keydown', handleLibrarySearchKeydown);
     addListenerById('btn-add-text-collection', 'click', addTextCollection);
     addListenerById('btn-save-text-collection', 'click', saveTextCollection);
     addListenerById('btn-delete-text-collection', 'click', () => deleteTextCollection());

@@ -1219,6 +1219,55 @@ a.text-link:hover {
   margin-bottom: 0.75rem;
 }
 
+.library-search-results {
+  margin-top: -0.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.library-search-results-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: #fff;
+  max-height: 260px;
+  overflow-y: auto;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.06);
+}
+
+.library-search-result {
+  padding: 0.55rem 0.65rem;
+  border-bottom: 1px solid var(--card-border);
+  cursor: pointer;
+}
+
+.library-search-result:last-child {
+  border-bottom: none;
+}
+
+.library-search-result:hover,
+.library-search-result.active {
+  background: rgba(84, 110, 255, 0.08);
+}
+
+.library-search-path {
+  font-weight: 600;
+  margin-bottom: 0.15rem;
+}
+
+.library-search-meta {
+  color: var(--muted-text);
+  font-size: 0.85rem;
+}
+
+.library-search-snippet {
+  margin-top: 0.25rem;
+  font-size: 0.9rem;
+  color: #374151;
+}
+
 .shelf-list,
 .book-list {
   display: flex;
