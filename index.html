@@ -160,83 +160,74 @@
       <!-- Canon -->
       <section id="tab-canon" class="tab-panel">
         <div class="panel-body">
-          <h2>Canon</h2>
+          <h2>Library Editor</h2>
           <p class="hint">
-            Browse text collections and passages for the selected movement.
+            Organise movement texts into shelves and books. Changes save to your browser when you use the shelf or text save buttons.
           </p>
-          <p class="hint muted">
-            Canon edits are saved with the buttons in this section; the Save changes
-            banner tracks other tabs.
-          </p>
-          <div class="subtab-toolbar">
-            <label>
-              Text collection:
-              <select id="canon-collection-select"></select>
-            </label>
-            <label class="grow">
-              Search texts:
+          <div class="library-toolbar">
+            <div class="search-box">
               <input
-                id="canon-search"
+                id="library-search"
                 type="search"
-                placeholder="Title, tags, content..."
+                placeholder="Search shelves, books, and chapters..."
               />
-            </label>
-            <div class="collection-actions">
-              <button id="btn-add-text-collection" type="button">New collection</button>
-              <button id="btn-save-text-collection" type="button">Save collection</button>
-              <button
-                id="btn-delete-text-collection"
-                type="button"
-                class="danger"
-              >
-                Delete collection
-              </button>
+              <div id="library-search-results" class="library-search-results"></div>
+            </div>
+            <div class="library-toolbar-actions">
+              <button id="btn-add-shelf" type="button">New shelf</button>
             </div>
           </div>
-          <div class="subtab-toolbar">
-            <label>
-              Tags:
-              <select id="canon-tag-filter"></select>
-            </label>
-            <label>
-              Mentions:
-              <select id="canon-mention-filter"></select>
-            </label>
-            <label>
-              Parent text:
-              <select id="canon-parent-filter"></select>
-            </label>
-            <label>
-              Child text:
-              <select id="canon-child-filter"></select>
-            </label>
-            <button id="btn-clear-canon-filters" type="button">Clear filters</button>
-          </div>
-          <div class="split">
-            <div class="list-pane">
-              <div id="canon-tree" class="tree-container"></div>
+
+          <div class="library-layout">
+            <div class="library-pane shelves-pane">
+              <div class="pane-header">
+                <h3>Shelves</h3>
+              </div>
+              <div id="library-shelf-list" class="shelf-list"></div>
+              <div class="hint small" id="library-unshelved-hint"></div>
             </div>
-            <div class="detail-pane">
-              <section class="card">
-                <div class="section-heading small">Collection metadata</div>
-                <div class="form-row">
-                  <label for="canon-collection-name">Name</label>
-                  <input id="canon-collection-name" type="text" />
-                </div>
-                <div class="form-row">
-                  <label for="canon-collection-description">Description</label>
-                  <textarea id="canon-collection-description" rows="3"></textarea>
-                </div>
-                <div class="form-row">
-                  <label for="canon-collection-tags">Tags (comma‑separated)</label>
-                  <input id="canon-collection-tags" type="text" />
-                </div>
-              </section>
 
-              <section class="card">
-                <div class="section-heading small">Text editor</div>
-                <p id="canon-text-hint" class="muted"></p>
+            <div class="library-pane books-pane">
+              <div class="pane-header">
+                <div>
+                  <h3 id="library-active-shelf-title">Books</h3>
+                  <p id="library-active-shelf-desc" class="muted small"></p>
+                </div>
+                <div class="pane-actions">
+                  <button id="btn-add-book" type="button">Add new book</button>
+                  <button id="btn-add-existing-book" type="button">Add existing book</button>
+                </div>
+              </div>
+              <div id="library-books-list" class="book-list"></div>
+              <div class="toc-wrapper">
+                <div class="pane-header">
+                  <div>
+                    <h4>Table of contents</h4>
+                    <p id="library-active-book-label" class="muted small"></p>
+                  </div>
+                  <div class="pane-actions">
+                    <button id="btn-add-child" type="button">Add chapter</button>
+                    <button id="btn-add-sibling" type="button">Add sibling</button>
+                  </div>
+                </div>
+                <div id="library-toc" class="toc-tree"></div>
+              </div>
+            </div>
 
+            <div class="library-pane editor-pane">
+              <div class="pane-header">
+                <div>
+                  <h3>Node editor</h3>
+                  <p id="library-breadcrumbs" class="muted small"></p>
+                </div>
+                <div class="pane-actions">
+                  <button id="btn-save-text" type="button">Save node</button>
+                  <button id="btn-delete-text" type="button" class="danger">Delete node</button>
+                </div>
+              </div>
+
+              <section class="card compact">
+                <div class="section-heading small">Metadata</div>
                 <div class="form-row">
                   <label for="canon-text-title">Title</label>
                   <input id="canon-text-title" type="text" />
@@ -261,58 +252,39 @@
                   <input id="canon-text-main-function" type="text" />
                 </div>
                 <div class="form-row">
-                  <label for="canon-text-parent">Parent text</label>
+                  <label for="canon-text-parent">Parent</label>
                   <select id="canon-text-parent"></select>
                 </div>
                 <div class="form-row">
-                  <label for="canon-text-tags">Tags (comma‑separated)</label>
+                  <label for="canon-text-tags">Tags (comma-separated)</label>
                   <input id="canon-text-tags" type="text" />
                 </div>
                 <div class="form-row">
-                  <label for="canon-text-mentions">Mentions entity IDs (comma‑separated)</label>
+                  <label for="canon-text-mentions">Mentions entity IDs (comma-separated)</label>
                   <input id="canon-text-mentions" type="text" />
                 </div>
-                <div class="form-row markdown-row">
-                  <div class="markdown-row-header">
-                    <label for="canon-text-content">Content</label>
-                    <div class="markdown-row-actions">
-                      <button id="btn-open-canon-markdown" type="button">
-                        Open markdown editor
-                      </button>
-                    </div>
-                  </div>
-                  <div class="markdown-editor-grid">
-                    <textarea
-                      id="canon-text-content"
-                      class="markdown-input"
-                      rows="8"
-                    ></textarea>
-                    <div id="canon-text-preview" class="markdown-preview-panel">
-                      <p class="muted">Add markdown content to see a preview.</p>
-                    </div>
-                  </div>
-                </div>
-                <div class="form-row">
-                  <label class="inline">
-                    <input id="canon-text-root" type="checkbox" />
-                    Root of selected collection
-                  </label>
-                </div>
+                <div class="form-row" id="library-shelf-membership"></div>
+              </section>
 
-                <div class="form-actions">
-                  <button id="btn-add-root-text" type="button">Add root text</button>
-                  <button id="btn-add-child-text" type="button">Add child text</button>
-                  <button id="btn-save-text" type="button">Save text</button>
-                  <button id="btn-delete-text" type="button" class="danger">
-                    Delete text
-                  </button>
+              <section class="card compact">
+                <div class="section-heading small">Content</div>
+                <div class="form-row">
+                  <textarea id="canon-text-content" rows="8"></textarea>
+                  <div class="markdown-toolbar">
+                    <button id="btn-open-canon-markdown" type="button">Open markdown editor</button>
+                  </div>
+                  <div id="canon-text-preview" class="markdown-preview"></div>
                 </div>
+              </section>
+
+              <section class="card compact">
+                <div class="section-heading small">Usage &amp; mentions</div>
+                <div id="library-mentions"></div>
               </section>
             </div>
           </div>
         </div>
       </section>
-
       <!-- Entities -->
       <section id="tab-entities" class="tab-panel">
         <div class="panel-body">

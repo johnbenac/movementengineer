@@ -197,6 +197,308 @@ function buildCanonTreeViewModel(data, input) {
   };
 }
 
+function sortTextIds(ids, nodesById) {
+  const parseLabel = label => {
+    if (!label) return null;
+    const parts = label
+      .split('.')
+      .map(p => parseFloat(p))
+      .filter(n => !Number.isNaN(n));
+    return parts.length ? parts : null;
+  };
+
+  return ids.slice().sort((a, b) => {
+    const nodeA = nodesById[a];
+    const nodeB = nodesById[b];
+    if (!nodeA || !nodeB) return 0;
+    const labelA = parseLabel(nodeA.label);
+    const labelB = parseLabel(nodeB.label);
+    if (labelA && labelB) {
+      const len = Math.max(labelA.length, labelB.length);
+      for (let i = 0; i < len; i += 1) {
+        const partA = labelA[i] ?? -1;
+        const partB = labelB[i] ?? -1;
+        if (partA !== partB) return partA - partB;
+      }
+    } else if (labelA) {
+      return -1;
+    } else if (labelB) {
+      return 1;
+    }
+    return (nodeA.title || '').localeCompare(nodeB.title || '');
+  });
+}
+
+function buildLibraryEditorViewModel(data, input) {
+  const {
+    movementId,
+    activeShelfId = null,
+    activeBookId = null,
+    activeNodeId = null,
+    searchQuery = ''
+  } = input;
+
+  const movementLookup = buildLookup(data.movements);
+  const movement = movementLookup.get(movementId) || null;
+  const collections = filterByMovement(data.textCollections, movementId);
+  const texts = filterByMovement(data.texts, movementId);
+  const claims = filterByMovement(data.claims, movementId);
+  const events = filterByMovement(data.events, movementId);
+  const entities = buildLookup(filterByMovement(data.entities, movementId));
+
+  const childrenByParent = new Map();
+  texts.forEach(text => {
+    const bucket = childrenByParent.get(text.parentId || null) || [];
+    bucket.push(text.id);
+    childrenByParent.set(text.parentId || null, bucket);
+  });
+
+  const referencedByClaims = new Map();
+  claims.forEach(claim => {
+    normaliseArray(claim.sourceTextIds).forEach(textId => {
+      const bucket = referencedByClaims.get(textId) || [];
+      bucket.push({
+        id: claim.id,
+        text: claim.text,
+        category: claim.category ?? null
+      });
+      referencedByClaims.set(textId, bucket);
+    });
+  });
+
+  const usedInEvents = new Map();
+  events.forEach(event => {
+    normaliseArray(event.readingTextIds).forEach(textId => {
+      const bucket = usedInEvents.get(textId) || [];
+      bucket.push({
+        id: event.id,
+        name: event.name,
+        recurrence: event.recurrence
+      });
+      usedInEvents.set(textId, bucket);
+    });
+  });
+
+  const nodesById = {};
+  const parentById = new Map();
+  texts.forEach(text => {
+    const mentionsEntities = normaliseArray(text.mentionsEntityIds)
+      .map(id => entities.get(id))
+      .filter(Boolean)
+      .map(entity => ({
+        id: entity.id,
+        name: entity.name,
+        kind: entity.kind ?? null
+      }));
+
+    nodesById[text.id] = {
+      id: text.id,
+      parentId: text.parentId || null,
+      level: text.level,
+      title: text.title,
+      label: text.label,
+      mainFunction: text.mainFunction ?? null,
+      tags: normaliseArray(text.tags),
+      content: text.content || '',
+      hasContent: Boolean(text.content && text.content.trim()),
+      childIds: childrenByParent.get(text.id) || [],
+      mentionsEntityIds: normaliseArray(text.mentionsEntityIds),
+      mentionsEntities,
+      referencedByClaims: referencedByClaims.get(text.id) || [],
+      usedInEvents: usedInEvents.get(text.id) || []
+    };
+    parentById.set(text.id, text.parentId || null);
+  });
+
+  const rootIds = (childrenByParent.get(null) || []).slice();
+  const allShelfBookIds = new Set();
+  const shelves = collections.map(collection => {
+    const bookIds = normaliseArray(collection.rootTextIds).filter(
+      id => Boolean(nodesById[id])
+    );
+    bookIds.forEach(id => allShelfBookIds.add(id));
+    const textCount = bookIds.reduce((acc, id) => {
+      const stack = [id];
+      let count = 0;
+      while (stack.length) {
+        const current = stack.pop();
+        count += 1;
+        (childrenByParent.get(current) || []).forEach(child =>
+          stack.push(child)
+        );
+      }
+      return acc + count;
+    }, 0);
+    return {
+      id: collection.id,
+      name: collection.name || 'Untitled shelf',
+      description: collection.description || '',
+      tags: normaliseArray(collection.tags),
+      bookIds,
+      bookCount: bookIds.length,
+      textCount
+    };
+  });
+
+  const unshelvedBookIds = rootIds.filter(id => !allShelfBookIds.has(id));
+
+  const shelvesById = shelves.reduce((acc, shelf) => {
+    acc[shelf.id] = shelf;
+    return acc;
+  }, {});
+
+  const shelvesByBookId = {};
+  shelves.forEach(shelf => {
+    shelf.bookIds.forEach(id => {
+      const list = shelvesByBookId[id] || [];
+      list.push(shelf.id);
+      shelvesByBookId[id] = list;
+    });
+  });
+
+  const bookIdByNodeId = {};
+  const getRootForNode = nodeId => {
+    let cursor = nodeId;
+    let guard = 0;
+    while (cursor && guard < 1000) {
+      const parent = parentById.get(cursor) || null;
+      if (!parent) return cursor;
+      cursor = parent;
+      guard += 1;
+    }
+    return cursor;
+  };
+  Object.keys(nodesById).forEach(id => {
+    bookIdByNodeId[id] = getRootForNode(id);
+  });
+
+  const booksById = {};
+  rootIds.forEach(rootId => {
+    const node = nodesById[rootId];
+    if (!node) return;
+    const stack = [rootId];
+    let descendantCount = 0;
+    let contentCount = node.hasContent ? 1 : 0;
+    while (stack.length) {
+      const current = stack.pop();
+      descendantCount += 1;
+      (childrenByParent.get(current) || []).forEach(child => {
+        const childNode = nodesById[child];
+        if (childNode?.hasContent) contentCount += 1;
+        stack.push(child);
+      });
+    }
+    booksById[rootId] = {
+      id: rootId,
+      title: node.title,
+      label: node.label,
+      mainFunction: node.mainFunction,
+      tags: node.tags,
+      level: node.level,
+      descendantCount: Math.max(descendantCount - 1, 0),
+      contentCount,
+      shelfIds: shelvesByBookId[rootId] || []
+    };
+  });
+
+  const activeShelf =
+    (activeShelfId && shelvesById[activeShelfId]) || shelves[0] || null;
+  const activeBook =
+    (activeBookId && nodesById[activeBookId]) ||
+    (activeShelf && activeShelf.bookIds.length
+      ? nodesById[activeShelf.bookIds[0]]
+      : null) ||
+    null;
+  const activeNode =
+    (activeNodeId && nodesById[activeNodeId]) || activeBook || null;
+
+  const tocRootId = activeBook ? activeBook.id : null;
+  const tocChildrenByParentId = new Map();
+  if (tocRootId) {
+    const stack = [tocRootId];
+    while (stack.length) {
+      const current = stack.pop();
+      const children = childrenByParent.get(current) || [];
+      const sorted = sortTextIds(children, nodesById);
+      tocChildrenByParentId.set(current, sorted);
+      sorted.forEach(child => stack.push(child));
+    }
+  }
+
+  const normalisedQuery = (searchQuery || '').trim().toLowerCase();
+  const searchResults = [];
+  if (normalisedQuery) {
+    Object.values(nodesById).forEach(node => {
+      const haystack = [
+        node.title,
+        node.label,
+        node.mainFunction,
+        node.content,
+        normaliseArray(node.tags).join(' ')
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      if (!haystack.includes(normalisedQuery)) return;
+      const bookId = bookIdByNodeId[node.id];
+      const pathParts = [];
+      const shelvesContaining = shelvesByBookId[bookId] || [];
+      const shelfName = shelvesContaining
+        .map(id => shelvesById[id]?.name)
+        .filter(Boolean)[0];
+      if (shelfName) pathParts.push(shelfName);
+      if (booksById[bookId]) pathParts.push(booksById[bookId].title);
+      let cursor = node.id;
+      const chain = [];
+      while (cursor && cursor !== bookId) {
+        const n = nodesById[cursor];
+        if (!n) break;
+        chain.unshift(n.title || n.id);
+        cursor = parentById.get(cursor);
+      }
+      const pathLabel = pathParts.concat(chain).join(' › ');
+      searchResults.push({
+        nodeId: node.id,
+        bookId,
+        shelfIds: shelvesContaining,
+        pathLabel,
+        matchSnippet: null
+      });
+    });
+  }
+
+  const tocVisibleNodeIds = [];
+  if (tocRootId) {
+    const stack = [tocRootId];
+    while (stack.length) {
+      const current = stack.pop();
+      tocVisibleNodeIds.push(current);
+      (tocChildrenByParentId.get(current) || [])
+        .slice()
+        .reverse()
+        .forEach(child => stack.push(child));
+    }
+  }
+
+  return {
+    movement,
+    shelves,
+    unshelvedBookIds,
+    nodesById,
+    booksById,
+    shelvesById,
+    activeShelf,
+    activeBook,
+    activeNode,
+    tocRootId,
+    tocVisibleNodeIds,
+    tocChildrenByParentId,
+    bookIdByNodeId,
+    shelvesByBookId,
+    searchResults
+  };
+}
+
 function buildEntityDetailViewModel(data, input) {
   const { entityId } = input;
   const entityLookup = buildLookup(data.entities);
@@ -1147,6 +1449,7 @@ function buildNotesViewModel(data, input) {
 const ViewModels = {
   buildMovementDashboardViewModel,
   buildCanonTreeViewModel,
+  buildLibraryEditorViewModel,
   buildEntityDetailViewModel,
   buildEntityGraphViewModel,
   filterGraphModel,
