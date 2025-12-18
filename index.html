@@ -160,14 +160,33 @@
       <!-- Canon -->
       <section id="tab-canon" class="tab-panel">
         <div class="panel-body">
-          <h2>Canon</h2>
+          <h2>Library editor</h2>
           <p class="hint">
-            Browse text collections and passages for the selected movement.
+            Work with shelves (collections), books (root texts), and their tables of contents.
           </p>
           <p class="hint muted">
             Canon edits are saved with the buttons in this section; the Save changes
             banner tracks other tabs.
           </p>
+
+          <div class="library-grid">
+            <section class="card">
+              <div class="section-heading small">Shelves</div>
+              <div id="library-shelf-list" class="stacked-list"></div>
+            </section>
+            <section class="card">
+              <div class="section-heading small">Books on selected shelf</div>
+              <div id="library-book-list" class="stacked-list"></div>
+              <div class="section-heading small">Un-shelved books</div>
+              <div id="library-unshelved" class="stacked-list"></div>
+            </section>
+            <section class="card">
+              <div class="section-heading small">Library search</div>
+              <p class="muted small">Search results honour the text search box below.</p>
+              <div id="library-search-results" class="stacked-list"></div>
+            </section>
+          </div>
+
           <div class="subtab-toolbar">
             <label>
               Text collection:

@@ -1177,6 +1177,19 @@
       textCollectionId: textCollectionId || null
     });
 
+    const libraryVm = ViewModels.buildLibraryEditorViewModel(snapshot, {
+      movementId: currentMovementId,
+      activeShelfId: textCollectionId || null,
+      activeBookId: currentTextId && vm.nodesById[currentTextId]
+        ? vm.nodesById[currentTextId].parentId
+          ? vm.nodesById[currentTextId].parentId
+          : currentTextId
+        : null,
+      activeNodeId: currentTextId || null,
+      searchQuery: (document.getElementById('canon-search') || {}).value || ''
+    });
+    renderLibraryExplorer(libraryVm);
+
     if (
       currentTextId &&
       textCollectionId &&
@@ -1365,6 +1378,113 @@
       roots: filteredRoots,
       nodesById: vm.nodesById
     });
+  }
+
+  function renderLibraryExplorer(vm) {
+    const shelfList = document.getElementById('library-shelf-list');
+    const bookList = document.getElementById('library-book-list');
+    const unshelvedList = document.getElementById('library-unshelved');
+    const searchResultsEl = document.getElementById('library-search-results');
+    if (!shelfList || !bookList || !unshelvedList || !searchResultsEl) return;
+
+    [shelfList, bookList, unshelvedList, searchResultsEl].forEach(clearElement);
+
+    if (!currentMovementId) {
+      const msg = document.createElement('p');
+      msg.className = 'hint';
+      msg.textContent = 'Select a movement to browse its library.';
+      shelfList.appendChild(msg.cloneNode(true));
+      bookList.appendChild(msg.cloneNode(true));
+      unshelvedList.appendChild(msg.cloneNode(true));
+      searchResultsEl.appendChild(msg.cloneNode(true));
+      return;
+    }
+
+    if (!vm.shelves.length) {
+      const p = document.createElement('p');
+      p.className = 'hint';
+      p.textContent = 'No shelves yet. Use “New collection” to create one.';
+      shelfList.appendChild(p);
+    } else {
+      vm.shelves.forEach(shelf => {
+        const card = document.createElement('div');
+        card.className = 'stack-item';
+        if (vm.activeShelf && vm.activeShelf.id === shelf.id) card.classList.add('active');
+        card.innerHTML = `<div>${shelf.name || shelf.id}</div><div class="meta">${
+          shelf.bookCount || 0
+        } books · ${shelf.textCount || 0} texts</div>`;
+        card.addEventListener('click', () => {
+          const select = document.getElementById('canon-collection-select');
+          if (select) {
+            select.value = shelf.id;
+            renderCanonView();
+          }
+        });
+        shelfList.appendChild(card);
+      });
+    }
+
+    const renderBookCard = (bookId, target) => {
+      const book = vm.booksById[bookId] || vm.nodesById[bookId];
+      if (!book) return;
+      const card = document.createElement('div');
+      card.className = 'stack-item';
+      if (vm.activeBook && vm.activeBook.id === bookId) card.classList.add('active');
+      const title = book.title || book.id;
+      const metaBits = [];
+      if (book.childCount !== undefined) metaBits.push(`${book.childCount} sections`);
+      if (book.contentfulCount !== undefined)
+        metaBits.push(`${book.contentfulCount} with content`);
+      card.innerHTML = `<div>${title}</div><div class="meta">${metaBits.join(
+        ' · '
+      )}</div>`;
+      card.addEventListener('click', () => {
+        currentTextId = bookId;
+        renderCanonView();
+      });
+      target.appendChild(card);
+    };
+
+    if (vm.activeShelf && vm.activeShelf.bookIds.length) {
+      vm.activeShelf.bookIds.forEach(id => renderBookCard(id, bookList));
+    } else {
+      const p = document.createElement('p');
+      p.className = 'hint';
+      p.textContent = 'Choose a shelf to see its books.';
+      bookList.appendChild(p);
+    }
+
+    if (vm.unshelvedBookIds.length) {
+      vm.unshelvedBookIds.forEach(id => renderBookCard(id, unshelvedList));
+    } else {
+      const p = document.createElement('p');
+      p.className = 'hint';
+      p.textContent = 'All books are on shelves.';
+      unshelvedList.appendChild(p);
+    }
+
+    if (vm.searchResults.length) {
+      vm.searchResults.slice(0, 10).forEach(result => {
+        const card = document.createElement('div');
+        card.className = 'stack-item';
+        card.innerHTML = `<div>${result.pathLabel}</div><div class="meta">Book: ${
+          result.bookTitle || result.bookId
+        }</div>`;
+        card.addEventListener('click', () => {
+          const select = document.getElementById('canon-collection-select');
+          const shelfId = result.shelfIds && result.shelfIds[0];
+          if (select && shelfId) select.value = shelfId;
+          currentTextId = result.nodeId;
+          renderCanonView();
+        });
+        searchResultsEl.appendChild(card);
+      });
+    } else {
+      const p = document.createElement('p');
+      p.className = 'hint';
+      p.textContent = 'Search to see library-aware results.';
+      searchResultsEl.appendChild(p);
+    }
   }
 
   function handleCanonFilterChange() {

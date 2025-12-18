@@ -6,6 +6,15 @@
   box-sizing: border-box;
 }
 
+:root {
+  --border-color: #e5e7eb;
+  --primary-25: #f5f7ff;
+  --primary-50: #eef2ff;
+  --primary-300: #a5b4fc;
+  --primary-500: #6366f1;
+  --text-muted: #6b7280;
+}
+
 html,
 body {
   margin: 0;
@@ -753,6 +762,42 @@ button.danger:hover {
 .text-node-meta {
   font-size: 0.75rem;
   color: #6b7280;
+}
+
+.library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.stacked-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.stacked-list .stack-item {
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.stacked-list .stack-item:hover {
+  border-color: var(--primary-300);
+  background: var(--primary-50);
+}
+
+.stacked-list .stack-item.active {
+  border-color: var(--primary-500);
+  background: var(--primary-25);
+}
+
+.stacked-list .stack-item .meta {
+  font-size: 0.8rem;
+  color: var(--text-muted);
 }
 
 .text-node-body {
