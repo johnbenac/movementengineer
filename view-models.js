@@ -197,6 +197,308 @@ function buildCanonTreeViewModel(data, input) {
   };
 }
 
+function buildLibraryEditorViewModel(data, input) {
+  const {
+    movementId,
+    activeShelfId = null,
+    activeBookId = null,
+    activeNodeId = null,
+    searchQuery = ''
+  } = input;
+
+  const movementLookup = buildLookup(data.movements);
+  const movement = movementLookup.get(movementId) || null;
+  const shelves = filterByMovement(data.textCollections, movementId);
+  const texts = filterByMovement(data.texts, movementId);
+  const claims = filterByMovement(data.claims, movementId);
+  const events = filterByMovement(data.events, movementId);
+  const entities = buildLookup(filterByMovement(data.entities, movementId));
+
+  const childrenByParent = new Map();
+  texts.forEach(text => {
+    const bucket = childrenByParent.get(text.parentId || null) || [];
+    bucket.push(text.id);
+    childrenByParent.set(text.parentId || null, bucket);
+  });
+
+  const compareNodes = (aId, bId) => {
+    const a = texts.find(t => t.id === aId) || {};
+    const b = texts.find(t => t.id === bId) || {};
+    const parseLabel = value => {
+      if (!value) return null;
+      const parts = value
+        .split('.')
+        .map(part => Number.parseFloat(part))
+        .filter(n => !Number.isNaN(n));
+      return parts.length ? parts : null;
+    };
+    const aLabel = parseLabel(a.label);
+    const bLabel = parseLabel(b.label);
+    if (aLabel && bLabel) {
+      const len = Math.max(aLabel.length, bLabel.length);
+      for (let i = 0; i < len; i += 1) {
+        const diff = (aLabel[i] || 0) - (bLabel[i] || 0);
+        if (diff !== 0) return diff;
+      }
+    }
+    const aTitle = (a.title || a.label || '').toLowerCase();
+    const bTitle = (b.title || b.label || '').toLowerCase();
+    return aTitle.localeCompare(bTitle);
+  };
+
+  const referencedByClaims = new Map();
+  claims.forEach(claim => {
+    normaliseArray(claim.sourceTextIds).forEach(textId => {
+      const bucket = referencedByClaims.get(textId) || [];
+      bucket.push({
+        id: claim.id,
+        text: claim.text,
+        category: claim.category ?? null
+      });
+      referencedByClaims.set(textId, bucket);
+    });
+  });
+
+  const usedInEvents = new Map();
+  events.forEach(event => {
+    normaliseArray(event.readingTextIds).forEach(textId => {
+      const bucket = usedInEvents.get(textId) || [];
+      bucket.push({
+        id: event.id,
+        name: event.name,
+        recurrence: event.recurrence
+      });
+      usedInEvents.set(textId, bucket);
+    });
+  });
+
+  const nodesById = {};
+  texts.forEach(text => {
+    const mentionsEntities = normaliseArray(text.mentionsEntityIds)
+      .map(id => entities.get(id))
+      .filter(Boolean)
+      .map(entity => ({
+        id: entity.id,
+        name: entity.name,
+        kind: entity.kind ?? null
+      }));
+
+    const childIds = (childrenByParent.get(text.id) || []).slice();
+    childIds.sort(compareNodes);
+
+    nodesById[text.id] = {
+      id: text.id,
+      parentId: text.parentId || null,
+      level: text.level,
+      title: text.title,
+      label: text.label,
+      mainFunction: text.mainFunction ?? null,
+      tags: normaliseArray(text.tags),
+      content: text.content || '',
+      hasContent: Boolean(text.content && text.content.trim()),
+      childIds,
+      mentionsEntityIds: normaliseArray(text.mentionsEntityIds),
+      mentionsEntities,
+      referencedByClaims: referencedByClaims.get(text.id) || [],
+      usedInEvents: usedInEvents.get(text.id) || []
+    };
+  });
+
+  const bookIdByNodeId = {};
+  const computeRoot = nodeId => {
+    let cursor = nodesById[nodeId];
+    if (!cursor) return null;
+    while (cursor.parentId && nodesById[cursor.parentId]) {
+      cursor = nodesById[cursor.parentId];
+    }
+    return cursor?.id || null;
+  };
+  Object.keys(nodesById).forEach(id => {
+    bookIdByNodeId[id] = computeRoot(id);
+  });
+
+  const shelvesByBookId = {};
+  shelves.forEach(shelf => {
+    normaliseArray(shelf.rootTextIds).forEach(id => {
+      if (!shelvesByBookId[id]) shelvesByBookId[id] = [];
+      shelvesByBookId[id].push(shelf.id);
+    });
+  });
+
+  const rootNodes = texts.filter(t => !t.parentId);
+  const unshelvedBookIds = rootNodes
+    .map(t => t.id)
+    .filter(id => !(shelvesByBookId[id] || []).length);
+
+  const countDescendants = (id, memo = new Map()) => {
+    if (memo.has(id)) return memo.get(id);
+    const node = nodesById[id];
+    if (!node) return 0;
+    let total = node.childIds.length;
+    node.childIds.forEach(childId => {
+      total += countDescendants(childId, memo);
+    });
+    memo.set(id, total);
+    return total;
+  };
+
+  const countContent = (id, memo = new Map()) => {
+    if (memo.has(id)) return memo.get(id);
+    const node = nodesById[id];
+    if (!node) return 0;
+    let total = node.hasContent ? 1 : 0;
+    node.childIds.forEach(childId => {
+      total += countContent(childId, memo);
+    });
+    memo.set(id, total);
+    return total;
+  };
+
+  const booksById = {};
+  rootNodes.forEach(root => {
+    booksById[root.id] = {
+      id: root.id,
+      title: root.title,
+      label: root.label,
+      level: root.level,
+      mainFunction: root.mainFunction ?? null,
+      tags: normaliseArray(root.tags),
+      descendantCount: countDescendants(root.id),
+      contentCount: countContent(root.id),
+      childIds: nodesById[root.id]?.childIds || [],
+      alsoOnShelves: shelvesByBookId[root.id] || []
+    };
+  });
+
+  const shelvesSummary = shelves.map(shelf => {
+    const bookIds = normaliseArray(shelf.rootTextIds).filter(id => nodesById[id]);
+    let textCount = 0;
+    bookIds.forEach(id => {
+      textCount += 1 + countDescendants(id);
+    });
+    return {
+      id: shelf.id,
+      name: shelf.name || shelf.id,
+      description: shelf.description || '',
+      tags: normaliseArray(shelf.tags),
+      bookIds,
+      bookCount: bookIds.length,
+      textCount
+    };
+  });
+
+  const shelvesById = shelvesSummary.reduce((acc, shelf) => {
+    acc[shelf.id] = shelf;
+    return acc;
+  }, {});
+
+  const resolveShelf = () => {
+    if (activeShelfId === 'unshelved') return null;
+    if (activeShelfId && shelvesById[activeShelfId]) return shelvesById[activeShelfId];
+    return shelvesSummary[0] || null;
+  };
+  const activeShelf = resolveShelf();
+
+  const resolveBook = () => {
+    if (activeNodeId && bookIdByNodeId[activeNodeId]) {
+      return booksById[bookIdByNodeId[activeNodeId]] || null;
+    }
+    if (activeBookId && booksById[activeBookId]) return booksById[activeBookId];
+    if (activeShelf && activeShelf.bookIds.length) {
+      return booksById[activeShelf.bookIds[0]] || null;
+    }
+    if (unshelvedBookIds.length) return booksById[unshelvedBookIds[0]] || null;
+    return null;
+  };
+  const activeBook = resolveBook();
+
+  const activeNode = activeNodeId && nodesById[activeNodeId]
+    ? nodesById[activeNodeId]
+    : activeBook
+    ? nodesById[activeBook.id]
+    : null;
+
+  const tocRootId = activeBook ? activeBook.id : null;
+  const tocChildrenByParentId = new Map();
+  if (tocRootId) {
+    const stack = [tocRootId];
+    while (stack.length) {
+      const id = stack.pop();
+      const node = nodesById[id];
+      if (!node) continue;
+      tocChildrenByParentId.set(id, node.childIds || []);
+      (node.childIds || []).forEach(childId => stack.push(childId));
+    }
+  }
+
+  const tocVisibleNodeIds = [];
+  const addVisible = id => {
+    tocVisibleNodeIds.push(id);
+    (tocChildrenByParentId.get(id) || []).forEach(childId => addVisible(childId));
+  };
+  if (tocRootId) addVisible(tocRootId);
+
+  const pathLabelForNode = nodeId => {
+    const bookId = bookIdByNodeId[nodeId];
+    const node = nodesById[nodeId];
+    if (!bookId || !node) return node?.title || nodeId;
+    const segments = [];
+    let cursor = node;
+    while (cursor) {
+      segments.unshift((cursor.label ? cursor.label + ' ' : '') + (cursor.title || cursor.id));
+      if (!cursor.parentId) break;
+      cursor = nodesById[cursor.parentId];
+    }
+    const shelfNames = shelvesByBookId[bookId]
+      ?.map(id => shelvesById[id]?.name || id)
+      .filter(Boolean);
+    const prefix = shelfNames && shelfNames.length ? `${shelfNames[0]} › ` : '';
+    return `${prefix}${segments.join(' › ')}`;
+  };
+
+  const lowerQuery = (searchQuery || '').toLowerCase();
+  const searchResults = lowerQuery
+    ? Object.values(nodesById)
+        .filter(node => {
+          const haystack = [
+            node.title,
+            node.label,
+            node.mainFunction,
+            normaliseArray(node.tags).join(' '),
+            node.content
+          ]
+            .join(' ')
+            .toLowerCase();
+          return haystack.includes(lowerQuery);
+        })
+        .map(node => ({
+          nodeId: node.id,
+          bookId: bookIdByNodeId[node.id],
+          shelfIds: shelvesByBookId[bookIdByNodeId[node.id]] || [],
+          pathLabel: pathLabelForNode(node.id),
+          matchSnippet: null
+        }))
+    : [];
+
+  return {
+    movement,
+    shelves: shelvesSummary,
+    unshelvedBookIds,
+    nodesById,
+    booksById,
+    shelvesById,
+    activeShelf,
+    activeBook,
+    activeNode,
+    tocRootId,
+    tocVisibleNodeIds,
+    tocChildrenByParentId,
+    bookIdByNodeId,
+    shelvesByBookId,
+    searchResults
+  };
+}
+
 function buildEntityDetailViewModel(data, input) {
   const { entityId } = input;
   const entityLookup = buildLookup(data.entities);
@@ -1147,6 +1449,7 @@ function buildNotesViewModel(data, input) {
 const ViewModels = {
   buildMovementDashboardViewModel,
   buildCanonTreeViewModel,
+  buildLibraryEditorViewModel,
   buildEntityDetailViewModel,
   buildEntityGraphViewModel,
   filterGraphModel,
