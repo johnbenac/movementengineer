@@ -1219,6 +1219,48 @@ a.text-link:hover {
   margin-bottom: 0.75rem;
 }
 
+.library-search-results {
+  list-style: none;
+  margin: 0 0 0.75rem 0;
+  padding: 0;
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+  background: #fff;
+  max-height: 240px;
+  overflow-y: auto;
+  display: none;
+}
+
+.library-search-results.visible {
+  display: block;
+}
+
+.library-search-item {
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--card-border);
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.library-search-item:last-child {
+  border-bottom: none;
+}
+
+.library-search-item:hover,
+.library-search-item.active {
+  background: rgba(84, 110, 255, 0.08);
+}
+
+.library-search-item .path {
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.library-search-item .meta {
+  color: var(--muted-text);
+  font-size: 0.85rem;
+}
+
 .shelf-list,
 .book-list {
   display: flex;
