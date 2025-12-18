@@ -74,6 +74,7 @@
   let isPopulatingEditor = false;
   let isPopulatingCanonForms = false;
   let isCanonMarkdownInitialized = false;
+  let isCanonCollectionInputsInitialized = false;
 
   function updateDirtyState() {
     isDirty = snapshotDirty || movementFormDirty || itemEditorDirty;
@@ -592,7 +593,26 @@
     };
 
     DomainService.upsertItem(snapshot, 'textCollections', updated);
+    snapshotDirty = true;
+    updateDirtyState();
     return updated;
+  }
+
+  function ensureCanonCollectionInputHandlers() {
+    if (isCanonCollectionInputsInitialized) return;
+
+    const nameInput = document.getElementById('canon-collection-name');
+    const descInput = document.getElementById('canon-collection-description');
+    const tagsInput = document.getElementById('canon-collection-tags');
+
+    if (!nameInput || !descInput || !tagsInput) return;
+
+    const handleInput = () => applyTextCollectionFormToSnapshot();
+    [nameInput, descInput, tagsInput].forEach(el =>
+      el.addEventListener('input', handleInput)
+    );
+
+    isCanonCollectionInputsInitialized = true;
   }
 
   function getActiveTextCollection() {
@@ -960,6 +980,8 @@
     );
 
     if (!nameInput || !descInput || !tagsInput) return;
+
+    ensureCanonCollectionInputHandlers();
 
     isPopulatingCanonForms = true;
     if (collection) {
@@ -1415,8 +1437,8 @@
       alert('Select a movement first.');
       return;
     }
-    const collection = applyTextCollectionFormToSnapshot();
     try {
+      const collection = applyTextCollectionFormToSnapshot();
       const text = DomainService.addNewItem(snapshot, 'texts', currentMovementId);
       text.parentId = null;
       if (collection) {
@@ -1442,8 +1464,8 @@
       alert('Select a movement first.');
       return;
     }
-    applyTextCollectionFormToSnapshot();
     try {
+      applyTextCollectionFormToSnapshot();
       const text = DomainService.addNewItem(snapshot, 'texts', currentMovementId);
       text.parentId = currentTextId;
       currentTextId = text.id;
@@ -1516,7 +1538,6 @@
   }
 
   function deleteCurrentTextNode() {
-    applyTextCollectionFormToSnapshot();
     if (!currentTextId) return;
     const vm = ViewModels.buildCanonTreeViewModel(snapshot, {
       movementId: currentMovementId,
@@ -1531,6 +1552,7 @@
       `Delete this text and ${descendants.length - 1} descendant(s)?\n\n${label}\n\nThis cannot be undone.`
     );
     if (!ok) return;
+    applyTextCollectionFormToSnapshot();
 
     const descendantSet = new Set(descendants);
     descendants.forEach(id => {
