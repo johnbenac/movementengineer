@@ -1396,6 +1396,7 @@
     const shelfEditor = document.getElementById('shelf-editor');
     const textEditor = document.getElementById('text-editor');
     const breadcrumb = document.getElementById('library-breadcrumb');
+    const searchResults = document.getElementById('library-search-results');
     if (!shelfList || !bookList || !tocTree || !shelfEditor || !textEditor) return;
 
     clearElement(shelfList);
@@ -1404,6 +1405,10 @@
     clearElement(shelfEditor);
     clearElement(textEditor);
     if (breadcrumb) clearElement(breadcrumb);
+    if (searchResults) {
+      clearElement(searchResults);
+      searchResults.classList.remove('visible');
+    }
 
     if (!currentMovementId) {
       shelfList.appendChild(renderEmptyHint('Create or select a movement first.'));
@@ -1421,6 +1426,8 @@
       activeNodeId: currentTextId,
       searchQuery
     });
+
+    renderLibrarySearchResults(vm);
 
     if (!currentShelfId && vm.shelves.length) {
       currentShelfId = vm.shelves[0].id;
@@ -1443,6 +1450,67 @@
     p.className = 'library-empty';
     p.textContent = text;
     return p;
+  }
+
+  function renderLibrarySearchResults(vm) {
+    const resultsEl = document.getElementById('library-search-results');
+    const searchInput = document.getElementById('library-search');
+    if (!resultsEl || !searchInput) return;
+
+    const query = (searchInput.value || '').trim();
+    clearElement(resultsEl);
+    resultsEl.classList.remove('visible');
+
+    if (!query) return;
+
+    resultsEl.classList.add('visible');
+
+    if (!vm.searchResults || !vm.searchResults.length) {
+      const li = document.createElement('li');
+      li.className = 'library-search-item muted';
+      li.textContent = 'No matches.';
+      resultsEl.appendChild(li);
+      return;
+    }
+
+    vm.searchResults
+      .slice(0, 200)
+      .sort((a, b) => (a.pathLabel || '').localeCompare(b.pathLabel || ''))
+      .forEach(result => {
+        const li = document.createElement('li');
+        li.className = 'library-search-item';
+
+        const path = document.createElement('div');
+        path.className = 'path';
+        path.textContent = result.pathLabel || result.nodeId;
+        li.appendChild(path);
+
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        const shelfName =
+          result.shelfIds && result.shelfIds.length
+            ? vm.shelvesById[result.shelfIds[0]]?.name || result.shelfIds[0]
+            : null;
+        const bits = [result.nodeId];
+        if (shelfName) bits.push(`Shelf: ${shelfName}`);
+        if (result.bookId && result.bookId !== result.nodeId) bits.push(result.bookId);
+        meta.textContent = bits.join(' · ');
+        li.appendChild(meta);
+
+        li.addEventListener('click', () => {
+          currentTextId = result.nodeId;
+          currentBookId = result.bookId || result.nodeId;
+          if (result.shelfIds && result.shelfIds.length) {
+            currentShelfId = result.shelfIds[0];
+          } else if (vm.shelvesByBookId[currentBookId]?.length) {
+            currentShelfId = vm.shelvesByBookId[currentBookId][0];
+          }
+          renderLibraryView();
+          setTimeout(() => scrollTocNodeIntoView(result.nodeId), 0);
+        });
+
+        resultsEl.appendChild(li);
+      });
   }
 
   function renderShelfPane(vm) {
@@ -1586,6 +1654,7 @@
       wrapper.style.paddingLeft = depth * 12 + 'px';
       const row = document.createElement('div');
       row.className = 'toc-node';
+      row.dataset.nodeId = id;
       if (id === currentTextId) row.classList.add('active');
       const label = document.createElement('span');
       label.className = 'toc-label';
@@ -1617,6 +1686,18 @@
 
     const rendered = renderNode(rootId, 0);
     if (rendered) tocTree.appendChild(rendered);
+  }
+
+  function scrollTocNodeIntoView(nodeId) {
+    if (!nodeId) return;
+    const tocTree = document.getElementById('toc-tree');
+    if (!tocTree) return;
+    const safeId =
+      typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(nodeId) : nodeId.replace(/"/g, '\\"');
+    const target = tocTree.querySelector(`.toc-node[data-node-id="${safeId}"]`);
+    if (target && typeof target.scrollIntoView === 'function') {
+      target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
   }
 
   function renderNodeEditor(vm) {
@@ -1705,8 +1786,15 @@
     mentionsInput.type = 'text';
     mentionsInput.value = normaliseArray(activeNode.mentionsEntityIds).join(', ');
     const contentInput = document.createElement('textarea');
+    contentInput.className = 'markdown-input form-control';
     contentInput.rows = 8;
     contentInput.value = activeNode.content || '';
+    const contentPreview = document.createElement('div');
+    contentPreview.className = 'markdown-preview-panel';
+    renderMarkdownPreview(contentPreview, contentInput.value || '', { enabled: true });
+    contentInput.addEventListener('input', () => {
+      renderMarkdownPreview(contentPreview, contentInput.value, { enabled: true });
+    });
 
     const parentSelect = document.createElement('select');
     const parentOptions = Object.values(vm.nodesById)
@@ -1810,8 +1898,7 @@
       { label: 'Main function', field: mainFunctionInput },
       { label: 'Tags (comma separated)', field: tagsInput },
       { label: 'Mentions entity IDs', field: mentionsInput },
-      { label: 'Parent', field: parentSelect },
-      { label: 'Content', field: contentInput }
+      { label: 'Parent', field: parentSelect }
     ].forEach(row => {
       const wrapper = document.createElement('div');
       const labelEl = document.createElement('div');
@@ -1821,6 +1908,45 @@
       wrapper.appendChild(row.field);
       textEditor.appendChild(wrapper);
     });
+
+    const contentRow = document.createElement('div');
+    contentRow.className = 'form-row markdown-row';
+
+    const contentHeader = document.createElement('div');
+    contentHeader.className = 'markdown-row-header';
+    const contentLabel = document.createElement('span');
+    contentLabel.textContent = 'Content';
+    contentHeader.appendChild(contentLabel);
+
+    const contentActions = document.createElement('div');
+    contentActions.className = 'markdown-row-actions';
+    const openMarkdownBtn = document.createElement('button');
+    openMarkdownBtn.type = 'button';
+    openMarkdownBtn.textContent = 'Open markdown editor';
+    openMarkdownBtn.addEventListener('click', () => {
+      openMarkdownModal({
+        title: 'Edit text content',
+        initial: contentInput.value,
+        onSave: value => {
+          contentInput.value = value;
+          renderMarkdownPreview(contentPreview, value, { enabled: true });
+        },
+        onClose: () => {
+          renderMarkdownPreview(contentPreview, contentInput.value, { enabled: true });
+        }
+      });
+    });
+    contentActions.appendChild(openMarkdownBtn);
+    contentHeader.appendChild(contentActions);
+
+    const contentGrid = document.createElement('div');
+    contentGrid.className = 'markdown-editor-grid';
+    contentGrid.appendChild(contentInput);
+    contentGrid.appendChild(contentPreview);
+
+    contentRow.appendChild(contentHeader);
+    contentRow.appendChild(contentGrid);
+    textEditor.appendChild(contentRow);
 
     if (shelfMembership.childNodes.length) textEditor.appendChild(shelfMembership);
 
@@ -4534,9 +4660,33 @@
 
   function jumpToText(textId) {
     if (!textId) return;
+    const text = (snapshot?.texts || []).find(t => t.id === textId);
+    if (text?.movementId && text.movementId !== currentMovementId) {
+      currentMovementId = text.movementId;
+    }
+
+    const movementId = currentMovementId || text?.movementId || null;
+
     activateTab('canon');
+    if (!movementId) {
+      renderLibraryView();
+      return;
+    }
+
+    const vm = ViewModels.buildLibraryEditorViewModel(snapshot, {
+      movementId,
+      activeNodeId: textId
+    });
+
+    const bookId = vm.bookIdByNodeId[textId] || textId;
+    const shelves = vm.shelvesByBookId[bookId] || [];
+
+    currentBookId = bookId;
     currentTextId = textId;
-    renderCanonView();
+    if (shelves.length) currentShelfId = shelves[0];
+
+    renderLibraryView();
+    scrollTocNodeIntoView(textId);
   }
 
   // ---- Dashboard (ViewModels) ----
