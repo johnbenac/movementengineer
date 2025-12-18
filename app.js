@@ -17,6 +17,8 @@
   let currentCollectionName = 'entities';
   let currentItemId = null;
   let currentTextId = null;
+  let currentShelfId = null;
+  let currentBookId = null;
   const DEFAULT_CANON_FILTERS = {
     search: '',
     tag: '',
@@ -506,7 +508,7 @@
     if (!currentMovementId) {
       // Show a simple message in each container
       const containers = {
-        canon: $('#canon-tree'),
+        canon: $('#shelf-list'),
         entities: $('#entity-detail'),
         practices: $('#practice-detail'),
         calendar: $('#calendar-view'),
@@ -531,7 +533,7 @@
 
     switch (name) {
       case 'canon':
-        renderCanonView();
+        renderLibraryView();
         break;
       case 'entities':
         renderEntitiesView();
@@ -1385,6 +1387,574 @@
     renderCanonView();
   }
 
+  // ---- Library (Canon) ----
+
+  function renderLibraryView() {
+    const shelfList = document.getElementById('shelf-list');
+    const bookList = document.getElementById('book-list');
+    const tocTree = document.getElementById('toc-tree');
+    const shelfEditor = document.getElementById('shelf-editor');
+    const textEditor = document.getElementById('text-editor');
+    const breadcrumb = document.getElementById('library-breadcrumb');
+    if (!shelfList || !bookList || !tocTree || !shelfEditor || !textEditor) return;
+
+    clearElement(shelfList);
+    clearElement(bookList);
+    clearElement(tocTree);
+    clearElement(shelfEditor);
+    clearElement(textEditor);
+    if (breadcrumb) clearElement(breadcrumb);
+
+    if (!currentMovementId) {
+      shelfList.appendChild(renderEmptyHint('Create or select a movement first.'));
+      bookList.appendChild(renderEmptyHint('Choose a movement to see books.'));
+      tocTree.appendChild(renderEmptyHint('No table of contents to show.'));
+      textEditor.appendChild(renderEmptyHint('Select a movement to edit texts.'));
+      return;
+    }
+
+    const searchQuery = document.getElementById('library-search')?.value || '';
+    const vm = ViewModels.buildLibraryEditorViewModel(snapshot, {
+      movementId: currentMovementId,
+      activeShelfId: currentShelfId,
+      activeBookId: currentBookId,
+      activeNodeId: currentTextId,
+      searchQuery
+    });
+
+    if (!currentShelfId && vm.shelves.length) {
+      currentShelfId = vm.shelves[0].id;
+    }
+    if (!currentBookId && vm.activeShelf && vm.activeShelf.bookIds.length) {
+      currentBookId = vm.activeShelf.bookIds[0];
+    }
+    if (!currentTextId && currentBookId) {
+      currentTextId = currentBookId;
+    }
+
+    renderShelfPane(vm);
+    renderBooksPane(vm);
+    renderTocPane(vm);
+    renderNodeEditor(vm);
+  }
+
+  function renderEmptyHint(text) {
+    const p = document.createElement('p');
+    p.className = 'library-empty';
+    p.textContent = text;
+    return p;
+  }
+
+  function renderShelfPane(vm) {
+    const shelfList = document.getElementById('shelf-list');
+    const unshelvedList = document.getElementById('unshelved-list');
+    const shelfHint = document.getElementById('shelf-hint');
+    clearElement(shelfList);
+    clearElement(unshelvedList);
+    if (shelfHint) {
+      shelfHint.textContent = vm.shelves.length
+        ? 'Choose a shelf to browse its books.'
+        : 'Create your first shelf to start organising books.';
+    }
+
+    if (!vm.shelves.length) {
+      shelfList.appendChild(renderEmptyHint('No shelves yet.')); 
+    }
+
+    vm.shelves.forEach(shelf => {
+      const card = document.createElement('div');
+      card.className = 'shelf-card';
+      if (shelf.id === currentShelfId) card.classList.add('active');
+      const title = document.createElement('div');
+      title.textContent = shelf.name || 'Untitled shelf';
+      card.appendChild(title);
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.textContent = `${shelf.bookCount} books · ${shelf.textCount} texts`;
+      card.appendChild(meta);
+      card.addEventListener('click', () => {
+        currentShelfId = shelf.id;
+        currentBookId = shelf.bookIds[0] || null;
+        currentTextId = currentBookId;
+        renderLibraryView();
+      });
+      shelfList.appendChild(card);
+    });
+
+    if (vm.unshelvedBookIds.length === 0) {
+      unshelvedList.appendChild(renderEmptyHint('All books are on shelves.'));
+    } else {
+      vm.unshelvedBookIds.forEach(id => {
+        const node = vm.nodesById[id];
+        if (!node) return;
+        const card = document.createElement('div');
+        card.className = 'shelf-card';
+        card.textContent = node.title || 'Untitled book';
+        card.addEventListener('click', () => {
+          currentBookId = id;
+          currentTextId = id;
+          renderLibraryView();
+        });
+        unshelvedList.appendChild(card);
+      });
+    }
+  }
+
+  function renderBooksPane(vm) {
+    const bookList = document.getElementById('book-list');
+    const titleEl = document.getElementById('books-pane-title');
+    const hintEl = document.getElementById('books-pane-hint');
+    clearElement(bookList);
+    const activeShelf = currentShelfId ? vm.shelvesById[currentShelfId] : null;
+    if (titleEl) titleEl.textContent = activeShelf ? activeShelf.name : 'Books';
+    if (hintEl) {
+      hintEl.textContent = activeShelf
+        ? 'Select a book to view its table of contents.'
+        : 'Pick a shelf to see its books.';
+    }
+
+    if (!activeShelf) {
+      bookList.appendChild(renderEmptyHint('No shelf selected.'));
+      return;
+    }
+
+    if (!activeShelf.bookIds.length) {
+      bookList.appendChild(renderEmptyHint('No books on this shelf yet.'));
+    }
+
+    activeShelf.bookIds.forEach(id => {
+      const book = vm.booksById[id];
+      const node = vm.nodesById[id];
+      if (!book || !node) return;
+      const card = document.createElement('div');
+      card.className = 'book-card';
+      if (id === currentBookId) card.classList.add('active');
+      const title = document.createElement('div');
+      title.textContent = `${node.label ? node.label + ' ' : ''}${
+        node.title || 'Untitled'
+      }`;
+      card.appendChild(title);
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      const shelfCount = book.shelves.length;
+      meta.textContent = `${book.descendantCount} sections · ${book.contentCount} with content${
+        shelfCount > 1 ? ` · also on ${shelfCount - 1} shelf(s)` : ''
+      }`;
+      card.appendChild(meta);
+
+      const actions = document.createElement('div');
+      actions.className = 'inline-actions';
+      const removeBtn = document.createElement('button');
+      removeBtn.textContent = 'Remove from shelf';
+      removeBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        removeBookFromShelf(activeShelf.id, id);
+      });
+      const deleteBtn = document.createElement('button');
+      deleteBtn.textContent = 'Delete book';
+      deleteBtn.className = 'danger';
+      deleteBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        deleteBookAndDescendants(id);
+      });
+      actions.appendChild(removeBtn);
+      actions.appendChild(deleteBtn);
+      card.appendChild(actions);
+
+      card.addEventListener('click', () => {
+        currentBookId = id;
+        currentTextId = id;
+        renderLibraryView();
+      });
+      bookList.appendChild(card);
+    });
+  }
+
+  function renderTocPane(vm) {
+    const tocTree = document.getElementById('toc-tree');
+    clearElement(tocTree);
+    const rootId = vm.tocRootId;
+    if (!rootId) {
+      tocTree.appendChild(renderEmptyHint('Select a book to see its chapters.'));
+      return;
+    }
+
+    const renderNode = (id, depth) => {
+      const node = vm.nodesById[id];
+      if (!node) return null;
+      const wrapper = document.createElement('div');
+      wrapper.style.paddingLeft = depth * 12 + 'px';
+      const row = document.createElement('div');
+      row.className = 'toc-node';
+      if (id === currentTextId) row.classList.add('active');
+      const label = document.createElement('span');
+      label.className = 'toc-label';
+      label.textContent = node.label || '';
+      row.appendChild(label);
+      const title = document.createElement('span');
+      title.textContent = node.title || 'Untitled';
+      row.appendChild(title);
+      const meta = document.createElement('span');
+      meta.className = 'toc-meta';
+      const bits = [];
+      if (node.level) bits.push(node.level);
+      if (node.mainFunction) bits.push(node.mainFunction);
+      if (node.hasContent) bits.push('has content');
+      meta.textContent = bits.join(' · ');
+      row.appendChild(meta);
+      row.addEventListener('click', () => {
+        currentTextId = id;
+        currentBookId = vm.bookIdByNodeId[id] || currentBookId;
+        renderLibraryView();
+      });
+      wrapper.appendChild(row);
+      (vm.tocChildrenByParentId.get(id) || []).forEach(childId => {
+        const child = renderNode(childId, depth + 1);
+        if (child) wrapper.appendChild(child);
+      });
+      return wrapper;
+    };
+
+    const rendered = renderNode(rootId, 0);
+    if (rendered) tocTree.appendChild(rendered);
+  }
+
+  function renderNodeEditor(vm) {
+    const shelfEditor = document.getElementById('shelf-editor');
+    const textEditor = document.getElementById('text-editor');
+    const breadcrumb = document.getElementById('library-breadcrumb');
+    clearElement(shelfEditor);
+    clearElement(textEditor);
+    if (breadcrumb) clearElement(breadcrumb);
+
+    const activeShelf = currentShelfId ? vm.shelvesById[currentShelfId] : null;
+    const activeNode = currentTextId ? vm.nodesById[currentTextId] : null;
+
+    if (breadcrumb && activeNode) {
+      breadcrumb.textContent = vm.searchResults?.length
+        ? ''
+        : vm.bookIdByNodeId[activeNode.id]
+        ? 'Shelf view'
+        : '';
+    }
+
+    if (activeShelf) {
+      const nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.value = activeShelf.name || '';
+      nameInput.placeholder = 'Shelf name';
+      const desc = document.createElement('textarea');
+      desc.rows = 3;
+      desc.value = activeShelf.description || '';
+      desc.placeholder = 'Description';
+      const save = document.createElement('button');
+      save.textContent = 'Save shelf';
+      save.addEventListener('click', () => {
+        DomainService.upsertItem(snapshot, 'textCollections', {
+          ...snapshot.textCollections.find(tc => tc.id === activeShelf.id),
+          name: nameInput.value,
+          description: desc.value
+        });
+        saveSnapshot({ show: false });
+        setStatus('Shelf saved');
+        renderLibraryView();
+      });
+      const del = document.createElement('button');
+      del.textContent = 'Delete shelf';
+      del.className = 'danger';
+      del.addEventListener('click', () => {
+        deleteTextCollection(activeShelf.id);
+      });
+      shelfEditor.appendChild(nameInput);
+      shelfEditor.appendChild(desc);
+      const row = document.createElement('div');
+      row.className = 'inline-actions';
+      row.appendChild(save);
+      row.appendChild(del);
+      shelfEditor.appendChild(row);
+    } else {
+      shelfEditor.appendChild(renderEmptyHint('Select a shelf to edit metadata.'));
+    }
+
+    if (!activeNode) {
+      textEditor.appendChild(renderEmptyHint('Select a book or chapter to edit.'));
+      return;
+    }
+
+    const titleInput = document.createElement('input');
+    titleInput.type = 'text';
+    titleInput.value = activeNode.title || '';
+    const labelInput = document.createElement('input');
+    labelInput.type = 'text';
+    labelInput.value = activeNode.label || '';
+    const levelSelect = document.createElement('select');
+    ['work', 'section', 'passage', 'line'].forEach(level => {
+      const opt = document.createElement('option');
+      opt.value = level;
+      opt.selected = activeNode.level === level;
+      opt.textContent = level;
+      levelSelect.appendChild(opt);
+    });
+    const mainFunctionInput = document.createElement('input');
+    mainFunctionInput.type = 'text';
+    mainFunctionInput.value = activeNode.mainFunction || '';
+    const tagsInput = document.createElement('input');
+    tagsInput.type = 'text';
+    tagsInput.value = normaliseArray(activeNode.tags).join(', ');
+    const mentionsInput = document.createElement('input');
+    mentionsInput.type = 'text';
+    mentionsInput.value = normaliseArray(activeNode.mentionsEntityIds).join(', ');
+    const contentInput = document.createElement('textarea');
+    contentInput.rows = 8;
+    contentInput.value = activeNode.content || '';
+
+    const parentSelect = document.createElement('select');
+    const parentOptions = Object.values(vm.nodesById)
+      .filter(n => n.id !== activeNode.id)
+      .sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+    const rootOpt = document.createElement('option');
+    rootOpt.value = '';
+    rootOpt.textContent = 'Root (book)';
+    parentSelect.appendChild(rootOpt);
+    parentOptions.forEach(node => {
+      const opt = document.createElement('option');
+      opt.value = node.id;
+      opt.textContent = `${node.label ? node.label + ' ' : ''}${node.title || ''}`;
+      if (node.id === activeNode.parentId) opt.selected = true;
+      parentSelect.appendChild(opt);
+    });
+
+    const shelfMembership = document.createElement('div');
+    if (!activeNode.parentId && vm.shelves.length) {
+      const label = document.createElement('div');
+      label.textContent = 'Shelves containing this book:';
+      shelfMembership.appendChild(label);
+      vm.shelves.forEach(shelf => {
+        const row = document.createElement('label');
+        row.className = 'inline';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = (vm.shelvesByBookId[activeNode.id] || []).includes(shelf.id);
+        cb.addEventListener('change', () => {
+          toggleBookMembership(shelf.id, activeNode.id, cb.checked);
+        });
+        row.appendChild(cb);
+        row.appendChild(document.createTextNode(' ' + (shelf.name || 'Shelf')));
+        shelfMembership.appendChild(row);
+      });
+    }
+
+    const saveBtn = document.createElement('button');
+    saveBtn.textContent = 'Save';
+    saveBtn.addEventListener('click', () => {
+      const parentId = parentSelect.value || null;
+      const vmLatest = ViewModels.buildLibraryEditorViewModel(snapshot, {
+        movementId: currentMovementId
+      });
+      const descendants = collectDescendants(activeNode.id, vmLatest.nodesById, new Set());
+      if (parentId && descendants.has(parentId)) {
+        alert('Cannot set a descendant as the parent.');
+        return;
+      }
+      DomainService.upsertItem(snapshot, 'texts', {
+        ...snapshot.texts.find(t => t.id === activeNode.id),
+        title: titleInput.value,
+        label: labelInput.value,
+        level: levelSelect.value,
+        mainFunction: mainFunctionInput.value || null,
+        parentId,
+        tags: parseCsvInput(tagsInput.value),
+        mentionsEntityIds: parseCsvInput(mentionsInput.value),
+        content: contentInput.value
+      });
+      saveSnapshot({ show: false });
+      setStatus('Saved');
+      renderLibraryView();
+    });
+
+    const addChildBtn = document.createElement('button');
+    addChildBtn.textContent = 'Add child';
+    addChildBtn.addEventListener('click', () => {
+      const text = DomainService.addNewItem(snapshot, 'texts', currentMovementId);
+      text.parentId = activeNode.id;
+      text.title = 'New section';
+      text.level = 'section';
+      currentTextId = text.id;
+      currentBookId = vm.bookIdByNodeId[activeNode.id] || currentBookId;
+      saveSnapshot({ show: false });
+      renderLibraryView();
+    });
+
+    const addSiblingBtn = document.createElement('button');
+    addSiblingBtn.textContent = 'Add sibling';
+    addSiblingBtn.addEventListener('click', () => {
+      const text = DomainService.addNewItem(snapshot, 'texts', currentMovementId);
+      text.parentId = activeNode.parentId || null;
+      text.title = 'New section';
+      text.level = 'section';
+      currentTextId = text.id;
+      currentBookId = vm.bookIdByNodeId[activeNode.id] || currentBookId;
+      saveSnapshot({ show: false });
+      renderLibraryView();
+    });
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.textContent = 'Delete';
+    deleteBtn.className = 'danger';
+    deleteBtn.addEventListener('click', () => deleteBookAndDescendants(activeNode.id));
+
+    [
+      { label: 'Title', field: titleInput },
+      { label: 'Label', field: labelInput },
+      { label: 'Level', field: levelSelect },
+      { label: 'Main function', field: mainFunctionInput },
+      { label: 'Tags (comma separated)', field: tagsInput },
+      { label: 'Mentions entity IDs', field: mentionsInput },
+      { label: 'Parent', field: parentSelect },
+      { label: 'Content', field: contentInput }
+    ].forEach(row => {
+      const wrapper = document.createElement('div');
+      const labelEl = document.createElement('div');
+      labelEl.className = 'section-heading small';
+      labelEl.textContent = row.label;
+      wrapper.appendChild(labelEl);
+      wrapper.appendChild(row.field);
+      textEditor.appendChild(wrapper);
+    });
+
+    if (shelfMembership.childNodes.length) textEditor.appendChild(shelfMembership);
+
+    const actions = document.createElement('div');
+    actions.className = 'inline-actions';
+    actions.appendChild(saveBtn);
+    actions.appendChild(addChildBtn);
+    actions.appendChild(addSiblingBtn);
+    actions.appendChild(deleteBtn);
+    textEditor.appendChild(actions);
+
+    if (activeNode.mentionsEntities?.length) {
+      const row = document.createElement('div');
+      row.className = 'chip-row';
+      activeNode.mentionsEntities.forEach(ent => {
+        const chip = document.createElement('span');
+        chip.className = 'chip chip-entity clickable';
+        chip.textContent = ent.name || ent.id;
+        chip.addEventListener('click', () => jumpToEntity(ent.id));
+        row.appendChild(chip);
+      });
+      textEditor.appendChild(row);
+    }
+
+    if (activeNode.referencedByClaims?.length) {
+      const row = document.createElement('div');
+      row.className = 'chip-row';
+      activeNode.referencedByClaims.forEach(claim => {
+        const chip = document.createElement('span');
+        chip.className = 'chip';
+        chip.textContent = claim.text || claim.id;
+        row.appendChild(chip);
+      });
+      textEditor.appendChild(row);
+    }
+
+    if (activeNode.usedInEvents?.length) {
+      const row = document.createElement('div');
+      row.className = 'chip-row';
+      activeNode.usedInEvents.forEach(evt => {
+        const chip = document.createElement('span');
+        chip.className = 'chip';
+        chip.textContent = evt.name || evt.id;
+        row.appendChild(chip);
+      });
+      textEditor.appendChild(row);
+    }
+  }
+
+  function toggleBookMembership(shelfId, bookId, shouldExist) {
+    const shelf = (snapshot.textCollections || []).find(tc => tc.id === shelfId);
+    if (!shelf) return;
+    const roots = new Set(normaliseArray(shelf.rootTextIds));
+    if (shouldExist) roots.add(bookId);
+    else roots.delete(bookId);
+    shelf.rootTextIds = Array.from(roots);
+    saveSnapshot({ show: false });
+  }
+
+  function removeBookFromShelf(shelfId, bookId) {
+    const shelf = (snapshot.textCollections || []).find(tc => tc.id === shelfId);
+    if (!shelf) return;
+    shelf.rootTextIds = normaliseArray(shelf.rootTextIds).filter(id => id !== bookId);
+    saveSnapshot({ show: false });
+    setStatus('Book removed from shelf');
+    renderLibraryView();
+  }
+
+  function deleteBookAndDescendants(bookId) {
+    const vm = ViewModels.buildLibraryEditorViewModel(snapshot, { movementId: currentMovementId });
+    const descendants = Array.from(collectDescendants(bookId, vm.nodesById, new Set()));
+    const ok = window.confirm(
+      `Delete this text and ${descendants.length - 1} descendant(s)? This cannot be undone.`
+    );
+    if (!ok) return;
+    const descendantSet = new Set(descendants);
+    descendants.forEach(id => DomainService.deleteItem(snapshot, 'texts', id));
+    (snapshot.textCollections || []).forEach(tc => {
+      tc.rootTextIds = normaliseArray(tc.rootTextIds).filter(id => !descendantSet.has(id));
+    });
+    if (currentTextId && descendantSet.has(currentTextId)) currentTextId = null;
+    if (currentBookId && descendantSet.has(currentBookId)) currentBookId = null;
+    saveSnapshot();
+    renderLibraryView();
+  }
+
+  function addNewBookToShelf() {
+    if (!currentMovementId) return;
+    if (!currentShelfId) {
+      alert('Choose a shelf first.');
+      return;
+    }
+    const book = DomainService.addNewItem(snapshot, 'texts', currentMovementId);
+    book.parentId = null;
+    book.level = 'work';
+    book.title = 'New book';
+    book.label = book.label || '';
+    const shelf = snapshot.textCollections.find(tc => tc.id === currentShelfId);
+    if (shelf) {
+      shelf.rootTextIds = normaliseArray(shelf.rootTextIds);
+      shelf.rootTextIds.push(book.id);
+    }
+    currentBookId = book.id;
+    currentTextId = book.id;
+    saveSnapshot({ show: false });
+    renderLibraryView();
+  }
+
+  function addExistingBookToShelf() {
+    if (!currentMovementId || !currentShelfId) return;
+    const roots = (snapshot.texts || []).filter(
+      t => t.movementId === currentMovementId && !t.parentId
+    );
+    const shelf = snapshot.textCollections.find(tc => tc.id === currentShelfId);
+    if (!shelf) return;
+    const existing = new Set(normaliseArray(shelf.rootTextIds));
+    const choices = roots.filter(t => !existing.has(t.id));
+    if (!choices.length) {
+      alert('No other books available to add.');
+      return;
+    }
+    const selected = window.prompt(
+      'Enter the ID of the book to add:\n' + choices.map(c => `${c.id}: ${c.title}`).join('\n')
+    );
+    if (!selected) return;
+    if (!choices.some(c => c.id === selected)) {
+      alert('Book not found');
+      return;
+    }
+    shelf.rootTextIds.push(selected);
+    saveSnapshot({ show: false });
+    renderLibraryView();
+  }
+
   function addTextCollection() {
     if (!currentMovementId) {
       alert('Select a movement first.');
@@ -1398,11 +1968,8 @@
       );
       saveSnapshot({ show: false });
       setStatus('Text collection created');
-      const select = document.getElementById('canon-collection-select');
-      if (select) {
-        select.value = collection.id;
-      }
-      renderCanonView();
+      currentShelfId = collection.id;
+      renderLibraryView();
     } catch (e) {
       alert(e.message);
     }
@@ -1414,11 +1981,14 @@
 
     saveSnapshot({ show: false });
     setStatus('Collection saved');
-    renderCanonView();
+    renderLibraryView();
   }
 
-  function deleteTextCollection() {
-    const collection = getActiveTextCollection();
+  function deleteTextCollection(id = null) {
+    const collection =
+      id !== null
+        ? (snapshot.textCollections || []).find(tc => tc.id === id)
+        : getActiveTextCollection();
     if (!collection) return;
     const ok = window.confirm(
       `Delete this text collection?\n\n${collection.name || collection.id}\n\nThis cannot be undone.`
@@ -1426,10 +1996,13 @@
     if (!ok) return;
 
     DomainService.deleteItem(snapshot, 'textCollections', collection.id);
-    const select = document.getElementById('canon-collection-select');
-    if (select) select.value = '';
+    if (currentShelfId === collection.id) {
+      currentShelfId = null;
+      currentBookId = null;
+      currentTextId = null;
+    }
     saveSnapshot();
-    renderCanonView();
+    renderLibraryView();
   }
 
   function addRootTextNode() {
@@ -5241,33 +5814,12 @@
     if (practiceSelect) {
       practiceSelect.addEventListener('change', renderPracticesView);
     }
-    const canonCollectionSelect = document.getElementById(
-      'canon-collection-select'
-    );
-    if (canonCollectionSelect) {
-      canonCollectionSelect.addEventListener(
-        'change',
-        renderCanonView
-      );
-    }
-    addListenerById('canon-search', 'input', handleCanonFilterChange);
-    [
-      'canon-tag-filter',
-      'canon-mention-filter',
-      'canon-parent-filter',
-      'canon-child-filter'
-    ].forEach(id => addListenerById(id, 'change', handleCanonFilterChange));
-    addListenerById('btn-clear-canon-filters', 'click', () => {
-      canonFilters = { ...DEFAULT_CANON_FILTERS };
-      renderCanonView();
-    });
+    addListenerById('library-search', 'input', renderLibraryView);
     addListenerById('btn-add-text-collection', 'click', addTextCollection);
     addListenerById('btn-save-text-collection', 'click', saveTextCollection);
-    addListenerById('btn-delete-text-collection', 'click', deleteTextCollection);
-    addListenerById('btn-add-root-text', 'click', addRootTextNode);
-    addListenerById('btn-add-child-text', 'click', addChildTextNode);
-    addListenerById('btn-save-text', 'click', saveCurrentTextNode);
-    addListenerById('btn-delete-text', 'click', deleteCurrentTextNode);
+    addListenerById('btn-delete-text-collection', 'click', () => deleteTextCollection());
+    addListenerById('btn-add-root-text', 'click', addNewBookToShelf);
+    addListenerById('btn-add-existing-book', 'click', addExistingBookToShelf);
 
     // Collections tab
       addListenerById('collection-select', 'change', e => {
