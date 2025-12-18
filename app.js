@@ -19,6 +19,8 @@
   let currentTextId = null;
   let currentShelfId = null;
   let currentBookId = null;
+  let librarySearchResults = [];
+  let librarySearchActiveIndex = -1;
   const DEFAULT_CANON_FILTERS = {
     search: '',
     tag: '',
@@ -1432,6 +1434,7 @@
       currentTextId = currentBookId;
     }
 
+    renderLibrarySearchResults(vm);
     renderShelfPane(vm);
     renderBooksPane(vm);
     renderTocPane(vm);
@@ -1443,6 +1446,132 @@
     p.className = 'library-empty';
     p.textContent = text;
     return p;
+  }
+
+  function renderLibrarySearchResults(vm) {
+    const container = document.getElementById('library-search-results');
+    if (!container) return;
+
+    clearElement(container);
+    const searchInput = document.getElementById('library-search');
+    const hasQuery = Boolean(searchInput && searchInput.value.trim());
+
+    librarySearchResults = vm.searchResults || [];
+    if (!hasQuery || !librarySearchResults.length) {
+      librarySearchActiveIndex = -1;
+      container.style.display = 'none';
+      return;
+    }
+
+    librarySearchActiveIndex = Math.min(
+      librarySearchActiveIndex,
+      librarySearchResults.length - 1
+    );
+
+    container.style.display = 'block';
+
+    librarySearchResults.forEach((result, index) => {
+      const item = document.createElement('div');
+      item.className = 'library-search-result';
+      item.dataset.index = index;
+      if (index === librarySearchActiveIndex) item.classList.add('active');
+
+      const path = document.createElement('div');
+      path.className = 'library-search-path';
+      path.textContent = result.pathLabel || result.nodeId;
+      item.appendChild(path);
+
+      const meta = document.createElement('div');
+      meta.className = 'library-search-meta';
+      const metaBits = [];
+      if (result.bookId) metaBits.push(`Book ${result.bookId}`);
+      metaBits.push(`Node ${result.nodeId}`);
+      meta.textContent = metaBits.join(' · ');
+      item.appendChild(meta);
+
+      if (result.matchSnippet) {
+        const snippet = document.createElement('div');
+        snippet.className = 'library-search-snippet';
+        snippet.textContent = result.matchSnippet;
+        item.appendChild(snippet);
+      }
+
+      item.addEventListener('click', () => selectLibrarySearchResult(result));
+      container.appendChild(item);
+    });
+
+    updateLibrarySearchActiveState();
+  }
+
+  function selectLibrarySearchResult(result) {
+    if (!result) return;
+    currentTextId = result.nodeId;
+    currentBookId = result.bookId || result.nodeId;
+    if (Array.isArray(result.shelfIds) && result.shelfIds.length) {
+      currentShelfId = result.shelfIds[0];
+    }
+    renderLibraryView();
+    requestAnimationFrame(() => scrollTocNodeIntoView(result.nodeId));
+  }
+
+  function updateLibrarySearchActiveState() {
+    const items = document.querySelectorAll('#library-search-results .library-search-result');
+    items.forEach(item => {
+      const idx = Number(item.dataset.index);
+      if (Number.isFinite(idx) && idx === librarySearchActiveIndex) {
+        item.classList.add('active');
+      } else {
+        item.classList.remove('active');
+      }
+    });
+  }
+
+  function handleLibrarySearchKeydown(event) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.target.value = '';
+      librarySearchActiveIndex = -1;
+      renderLibraryView();
+      return;
+    }
+
+    if (!librarySearchResults.length) return;
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      librarySearchActiveIndex = Math.min(
+        librarySearchActiveIndex + 1,
+        librarySearchResults.length - 1
+      );
+      updateLibrarySearchActiveState();
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      librarySearchActiveIndex = Math.max(librarySearchActiveIndex - 1, 0);
+      updateLibrarySearchActiveState();
+    } else if (event.key === 'Enter') {
+      const index = librarySearchActiveIndex >= 0 ? librarySearchActiveIndex : 0;
+      const target = librarySearchResults[index];
+      if (target) {
+        event.preventDefault();
+        selectLibrarySearchResult(target);
+      }
+    }
+  }
+
+  function scrollTocNodeIntoView(nodeId) {
+    if (!nodeId) return;
+    const selector = `.toc-node[data-node-id="${cssEscape(nodeId)}"]`;
+    const el = document.querySelector(selector);
+    if (el && typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+  }
+
+  function cssEscape(value) {
+    if (window.CSS && typeof window.CSS.escape === 'function') {
+      return window.CSS.escape(value);
+    }
+    return String(value).replace(/"/g, '\\"');
   }
 
   function renderShelfPane(vm) {
@@ -1587,6 +1716,7 @@
       const row = document.createElement('div');
       row.className = 'toc-node';
       if (id === currentTextId) row.classList.add('active');
+      row.dataset.nodeId = id;
       const label = document.createElement('span');
       label.className = 'toc-label';
       label.textContent = node.label || '';
@@ -1705,7 +1835,8 @@
     mentionsInput.type = 'text';
     mentionsInput.value = normaliseArray(activeNode.mentionsEntityIds).join(', ');
     const contentInput = document.createElement('textarea');
-    contentInput.rows = 8;
+    contentInput.className = 'markdown-input';
+    contentInput.rows = 10;
     contentInput.value = activeNode.content || '';
 
     const parentSelect = document.createElement('select');
@@ -1810,8 +1941,7 @@
       { label: 'Main function', field: mainFunctionInput },
       { label: 'Tags (comma separated)', field: tagsInput },
       { label: 'Mentions entity IDs', field: mentionsInput },
-      { label: 'Parent', field: parentSelect },
-      { label: 'Content', field: contentInput }
+      { label: 'Parent', field: parentSelect }
     ].forEach(row => {
       const wrapper = document.createElement('div');
       const labelEl = document.createElement('div');
@@ -1821,6 +1951,54 @@
       wrapper.appendChild(row.field);
       textEditor.appendChild(wrapper);
     });
+
+    const markdownRow = document.createElement('div');
+    markdownRow.className = 'markdown-row';
+
+    const markdownHeader = document.createElement('div');
+    markdownHeader.className = 'markdown-row-header';
+    const markdownLabel = document.createElement('div');
+    markdownLabel.className = 'section-heading small';
+    markdownLabel.textContent = 'Content';
+    markdownHeader.appendChild(markdownLabel);
+    const markdownActions = document.createElement('div');
+    markdownActions.className = 'markdown-row-actions';
+    const openMarkdownBtn = document.createElement('button');
+    openMarkdownBtn.type = 'button';
+    openMarkdownBtn.textContent = 'Open markdown editor';
+    markdownActions.appendChild(openMarkdownBtn);
+    markdownHeader.appendChild(markdownActions);
+
+    const markdownGrid = document.createElement('div');
+    markdownGrid.className = 'markdown-editor-grid';
+
+    const markdownPreview = document.createElement('div');
+    markdownPreview.className = 'markdown-preview-panel';
+    renderMarkdownPreview(markdownPreview, contentInput.value, { enabled: true });
+
+    contentInput.addEventListener('input', () => {
+      renderMarkdownPreview(markdownPreview, contentInput.value, { enabled: true });
+    });
+
+    openMarkdownBtn.addEventListener('click', () => {
+      openMarkdownModal({
+        title: 'Edit canon text',
+        initial: contentInput.value,
+        onSave: value => {
+          contentInput.value = value;
+          renderMarkdownPreview(markdownPreview, value, { enabled: true });
+        },
+        onClose: () => {
+          renderMarkdownPreview(markdownPreview, contentInput.value, { enabled: true });
+        }
+      });
+    });
+
+    markdownGrid.appendChild(contentInput);
+    markdownGrid.appendChild(markdownPreview);
+    markdownRow.appendChild(markdownHeader);
+    markdownRow.appendChild(markdownGrid);
+    textEditor.appendChild(markdownRow);
 
     if (shelfMembership.childNodes.length) textEditor.appendChild(shelfMembership);
 
@@ -4535,8 +4713,16 @@
   function jumpToText(textId) {
     if (!textId) return;
     activateTab('canon');
+    const vm = ViewModels.buildLibraryEditorViewModel(snapshot, {
+      movementId: currentMovementId
+    });
+    const bookId = vm.bookIdByNodeId[textId] || textId;
+    const shelves = vm.shelvesByBookId[bookId] || [];
+    currentBookId = bookId;
     currentTextId = textId;
-    renderCanonView();
+    if (shelves.length) currentShelfId = shelves[0];
+    renderLibraryView();
+    requestAnimationFrame(() => scrollTocNodeIntoView(textId));
   }
 
   // ---- Dashboard (ViewModels) ----
@@ -5814,6 +6000,7 @@
     if (practiceSelect) {
       practiceSelect.addEventListener('change', renderPracticesView);
     }
+    addListenerById('library-search', 'keydown', handleLibrarySearchKeydown);
     addListenerById('library-search', 'input', renderLibraryView);
     addListenerById('btn-add-text-collection', 'click', addTextCollection);
     addListenerById('btn-save-text-collection', 'click', saveTextCollection);
