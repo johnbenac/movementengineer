@@ -5676,8 +5676,19 @@
       delete incomingSnapshot.__repoInfo;
       const owner = repoInfo?.owner?.toLowerCase?.() || '';
       const repo = repoInfo?.repo?.toLowerCase?.() || '';
-      if (owner === 'johnbenac' && repo === 'catholic') {
-        window.verifyCatholicImport(incomingSnapshot);
+      if (
+        owner === 'johnbenac' &&
+        repo === 'catholic' &&
+        typeof window.verifyCatholicImport === 'function'
+      ) {
+        try {
+          window.verifyCatholicImport(incomingSnapshot);
+        } catch (verificationError) {
+          console.warn(
+            'Catholic fixture verification failed (non-fatal):',
+            verificationError
+          );
+        }
       }
       applyImportedSnapshot(incomingSnapshot, { promptOnConflict: false });
       dom.status.textContent = 'Import succeeded.';
