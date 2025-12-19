@@ -325,6 +325,63 @@ button.danger:hover {
   overflow: hidden;
 }
 
+.hidden {
+  display: none !important;
+}
+
+.github-import-modal {
+  max-width: 560px;
+  width: 95%;
+}
+
+.github-import-modal .form-row {
+  margin-bottom: 0.75rem;
+}
+
+.github-import-modal input[type='url'] {
+  width: 100%;
+}
+
+.import-status {
+  margin: 0.35rem 0;
+  color: #374151;
+}
+
+.import-error {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 0.6rem 0.75rem;
+}
+
+.fatal-error-banner {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  background: #7f1d1d;
+  color: #fff;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  max-width: 520px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
+  z-index: 1400;
+}
+
+.fatal-error-title {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.fatal-error-body {
+  margin: 0;
+  max-height: 320px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
 .code-pill {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
     "Courier New", monospace;
