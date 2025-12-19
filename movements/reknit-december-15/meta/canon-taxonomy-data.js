@@ -2,7 +2,7 @@
   'use strict';
 
   const dataset = {
-    version: '3.4',
+    version: '3.6',
     texts: [
       {
         id: 'txt-reknit-canon-taxonomy',
@@ -44,8 +44,8 @@
           'In Reknit, a “document” is primarily a `texts[]` node (organized into `textCollections[]` later). Other model objects (`claims`, `rules`, `practices`, `events`) are canonical too, but they function like index cards / executable hooks that should cite texts.',
           '',
           '### Work and passage',
-          '- A **work** (`texts[].level === "work"`) is a “book” or “primary document.”',
-          '- A **passage** (`level === "passage"`) is a section within a work.',
+          '- A **work** is a root text (depth 0) — a “book” or “primary document.”',
+          '- A **passage** is any child section beneath a work.',
           '- Convention: tags live on works; passages inherit unless they differ.',
           '',
           '### Derived artifacts',

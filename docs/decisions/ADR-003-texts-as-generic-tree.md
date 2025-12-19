@@ -6,11 +6,11 @@ When modelling movements, we realised that sacred and instructional writings com
 
 ## Decision
 
-We defined `TextNode` as a generic hierarchical node with a parent reference and a `level` field describing its scale (`work`, `section`, `passage` or `line`).  Each `TextNode` holds optional content, a title and label, and indicates its main function (story, rule, instructions, teaching, prayer_or_song, commentary, other).  `TextCollection` was introduced as a light grouping mechanism with a name, description and a list of root `TextNode` IDs.  Texts can exist outside collections and collections can group many texts without imposing extra hierarchy.  All cross‑references from texts to other objects (entities, claims) are one‑directional.
+We defined `TextNode` as a generic hierarchical node with a parent reference. Depth is derived from that relationship (root = 0) rather than stored as a labelled enum. Each `TextNode` holds optional content, a title and label, and indicates its main function (story, rule, instructions, teaching, prayer_or_song, commentary, other).  `TextCollection` was introduced as a light grouping mechanism with a name, description and a list of root `TextNode` IDs.  Texts can exist outside collections and collections can group many texts without imposing extra hierarchy.  All cross‑references from texts to other objects (entities, claims) are one‑directional.
 
 ## Rationale
 
-By choosing a generic tree with a small set of levels, we avoided hard‑wiring any one movement’s canon structure.  Developers can model Torah scrolls, Vedic hymns, sutras, letters or modern pamphlets using the same API.  Allowing texts outside of collections supports adhoc prayers or instructions.  The flexible `mainFunction` and `tags` fields give downstream tools hints about how to display or process a text without requiring schema changes.  This decision reflects a trade‑off between precision and simplicity: we lose some fidelity about unusual text structures but gain a uniform representation across traditions.
+By choosing a generic tree with derived depth, we avoided hard‑wiring any one movement’s canon structure or forcing labels like “work” vs “section.” Developers can model Torah scrolls, Vedic hymns, sutras, letters or modern pamphlets using the same API.  Allowing texts outside of collections supports adhoc prayers or instructions.  The flexible `mainFunction` and `tags` fields give downstream tools hints about how to display or process a text without requiring schema changes.  This decision reflects a trade‑off between precision and simplicity: we lose some fidelity about unusual text structures but gain a uniform representation across traditions.
 
 ## Consequences
 
@@ -20,9 +20,9 @@ By choosing a generic tree with a small set of levels, we avoided hard‑wiring 
 - A uniform API for reading and writing text structures in the designer tool.
 
 ### Negative
-- Some complex canons (e.g. commentaries on commentaries, interleaved recitations) may require additional conventions beyond the `level` enum.
+- Some complex canons (e.g. commentaries on commentaries, interleaved recitations) may require additional conventions beyond plain depth.
 - Without collections enforcing membership, orphaned texts may be harder to discover without supplemental tooling.
 
 ### Mitigation
-- Use `tags` on texts to indicate their canonical status or to mark them as instructions or prayers.
+- Use `tags` on texts to indicate their canonical status or to mark them as instructions or prayers, and to annotate legacy notions like “work” or “section” when helpful.
 - For complex canons, encourage use of the `Relation` entity to model more detailed textual relationships (commentary_on, translation_of) in future versions.
