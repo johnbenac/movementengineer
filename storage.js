@@ -8,6 +8,7 @@
   'use strict';
 
   const STORAGE_KEY = 'movementDesigner.v3.snapshot';
+  const DEFAULT_VERSION = '3.6';
 
   const COLLECTION_NAMES = [
     'movements',
@@ -35,44 +36,42 @@
   ]);
 
   function createEmptySnapshot() {
-    const base = {};
+    const base = { version: DEFAULT_VERSION };
     COLLECTION_NAMES.forEach(name => {
       base[name] = [];
     });
     return base;
   }
 
-  function clone(obj) {
-    return JSON.parse(JSON.stringify(obj));
-  }
-
-  function getBundledSample() {
-    if (typeof window !== 'undefined' && window.movementData) {
-      return window.movementData;
-    }
-    if (typeof module !== 'undefined') {
-      try {
-        // eslint-disable-next-line global-require
-        return require('./movement-data');
-      } catch (e) {
-        return null;
-      }
-    }
-    return null;
-  }
-
   function getDefaultSnapshot() {
-    const sample = getBundledSample();
-    if (sample) return ensureAllCollections(clone(sample));
     return createEmptySnapshot();
+  }
+
+  function normaliseTextContentFields(obj) {
+    if (!Array.isArray(obj.texts)) return;
+    obj.texts = obj.texts.map(text => {
+      if (!text || typeof text !== 'object') return text;
+      const normalised = { ...text };
+      if (normalised.content == null && normalised.body != null) {
+        normalised.content = normalised.body;
+      }
+      if (normalised.contentPath == null && normalised.bodyPath != null) {
+        normalised.contentPath = normalised.bodyPath;
+      }
+      delete normalised.body;
+      delete normalised.bodyPath;
+      return normalised;
+    });
   }
 
   function ensureAllCollections(data) {
     const obj = data || {};
     delete obj.relations;
+    if (!obj.version) obj.version = DEFAULT_VERSION;
     COLLECTION_NAMES.forEach(name => {
       if (!Array.isArray(obj[name])) obj[name] = [];
     });
+    normaliseTextContentFields(obj);
     return obj;
   }
 

@@ -5,7 +5,7 @@
  * This file just handles DOM, localStorage, import/export, and wiring.
  */
 
-/* global DomainService, StorageService, ViewModels, EntityGraphView, JSZip, d3 */
+/* global DomainService, StorageService, ViewModels, EntityGraphView, JSZip, d3, GitHubRepoImporter, validateIncomingSnapshot, verifyCatholicImport */
 
 (function () {
   'use strict';
@@ -368,7 +368,7 @@
 
     if (!snapshot.movements.length) {
       const li = document.createElement('li');
-      li.textContent = 'No movements yet. Click + to add one.';
+      li.textContent = 'No movements yet. Click + to add one or import from GitHub.';
       li.style.fontStyle = 'italic';
       li.style.cursor = 'default';
       list.appendChild(li);
@@ -5577,23 +5577,33 @@
     return target;
   }
 
-  function importMovementSnapshot(movementSnapshot) {
-    const incoming = StorageService.ensureAllCollections(movementSnapshot || {});
-    const incomingMovements = incoming.movements || [];
-    if (!incomingMovements.length) {
-      alert('No movements found in the imported file.');
-      return;
+  function applyIncomingSnapshot(incomingSnapshot, options = {}) {
+    const {
+      sourceMeta = null,
+      forceOverwrite = false,
+      promptOnConflict = false,
+      selectFirstMovement = true
+    } = options;
+
+    if (typeof validateIncomingSnapshot !== 'function') {
+      throw new Error('Snapshot validator is unavailable.');
     }
 
-    let fullSnapshot = StorageService.ensureAllCollections(
-      snapshot || StorageService.createEmptySnapshot()
-    );
+    const validated = validateIncomingSnapshot(incomingSnapshot, sourceMeta);
+    const incomingMovements = validated.movements || [];
+    if (!incomingMovements.length) {
+      throw new Error('No movements found in the imported data.');
+    }
+
     const incomingIds = new Set(incomingMovements.map(m => m.id));
-    const conflicts = (fullSnapshot.movements || []).filter(m =>
+    const existingSnapshot = StorageService.ensureAllCollections(
+      JSON.parse(JSON.stringify(snapshot || StorageService.createEmptySnapshot()))
+    );
+    const conflicts = (existingSnapshot.movements || []).filter(m =>
       incomingIds.has(m.id)
     );
 
-    if (conflicts.length) {
+    if (conflicts.length && !forceOverwrite && promptOnConflict) {
       const names = conflicts
         .map(m => m.name || m.id)
         .slice(0, 3)
@@ -5601,19 +5611,37 @@
       const ok = window.confirm(
         `Replace existing movement data for: ${names}? This will overwrite matching IDs.`
       );
-      if (!ok) return;
+      if (!ok) return null;
+    }
+
+    if (conflicts.length && forceOverwrite) {
+      console.warn(
+        'Overwriting movement IDs:',
+        conflicts.map(c => c.id).join(', ')
+      );
     }
 
     clearMovementAssetsForIds(incomingIds);
-    fullSnapshot = mergeMovementSnapshotIntoExisting(fullSnapshot, incoming);
+    const fullSnapshot = mergeMovementSnapshotIntoExisting(
+      existingSnapshot,
+      validated
+    );
     StorageService.saveSnapshot(fullSnapshot);
     snapshot = fullSnapshot;
-    currentMovementId = incomingMovements[0]?.id || currentMovementId;
+    if (selectFirstMovement) {
+      currentMovementId = incomingMovements[0]?.id || currentMovementId;
+    } else {
+      currentMovementId = currentMovementId || incomingMovements[0]?.id || null;
+    }
     currentItemId = null;
+    currentTextId = null;
+    currentShelfId = null;
+    currentBookId = null;
     resetNavigationHistory();
     renderMovementList();
     renderActiveTab();
     markSaved({ movement: true, item: true });
+    return fullSnapshot;
   }
 
   function exportCurrentMovementAsJson() {
@@ -5644,8 +5672,8 @@
     reader.onload = () => {
       try {
         const data = JSON.parse(reader.result);
-        importMovementSnapshot(data);
-        setStatus('Imported movement JSON');
+        const merged = applyIncomingSnapshot(data, { promptOnConflict: true });
+        if (merged) setStatus('Imported movement JSON');
       } catch (e) {
         alert('Failed to import: ' + e.message);
       }
@@ -5669,11 +5697,12 @@
 
     if (Array.isArray(clone.texts)) {
       clone.texts = clone.texts.map(text => {
-        const { body, ...rest } = text;
+        const { content, body, bodyPath, ...rest } = text;
         const id = text.id || text.slug || 'text';
         return {
           ...rest,
-          bodyPath: `texts/${id}.md`
+          content: content ?? body ?? '',
+          contentPath: `texts/${id}.md`
         };
       });
     }
@@ -5692,8 +5721,8 @@
     if (!Array.isArray(movementSnapshot.texts)) return;
     movementSnapshot.texts.forEach(text => {
       const id = text.id || text.slug || 'text';
-      const filePath = `texts/${id}.md`;
-      zip.file(filePath, text.body || '');
+      const filePath = text.contentPath || `texts/${id}.md`;
+      zip.file(filePath, text.content ?? '');
     });
   }
 
@@ -5743,10 +5772,20 @@
   async function hydrateTextsFromZip(zip, movementSnapshot) {
     if (!Array.isArray(movementSnapshot.texts)) return;
     for (const text of movementSnapshot.texts) {
-      if (!text.bodyPath) continue;
-      const file = zip.file(text.bodyPath);
+      if (text && typeof text === 'object') {
+        delete text.body;
+        delete text.bodyPath;
+      }
+      const path = text.contentPath || text.bodyPath;
+      if (!path) continue;
+      const file = zip.file(path);
       if (!file) continue;
-      text.body = await file.async('string');
+      if (text.content && String(text.content).trim()) {
+        throw new Error(
+          `Text ${text.id} has inline content and a markdown file (${path}); cannot determine source.`
+        );
+      }
+      text.content = await file.async('string');
     }
   }
 
@@ -5776,17 +5815,175 @@
       const manifest = JSON.parse(manifestText);
       await hydrateTextsFromZip(zip, manifest);
       await hydrateAssetsFromZip(zip, manifest);
-      importMovementSnapshot(manifest);
-      setStatus('Imported movement ZIP');
+      const merged = applyIncomingSnapshot(manifest, { promptOnConflict: true });
+      if (merged) setStatus('Imported movement ZIP');
     } catch (e) {
       console.error(e);
       alert('Failed to import ZIP: ' + e.message);
     }
   }
 
+  function showFatalImportError(error, targetEl) {
+    console.error(error);
+    const container = targetEl || document.getElementById('import-error-panel');
+    if (!container) {
+      alert(error?.message || 'Import failed.');
+      return;
+    }
+    container.classList.add('fatal-error-panel');
+    container.classList.remove('hidden');
+    container.innerHTML = '';
+
+    const title = document.createElement('div');
+    title.className = 'fatal-error-title';
+    title.textContent = 'Import failed';
+
+    const message = document.createElement('pre');
+    message.className = 'fatal-error-message';
+    message.textContent = error?.message || String(error);
+
+    container.appendChild(title);
+    container.appendChild(message);
+
+    if (error && error.stack) {
+      const stack = document.createElement('pre');
+      stack.className = 'fatal-error-stack';
+      stack.textContent = error.stack;
+      container.appendChild(stack);
+    }
+  }
+
+  async function handleGithubImport(url, uiRefs) {
+    const {
+      statusEl,
+      errorEl,
+      importBtn,
+      close
+    } = uiRefs;
+
+    if (!window.GitHubRepoImporter || typeof window.GitHubRepoImporter.importMovementRepo !== 'function') {
+      showFatalImportError(new Error('GitHub importer module is not available.'), errorEl);
+      return;
+    }
+
+    if (errorEl) {
+      errorEl.innerHTML = '';
+      errorEl.classList.add('hidden');
+    }
+    if (statusEl) statusEl.textContent = 'Importing from GitHub...';
+    if (importBtn) importBtn.disabled = true;
+
+    try {
+      const { snapshot: incomingSnapshot, sourceMeta, repoInfo } =
+        await window.GitHubRepoImporter.importMovementRepo(url);
+
+      if (
+        repoInfo.owner.toLowerCase() === 'johnbenac' &&
+        repoInfo.repo.toLowerCase() === 'catholic' &&
+        typeof window.verifyCatholicImport === 'function'
+      ) {
+        window.verifyCatholicImport(incomingSnapshot);
+      }
+
+      applyIncomingSnapshot(incomingSnapshot, {
+        sourceMeta,
+        forceOverwrite: true,
+        promptOnConflict: false,
+        selectFirstMovement: true
+      });
+
+      if (statusEl) {
+        statusEl.textContent = `Imported ${incomingSnapshot.movements.length} movement(s) from ${repoInfo.owner}/${repoInfo.repo}@${repoInfo.ref}`;
+      }
+      setStatus('GitHub import successful');
+      if (typeof close === 'function') close();
+    } catch (e) {
+      if (statusEl) statusEl.textContent = 'Import failed';
+      showFatalImportError(e, errorEl);
+    } finally {
+      if (importBtn) importBtn.disabled = false;
+    }
+  }
+
+  function openGithubImportModal() {
+    const overlay = document.createElement('div');
+    overlay.className = 'markdown-modal-overlay';
+
+    const modal = document.createElement('div');
+    modal.className = 'import-modal';
+
+    const header = document.createElement('div');
+    header.className = 'import-modal-header';
+    const h2 = document.createElement('h2');
+    h2.textContent = 'Import from GitHub';
+    header.appendChild(h2);
+    modal.appendChild(header);
+
+    const body = document.createElement('div');
+    body.className = 'import-modal-body';
+
+    const label = document.createElement('label');
+    label.textContent = 'GitHub repo URL';
+    label.htmlFor = 'github-import-url';
+    const input = document.createElement('input');
+    input.id = 'github-import-url';
+    input.type = 'url';
+    input.value = 'https://github.com/johnbenac/catholic';
+    input.placeholder = 'https://github.com/owner/repo';
+
+    const status = document.createElement('div');
+    status.className = 'import-status';
+    status.textContent = 'Ready to import movement data from GitHub.';
+
+    const errorPanel = document.createElement('div');
+    errorPanel.className = 'fatal-error-panel hidden';
+
+    body.appendChild(label);
+    body.appendChild(input);
+    body.appendChild(status);
+    body.appendChild(errorPanel);
+    modal.appendChild(body);
+
+    const footer = document.createElement('div');
+    footer.className = 'import-modal-footer';
+    const importBtn = document.createElement('button');
+    importBtn.textContent = 'Import';
+    importBtn.className = 'btn btn-primary';
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.className = 'btn';
+    footer.appendChild(importBtn);
+    footer.appendChild(cancelBtn);
+    modal.appendChild(footer);
+
+    const close = () => {
+      if (overlay.parentElement) overlay.parentElement.removeChild(overlay);
+    };
+
+    cancelBtn.addEventListener('click', close);
+    importBtn.addEventListener('click', () => {
+      const value = (input.value || '').trim();
+      if (!value) {
+        showFatalImportError(new Error('Please enter a GitHub repository URL.'), errorPanel);
+        return;
+      }
+      handleGithubImport(value, {
+        statusEl: status,
+        errorEl: errorPanel,
+        importBtn,
+        close
+      });
+    });
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    input.focus();
+    input.select();
+  }
+
   function resetToDefaults() {
     const ok = window.confirm(
-      'Clear all data and reset to the default sample?\n\nThis will overwrite any changes.'
+      'Clear all data and start fresh?\n\nThis will remove all saved movements.'
     );
     if (!ok) return;
     snapshot = StorageService.getDefaultSnapshot();
@@ -5796,7 +5993,7 @@
     movementAssetStore.clear();
     resetNavigationHistory();
     saveSnapshot({ clearMovementDirty: true, clearItemDirty: true });
-    setStatus('Reset to default');
+    setStatus('Reset to empty snapshot');
   }
 
   function addListenerById(id, event, handler) {
@@ -5853,6 +6050,8 @@
       input.value = '';
       input.click();
     });
+
+    addListenerById('btn-import-github', 'click', openGithubImportModal);
 
     addListenerById('file-input-json', 'change', e => {
       const file = e.target.files && e.target.files[0];
