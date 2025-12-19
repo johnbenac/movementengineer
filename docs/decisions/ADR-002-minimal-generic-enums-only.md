@@ -8,7 +8,7 @@ As we began populating the schema with concrete examples—from Aggie football f
 
 ## Decision
 
-We decided to prune the enumeration space to a handful of generic, easily understood enums.  The schema retains `TextLevel`, `TextFunction`, `EntityKind`, `PracticeKind`, `RuleKind`, `EventRecurrence` and `MediaKind` with a small set of plain‑language values.  All other categorizations—metaphysical orientations, scriptural origins, canon openness and so forth—are represented using free‑text fields and tags rather than rigid enums.  In future releases we may publish guidelines on tag usage, but the core schema will remain light.
+We decided to prune the enumeration space to a handful of generic, easily understood enums.  The schema retains `TextFunction`, `EntityKind`, `PracticeKind`, `RuleKind`, `EventRecurrence` and `MediaKind` with a small set of plain‑language values.  The relative “size” of a text is now inferred from its depth in the tree rather than an explicit enum.  All other categorizations—metaphysical orientations, scriptural origins, canon openness and so forth—are represented using free‑text fields and tags rather than rigid enums.  In future releases we may publish guidelines on tag usage, but the core schema will remain light.
 
 ## Rationale
 
