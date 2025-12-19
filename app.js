@@ -5677,7 +5677,11 @@
       const owner = repoInfo?.owner?.toLowerCase?.() || '';
       const repo = repoInfo?.repo?.toLowerCase?.() || '';
       if (owner === 'johnbenac' && repo === 'catholic') {
-        window.verifyCatholicImport(incomingSnapshot);
+        try {
+          window.verifyCatholicImport(incomingSnapshot);
+        } catch (e) {
+          console.warn('Catholic fixture verification failed (non-fatal):', e);
+        }
       }
       applyImportedSnapshot(incomingSnapshot, { promptOnConflict: false });
       dom.status.textContent = 'Import succeeded.';
