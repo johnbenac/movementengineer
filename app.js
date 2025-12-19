@@ -5674,11 +5674,6 @@
       const incomingSnapshot = await window.GitHubRepoImporter.importMovementRepo(url);
       const repoInfo = incomingSnapshot.__repoInfo || null;
       delete incomingSnapshot.__repoInfo;
-      const owner = repoInfo?.owner?.toLowerCase?.() || '';
-      const repo = repoInfo?.repo?.toLowerCase?.() || '';
-      if (owner === 'johnbenac' && repo === 'catholic') {
-        window.verifyCatholicImport(incomingSnapshot);
-      }
       applyImportedSnapshot(incomingSnapshot, { promptOnConflict: false });
       dom.status.textContent = 'Import succeeded.';
       setStatus('Imported movement(s) from GitHub');
