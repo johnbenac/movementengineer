@@ -1,7 +1,7 @@
 /*
  * View Model builders for Movement Engineer.
  *
- * These functions translate raw collection data (as described by data-model v3.5)
+ * These functions translate raw collection data (as described by data-model v3.6)
  * into derived shapes optimised for specific UI needs. Each builder expects a
  * `data` object containing arrays named after the collections:
  * movements, textCollections, texts, entities, practices, events,
@@ -43,6 +43,52 @@ function histogram(items, keyAccessor) {
   }, {});
 }
 
+function buildChildrenByParent(texts) {
+  const childrenByParent = new Map();
+  normaliseArray(texts).forEach(text => {
+    if (!text || !text.id) return;
+    const bucket = childrenByParent.get(text.parentId || null) || [];
+    bucket.push(text.id);
+    childrenByParent.set(text.parentId || null, bucket);
+  });
+  return childrenByParent;
+}
+
+function deriveTextDepths(texts) {
+  const childrenByParent = buildChildrenByParent(texts);
+  const depthById = new Map();
+  const stack = (childrenByParent.get(null) || []).map(id => ({
+    id,
+    depth: 0
+  }));
+
+  while (stack.length) {
+    const { id, depth } = stack.pop();
+    if (depthById.has(id) && depthById.get(id) <= depth) continue;
+    depthById.set(id, depth);
+    (childrenByParent.get(id) || []).forEach(childId => {
+      stack.push({ id: childId, depth: depth + 1 });
+    });
+  }
+
+  normaliseArray(texts).forEach(text => {
+    if (text?.id && !depthById.has(text.id)) {
+      depthById.set(text.id, null);
+    }
+  });
+
+  return { childrenByParent, depthById };
+}
+
+function buildTextContext(data, movementId) {
+  const texts = filterByMovement(data.texts, movementId);
+  return {
+    texts,
+    lookup: buildLookup(texts),
+    depths: deriveTextDepths(texts).depthById
+  };
+}
+
 function filterByMovement(items, movementId) {
   return normaliseArray(items).filter(
     item => item && item.movementId === movementId
@@ -63,12 +109,18 @@ function buildMovementDashboardViewModel(data, input) {
   const claims = filterByMovement(data.claims, movementId);
   const media = filterByMovement(data.media, movementId);
 
+  const { depthById: textDepths } = deriveTextDepths(texts);
+  const textDepthHistogram = {};
+  textDepths.forEach(depth => {
+    const key = Number.isFinite(depth) ? depth : 'unknown';
+    textDepthHistogram[key] = (textDepthHistogram[key] || 0) + 1;
+  });
+  const maxDepths = Array.from(textDepths.values()).filter(Number.isFinite);
+
   const textStats = {
     totalTexts: texts.length,
-    works: texts.filter(t => t.level === 'work').length,
-    sections: texts.filter(t => t.level === 'section').length,
-    passages: texts.filter(t => t.level === 'passage').length,
-    lines: texts.filter(t => t.level === 'line').length
+    byDepth: textDepthHistogram,
+    maxDepth: maxDepths.length ? Math.max(...maxDepths) : null
   };
 
   const entityStats = {
@@ -117,12 +169,7 @@ function buildCanonTreeViewModel(data, input) {
   const events = filterByMovement(data.events, movementId);
   const entities = buildLookup(filterByMovement(data.entities, movementId));
 
-  const childrenByParent = new Map();
-  texts.forEach(text => {
-    const bucket = childrenByParent.get(text.parentId || null) || [];
-    bucket.push(text.id);
-    childrenByParent.set(text.parentId || null, bucket);
-  });
+  const { childrenByParent, depthById } = deriveTextDepths(texts);
 
   const referencedByClaims = new Map();
   claims.forEach(claim => {
@@ -164,7 +211,7 @@ function buildCanonTreeViewModel(data, input) {
     nodesById[text.id] = {
       id: text.id,
       parentId: text.parentId || null,
-      level: text.level,
+      depth: depthById.get(text.id) ?? null,
       title: text.title,
       label: text.label,
       mainFunction: text.mainFunction ?? null,
@@ -214,12 +261,7 @@ function buildLibraryEditorViewModel(data, input) {
   const events = filterByMovement(data.events, movementId);
   const entities = buildLookup(filterByMovement(data.entities, movementId));
 
-  const childrenByParent = new Map();
-  texts.forEach(text => {
-    const bucket = childrenByParent.get(text.parentId || null) || [];
-    bucket.push(text.id);
-    childrenByParent.set(text.parentId || null, bucket);
-  });
+  const { childrenByParent, depthById } = deriveTextDepths(texts);
 
   function labelValue(label) {
     if (!label) return Number.POSITIVE_INFINITY;
@@ -278,7 +320,7 @@ function buildLibraryEditorViewModel(data, input) {
     nodesById[text.id] = {
       id: text.id,
       parentId: text.parentId || null,
-      level: text.level,
+      depth: depthById.get(text.id) ?? null,
       title: text.title,
       label: text.label,
       mainFunction: text.mainFunction ?? null,
@@ -370,7 +412,7 @@ function buildLibraryEditorViewModel(data, input) {
       id: rootId,
       title: root.title,
       label: root.label,
-      level: root.level,
+      depth: root.depth,
       descendantCount: descendants,
       contentCount: contentNodes,
       tags: root.tags,
@@ -482,9 +524,12 @@ function buildLibraryEditorViewModel(data, input) {
 function buildEntityDetailViewModel(data, input) {
   const { entityId } = input;
   const entityLookup = buildLookup(data.entities);
-  const textLookup = buildLookup(data.texts);
 
   const entity = entityLookup.get(entityId) || null;
+  const movementId = entity?.movementId ?? null;
+  const textsInMovement = filterByMovement(data.texts, movementId);
+  const textDepths = deriveTextDepths(textsInMovement).depthById;
+  const movementTextLookup = buildLookup(textsInMovement);
 
   const claims = normaliseArray(data.claims)
     .filter(claim => normaliseArray(claim.aboutEntityIds).includes(entityId))
@@ -493,17 +538,21 @@ function buildEntityDetailViewModel(data, input) {
       text: claim.text,
       category: claim.category ?? null,
       sourceTexts: normaliseArray(claim.sourceTextIds)
-        .map(id => textLookup.get(id))
+        .map(id => movementTextLookup.get(id))
         .filter(Boolean)
-        .map(text => ({ id: text.id, title: text.title }))
+        .map(text => ({
+          id: text.id,
+          title: text.title,
+          depth: textDepths.get(text.id) ?? null
+        }))
     }));
 
-  const mentioningTexts = normaliseArray(data.texts)
+  const mentioningTexts = normaliseArray(textsInMovement)
     .filter(text => normaliseArray(text.mentionsEntityIds).includes(entityId))
     .map(text => ({
       id: text.id,
       title: text.title,
-      level: text.level,
+      depth: textDepths.get(text.id) ?? null,
       mainFunction: text.mainFunction ?? null
     }));
 
@@ -535,7 +584,6 @@ function buildEntityDetailViewModel(data, input) {
       title: asset.title
     }));
 
-  const movementId = entity?.movementId ?? null;
   const graph = buildMovementGraphModel(data, { movementId });
   const graphNodeLookup = new Map(normaliseArray(graph.nodes).map(n => [n.id, n]));
 
@@ -979,10 +1027,11 @@ function buildPracticeDetailViewModel(data, input) {
   const { practiceId } = input;
   const practiceLookup = buildLookup(data.practices);
   const entityLookup = buildLookup(data.entities);
-  const textLookup = buildLookup(data.texts);
   const claimLookup = buildLookup(data.claims);
 
   const practice = practiceLookup.get(practiceId) || null;
+  const movementId = practice?.movementId ?? null;
+  const textContext = buildTextContext(data, movementId);
 
   const entities = normaliseArray(practice?.involvedEntityIds)
     .map(id => {
@@ -995,12 +1044,12 @@ function buildPracticeDetailViewModel(data, input) {
 
   const instructionsTexts = normaliseArray(practice?.instructionsTextIds)
     .map(id => {
-      const text = textLookup.get(id);
+      const text = textContext.lookup.get(id);
       return text
         ? {
             id: text.id,
             title: text.title,
-            level: text.level,
+            depth: textContext.depths.get(text.id) ?? null,
             mainFunction: text.mainFunction ?? null
           }
         : null;
@@ -1061,7 +1110,7 @@ function buildCalendarViewModel(data, input) {
 
   const practiceLookup = buildLookup(data.practices);
   const entityLookup = buildLookup(data.entities);
-  const textLookup = buildLookup(data.texts);
+  const { lookup: textLookup, depths: textDepths } = buildTextContext(data, movementId);
   const claimLookup = buildLookup(data.claims);
 
   const eventCards = events.map(event => ({
@@ -1090,7 +1139,11 @@ function buildCalendarViewModel(data, input) {
     readings: normaliseArray(event.readingTextIds)
       .map(id => textLookup.get(id))
       .filter(Boolean)
-      .map(text => ({ id: text.id, title: text.title, level: text.level })),
+      .map(text => ({
+        id: text.id,
+        title: text.title,
+        depth: textDepths.get(text.id) ?? null
+      })),
     supportingClaims: normaliseArray(event.supportingClaimIds)
       .map(id => claimLookup.get(id))
       .filter(Boolean)
@@ -1122,7 +1175,7 @@ function buildClaimsExplorerViewModel(data, input) {
   }
 
   const entityLookup = buildLookup(data.entities);
-  const textLookup = buildLookup(data.texts);
+  const { lookup: textLookup, depths: textDepths } = buildTextContext(data, movementId);
 
   const claimRows = claims.map(claim => ({
     id: claim.id,
@@ -1140,7 +1193,11 @@ function buildClaimsExplorerViewModel(data, input) {
     sourceTexts: normaliseArray(claim.sourceTextIds)
       .map(id => textLookup.get(id))
       .filter(Boolean)
-      .map(text => ({ id: text.id, title: text.title, level: text.level })),
+      .map(text => ({
+        id: text.id,
+        title: text.title,
+        depth: textDepths.get(text.id) ?? null
+      })),
     sourcesOfTruth: normaliseArray(claim.sourcesOfTruth)
   }));
 
@@ -1159,7 +1216,7 @@ function buildRuleExplorerViewModel(data, input) {
     );
   }
 
-  const textLookup = buildLookup(data.texts);
+  const { lookup: textLookup, depths: textDepths } = buildTextContext(data, movementId);
   const claimLookup = buildLookup(data.claims);
   const practiceLookup = buildLookup(data.practices);
 
@@ -1174,7 +1231,11 @@ function buildRuleExplorerViewModel(data, input) {
     supportingTexts: normaliseArray(rule.supportingTextIds)
       .map(id => textLookup.get(id))
       .filter(Boolean)
-      .map(text => ({ id: text.id, title: text.title, level: text.level })),
+      .map(text => ({
+        id: text.id,
+        title: text.title,
+        depth: textDepths.get(text.id) ?? null
+      })),
     supportingClaims: normaliseArray(rule.supportingClaimIds)
       .map(id => claimLookup.get(id))
       .filter(Boolean)

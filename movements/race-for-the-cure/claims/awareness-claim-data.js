@@ -1,6 +1,6 @@
 (function registerMovementDataset() {
   const dataset = {
-    version: '3.4',
+    version: '3.6',
     claims: [
       {
         id: 'clm-race-raises-awareness',

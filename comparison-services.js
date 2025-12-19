@@ -2,7 +2,7 @@
  * Comparison & Template Services for Movement Engineer.
  *
  * These functions operate on plain JavaScript objects that follow:
- * - the v3.4 movement data model (data-model.js)
+ * - the v3.6 movement data model (data-model.js)
  * - the comparison/meta models (comparison-model.js, ADR-018)
  *
  * They are pure and environment-agnostic: no DOM, no fetch, no FS.

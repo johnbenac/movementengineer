@@ -1,6 +1,6 @@
 (function registerMovementDataset() {
   const dataset = {
-    version: '3.4',
+    version: '3.6',
     rules: [
       {
         id: 'rl-race-course-safety',

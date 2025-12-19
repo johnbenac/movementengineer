@@ -18,7 +18,7 @@
     const cleaned = { ...snapshot };
     delete cleaned.relations;
 
-    const normalized = { version: cleaned.version || '3.5' };
+    const normalized = { version: cleaned.version || '3.6' };
     COLLECTION_NAMES.forEach(name => {
       const value = cleaned[name];
       normalized[name] = Array.isArray(value) ? value : [];
@@ -27,7 +27,7 @@
   }
 
   function mergeSnapshots(snapshots) {
-    const merged = { version: '3.5' };
+    const merged = { version: '3.6' };
     COLLECTION_NAMES.forEach(name => {
       merged[name] = [];
     });

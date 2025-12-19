@@ -1,10 +1,6 @@
 {
-  "version": "3.5",
+  "version": "3.6",
   "enums": {
-    "TextLevel": {
-      "description": "How large a piece of text is.",
-      "values": ["work", "section", "passage", "line"]
-    },
     "TextFunction": {
       "description": "What a piece of text is mainly doing.",
       "values": [
@@ -81,7 +77,7 @@
       }
     },
     "TextNode": {
-      "description": "A piece of text: a whole work, a section, a passage, or a line. TextNodes form a tree. Links to other objects are one-way: texts record which entities they mention, but not which events or claims use them.",
+      "description": "A piece of text. TextNodes form a tree, and the level/depth of a node is derived from its position in that tree. Links to other objects are one-way: texts record which entities they mention, but not which events or claims use them.",
       "collectionName": "texts",
       "fields": {
         "id": { "type": "string", "format": "id", "required": true },
@@ -96,11 +92,6 @@
           "format": "id",
           "ref": "TextNode",
           "nullable": true
-        },
-        "level": {
-          "type": "enum",
-          "enum": "TextLevel",
-          "required": true
         },
         "title": { "type": "string", "required": true },
         "label": { "type": "string", "required": true },
