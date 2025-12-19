@@ -117,6 +117,38 @@
     }, 2500);
   }
 
+  function showFatalImportError(error, options = {}) {
+    const { container = null } = options;
+    console.error(error);
+    const message =
+      (error && error.message) ||
+      (typeof error === 'string' ? error : 'Import failed. Please try again.');
+    const stack = error && error.stack ? String(error.stack) : '';
+
+    if (container) {
+      clearElement(container);
+      const panel = document.createElement('div');
+      panel.className = 'import-error-panel';
+      const heading = document.createElement('strong');
+      heading.textContent = 'Import failed';
+      const msg = document.createElement('div');
+      msg.textContent = message;
+      panel.appendChild(heading);
+      panel.appendChild(msg);
+      if (stack && stack !== message) {
+        const pre = document.createElement('pre');
+        pre.textContent = stack;
+        pre.style.whiteSpace = 'pre-wrap';
+        pre.style.marginTop = '0.5rem';
+        panel.appendChild(pre);
+      }
+      container.appendChild(panel);
+      return;
+    }
+
+    alert(message);
+  }
+
   function markDirty(source) {
     if (source === 'movement') {
       movementFormDirty = true;
@@ -5577,8 +5609,40 @@
     return target;
   }
 
+  function applyIncomingSnapshotWithoutPrompt(incoming) {
+    const incomingMovements = incoming.movements || [];
+    if (!incomingMovements.length) {
+      throw new Error('No movements found to import.');
+    }
+
+    const incomingIds = new Set(incomingMovements.map(m => m.id));
+    clearMovementAssetsForIds(incomingIds);
+
+    const base = StorageService.ensureAllCollections(
+      snapshot || StorageService.createEmptySnapshot()
+    );
+    const merged = mergeMovementSnapshotIntoExisting(base, incoming);
+    StorageService.saveSnapshot(merged);
+    snapshot = merged;
+
+    currentMovementId = incomingMovements[0]?.id || snapshot.movements[0]?.id || null;
+    currentItemId = null;
+    currentTextId = null;
+    resetNavigationHistory();
+    renderMovementList();
+    renderActiveTab();
+    markSaved({ movement: true, item: true });
+    if (currentMovementId) selectMovement(currentMovementId);
+  }
+
   function importMovementSnapshot(movementSnapshot) {
-    const incoming = StorageService.ensureAllCollections(movementSnapshot || {});
+    let incoming;
+    try {
+      incoming = window.validateIncomingSnapshot(movementSnapshot || {});
+    } catch (e) {
+      alert('Snapshot validation failed: ' + e.message);
+      return;
+    }
     const incomingMovements = incoming.movements || [];
     if (!incomingMovements.length) {
       alert('No movements found in the imported file.');
@@ -5614,6 +5678,128 @@
     renderMovementList();
     renderActiveTab();
     markSaved({ movement: true, item: true });
+  }
+
+  function createGitHubImportModal() {
+    const overlay = document.createElement('div');
+    overlay.className = 'import-modal-overlay';
+
+    const modal = document.createElement('div');
+    modal.className = 'import-modal';
+
+    const header = document.createElement('header');
+    const h2 = document.createElement('h2');
+    h2.textContent = 'Import from GitHub';
+    header.appendChild(h2);
+    modal.appendChild(header);
+
+    const body = document.createElement('div');
+    body.className = 'import-body';
+
+    const desc = document.createElement('p');
+    desc.textContent =
+      'Fetch a Movement Repo v1 from a GitHub repository. Import is atomic and validated before saving.';
+    body.appendChild(desc);
+
+    const inputRow = document.createElement('div');
+    inputRow.className = 'input-row';
+    const label = document.createElement('label');
+    label.textContent = 'GitHub repo URL';
+    label.style.display = 'block';
+    const input = document.createElement('input');
+    input.type = 'url';
+    input.value = 'https://github.com/johnbenac/catholic';
+    input.placeholder = 'https://github.com/owner/repo';
+    label.appendChild(input);
+    inputRow.appendChild(label);
+    body.appendChild(inputRow);
+
+    const status = document.createElement('div');
+    status.className = 'import-status';
+    status.textContent = '';
+    body.appendChild(status);
+
+    const errorContainer = document.createElement('div');
+    body.appendChild(errorContainer);
+
+    modal.appendChild(body);
+
+    const footer = document.createElement('footer');
+    const importBtn = document.createElement('button');
+    importBtn.textContent = 'Import';
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+    footer.appendChild(importBtn);
+    footer.appendChild(cancelBtn);
+    modal.appendChild(footer);
+
+    overlay.appendChild(modal);
+
+    const refs = {
+      overlay,
+      modal,
+      input,
+      status,
+      errorContainer,
+      importBtn,
+      cancelBtn
+    };
+
+    cancelBtn.addEventListener('click', () => {
+      if (overlay.parentElement) overlay.parentElement.removeChild(overlay);
+    });
+
+    importBtn.addEventListener('click', () => {
+      startGitHubImport(refs);
+    });
+
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        startGitHubImport(refs);
+      }
+    });
+
+    return refs;
+  }
+
+  async function startGitHubImport(refs) {
+    if (!refs || !refs.input || !refs.importBtn) return;
+    const { input, importBtn, status, errorContainer } = refs;
+    const url = input.value.trim();
+    clearElement(errorContainer);
+    importBtn.disabled = true;
+    input.disabled = true;
+    status.textContent = 'Importing from GitHub…';
+
+    try {
+      const { snapshot: incoming, meta } = await window.GitHubRepoImporter.importMovementRepo(
+        url
+      );
+
+      const isCatholicRepo =
+        meta.owner.toLowerCase() === 'johnbenac' && meta.repo.toLowerCase() === 'catholic';
+
+      if (isCatholicRepo) {
+        status.textContent = 'Verifying catholic dataset…';
+        window.verifyCatholicImport(incoming);
+      }
+
+      applyIncomingSnapshotWithoutPrompt(incoming);
+      status.textContent = 'Import succeeded.';
+      setStatus('Imported from GitHub');
+    } catch (e) {
+      status.textContent = 'Import failed.';
+      showFatalImportError(e, { container: errorContainer });
+    } finally {
+      importBtn.disabled = false;
+      input.disabled = false;
+    }
+  }
+
+  function openGitHubImportModal() {
+    const modal = createGitHubImportModal();
+    document.body.appendChild(modal.overlay);
+    modal.input.focus();
   }
 
   function exportCurrentMovementAsJson() {
@@ -5669,11 +5855,12 @@
 
     if (Array.isArray(clone.texts)) {
       clone.texts = clone.texts.map(text => {
-        const { body, ...rest } = text;
+        const { content, ...rest } = text;
         const id = text.id || text.slug || 'text';
         return {
           ...rest,
-          bodyPath: `texts/${id}.md`
+          content: content ?? '',
+          contentPath: `texts/${id}.md`
         };
       });
     }
@@ -5693,7 +5880,7 @@
     movementSnapshot.texts.forEach(text => {
       const id = text.id || text.slug || 'text';
       const filePath = `texts/${id}.md`;
-      zip.file(filePath, text.body || '');
+      zip.file(filePath, text.content || '');
     });
   }
 
@@ -5743,10 +5930,10 @@
   async function hydrateTextsFromZip(zip, movementSnapshot) {
     if (!Array.isArray(movementSnapshot.texts)) return;
     for (const text of movementSnapshot.texts) {
-      if (!text.bodyPath) continue;
-      const file = zip.file(text.bodyPath);
+      if (!text.contentPath) continue;
+      const file = zip.file(text.contentPath);
       if (!file) continue;
-      text.body = await file.async('string');
+      text.content = await file.async('string');
     }
   }
 
@@ -5786,17 +5973,17 @@
 
   function resetToDefaults() {
     const ok = window.confirm(
-      'Clear all data and reset to the default sample?\n\nThis will overwrite any changes.'
+      'Clear all data and start fresh with an empty workspace?\n\nThis will overwrite any changes.'
     );
     if (!ok) return;
     snapshot = StorageService.getDefaultSnapshot();
-    currentMovementId = snapshot.movements[0]?.id || null;
+    currentMovementId = null;
     currentItemId = null;
     currentTextId = null;
     movementAssetStore.clear();
     resetNavigationHistory();
     saveSnapshot({ clearMovementDirty: true, clearItemDirty: true });
-    setStatus('Reset to default');
+    setStatus('Reset to empty state');
   }
 
   function addListenerById(id, event, handler) {
@@ -5853,6 +6040,8 @@
       input.value = '';
       input.click();
     });
+
+    addListenerById('btn-import-github', 'click', openGitHubImportModal);
 
     addListenerById('file-input-json', 'change', e => {
       const file = e.target.files && e.target.files[0];
@@ -5990,25 +6179,25 @@
     addListenerById('btn-add-existing-book', 'click', addExistingBookToShelf);
 
     // Collections tab
-      addListenerById('collection-select', 'change', e => {
-        setCollectionAndItem(e.target.value, null, { addToHistory: false });
-      });
+    addListenerById('collection-select', 'change', e => {
+      setCollectionAndItem(e.target.value, null, { addToHistory: false });
+    });
 
-      addListenerById('collection-filter-by-movement', 'change', () => {
-        renderCollectionList();
-        renderItemDetail();
-      });
+    addListenerById('collection-filter-by-movement', 'change', () => {
+      renderCollectionList();
+      renderItemDetail();
+    });
 
-      addListenerById('btn-add-item', 'click', addNewItem);
-      addListenerById('btn-delete-item', 'click', deleteCurrentItem);
-      addListenerById('btn-save-item', 'click', saveItemFromEditor);
+    addListenerById('btn-add-item', 'click', addNewItem);
+    addListenerById('btn-delete-item', 'click', deleteCurrentItem);
+    addListenerById('btn-save-item', 'click', saveItemFromEditor);
 
     const navBack = document.getElementById('btn-preview-back');
     const navForward = document.getElementById('btn-preview-forward');
     if (navBack) navBack.addEventListener('click', () => navigateHistory(-1));
     if (navForward) navForward.addEventListener('click', () => navigateHistory(1));
 
-      addListenerById('btn-save-banner', 'click', () => persistDirtyChanges());
+    addListenerById('btn-save-banner', 'click', () => persistDirtyChanges());
 
     const itemEditor = document.getElementById('item-editor');
     if (itemEditor) {

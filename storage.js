@@ -8,6 +8,7 @@
   'use strict';
 
   const STORAGE_KEY = 'movementDesigner.v3.snapshot';
+  const SCHEMA_VERSION = '3.6';
 
   const COLLECTION_NAMES = [
     'movements',
@@ -35,7 +36,7 @@
   ]);
 
   function createEmptySnapshot() {
-    const base = {};
+    const base = { version: SCHEMA_VERSION };
     COLLECTION_NAMES.forEach(name => {
       base[name] = [];
     });
@@ -46,30 +47,14 @@
     return JSON.parse(JSON.stringify(obj));
   }
 
-  function getBundledSample() {
-    if (typeof window !== 'undefined' && window.movementData) {
-      return window.movementData;
-    }
-    if (typeof module !== 'undefined') {
-      try {
-        // eslint-disable-next-line global-require
-        return require('./movement-data');
-      } catch (e) {
-        return null;
-      }
-    }
-    return null;
-  }
-
   function getDefaultSnapshot() {
-    const sample = getBundledSample();
-    if (sample) return ensureAllCollections(clone(sample));
-    return createEmptySnapshot();
+    return ensureAllCollections(createEmptySnapshot());
   }
 
   function ensureAllCollections(data) {
-    const obj = data || {};
+    const obj = { ...(data || {}) };
     delete obj.relations;
+    obj.version = obj.version || SCHEMA_VERSION;
     COLLECTION_NAMES.forEach(name => {
       if (!Array.isArray(obj[name])) obj[name] = [];
     });

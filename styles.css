@@ -874,6 +874,74 @@ button.danger:hover {
   gap: 0.5rem;
 }
 
+.import-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1400;
+}
+
+.import-modal {
+  background: #fff;
+  width: 540px;
+  max-width: 96%;
+  border-radius: 10px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+
+.import-modal header,
+.import-modal footer {
+  padding: 1rem 1.25rem;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.import-modal header h2 {
+  margin: 0;
+}
+
+.import-modal .import-body {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.import-modal .input-row input {
+  width: 100%;
+}
+
+.import-modal footer {
+  border-bottom: none;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.import-status {
+  font-size: 0.9rem;
+  color: #374151;
+}
+
+.import-error-panel {
+  border: 1px solid #fca5a5;
+  background: #fef2f2;
+  color: #991b1b;
+  padding: 0.75rem 0.9rem;
+  border-radius: 8px;
+  white-space: pre-wrap;
+}
+
+.import-error-panel strong {
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
 .markdown-modal-body {
   flex: 1;
   display: grid;
