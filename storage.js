@@ -46,24 +46,7 @@
     return JSON.parse(JSON.stringify(obj));
   }
 
-  function getBundledSample() {
-    if (typeof window !== 'undefined' && window.movementData) {
-      return window.movementData;
-    }
-    if (typeof module !== 'undefined') {
-      try {
-        // eslint-disable-next-line global-require
-        return require('./movement-data');
-      } catch (e) {
-        return null;
-      }
-    }
-    return null;
-  }
-
   function getDefaultSnapshot() {
-    const sample = getBundledSample();
-    if (sample) return ensureAllCollections(clone(sample));
     return createEmptySnapshot();
   }
 

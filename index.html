@@ -54,9 +54,10 @@
       <button id="btn-save-banner" type="button">Save changes</button>
     </div>
 
-    <main class="layout">
-      <aside id="movement-sidebar" class="sidebar">
-        <div class="sidebar-header">
+  <main class="layout">
+    <div id="fatal-import-error" class="fatal-error-panel" role="alert"></div>
+    <aside id="movement-sidebar" class="sidebar">
+      <div class="sidebar-header">
           <h2>Movements</h2>
           <button id="btn-add-movement" title="Create a new movement">+</button>
         </div>
@@ -124,6 +125,9 @@
                   </button>
                   <button id="btn-import-movement-json" type="button">
                     Import movement JSON
+                  </button>
+                  <button id="btn-import-github" type="button">
+                    Import from GitHub
                   </button>
                   <button id="btn-export-movement-zip" type="button">
                     Export movement ZIP
@@ -541,13 +545,12 @@
 
   <!-- Domain / view-model layers -->
   <script src="./view-models.js"></script>
-  <script src="./movements/manifest.js"></script>
-  <script src="./movement-data.js"></script>
   <script src="./storage.js"></script>
   <script src="./domain-service.js"></script>
   <script src="./graph-colors.js"></script>
   <script src="./graph-view.js"></script>
   <script src="./scripts/d3.min.js"></script>
+  <script src="./github-repo-importer.js"></script>
   <!-- comparison-services.js is not required for this UI, but harmless to include if you like -->
   <!-- <script src="./comparison-services.js"></script> -->
 

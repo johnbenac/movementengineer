@@ -912,6 +912,98 @@ button.danger:hover {
   font-size: 0.95rem;
 }
 
+.import-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1300;
+}
+
+.import-modal {
+  background: #fff;
+  max-width: 640px;
+  width: 96%;
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.25);
+  border: 1px solid #e5e7eb;
+}
+
+.import-modal header {
+  padding: 1rem 1.25rem;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.import-modal .import-body {
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.import-modal .import-body label {
+  font-weight: 600;
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
+.import-modal .import-body input[type="url"] {
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.95rem;
+}
+
+.import-modal .import-status {
+  min-height: 1.2rem;
+  color: #374151;
+}
+
+.import-modal .import-error {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 0.75rem;
+  white-space: pre-wrap;
+}
+
+.import-modal footer {
+  padding: 0.9rem 1.25rem;
+  background: #f9fafb;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.fatal-error-panel {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecdd3;
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  margin-bottom: 1rem;
+  display: none;
+}
+
+.fatal-error-panel.show {
+  display: block;
+}
+
+.fatal-error-panel code {
+  background: rgba(0, 0, 0, 0.04);
+  padding: 0.15rem 0.25rem;
+  border-radius: 4px;
+}
+
 /* Detail sections / cards */
 
 .detail-section {

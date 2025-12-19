@@ -19,6 +19,7 @@
   let currentTextId = null;
   let currentShelfId = null;
   let currentBookId = null;
+  const DEFAULT_GITHUB_REPO_URL = 'https://github.com/johnbenac/catholic';
   const DEFAULT_CANON_FILTERS = {
     search: '',
     tag: '',
@@ -44,6 +45,7 @@
     filterDepth: null,
     filterNodeTypes: []
   };
+  let githubImportModal = null;
 
   function normaliseSelectionType(type) {
     return typeof type === 'string' ? type.toLowerCase() : null;
@@ -115,6 +117,34 @@
         el.textContent = '';
       }
     }, 2500);
+  }
+
+  function clearFatalImportError() {
+    const panel = document.getElementById('fatal-import-error');
+    if (!panel) return;
+    panel.classList.remove('show');
+    panel.textContent = '';
+  }
+
+  function showFatalImportError(error) {
+    const panel = document.getElementById('fatal-import-error');
+    console.error(error);
+    if (!panel) {
+      alert(`Import failed: ${error?.message || error}`);
+      return;
+    }
+    const message = error?.message || String(error || 'Unknown error');
+    const detail = error?.stack || '';
+    panel.innerHTML = '';
+    const title = document.createElement('div');
+    title.innerHTML = `<strong>Import failed:</strong> ${message}`;
+    panel.appendChild(title);
+    if (detail) {
+      const pre = document.createElement('pre');
+      pre.textContent = detail;
+      panel.appendChild(pre);
+    }
+    panel.classList.add('show');
   }
 
   function markDirty(source) {
@@ -5529,6 +5559,125 @@
     wrapper.appendChild(table);
   }
 
+  function ensureGitHubImportModal() {
+    if (githubImportModal) return githubImportModal;
+    const overlay = document.createElement('div');
+    overlay.className = 'import-modal-overlay';
+    overlay.style.display = 'none';
+
+    const modal = document.createElement('div');
+    modal.className = 'import-modal';
+
+    const header = document.createElement('header');
+    const title = document.createElement('h3');
+    title.textContent = 'Import from GitHub';
+    header.appendChild(title);
+    modal.appendChild(header);
+
+    const body = document.createElement('div');
+    body.className = 'import-body';
+    const label = document.createElement('label');
+    label.setAttribute('for', 'github-repo-url');
+    label.textContent = 'GitHub repo URL';
+    const input = document.createElement('input');
+    input.type = 'url';
+    input.id = 'github-repo-url';
+    input.value = DEFAULT_GITHUB_REPO_URL;
+    input.placeholder = 'https://github.com/{owner}/{repo}';
+    const statusEl = document.createElement('div');
+    statusEl.className = 'import-status';
+    const errorEl = document.createElement('div');
+    errorEl.className = 'import-error';
+    errorEl.style.display = 'none';
+    body.appendChild(label);
+    body.appendChild(input);
+    body.appendChild(statusEl);
+    body.appendChild(errorEl);
+    modal.appendChild(body);
+
+    const footer = document.createElement('footer');
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.textContent = 'Cancel';
+    const importBtn = document.createElement('button');
+    importBtn.type = 'button';
+    importBtn.textContent = 'Import';
+    footer.appendChild(cancelBtn);
+    footer.appendChild(importBtn);
+    modal.appendChild(footer);
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    githubImportModal = {
+      overlay,
+      input,
+      statusEl,
+      errorEl,
+      importBtn,
+      cancelBtn
+    };
+    return githubImportModal;
+  }
+
+  function setGitHubModalState({ status, error, loading }) {
+    const modal = ensureGitHubImportModal();
+    modal.statusEl.textContent = status || '';
+    if (error) {
+      const message = error?.message || String(error);
+      const detail = error?.stack && !error.stack.includes(message) ? `\n${error.stack}` : '';
+      modal.errorEl.textContent = `${message}${detail}`;
+      modal.errorEl.style.display = 'block';
+    } else {
+      modal.errorEl.textContent = '';
+      modal.errorEl.style.display = 'none';
+    }
+    modal.importBtn.disabled = !!loading;
+  }
+
+  function closeGitHubModal() {
+    if (!githubImportModal) return;
+    githubImportModal.overlay.style.display = 'none';
+  }
+
+  function openGitHubImportModal() {
+    const modal = ensureGitHubImportModal();
+    modal.input.value = DEFAULT_GITHUB_REPO_URL;
+    modal.statusEl.textContent = '';
+    modal.errorEl.textContent = '';
+    modal.errorEl.style.display = 'none';
+    modal.importBtn.disabled = false;
+    modal.overlay.style.display = 'flex';
+    modal.input.focus();
+    setTimeout(() => modal.input.select(), 0);
+  }
+
+  async function handleGitHubImportSubmit() {
+    const modal = ensureGitHubImportModal();
+    const url = modal.input.value.trim();
+    setGitHubModalState({ status: 'Importing from GitHub…', loading: true });
+    try {
+      const { snapshot: incomingSnapshot, meta } = await GitHubRepoImporter.importMovementRepo(url);
+      const isCatholicRepo =
+        meta.owner.toLowerCase() === 'johnbenac' && meta.repo.toLowerCase() === 'catholic';
+      if (isCatholicRepo) {
+        try {
+          verifyCatholicImport(incomingSnapshot);
+        } catch (verifyErr) {
+          throw verifyErr;
+        }
+      }
+      clearFatalImportError();
+      applyIncomingSnapshot(incomingSnapshot, { selectFirstMovement: true });
+      setGitHubModalState({ status: 'Import successful', loading: false });
+      closeGitHubModal();
+      setStatus('Imported movements from GitHub');
+    } catch (err) {
+      setGitHubModalState({ status: '', error: err, loading: false });
+      showFatalImportError(err);
+    }
+  }
+
   // ---- Import / export / reset ----
 
   function createMovementSnapshot(movementId, fullSnapshot) {
@@ -5577,43 +5726,32 @@
     return target;
   }
 
-  function importMovementSnapshot(movementSnapshot) {
-    const incoming = StorageService.ensureAllCollections(movementSnapshot || {});
+  function applyIncomingSnapshot(movementSnapshot, options = {}) {
+    const { selectFirstMovement = true } = options;
+    const validated = validateIncomingSnapshot(movementSnapshot);
+    const incoming = StorageService.ensureAllCollections(validated || {});
     const incomingMovements = incoming.movements || [];
     if (!incomingMovements.length) {
-      alert('No movements found in the imported file.');
-      return;
+      throw new Error('No movements found in the imported data.');
     }
-
-    let fullSnapshot = StorageService.ensureAllCollections(
-      snapshot || StorageService.createEmptySnapshot()
-    );
     const incomingIds = new Set(incomingMovements.map(m => m.id));
-    const conflicts = (fullSnapshot.movements || []).filter(m =>
-      incomingIds.has(m.id)
+    const baseSnapshot = StorageService.ensureAllCollections(
+      JSON.parse(JSON.stringify(snapshot || StorageService.createEmptySnapshot()))
     );
-
-    if (conflicts.length) {
-      const names = conflicts
-        .map(m => m.name || m.id)
-        .slice(0, 3)
-        .join(', ');
-      const ok = window.confirm(
-        `Replace existing movement data for: ${names}? This will overwrite matching IDs.`
-      );
-      if (!ok) return;
-    }
-
+    const merged = mergeMovementSnapshotIntoExisting(baseSnapshot, incoming);
+    StorageService.saveSnapshot(merged);
     clearMovementAssetsForIds(incomingIds);
-    fullSnapshot = mergeMovementSnapshotIntoExisting(fullSnapshot, incoming);
-    StorageService.saveSnapshot(fullSnapshot);
-    snapshot = fullSnapshot;
-    currentMovementId = incomingMovements[0]?.id || currentMovementId;
+    snapshot = merged;
+    if (selectFirstMovement && incomingMovements[0]) {
+      currentMovementId = incomingMovements[0].id;
+    }
     currentItemId = null;
+    currentTextId = null;
     resetNavigationHistory();
     renderMovementList();
     renderActiveTab();
     markSaved({ movement: true, item: true });
+    return merged;
   }
 
   function exportCurrentMovementAsJson() {
@@ -5644,10 +5782,11 @@
     reader.onload = () => {
       try {
         const data = JSON.parse(reader.result);
-        importMovementSnapshot(data);
+        clearFatalImportError();
+        applyIncomingSnapshot(data);
         setStatus('Imported movement JSON');
       } catch (e) {
-        alert('Failed to import: ' + e.message);
+        showFatalImportError(e);
       }
     };
     reader.readAsText(file);
@@ -5669,11 +5808,11 @@
 
     if (Array.isArray(clone.texts)) {
       clone.texts = clone.texts.map(text => {
-        const { body, ...rest } = text;
+        const { content, ...rest } = text;
         const id = text.id || text.slug || 'text';
         return {
           ...rest,
-          bodyPath: `texts/${id}.md`
+          contentPath: `texts/${id}.md`
         };
       });
     }
@@ -5693,7 +5832,7 @@
     movementSnapshot.texts.forEach(text => {
       const id = text.id || text.slug || 'text';
       const filePath = `texts/${id}.md`;
-      zip.file(filePath, text.body || '');
+      zip.file(filePath, text.content || '');
     });
   }
 
@@ -5743,10 +5882,10 @@
   async function hydrateTextsFromZip(zip, movementSnapshot) {
     if (!Array.isArray(movementSnapshot.texts)) return;
     for (const text of movementSnapshot.texts) {
-      if (!text.bodyPath) continue;
-      const file = zip.file(text.bodyPath);
+      if (!text.contentPath) continue;
+      const file = zip.file(text.contentPath);
       if (!file) continue;
-      text.body = await file.async('string');
+      text.content = await file.async('string');
     }
   }
 
@@ -5776,17 +5915,18 @@
       const manifest = JSON.parse(manifestText);
       await hydrateTextsFromZip(zip, manifest);
       await hydrateAssetsFromZip(zip, manifest);
-      importMovementSnapshot(manifest);
+      clearFatalImportError();
+      applyIncomingSnapshot(manifest);
       setStatus('Imported movement ZIP');
     } catch (e) {
       console.error(e);
-      alert('Failed to import ZIP: ' + e.message);
+      showFatalImportError(e);
     }
   }
 
   function resetToDefaults() {
     const ok = window.confirm(
-      'Clear all data and reset to the default sample?\n\nThis will overwrite any changes.'
+      'Clear all data and start fresh?\n\nThis will overwrite any changes.'
     );
     if (!ok) return;
     snapshot = StorageService.getDefaultSnapshot();
@@ -5794,6 +5934,7 @@
     currentItemId = null;
     currentTextId = null;
     movementAssetStore.clear();
+    clearFatalImportError();
     resetNavigationHistory();
     saveSnapshot({ clearMovementDirty: true, clearItemDirty: true });
     setStatus('Reset to default');
@@ -5873,6 +6014,21 @@
       const file = e.target.files && e.target.files[0];
       if (!file) return;
       importMovementFromZipFile(file);
+    });
+
+    addListenerById('btn-import-github', 'click', () => {
+      clearFatalImportError();
+      openGitHubImportModal();
+    });
+
+    const ghModal = ensureGitHubImportModal();
+    ghModal.cancelBtn.addEventListener('click', closeGitHubModal);
+    ghModal.importBtn.addEventListener('click', handleGitHubImportSubmit);
+    ghModal.input.addEventListener('keypress', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleGitHubImportSubmit();
+      }
     });
 
     ['movement-name', 'movement-shortName', 'movement-summary', 'movement-tags']
