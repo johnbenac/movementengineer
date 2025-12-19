@@ -717,7 +717,7 @@
         node.title,
         node.label,
         node.mainFunction,
-        node.level,
+        Number.isFinite(node.depth) ? `depth:${node.depth}` : '',
         Array.isArray(node.tags) ? node.tags.join(' ') : '',
         (node.mentionsEntities || [])
           .map(ent => ent.name || ent.id)
@@ -1010,7 +1010,6 @@
     const textHint = document.getElementById('canon-text-hint');
     const titleInput = document.getElementById('canon-text-title');
     const labelInput = document.getElementById('canon-text-label');
-    const levelSelect = document.getElementById('canon-text-level');
     const mainFunctionInput = document.getElementById(
       'canon-text-main-function'
     );
@@ -1029,7 +1028,6 @@
       !textHint ||
       !titleInput ||
       !labelInput ||
-      !levelSelect ||
       !mainFunctionInput ||
       !parentSelect ||
       !tagsField ||
@@ -1079,7 +1077,6 @@
       [
         titleInput,
         labelInput,
-        levelSelect,
         mainFunctionInput,
         parentSelect,
         tagsField,
@@ -1103,7 +1100,6 @@
     [
       titleInput,
       labelInput,
-      levelSelect,
       mainFunctionInput,
       parentSelect,
       tagsField,
@@ -1112,7 +1108,6 @@
     ].forEach(el => (el.disabled = false));
     titleInput.value = activeText.title || '';
     labelInput.value = activeText.label || '';
-    levelSelect.value = activeText.level || 'work';
     mainFunctionInput.value = activeText.mainFunction || '';
     parentSelect.value = activeText.parentId || '';
     tagsField.value = (activeText.tags || []).join(', ');
@@ -1276,7 +1271,7 @@
       const metaSpan = document.createElement('span');
       metaSpan.className = 'text-node-meta';
       const bits = [];
-      if (node.level) bits.push(node.level);
+      if (Number.isFinite(node.depth)) bits.push(`depth ${node.depth}`);
       if (node.mainFunction) bits.push(node.mainFunction);
       if (node.hasContent) bits.push('has content');
       metaSpan.textContent = bits.join(' · ');
@@ -1666,7 +1661,7 @@
       const meta = document.createElement('span');
       meta.className = 'toc-meta';
       const bits = [];
-      if (node.level) bits.push(node.level);
+      if (Number.isFinite(node.depth)) bits.push(`depth ${node.depth}`);
       if (node.mainFunction) bits.push(node.mainFunction);
       if (node.hasContent) bits.push('has content');
       meta.textContent = bits.join(' · ');
@@ -1768,14 +1763,11 @@
     const labelInput = document.createElement('input');
     labelInput.type = 'text';
     labelInput.value = activeNode.label || '';
-    const levelSelect = document.createElement('select');
-    ['work', 'section', 'passage', 'line'].forEach(level => {
-      const opt = document.createElement('option');
-      opt.value = level;
-      opt.selected = activeNode.level === level;
-      opt.textContent = level;
-      levelSelect.appendChild(opt);
-    });
+    const depthBadge = document.createElement('span');
+    depthBadge.className = 'code-pill';
+    depthBadge.textContent = Number.isFinite(activeNode.depth)
+      ? `Depth ${activeNode.depth}`
+      : 'Depth —';
     const mainFunctionInput = document.createElement('input');
     mainFunctionInput.type = 'text';
     mainFunctionInput.value = activeNode.mainFunction || '';
@@ -1845,10 +1837,14 @@
         return;
       }
       DomainService.upsertItem(snapshot, 'texts', {
-        ...snapshot.texts.find(t => t.id === activeNode.id),
+        ...(() => {
+          const existing = snapshot.texts.find(t => t.id === activeNode.id) || {};
+          // Strip legacy level on save; depth is derived.
+          const { level: _legacyLevel, ...rest } = existing;
+          return rest;
+        })(),
         title: titleInput.value,
         label: labelInput.value,
-        level: levelSelect.value,
         mainFunction: mainFunctionInput.value || null,
         parentId,
         tags: parseCsvInput(tagsInput.value),
@@ -1866,7 +1862,6 @@
       const text = DomainService.addNewItem(snapshot, 'texts', currentMovementId);
       text.parentId = activeNode.id;
       text.title = 'New section';
-      text.level = 'section';
       currentTextId = text.id;
       currentBookId = vm.bookIdByNodeId[activeNode.id] || currentBookId;
       saveSnapshot({ show: false });
@@ -1879,7 +1874,6 @@
       const text = DomainService.addNewItem(snapshot, 'texts', currentMovementId);
       text.parentId = activeNode.parentId || null;
       text.title = 'New section';
-      text.level = 'section';
       currentTextId = text.id;
       currentBookId = vm.bookIdByNodeId[activeNode.id] || currentBookId;
       saveSnapshot({ show: false });
@@ -1894,7 +1888,7 @@
     [
       { label: 'Title', field: titleInput },
       { label: 'Label', field: labelInput },
-      { label: 'Level', field: levelSelect },
+      { label: 'Depth (derived)', field: depthBadge },
       { label: 'Main function', field: mainFunctionInput },
       { label: 'Tags (comma separated)', field: tagsInput },
       { label: 'Mentions entity IDs', field: mentionsInput },
@@ -2041,7 +2035,6 @@
     }
     const book = DomainService.addNewItem(snapshot, 'texts', currentMovementId);
     book.parentId = null;
-    book.level = 'work';
     book.title = 'New book';
     book.label = book.label || '';
     const shelf = snapshot.textCollections.find(tc => tc.id === currentShelfId);
@@ -2185,7 +2178,6 @@
 
     const titleInput = document.getElementById('canon-text-title');
     const labelInput = document.getElementById('canon-text-label');
-    const levelSelect = document.getElementById('canon-text-level');
     const mainFunctionInput = document.getElementById(
       'canon-text-main-function'
     );
@@ -2206,11 +2198,11 @@
       return;
     }
 
+    const { level: _legacyLevel, ...cleanText } = text || {};
     const updated = {
-      ...text,
+      ...cleanText,
       title: titleInput.value,
       label: labelInput.value,
-      level: levelSelect.value,
       mainFunction: mainFunctionInput.value || null,
       parentId,
       tags: parseCsvInput(tagsField.value),
@@ -2386,7 +2378,7 @@
           const chip = document.createElement('span');
           chip.className = 'chip clickable';
           chip.textContent = t.title || t.id;
-          chip.title = t.level || '';
+          chip.title = Number.isFinite(t.depth) ? `Depth ${t.depth}` : '';
           chip.addEventListener('click', () => jumpToText(t.id));
           row.appendChild(chip);
         });
@@ -2591,7 +2583,7 @@
           const chip = document.createElement('span');
           chip.className = 'chip clickable';
           chip.textContent = t.title || t.id;
-          chip.title = t.level || '';
+          chip.title = Number.isFinite(t.depth) ? `Depth ${t.depth}` : '';
           chip.addEventListener('click', () => jumpToText(t.id));
           row.appendChild(chip);
         });
@@ -3348,7 +3340,6 @@
         { label: 'ID', name: 'id', readOnly: true },
         { label: 'Movement ID', name: 'movementId' },
         { label: 'Parent ID', name: 'parentId', nullable: true },
-        { label: 'Level', name: 'level' },
         { label: 'Title', name: 'title' },
         { label: 'Label', name: 'label' },
         { label: 'Content', name: 'content', type: 'textarea', rows: 4, nullable: true },
@@ -4738,11 +4729,36 @@
     // Text stats
     const textCard = document.createElement('div');
     textCard.className = 'stat-card';
-    textCard.innerHTML =
-      '<h3>Texts</h3>' +
-      `<p>Total: ${vm.textStats.totalTexts}</p>` +
-      `<p>Works: ${vm.textStats.works} · Sections: ${vm.textStats.sections}</p>` +
-      `<p>Passages: ${vm.textStats.passages} · Lines: ${vm.textStats.lines}</p>`;
+    const textHeader = document.createElement('h3');
+    textHeader.textContent = 'Texts';
+    textCard.appendChild(textHeader);
+    const totalText = document.createElement('p');
+    totalText.textContent = `Total: ${vm.textStats.totalTexts}`;
+    textCard.appendChild(totalText);
+    const rootLine = document.createElement('p');
+    const maxDepthText = Number.isFinite(vm.textStats.maxDepth)
+      ? ` · Max depth: ${vm.textStats.maxDepth}`
+      : '';
+    rootLine.textContent = `Roots: ${vm.textStats.rootCount || 0}${maxDepthText}`;
+    textCard.appendChild(rootLine);
+    const depthList = document.createElement('ul');
+    Object.entries(vm.textStats.byDepth || {})
+      .sort(([a], [b]) => {
+        const na = Number(a);
+        const nb = Number(b);
+        const aNum = Number.isFinite(na);
+        const bNum = Number.isFinite(nb);
+        if (aNum && bNum) return na - nb;
+        if (aNum) return -1;
+        if (bNum) return 1;
+        return String(a).localeCompare(String(b));
+      })
+      .forEach(([depth, count]) => {
+        const li = document.createElement('li');
+        li.textContent = `Depth ${depth}: ${count}`;
+        depthList.appendChild(li);
+      });
+    textCard.appendChild(depthList);
     statsGrid.appendChild(textCard);
 
     // Entity stats
@@ -5162,7 +5178,6 @@
     ],
     texts: [
       { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
-      { label: 'Level', key: 'level' },
       { label: 'Label', key: 'label' },
       { label: 'Parent text', key: 'parentId', type: 'id', ref: 'texts' },
       { label: 'Content', key: 'content', type: 'paragraph' },
@@ -5476,7 +5491,10 @@
     }
 
     addMetricRow('Total texts', r => r.textCounts.totalTexts ?? 0);
-    addMetricRow('Works', r => r.textCounts.works ?? 0);
+    addMetricRow('Roots (depth 0)', r => r.textCounts.rootCount ?? 0);
+    addMetricRow('Max depth', r =>
+      Number.isFinite(r.textCounts.maxDepth) ? r.textCounts.maxDepth : '—'
+    );
     addMetricRow('Entities', r => r.entityCounts.total ?? 0);
     addMetricRow('Practices', r => r.practiceCounts.total ?? 0);
     addMetricRow('Events', r => r.eventCounts.total ?? 0);
@@ -6007,4 +6025,3 @@
 
   document.addEventListener('DOMContentLoaded', init);
 })();
-

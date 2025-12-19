@@ -1,10 +1,6 @@
 {
-  "version": "3.5",
+  "version": "3.6",
   "enums": {
-    "TextLevel": {
-      "description": "How large a piece of text is.",
-      "values": ["work", "section", "passage", "line"]
-    },
     "TextFunction": {
       "description": "What a piece of text is mainly doing.",
       "values": [
@@ -96,11 +92,6 @@
           "format": "id",
           "ref": "TextNode",
           "nullable": true
-        },
-        "level": {
-          "type": "enum",
-          "enum": "TextLevel",
-          "required": true
         },
         "title": { "type": "string", "required": true },
         "label": { "type": "string", "required": true },

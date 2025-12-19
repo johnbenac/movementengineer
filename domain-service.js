@@ -147,7 +147,6 @@
           id: generateId('txt-'),
           movementId: rid,
           parentId: null,
-          level: 'work',
           title: 'New text',
           label: '1',
           content: '',
