@@ -1,7 +1,7 @@
 /*
  * View Model builders for Movement Engineer.
  *
- * These functions translate raw collection data (as described by data-model v3.5)
+ * These functions translate raw collection data (as described by data-model v3.6)
  * into derived shapes optimised for specific UI needs. Each builder expects a
  * `data` object containing arrays named after the collections:
  * movements, textCollections, texts, entities, practices, events,
@@ -49,6 +49,38 @@ function filterByMovement(items, movementId) {
   );
 }
 
+function buildTextDepthLookup(texts) {
+  const lookup = new Map(normaliseArray(texts).map(text => [text.id, text]));
+  const memo = new Map();
+  const visiting = new Set();
+
+  const resolveDepth = id => {
+    if (memo.has(id)) return memo.get(id);
+    const node = lookup.get(id);
+    if (!node) {
+      memo.set(id, null);
+      return null;
+    }
+    if (!node.parentId || !lookup.has(node.parentId)) {
+      memo.set(id, 0);
+      return 0;
+    }
+    if (visiting.has(id)) {
+      memo.set(id, null);
+      return null;
+    }
+    visiting.add(id);
+    const parentDepth = resolveDepth(node.parentId);
+    visiting.delete(id);
+    const depth = parentDepth === null ? null : parentDepth + 1;
+    memo.set(id, depth);
+    return depth;
+  };
+
+  lookup.forEach((_, id) => resolveDepth(id));
+  return memo;
+}
+
 function buildMovementDashboardViewModel(data, input) {
   const { movementId } = input;
   const movements = buildLookup(data.movements);
@@ -62,13 +94,21 @@ function buildMovementDashboardViewModel(data, input) {
   const rules = filterByMovement(data.rules, movementId);
   const claims = filterByMovement(data.claims, movementId);
   const media = filterByMovement(data.media, movementId);
+  const textDepths = buildTextDepthLookup(texts);
 
   const textStats = {
     totalTexts: texts.length,
-    works: texts.filter(t => t.level === 'work').length,
-    sections: texts.filter(t => t.level === 'section').length,
-    passages: texts.filter(t => t.level === 'passage').length,
-    lines: texts.filter(t => t.level === 'line').length
+    byDepth: normaliseArray(texts).reduce((acc, text) => {
+      const depth = textDepths.get(text.id);
+      const key = Number.isFinite(depth) ? depth : 'unknown';
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {}),
+    maxDepth: (() => {
+      const numeric = Array.from(textDepths.values()).filter(Number.isFinite);
+      if (!numeric.length) return null;
+      return Math.max(...numeric);
+    })()
   };
 
   const entityStats = {
@@ -116,6 +156,7 @@ function buildCanonTreeViewModel(data, input) {
   const claims = filterByMovement(data.claims, movementId);
   const events = filterByMovement(data.events, movementId);
   const entities = buildLookup(filterByMovement(data.entities, movementId));
+  const depthLookup = buildTextDepthLookup(texts);
 
   const childrenByParent = new Map();
   texts.forEach(text => {
@@ -164,7 +205,7 @@ function buildCanonTreeViewModel(data, input) {
     nodesById[text.id] = {
       id: text.id,
       parentId: text.parentId || null,
-      level: text.level,
+      depth: depthLookup.get(text.id) ?? null,
       title: text.title,
       label: text.label,
       mainFunction: text.mainFunction ?? null,
@@ -213,6 +254,7 @@ function buildLibraryEditorViewModel(data, input) {
   const claims = filterByMovement(data.claims, movementId);
   const events = filterByMovement(data.events, movementId);
   const entities = buildLookup(filterByMovement(data.entities, movementId));
+  const depthLookup = buildTextDepthLookup(texts);
 
   const childrenByParent = new Map();
   texts.forEach(text => {
@@ -278,7 +320,7 @@ function buildLibraryEditorViewModel(data, input) {
     nodesById[text.id] = {
       id: text.id,
       parentId: text.parentId || null,
-      level: text.level,
+      depth: depthLookup.get(text.id) ?? null,
       title: text.title,
       label: text.label,
       mainFunction: text.mainFunction ?? null,
@@ -370,7 +412,7 @@ function buildLibraryEditorViewModel(data, input) {
       id: rootId,
       title: root.title,
       label: root.label,
-      level: root.level,
+      depth: root.depth ?? null,
       descendantCount: descendants,
       contentCount: contentNodes,
       tags: root.tags,
@@ -483,6 +525,7 @@ function buildEntityDetailViewModel(data, input) {
   const { entityId } = input;
   const entityLookup = buildLookup(data.entities);
   const textLookup = buildLookup(data.texts);
+  const depthLookup = buildTextDepthLookup(data.texts);
 
   const entity = entityLookup.get(entityId) || null;
 
@@ -503,7 +546,7 @@ function buildEntityDetailViewModel(data, input) {
     .map(text => ({
       id: text.id,
       title: text.title,
-      level: text.level,
+      depth: depthLookup.get(text.id) ?? null,
       mainFunction: text.mainFunction ?? null
     }));
 
@@ -981,6 +1024,7 @@ function buildPracticeDetailViewModel(data, input) {
   const entityLookup = buildLookup(data.entities);
   const textLookup = buildLookup(data.texts);
   const claimLookup = buildLookup(data.claims);
+  const depthLookup = buildTextDepthLookup(data.texts);
 
   const practice = practiceLookup.get(practiceId) || null;
 
@@ -1000,7 +1044,7 @@ function buildPracticeDetailViewModel(data, input) {
         ? {
             id: text.id,
             title: text.title,
-            level: text.level,
+            depth: depthLookup.get(text.id) ?? null,
             mainFunction: text.mainFunction ?? null
           }
         : null;
@@ -1059,6 +1103,7 @@ function buildCalendarViewModel(data, input) {
     events = events.filter(event => recurrenceFilter.includes(event.recurrence));
   }
 
+  const depthLookup = buildTextDepthLookup(data.texts);
   const practiceLookup = buildLookup(data.practices);
   const entityLookup = buildLookup(data.entities);
   const textLookup = buildLookup(data.texts);
@@ -1090,7 +1135,11 @@ function buildCalendarViewModel(data, input) {
     readings: normaliseArray(event.readingTextIds)
       .map(id => textLookup.get(id))
       .filter(Boolean)
-      .map(text => ({ id: text.id, title: text.title, level: text.level })),
+      .map(text => ({
+        id: text.id,
+        title: text.title,
+        depth: depthLookup.get(text.id) ?? null
+      })),
     supportingClaims: normaliseArray(event.supportingClaimIds)
       .map(id => claimLookup.get(id))
       .filter(Boolean)
@@ -1123,6 +1172,7 @@ function buildClaimsExplorerViewModel(data, input) {
 
   const entityLookup = buildLookup(data.entities);
   const textLookup = buildLookup(data.texts);
+  const depthLookup = buildTextDepthLookup(data.texts);
 
   const claimRows = claims.map(claim => ({
     id: claim.id,
@@ -1140,7 +1190,11 @@ function buildClaimsExplorerViewModel(data, input) {
     sourceTexts: normaliseArray(claim.sourceTextIds)
       .map(id => textLookup.get(id))
       .filter(Boolean)
-      .map(text => ({ id: text.id, title: text.title, level: text.level })),
+      .map(text => ({
+        id: text.id,
+        title: text.title,
+        depth: depthLookup.get(text.id) ?? null
+      })),
     sourcesOfTruth: normaliseArray(claim.sourcesOfTruth)
   }));
 
@@ -1162,6 +1216,7 @@ function buildRuleExplorerViewModel(data, input) {
   const textLookup = buildLookup(data.texts);
   const claimLookup = buildLookup(data.claims);
   const practiceLookup = buildLookup(data.practices);
+  const depthLookup = buildTextDepthLookup(data.texts);
 
   const ruleRows = rules.map(rule => ({
     id: rule.id,
@@ -1174,7 +1229,11 @@ function buildRuleExplorerViewModel(data, input) {
     supportingTexts: normaliseArray(rule.supportingTextIds)
       .map(id => textLookup.get(id))
       .filter(Boolean)
-      .map(text => ({ id: text.id, title: text.title, level: text.level })),
+      .map(text => ({
+        id: text.id,
+        title: text.title,
+        depth: depthLookup.get(text.id) ?? null
+      })),
     supportingClaims: normaliseArray(rule.supportingClaimIds)
       .map(id => claimLookup.get(id))
       .filter(Boolean)
@@ -1361,8 +1420,9 @@ function buildComparisonViewModel(data, input) {
     return {
       movement: dashboard.movement,
       textCounts: {
-        works: dashboard.textStats.works,
-        totalTexts: dashboard.textStats.totalTexts
+        totalTexts: dashboard.textStats.totalTexts,
+        byDepth: dashboard.textStats.byDepth,
+        maxDepth: dashboard.textStats.maxDepth
       },
       entityCounts: {
         total: dashboard.entityStats.totalEntities,

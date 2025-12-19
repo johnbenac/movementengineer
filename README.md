@@ -13,7 +13,7 @@ Movement Engineer is a fully client-side tool for exploring, authoring, and comp
 If you want to understand what the app actually thinks a “movement” is, here’s the candid tour. The data model is opinionated on purpose: it keeps things small, explicit, and asymmetric so you can model real-world messiness without drowning in cross-links.
 
 - **Movement** is the top-level container. Every other record points back to a movement, and the movement itself keeps almost nothing but a name, short name, summary, notes, and tags. This keeps multi-movement datasets cheap: you can fork a movement and reuse the rest.
-- **TextCollection** and **TextNode** handle the written canon. Collections give you named groupings (think “Main Canon” vs. “Ritual Handbook”), while TextNodes form a tree of works → sections → passages → lines. Text nodes own their outbound mentions of entities (one-way), which avoids the bookkeeping hell of inverse references on every entity.
+- **TextCollection** and **TextNode** handle the written canon. Collections give you named groupings (think “Main Canon” vs. “Ritual Handbook”), while TextNodes form a tree whose depth is derived from parent/child relationships. Text nodes own their outbound mentions of entities (one-way), which avoids the bookkeeping hell of inverse references on every entity.
 - **Entity** is intentionally generic: beings, places, objects, and ideas all live here with a `kind`, summary, and sources-of-truth fields. Entities can cite other entities as sources, but they don’t store incoming references; connections are derived from outward references in texts, events, practices, claims, and media.
 - **Practice** is for things people do—rituals, disciplines, service, study. Practices point outward to entities involved, instruction texts, and claims, but again we avoid bidirectional clutter. Each practice has a recurrence (`EventRecurrence`) and a public/private flag to hint at how visible it is in communal life.
 - **Event** captures specific happenings: who, when (including recurrence), and where. Events can link to entities, practices, claims, and texts, but they don’t try to be a calendar system; they’re more like memory anchors.
@@ -25,7 +25,7 @@ If you want to understand what the app actually thinks a “movement” is, here
 A few design convictions show up everywhere:
 
 - **One-way links win.** Texts, practices, rules, events, claims, and media all point to entities, not vice versa. The graph view is built from those references, not from a separate relations table. This keeps editing predictable and avoids cascades when you delete or duplicate things.
-- **Enums are small and non-ideological.** `EntityKind`, `PracticeKind`, `RuleKind`, `EventRecurrence`, `TextLevel`, `TextFunction`, and `MediaKind` are just enough to keep data comparable without forcing a worldview.
+- **Enums are small and non-ideological.** `EntityKind`, `PracticeKind`, `RuleKind`, `EventRecurrence`, `TextFunction`, and `MediaKind` are just enough to keep data comparable without forcing a worldview.
 - **IDs are explicit strings.** Everything has an `id` that travels with exports/imports; there’s no hidden database magic. If you copy a practice between movements, you control whether to reuse or regenerate IDs.
 - **Text as tree, not blob.** The nested `TextNode` structure favors granular citation—line-level when you need it—while still letting you render entire works.
 
