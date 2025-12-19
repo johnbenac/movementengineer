@@ -1,5 +1,3 @@
-/* global JSZip */
-
 (function () {
   'use strict';
 
@@ -498,71 +496,145 @@
     return res.json();
   }
 
-  async function branchExists(owner, repo, branch) {
-    const url = `https://api.github.com/repos/${owner}/${repo}/branches/${branch}`;
-    try {
-      const res = await fetch(url);
-      return res.ok;
-    } catch (e) {
-      return false;
-    }
+  // Encode ref for /git/ref/heads/<ref-with-slashes>
+  function encodeGitRef(ref) {
+    return String(ref || '')
+      .split('/')
+      .filter(Boolean)
+      .map(seg => encodeURIComponent(seg))
+      .join('/');
   }
 
-  async function resolveRef({ owner, repo, ref }) {
-    if (ref) return ref;
-
-    try {
-      const info = await fetchJson(`https://api.github.com/repos/${owner}/${repo}`);
-      if (info && info.default_branch) return info.default_branch;
-    } catch (e) {
-      // Fallback attempts below
-    }
-
-    if (await branchExists(owner, repo, 'main')) return 'main';
-    if (await branchExists(owner, repo, 'master')) return 'master';
-    throw new Error('Could not determine branch/ref for repository.');
-  }
-
-  async function downloadZip(owner, repo, ref) {
-    const url = `https://api.github.com/repos/${owner}/${repo}/zipball/${ref}`;
+  async function fetchRawText(owner, repo, commitSha, path) {
+    const url = `https://raw.githubusercontent.com/${owner}/${repo}/${commitSha}/${path}`;
     const res = await fetch(url);
     if (!res.ok) {
-      const rateLimited =
-        res.status === 403 && res.headers.get('x-ratelimit-remaining') === '0';
-      const reason = rateLimited
-        ? 'GitHub API rate limit exceeded.'
-        : `GitHub zip download failed (${res.status} ${res.statusText}).`;
-      throw new Error(reason);
+      throw new Error(`Failed to fetch ${path} (${res.status} ${res.statusText}).`);
     }
-    return res.arrayBuffer();
+    return res.text();
   }
 
-  function detectRootPrefix(fileNames) {
-    if (!fileNames.length) return '';
-    const first = fileNames[0];
-    const firstSlash = first.indexOf('/');
-    if (firstSlash < 0) return '';
-    const prefix = first.slice(0, firstSlash + 1);
-    const allSharePrefix = fileNames.every(name => name.startsWith(prefix));
-    return allSharePrefix ? prefix : '';
-  }
-
-  function stripPrefix(path, prefix) {
-    if (!prefix) return path;
-    return path.startsWith(prefix) ? path.slice(prefix.length) : path;
-  }
-
-  async function parseJsonFile(zip, zipPath) {
-    const file = zip.file(zipPath);
-    if (!file) {
-      throw new Error(`File not found in archive: ${zipPath}`);
-    }
-    const text = await file.async('string');
+  async function fetchRawJson(owner, repo, commitSha, path) {
+    const text = await fetchRawText(owner, repo, commitSha, path);
     try {
       return JSON.parse(text);
     } catch (e) {
-      throw new Error(`Invalid JSON in ${zipPath}: ${e.message}`);
+      throw new Error(`Invalid JSON in ${path}: ${e.message}`);
     }
+  }
+
+  async function mapWithConcurrency(items, limit, worker) {
+    const results = new Array(items.length);
+    let cursor = 0;
+
+    const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
+      while (true) {
+        const i = cursor++;
+        if (i >= items.length) return;
+        results[i] = await worker(items[i], i);
+      }
+    });
+
+    await Promise.all(runners);
+    return results;
+  }
+
+  async function resolveRefToCommitSha(owner, repo, requestedRef) {
+    const tryGitRef = async (namespace, refName) => {
+      const url = `https://api.github.com/repos/${owner}/${repo}/git/ref/${namespace}/${encodeGitRef(refName)}`;
+      try {
+        const data = await fetchJson(url);
+        return data || null;
+      } catch (e) {
+        return null;
+      }
+    };
+
+    const derefTagToCommit = async sha => {
+      let currentSha = sha;
+      for (let i = 0; i < 4; i += 1) {
+        const tag = await fetchJson(`https://api.github.com/repos/${owner}/${repo}/git/tags/${currentSha}`);
+        if (!tag || !tag.object || !tag.object.sha) break;
+        if (tag.object.type === 'commit') return tag.object.sha;
+        if (tag.object.type === 'tag') {
+          currentSha = tag.object.sha;
+          continue;
+        }
+        break;
+      }
+      return sha;
+    };
+
+    const buildCandidates = raw => {
+      const cleaned = String(raw || '').trim();
+      if (!cleaned) return [];
+      const parts = cleaned.split('/').filter(Boolean);
+      const out = [];
+      for (let i = parts.length; i >= 1; i -= 1) {
+        out.push(parts.slice(0, i).join('/'));
+      }
+      return Array.from(new Set(out));
+    };
+
+    let refCandidates = buildCandidates(requestedRef);
+    if (!refCandidates.length) {
+      try {
+        const info = await fetchJson(`https://api.github.com/repos/${owner}/${repo}`);
+        if (info && info.default_branch) refCandidates.push(info.default_branch);
+      } catch (e) {
+        // ignore
+      }
+      if (!refCandidates.includes('main')) refCandidates.push('main');
+      if (!refCandidates.includes('master')) refCandidates.push('master');
+    }
+
+    for (const candidate of refCandidates) {
+      const ref = await tryGitRef('heads', candidate);
+      if (ref && ref.object && ref.object.sha) {
+        if (ref.object.type === 'commit') return { refName: candidate, commitSha: ref.object.sha };
+        if (ref.object.type === 'tag') {
+          const commitSha = await derefTagToCommit(ref.object.sha);
+          return { refName: candidate, commitSha };
+        }
+      }
+    }
+
+    for (const candidate of refCandidates) {
+      const ref = await tryGitRef('tags', candidate);
+      if (ref && ref.object && ref.object.sha) {
+        if (ref.object.type === 'commit') return { refName: candidate, commitSha: ref.object.sha };
+        if (ref.object.type === 'tag') {
+          const commitSha = await derefTagToCommit(ref.object.sha);
+          return { refName: candidate, commitSha };
+        }
+      }
+    }
+
+    throw new Error(
+      `Could not resolve a branch/tag from "${requestedRef || ''}". ` +
+        `Try pasting the repo root URL (e.g. https://github.com/${owner}/${repo}).`
+    );
+  }
+
+  async function listRepoBlobPaths(owner, repo, commitSha) {
+    const commit = await fetchJson(`https://api.github.com/repos/${owner}/${repo}/git/commits/${commitSha}`);
+    const treeSha = commit && commit.tree && commit.tree.sha;
+    if (!treeSha) throw new Error('Could not resolve tree SHA for the selected ref.');
+
+    const tree = await fetchJson(
+      `https://api.github.com/repos/${owner}/${repo}/git/trees/${treeSha}?recursive=1`
+    );
+
+    const entries = Array.isArray(tree && tree.tree) ? tree.tree : [];
+    const blobs = entries
+      .filter(e => e && e.type === 'blob' && typeof e.path === 'string')
+      .map(e => e.path);
+
+    if (tree && tree.truncated) {
+      console.warn('GitHub tree listing was truncated; repo may be too large for this importer.');
+    }
+
+    return blobs;
   }
 
   function validateMovementJson(obj, path) {
@@ -621,69 +693,85 @@
     }
   }
 
-  async function parseMovementFromZip(zip, movementJsonPath, rootPrefix, pathIndex) {
-    const normalizedPath = stripPrefix(movementJsonPath, rootPrefix);
-    const movementFolder = normalizedPath.replace(/\/movement\.json$/, '');
-    const movementObj = await parseJsonFile(zip, movementJsonPath);
-    const movement = validateMovementJson(movementObj, normalizedPath);
-    pathIndex.movements.set(movement.id, normalizedPath);
+  async function parseMovementFromRepo(owner, repo, commitSha, movementJsonPath, blobPaths, pathIndex) {
+    const movementFolder = movementJsonPath.replace(/\/movement\.json$/, '');
+    const movementObj = await fetchRawJson(owner, repo, commitSha, movementJsonPath);
+    const movement = validateMovementJson(movementObj, movementJsonPath);
+    pathIndex.movements.set(movement.id, movementJsonPath);
 
     const movementSnapshot = ensureSnapshotCollections({ version: SCHEMA_VERSION });
     movementSnapshot.movements = [movement];
 
-    const textMdPaths = new Set();
-    const textJsonByBase = new Map();
-
     const movementPrefix = `${movementFolder}/`;
-    const zipFiles = Object.values(zip.files).filter(f => !f.dir);
+    const movementFiles = blobPaths
+      .filter(p => p.startsWith(movementPrefix))
+      .filter(p => p !== movementJsonPath);
 
-    for (const file of zipFiles) {
-      const normalized = stripPrefix(file.name, rootPrefix);
-      if (!normalized.startsWith(movementPrefix)) continue;
-      const relPath = normalized.slice(movementPrefix.length);
-      if (relPath === 'movement.json') continue;
+    const textMdPaths = new Set();
+    const recordJobs = [];
+
+    for (const filePath of movementFiles) {
+      const relPath = filePath.slice(movementPrefix.length);
+      if (!relPath) continue;
 
       const [dir, ...restParts] = relPath.split('/');
       if (!dir || restParts.length === 0) continue;
+
       const fileName = restParts.join('/');
+
       if (dir === 'texts' && fileName.endsWith('.md')) {
-        textMdPaths.add(normalized);
+        textMdPaths.add(filePath);
         continue;
       }
 
       if (!fileName.endsWith('.json')) continue;
+
       const cfg = COLLECTION_DIR_CONFIG[dir];
       if (!cfg) continue;
 
-      const obj = await parseJsonFile(zip, file.name);
-      const recordPath = normalized;
-      validateRecordBasics(obj, cfg, movement.id, recordPath);
+      recordJobs.push({ filePath, cfg, fileName });
+    }
+
+    const fetched = await mapWithConcurrency(recordJobs, 10, async ({ filePath, cfg, fileName }) => {
+      const obj = await fetchRawJson(owner, repo, commitSha, filePath);
+
+      validateRecordBasics(obj, cfg, movement.id, filePath);
+
       const { type, body, bodyPath, ...rest } = obj;
       const record = { ...rest };
 
+      let textBase = null;
       if (cfg.collection === 'texts') {
         record.content = obj.content ?? obj.body ?? null;
         record.contentPath = obj.contentPath || obj.bodyPath || null;
-        const baseName = fileName.replace(/\.json$/, '');
-        textJsonByBase.set(baseName, { record, path: recordPath });
+        textBase = fileName.replace(/\.json$/, '');
       }
 
-      const existingPath = pathIndex[cfg.collection].get(record.id);
+      return { record, recordPath: filePath, collection: cfg.collection, textBase };
+    });
+
+    const textJsonByBase = new Map();
+
+    for (const item of fetched) {
+      const { record, recordPath, collection, textBase } = item;
+      const existingPath = pathIndex[collection].get(record.id);
       if (existingPath) {
         throw new Error(
-          `Duplicate id ${record.id} found in ${cfg.collection}:\n  ${existingPath}\n  ${recordPath}`
+          `Duplicate id ${record.id} found in ${collection}:\n  ${existingPath}\n  ${recordPath}`
         );
       }
-      pathIndex[cfg.collection].set(record.id, recordPath);
-      movementSnapshot[cfg.collection].push(record);
+      pathIndex[collection].set(record.id, recordPath);
+      movementSnapshot[collection].push(record);
+
+      if (collection === 'texts') {
+        textJsonByBase.set(textBase, { record, path: recordPath });
+      }
     }
 
-    // Markdown hydration & dangling checks
-    const textLookup = new Map(movementSnapshot.texts.map(t => [t.id, t]));
+    const hydrateJobs = [];
     for (const [baseName, entry] of textJsonByBase.entries()) {
       const mdPath = `${movementFolder}/texts/${baseName}.md`;
-      const hasMarkdown = textMdPaths.has(mdPath);
-      if (!hasMarkdown) continue;
+      if (!textMdPaths.has(mdPath)) continue;
 
       if (entry.record.content && String(entry.record.content).trim()) {
         throwWithPath(
@@ -692,47 +780,46 @@
         );
       }
 
-      const file = zip.file(rootPrefix + mdPath);
-      if (!file) {
-        throwWithPath(`Markdown file missing in archive: ${mdPath}`, mdPath);
-      }
-      entry.record.content = await file.async('string');
-      textMdPaths.delete(mdPath);
+      hydrateJobs.push({ mdPath, entry });
     }
+
+    await mapWithConcurrency(hydrateJobs, 10, async ({ mdPath, entry }) => {
+      entry.record.content = await fetchRawText(owner, repo, commitSha, mdPath);
+    });
+
+    hydrateJobs.forEach(job => textMdPaths.delete(job.mdPath));
 
     if (textMdPaths.size > 0) {
       const leftover = Array.from(textMdPaths)[0];
       throwWithPath(
-        `Found markdown content file without matching JSON: ${stripPrefix(
-          leftover,
-          rootPrefix
-        )}`,
-        stripPrefix(leftover, rootPrefix)
+        `Found markdown content file without matching JSON: ${leftover}`,
+        leftover
       );
     }
 
-    // Ensure text content exists even if empty string is acceptable
-    textLookup.forEach((text, id) => {
-      if (text.content === undefined) text.content = '';
-      if (text.content === null) text.content = '';
+    movementSnapshot.texts.forEach(text => {
+      if (text.content === undefined || text.content === null) text.content = '';
       if (typeof text.content !== 'string') {
-        throwWithPath(`Text ${id} content must be a string`, getPathForId(pathIndex, 'texts', id));
+        throwWithPath(`Text ${text.id} content must be a string`, getPathForId(pathIndex, 'texts', text.id));
       }
     });
 
     return movementSnapshot;
   }
 
-  async function buildIncomingSnapshot(zip, movementJsonPaths, rootPrefix, pathIndex) {
+  async function buildIncomingSnapshotFromRepo(owner, repo, commitSha, movementJsonPaths, blobPaths, pathIndex) {
     const combined = ensureSnapshotCollections({ version: SCHEMA_VERSION });
 
     for (const movementPath of movementJsonPaths) {
-      const movementSnapshot = await parseMovementFromZip(
-        zip,
+      const movementSnapshot = await parseMovementFromRepo(
+        owner,
+        repo,
+        commitSha,
         movementPath,
-        rootPrefix,
+        blobPaths,
         pathIndex
       );
+
       COLLECTION_NAMES.forEach(name => {
         combined[name] = combined[name].concat(movementSnapshot[name] || []);
       });
@@ -744,27 +831,36 @@
 
   async function importMovementRepo(url) {
     const repoInfo = parseGitHubUrl(url);
-    const ref = await resolveRef(repoInfo);
-    const zipBuffer = await downloadZip(repoInfo.owner, repoInfo.repo, ref);
-    const zip = await JSZip.loadAsync(zipBuffer);
-    const fileNames = Object.keys(zip.files);
-    const rootPrefix = detectRootPrefix(fileNames);
 
-    const movementJsonPaths = fileNames
-      .filter(name => !zip.files[name].dir)
-      .filter(name => {
-        const rel = stripPrefix(name, rootPrefix);
-        return /^movements\/[^/]+\/movement\.json$/.test(rel);
-      });
+    const { refName, commitSha } = await resolveRefToCommitSha(
+      repoInfo.owner,
+      repoInfo.repo,
+      repoInfo.ref
+    );
+
+    const blobPaths = await listRepoBlobPaths(repoInfo.owner, repoInfo.repo, commitSha);
+
+    const movementJsonPaths = blobPaths.filter(path =>
+      /^movements\/[^/]+\/movement\.json$/.test(path)
+    );
 
     if (!movementJsonPaths.length) {
       throw new Error('No movements/<name>/movement.json files were found in the repository.');
     }
 
     const pathIndex = createPathIndex();
-    const incomingSnapshot = await buildIncomingSnapshot(zip, movementJsonPaths, rootPrefix, pathIndex);
-    incomingSnapshot.__repoInfo = { ...repoInfo, ref };
+    const incomingSnapshot = await buildIncomingSnapshotFromRepo(
+      repoInfo.owner,
+      repoInfo.repo,
+      commitSha,
+      movementJsonPaths,
+      blobPaths,
+      pathIndex
+    );
+
+    incomingSnapshot.__repoInfo = { ...repoInfo, ref: refName, commitSha };
     validateIncomingSnapshot(incomingSnapshot, { pathIndex });
+
     return incomingSnapshot;
   }
 
