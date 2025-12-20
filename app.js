@@ -516,6 +516,10 @@
     const moduleTab = movementEngineerGlobal?.tabs?.[tabName];
     const ctx = movementEngineerGlobal?.ctx;
 
+    if (lastRenderedModuleTabName && lastRenderedModuleTabName !== tabName) {
+      unmountActiveModuleTab(ctx);
+    }
+
     if (moduleTab && typeof moduleTab.render === 'function' && ctx) {
       try {
         if (!moduleTab.__mounted && typeof moduleTab.mount === 'function') {
@@ -547,7 +551,6 @@
       case 'calendar':
       case 'claims':
       case 'rules':
-      case 'authority':
       case 'media':
       case 'graph':
       case 'notes':
@@ -560,6 +563,11 @@
       case 'comparison':
         showFatalImportError(
           new Error('Comparison tab has been migrated to ES modules. Legacy renderer removed.')
+        );
+        break;
+      case 'authority':
+        showFatalImportError(
+          new Error('Authority tab has been migrated to ES modules. Legacy renderer removed.')
         );
         break;
       default:
@@ -778,9 +786,6 @@
         break;
       case 'rules':
         renderRulesView();
-        break;
-      case 'authority':
-        renderAuthorityView();
         break;
       case 'media':
         renderMediaView();
@@ -3256,77 +3261,6 @@
     });
 
     wrapper.appendChild(table);
-  }
-
-  // ---- Authority (buildAuthorityViewModel) ----
-
-  function renderAuthorityView() {
-    const srcWrapper = document.getElementById('authority-sources');
-    const entWrapper = document.getElementById('authority-entities');
-    if (!srcWrapper || !entWrapper) return;
-    clearElement(srcWrapper);
-    clearElement(entWrapper);
-
-    const vm = ViewModels.buildAuthorityViewModel(snapshot, {
-      movementId: currentMovementId
-    });
-
-    if (!vm.sourcesByLabel || vm.sourcesByLabel.length === 0) {
-      const p = document.createElement('p');
-      p.className = 'hint';
-      p.textContent = 'No sources of truth recorded yet.';
-      srcWrapper.appendChild(p);
-    } else {
-      vm.sourcesByLabel.forEach(s => {
-        const card = document.createElement('div');
-        card.className = 'card';
-
-        const h = document.createElement('h4');
-        h.textContent = s.label;
-        card.appendChild(h);
-
-        const meta = document.createElement('div');
-        meta.className = 'meta';
-        meta.textContent = [
-          `Claims: ${s.usedByClaims.length}`,
-          `Rules: ${s.usedByRules.length}`,
-          `Practices: ${s.usedByPractices.length}`,
-          `Entities: ${s.usedByEntities.length}`
-        ].join(' · ');
-        card.appendChild(meta);
-
-        srcWrapper.appendChild(card);
-      });
-    }
-
-    if (!vm.authorityEntities || vm.authorityEntities.length === 0) {
-      const p = document.createElement('p');
-      p.className = 'hint';
-      p.textContent = 'No authority entities recorded yet.';
-      entWrapper.appendChild(p);
-    } else {
-      vm.authorityEntities.forEach(e => {
-        const card = document.createElement('div');
-        card.className = 'card';
-
-        const h = document.createElement('h4');
-        h.textContent =
-          e.name + (e.kind ? ` (${e.kind})` : '');
-        card.appendChild(h);
-
-        const meta = document.createElement('div');
-        meta.className = 'meta';
-        meta.textContent = [
-          `Claims: ${e.usedAsSourceIn.claims.length}`,
-          `Rules: ${e.usedAsSourceIn.rules.length}`,
-          `Practices: ${e.usedAsSourceIn.practices.length}`,
-          `Entities: ${e.usedAsSourceIn.entities.length}`
-        ].join(' · ');
-        card.appendChild(meta);
-
-        entWrapper.appendChild(card);
-      });
-    }
   }
 
   // ---- Media (buildMediaGalleryViewModel) ----
