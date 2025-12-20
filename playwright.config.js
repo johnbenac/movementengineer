@@ -5,6 +5,9 @@ module.exports = defineConfig({
   testDir: path.join(__dirname, 'tests', 'e2e'),
   testMatch: /.*\.spec\.(ts|js)/,
   use: {
-    headless: true
+    headless: true,
+    launchOptions: {
+      args: ['--allow-file-access-from-files']
+    }
   }
 });
