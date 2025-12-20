@@ -5696,6 +5696,62 @@
     return movementSnapshot;
   }
 
+  function indexRecordIdsByCollection(data, movementIds) {
+    const incomingIds = new Set(movementIds || []);
+    const idsByCollection = {};
+    COLLECTION_NAMES.forEach(name => {
+      idsByCollection[name] = new Set();
+    });
+    (data.movements || [])
+      .filter(m => incomingIds.has(m.id))
+      .forEach(m => idsByCollection.movements.add(m.id));
+
+    COLLECTIONS_WITH_MOVEMENT_ID.forEach(name => {
+      (data[name] || [])
+        .filter(item => incomingIds.has(item.movementId))
+        .forEach(item => idsByCollection[name].add(item.id));
+    });
+    return idsByCollection;
+  }
+
+  function mergeRepoProvenance(targetSnapshot, incomingSnapshot, incomingMovementIds) {
+    const incomingIds = new Set(incomingMovementIds || []);
+    if (!incomingIds.size) return;
+    const incomingRecordIds = indexRecordIdsByCollection(incomingSnapshot, incomingIds);
+
+    const targetFileIndex = { ...(targetSnapshot.__repoFileIndex || {}) };
+    const targetRaw = { ...(targetSnapshot.__repoRawMarkdownByPath || {}) };
+    const targetBaseline = { ...(targetSnapshot.__repoBaselineByMovement || {}) };
+
+    const incomingFileIndex = incomingSnapshot.__repoFileIndex || {};
+    const incomingRaw = incomingSnapshot.__repoRawMarkdownByPath || {};
+    const incomingBaseline = incomingSnapshot.__repoBaselineByMovement || {};
+
+    // Remove existing provenance entries for incoming movement IDs
+    Object.keys(targetFileIndex).forEach(key => {
+      const [collection, id] = key.split(':');
+      if (incomingRecordIds[collection] && incomingRecordIds[collection].has(id)) {
+        const path = targetFileIndex[key];
+        delete targetFileIndex[key];
+        if (path) {
+          delete targetRaw[path];
+        }
+      }
+    });
+    incomingIds.forEach(id => {
+      delete targetBaseline[id];
+    });
+
+    const incomingPaths = new Set(Object.values(incomingFileIndex));
+    incomingPaths.forEach(path => {
+      delete targetRaw[path];
+    });
+
+    targetSnapshot.__repoFileIndex = { ...targetFileIndex, ...incomingFileIndex };
+    targetSnapshot.__repoRawMarkdownByPath = { ...targetRaw, ...incomingRaw };
+    targetSnapshot.__repoBaselineByMovement = { ...targetBaseline, ...incomingBaseline };
+  }
+
   function rememberRepoSource(config, compiled) {
     if (config && config.source === 'github') {
       lastRepoSourceConfig = {
@@ -5731,23 +5787,53 @@
     return suffix ? `${base}-${suffix}.zip` : `${base}.zip`;
   }
 
-  async function exportCurrentRepoZip() {
+  function deriveMovementFilename(result, movementId) {
+    const repoInfo = result?.repoInfo || snapshot?.__repoInfo || lastRepoInfo || null;
+    const parsed =
+      repoInfo && repoInfo.owner && repoInfo.repo
+        ? { owner: repoInfo.owner, repo: repoInfo.repo }
+        : (() => {
+            try {
+              if (snapshot?.__repoSource?.repoUrl && MarkdownDatasetLoader.parseGitHubRepoUrl) {
+                return MarkdownDatasetLoader.parseGitHubRepoUrl(snapshot.__repoSource.repoUrl);
+              }
+            } catch (e) {
+              return null;
+            }
+            return null;
+          })();
+    const baseRepo =
+      parsed && parsed.owner && parsed.repo ? `${parsed.owner}-${parsed.repo}` : 'movement';
+    const base = movementId ? `${baseRepo}-${movementId}` : baseRepo;
+    const suffix = repoInfo?.commitSha || repoInfo?.ref || null;
+    return suffix ? `${base}-${suffix}.zip` : `${base}.zip`;
+  }
+
+  async function exportCurrentMovementZip() {
     const exportBtn = document.getElementById('btn-export-repo');
-    if (!window.MarkdownDatasetLoader || !MarkdownDatasetLoader.exportRepoToZip) {
+    if (!window.MarkdownDatasetLoader || !MarkdownDatasetLoader.exportMovementToZip) {
       setStatus('Export not available in this build.');
       return;
     }
-    if (!lastRepoSourceConfig) {
-      lastRepoSourceConfig = { source: 'github', repoUrl: DEFAULT_GITHUB_REPO_URL };
+    if (!currentMovementId) {
+      setStatus('Select a movement to export.');
+      return;
     }
-    const config = lastRepoSourceConfig;
-    setStatus('Preparing repo zip...');
+    if (
+      !snapshot.__repoFileIndex ||
+      !snapshot.__repoRawMarkdownByPath ||
+      !snapshot.__repoBaselineByMovement
+    ) {
+      setStatus('Export unavailable until a repo is imported.');
+      return;
+    }
+    setStatus('Preparing movement zip...');
     if (exportBtn) exportBtn.disabled = true;
     try {
-      const result = await MarkdownDatasetLoader.exportRepoToZip(config, {
+      const result = await MarkdownDatasetLoader.exportMovementToZip(snapshot, currentMovementId, {
         outputType: 'blob'
       });
-      const filename = deriveRepoFilename(result, config);
+      const filename = deriveMovementFilename(result, currentMovementId);
       const url = URL.createObjectURL(result.archive);
       const anchor = document.createElement('a');
       anchor.href = url;
@@ -5759,7 +5845,7 @@
         document.body.removeChild(anchor);
         URL.revokeObjectURL(url);
       }, 0);
-      setStatus('Repo zip ready ✓');
+      setStatus('Movement zip ready ✓');
     } catch (e) {
       console.error(e);
       setStatus('Export failed');
@@ -5790,6 +5876,8 @@
       );
       target[collName] = filteredExisting.concat(incomingItems);
     });
+
+    mergeRepoProvenance(target, incoming, incomingIds);
 
     if (incoming.__repoInfo) {
       target.__repoInfo = incoming.__repoInfo;
@@ -5861,7 +5949,10 @@
       version: compiled.specVersion,
       specVersion: compiled.specVersion,
       __repoInfo: compiled.repoInfo || null,
-      __repoSource: config
+      __repoSource: config,
+      __repoFileIndex: compiled.fileIndex || {},
+      __repoRawMarkdownByPath: compiled.rawMarkdownByPath || {},
+      __repoBaselineByMovement: compiled.baselineByMovement || {}
     };
     applyImportedSnapshot(snapshotLike, { promptOnConflict: false });
     return compiled;
@@ -5884,6 +5975,9 @@
     snapshot = StorageService.createEmptySnapshot();
     snapshot.__repoInfo = null;
     snapshot.__repoSource = null;
+    snapshot.__repoFileIndex = null;
+    snapshot.__repoRawMarkdownByPath = null;
+    snapshot.__repoBaselineByMovement = null;
     lastRepoInfo = null;
     lastRepoSourceConfig = null;
     currentMovementId = null;
@@ -5944,7 +6038,7 @@
       deleteMovement(currentMovementId)
     );
     addListenerById('btn-import-from-github', 'click', () => openGithubImportModal());
-    addListenerById('btn-export-repo', 'click', exportCurrentRepoZip);
+    addListenerById('btn-export-repo', 'click', exportCurrentMovementZip);
 
     ['movement-name', 'movement-shortName', 'movement-summary', 'movement-tags']
       .map(id => document.getElementById(id))

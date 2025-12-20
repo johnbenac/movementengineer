@@ -797,13 +797,17 @@
   function compileRecords(records) {
     const data = ensureDataShape();
     const fileIndex = new Map();
+    const rawMarkdownByPath = {};
 
-    records.forEach(({ collection, frontMatter, body, filePath }) => {
+    records.forEach(({ collection, frontMatter, body, filePath, rawText }) => {
       const compiler = COMPILERS[collection];
       if (!compiler) return;
       const compiled = compiler(frontMatter, body, filePath);
       data[collection].push(compiled);
       fileIndex.set(`${collection}:${compiled.id}`, filePath);
+      if (rawText) {
+        rawMarkdownByPath[filePath] = rawText;
+      }
     });
 
     validateDuplicates(data);
@@ -815,7 +819,11 @@
       sorted[name] = sortCollection(data[name]);
     });
 
-    return sorted;
+    return {
+      data: sorted,
+      fileIndex,
+      rawMarkdownByPath
+    };
   }
 
   function detectCollectionFromPath(path) {
@@ -854,7 +862,8 @@
         collection,
         frontMatter: parsed.frontMatter,
         body: parsed.body,
-        filePath: path
+        filePath: path,
+        rawText: text
       });
     }
     return records;
@@ -894,16 +903,338 @@
     return { reader, listing, repoInfo };
   }
 
+  function buildBaselineByMovement(data) {
+    const baseline = {};
+    const movements = Array.isArray(data.movements) ? data.movements : [];
+    movements.forEach(movement => {
+      const movementId = movement?.id;
+      if (!movementId) return;
+      const perMovement = { movements: {}, textCollections: {}, texts: {}, entities: {}, practices: {}, events: {}, rules: {}, claims: {}, media: {}, notes: {} };
+      perMovement.movements[movement.id] = movement;
+      COLLECTION_NAMES.forEach(name => {
+        if (name === 'movements') return;
+        const records = Array.isArray(data[name]) ? data[name] : [];
+        records
+          .filter(item => item?.movementId === movementId)
+          .forEach(item => {
+            perMovement[name][item.id] = item;
+          });
+      });
+      baseline[movementId] = perMovement;
+    });
+    return baseline;
+  }
+
+  function serialiseFileIndex(fileIndex) {
+    if (!fileIndex) return {};
+    if (fileIndex instanceof Map) {
+      return Object.fromEntries(fileIndex.entries());
+    }
+    if (typeof fileIndex === 'object') return { ...fileIndex };
+    return {};
+  }
+
   async function loadMovementDataset(config) {
     const { reader, listing, repoInfo } = await prepareRepoSource(config);
 
     const records = await readMarkdownRecords(reader, listing);
-    const data = compileRecords(records);
+    const compiled = compileRecords(records);
+    const baselineByMovement = buildBaselineByMovement(compiled.data);
 
     return {
       specVersion: SPEC_VERSION,
       generatedAt: new Date().toISOString(),
-      data,
+      data: compiled.data,
+      fileIndex: serialiseFileIndex(compiled.fileIndex),
+      rawMarkdownByPath: compiled.rawMarkdownByPath,
+      baselineByMovement,
+      repoInfo
+    };
+  }
+
+  function isPlainObject(value) {
+    return value !== null && typeof value === 'object' && !Array.isArray(value);
+  }
+
+  function isDeepEqual(a, b) {
+    if (a === b) return true;
+    if (Array.isArray(a) && Array.isArray(b)) {
+      if (a.length !== b.length) return false;
+      for (let i = 0; i < a.length; i += 1) {
+        if (!isDeepEqual(a[i], b[i])) return false;
+      }
+      return true;
+    }
+    if (isPlainObject(a) && isPlainObject(b)) {
+      const aKeys = Object.keys(a);
+      const bKeys = Object.keys(b);
+      if (aKeys.length !== bKeys.length) return false;
+      for (const key of aKeys) {
+        if (!bKeys.includes(key)) return false;
+        if (!isDeepEqual(a[key], b[key])) return false;
+      }
+      return true;
+    }
+    return false;
+  }
+
+  function getCollectionExportSchema(collection) {
+    const schemas = {
+      movements: { bodyField: 'summary', fields: ['id', 'movementId', 'name', 'shortName', 'tags', 'status', 'order'] },
+      textCollections: { bodyField: 'description', fields: ['id', 'movementId', 'name', 'rootTextIds', 'tags', 'order'] },
+      texts: { bodyField: 'content', fields: ['id', 'movementId', 'title', 'label', 'parentId', 'mainFunction', 'tags', 'mentionsEntityIds', 'order'] },
+      entities: { bodyField: 'summary', fields: ['id', 'movementId', 'name', 'type', 'tags'] },
+      practices: {
+        bodyField: 'description',
+        fields: [
+          'id',
+          'movementId',
+          'name',
+          'tags',
+          'involvedEntityIds',
+          'instructionsTextIds',
+          'supportingClaimIds',
+          'sourceEntityIds',
+          'recurrenceRule',
+          'recurrenceDescription',
+          'recurrenceUrl',
+          'order'
+        ]
+      },
+      events: {
+        bodyField: 'description',
+        fields: [
+          'id',
+          'movementId',
+          'name',
+          'tags',
+          'date',
+          'recurrenceRule',
+          'recurrenceDescription',
+          'recurrenceUrl',
+          'mainPracticeIds',
+          'mainEntityIds',
+          'readingTextIds',
+          'supportingClaimIds',
+          'order',
+          'location'
+        ]
+      },
+      rules: {
+        bodyField: 'description',
+        fields: [
+          'id',
+          'movementId',
+          'title',
+          'tags',
+          'kind',
+          'domain',
+          'scope',
+          'sourceTextIds',
+          'supportingClaimIds',
+          'relatedPracticeIds',
+          'sourceEntityIds',
+          'order'
+        ]
+      },
+      claims: {
+        bodyField: 'content',
+        fields: [
+          'id',
+          'movementId',
+          'title',
+          'tags',
+          'category',
+          'sourceTextIds',
+          'aboutEntityIds',
+          'sourceEntityIds',
+          'order'
+        ]
+      },
+      media: {
+        bodyField: 'description',
+        fields: [
+          'id',
+          'movementId',
+          'name',
+          'tags',
+          'url',
+          'mediaType',
+          'linkedEntityIds',
+          'linkedPracticeIds',
+          'linkedEventIds',
+          'linkedTextIds',
+          'order'
+        ]
+      },
+      notes: {
+        bodyField: 'content',
+        fields: ['id', 'movementId', 'title', 'tags', 'targetType', 'targetId', 'order']
+      }
+    };
+    return schemas[collection] || null;
+  }
+
+  function serialiseMarkdown(frontMatter, body) {
+    const yaml = getYamlLib();
+    const fm = yaml.dump(frontMatter || {}, { lineWidth: 1000 }).trimEnd();
+    const safeBody = body || '';
+    return `---\n${fm}\n---\n${safeBody}`;
+  }
+
+  function buildFrontMatterForRecord(collection, record) {
+    const schema = getCollectionExportSchema(collection);
+    if (!schema) return {};
+    const frontMatter = {};
+    schema.fields.forEach(field => {
+      const value = record[field];
+      if (value !== undefined) {
+        frontMatter[field] = value;
+      }
+    });
+    return frontMatter;
+  }
+
+  function normaliseBodyValue(value) {
+    return typeof value === 'string' ? value : value === undefined || value === null ? '' : String(value);
+  }
+
+  function buildMarkdownForRecord(collection, record) {
+    const schema = getCollectionExportSchema(collection);
+    const frontMatter = buildFrontMatterForRecord(collection, record);
+    const bodyField = schema?.bodyField || null;
+    const body = bodyField ? normaliseBodyValue(record[bodyField]) : '';
+    return serialiseMarkdown(frontMatter, body);
+  }
+
+  function patchMarkdownWithRecord(rawText, collection, baselineRecord, currentRecord) {
+    const parsed = parseFrontMatter(rawText, 'export-source');
+    const schema = getCollectionExportSchema(collection);
+    if (!schema) {
+      return rawText;
+    }
+    const frontMatter = { ...parsed.frontMatter };
+    schema.fields.forEach(field => {
+      const baselineVal = baselineRecord ? baselineRecord[field] : undefined;
+      const currentVal = currentRecord ? currentRecord[field] : undefined;
+      if (!isDeepEqual(baselineVal, currentVal)) {
+        if (currentVal === undefined || currentVal === null) {
+          delete frontMatter[field];
+        } else {
+          frontMatter[field] = currentVal;
+        }
+      }
+    });
+
+    let body = parsed.body;
+    if (schema.bodyField) {
+      const baselineBody = baselineRecord ? normaliseBodyValue(baselineRecord[schema.bodyField]) : '';
+      const currentBody = currentRecord ? normaliseBodyValue(currentRecord[schema.bodyField]) : '';
+      if (!isDeepEqual(baselineBody, currentBody)) {
+        body = currentBody;
+      }
+    }
+
+    return serialiseMarkdown(frontMatter, body);
+  }
+
+  function deriveMovementBasePath(movementFilePath, movementId) {
+    if (typeof movementFilePath !== 'string' || !movementFilePath) {
+      return { baseDir: `movements/${movementId}`, layout: 'nested' };
+    }
+    const nestedMatch = movementFilePath.match(/^movements\/([^/]+)\/movement\.md$/);
+    if (nestedMatch) {
+      return { baseDir: `movements/${nestedMatch[1]}`, layout: 'nested' };
+    }
+    const dataMatch = movementFilePath.match(/^data\/movements\/.+\.md$/);
+    if (dataMatch) {
+      return { baseDir: 'data', layout: 'flat' };
+    }
+    return { baseDir: `movements/${movementId}`, layout: 'nested' };
+  }
+
+  function deriveRecordPath(recordKey, movementFilePath, movementId) {
+    const [collection, id] = recordKey.split(':');
+    const { baseDir, layout } = deriveMovementBasePath(movementFilePath, movementId);
+    if (layout === 'flat') {
+      if (collection === 'movements') {
+        return movementFilePath || `data/movements/${id}.md`;
+      }
+      return `${baseDir}/${collection}/${id}.md`.replace(/\/{2,}/g, '/');
+    }
+    if (collection === 'movements') {
+      return movementFilePath || `${baseDir}/movement.md`;
+    }
+    return `${baseDir}/${collection}/${id}.md`.replace(/\/{2,}/g, '/');
+  }
+
+  function collectMovementRecords(snapshot, movementId) {
+    const collections = ensureDataShape();
+    const movements = Array.isArray(snapshot.movements) ? snapshot.movements : [];
+    const movement = movements.find(m => m.id === movementId);
+    if (!movement) {
+      throw new Error(`Movement ${movementId} not found in snapshot.`);
+    }
+    collections.movements = [movement];
+    COLLECTION_NAMES.forEach(name => {
+      if (name === 'movements') return;
+      const records = Array.isArray(snapshot[name]) ? snapshot[name] : [];
+      collections[name] = records.filter(item => item?.movementId === movementId);
+    });
+    return collections;
+  }
+
+  async function exportMovementToZip(snapshot, movementId, options = {}) {
+    if (!snapshot) throw new Error('Snapshot is required for movement export.');
+    if (!movementId) throw new Error('movementId is required for movement export.');
+    const provenanceFileIndex = snapshot.__repoFileIndex || {};
+    const provenanceRaw = snapshot.__repoRawMarkdownByPath || {};
+    const baselineByMovement = snapshot.__repoBaselineByMovement || {};
+    if (!Object.keys(provenanceFileIndex).length || !Object.keys(baselineByMovement).length) {
+      throw new Error('No import provenance available for export. Please import a repo first.');
+    }
+
+    const JSZip = getZipLib();
+    const repoInfo = snapshot.__repoInfo || null;
+    const zip = new JSZip();
+    const records = collectMovementRecords(snapshot, movementId);
+    const baseline = baselineByMovement[movementId] || null;
+    const movementKey = `movements:${movementId}`;
+    const movementFilePath = provenanceFileIndex[movementKey] || null;
+    let fileCount = 0;
+
+    COLLECTION_NAMES.forEach(collection => {
+      const items = Array.isArray(records[collection]) ? records[collection] : [];
+      items.forEach(item => {
+        const recordKey = `${collection}:${item.id}`;
+        const filePath =
+          provenanceFileIndex[recordKey] || deriveRecordPath(recordKey, movementFilePath, movementId);
+        const baselineRecord = baseline && baseline[collection] ? baseline[collection][item.id] : null;
+        const unchanged = baselineRecord && isDeepEqual(baselineRecord, item);
+        let content;
+        if (unchanged && provenanceRaw[filePath]) {
+          content = provenanceRaw[filePath];
+        } else if (baselineRecord && provenanceRaw[filePath]) {
+          content = patchMarkdownWithRecord(provenanceRaw[filePath], collection, baselineRecord, item);
+        } else {
+          content = buildMarkdownForRecord(collection, item);
+        }
+        zip.file(filePath, content);
+        fileCount += 1;
+      });
+    });
+
+    const outputType = options.outputType || (isNode() ? 'nodebuffer' : 'blob');
+    const archive = await zip.generateAsync({
+      type: outputType,
+      compression: 'DEFLATE',
+      compressionOptions: { level: 9 }
+    });
+
+    return {
+      archive,
+      fileCount,
+      movementId,
       repoInfo
     };
   }
@@ -950,6 +1281,7 @@
   const api = {
     loadMovementDataset,
     exportRepoToZip,
+    exportMovementToZip,
     createLocalRepoReader,
     createGitHubRepoReader,
     parseGitHubRepoUrl
@@ -957,7 +1289,13 @@
 
   async function importMovementRepo(repoUrl) {
     const compiled = await loadMovementDataset({ source: 'github', repoUrl });
-    const snapshot = { ...compiled.data };
+    const snapshot = {
+      ...compiled.data,
+      __repoFileIndex: compiled.fileIndex || {},
+      __repoRawMarkdownByPath: compiled.rawMarkdownByPath || {},
+      __repoBaselineByMovement: compiled.baselineByMovement || {},
+      __repoSource: { source: 'github', repoUrl }
+    };
     snapshot.version = snapshot.version || compiled.specVersion;
     snapshot.specVersion = compiled.specVersion;
     if (compiled.repoInfo) {
@@ -968,6 +1306,7 @@
 
   api.importMovementRepo = importMovementRepo;
   api.exportRepoToZip = exportRepoToZip;
+  api.exportMovementToZip = exportMovementToZip;
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = api;
