@@ -50,6 +50,12 @@
     throw new Error('YAML parser not available. Ensure js-yaml is loaded.');
   }
 
+  function getZipLib() {
+    if (isNode()) return require('jszip');
+    if (typeof window !== 'undefined' && window.JSZip) return window.JSZip;
+    throw new Error('Zip library not available. Ensure jszip is loaded.');
+  }
+
   let cachedFetch = null;
   function getFetchWithProxy() {
     if (cachedFetch) return cachedFetch;
@@ -291,6 +297,19 @@
       return res.text();
     }
 
+    async function readBinary(filePath, ref, commitSha) {
+      const baseRef = commitSha || ref || refOverride || 'main';
+      const prefix = subdir ? `${subdir}/` : '';
+      const path = `${prefix}${filePath}`.replace(/\/{2,}/g, '/');
+      const url = `https://raw.githubusercontent.com/${parsed.owner}/${parsed.repo}/${baseRef}/${path}`;
+      const res = await fetchWithProxy(url);
+      if (!res.ok) {
+        throw new Error(`Failed to fetch ${path} (${res.status} ${res.statusText}).`);
+      }
+      const arrayBuffer = await res.arrayBuffer();
+      return isNode() ? Buffer.from(arrayBuffer) : new Uint8Array(arrayBuffer);
+    }
+
     function getRepoInfo() {
       return {
         source: 'github',
@@ -301,7 +320,7 @@
       };
     }
 
-    return { listFiles, readText, getRepoInfo };
+    return { listFiles, readText, readBinary, getRepoInfo };
   }
 
   // ------------------------
@@ -841,7 +860,7 @@
     return records;
   }
 
-  async function loadMovementDataset(config) {
+  async function prepareRepoSource(config) {
     if (!config || typeof config !== 'object') {
       throw new Error('Source config is required to load a movement dataset.');
     }
@@ -872,6 +891,12 @@
       throw new Error('Unknown source type. Use { source: "local" } or { source: "github" }.');
     }
 
+    return { reader, listing, repoInfo };
+  }
+
+  async function loadMovementDataset(config) {
+    const { reader, listing, repoInfo } = await prepareRepoSource(config);
+
     const records = await readMarkdownRecords(reader, listing);
     const data = compileRecords(records);
 
@@ -883,8 +908,48 @@
     };
   }
 
+  async function exportRepoToZip(config, options = {}) {
+    const { reader, listing, repoInfo } = await prepareRepoSource(config);
+    const files = Array.isArray(listing.files) ? listing.files : listing;
+    if (!files || !files.length) {
+      throw new Error('No files available to export from the repository.');
+    }
+
+    const JSZip = getZipLib();
+    const zip = new JSZip();
+    const ref = listing.ref || null;
+    const commitSha = listing.commitSha || null;
+
+    for (const path of files) {
+      let content;
+      if (reader.readBinary) {
+        content = await reader.readBinary(path, ref, commitSha);
+      } else {
+        const text = await reader.readText(path, ref, commitSha);
+        content = isNode() ? Buffer.from(text, 'utf8') : text;
+      }
+      zip.file(path, content);
+    }
+
+    const outputType = options.outputType || (isNode() ? 'nodebuffer' : 'blob');
+    const archive = await zip.generateAsync({
+      type: outputType,
+      compression: 'DEFLATE',
+      compressionOptions: { level: 9 }
+    });
+
+    return {
+      archive,
+      fileCount: files.length,
+      ref,
+      commitSha,
+      repoInfo
+    };
+  }
+
   const api = {
     loadMovementDataset,
+    exportRepoToZip,
     createLocalRepoReader,
     createGitHubRepoReader,
     parseGitHubRepoUrl
@@ -902,6 +967,7 @@
   }
 
   api.importMovementRepo = importMovementRepo;
+  api.exportRepoToZip = exportRepoToZip;
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = api;

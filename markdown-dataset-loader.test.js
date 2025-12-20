@@ -1,5 +1,7 @@
+const fs = require('fs/promises');
 const path = require('path');
-const { loadMovementDataset } = require('./markdown-dataset-loader');
+const JSZip = require('jszip');
+const { loadMovementDataset, exportRepoToZip } = require('./markdown-dataset-loader');
 
 function assert(condition, message) {
   if (!condition) {
@@ -9,9 +11,10 @@ function assert(condition, message) {
 
 async function runTests() {
   console.log('Running markdown dataset loader tests...');
+  const repoPath = path.join(__dirname, 'test-fixtures/markdown-repo');
   const result = await loadMovementDataset({
     source: 'local',
-    repoPath: path.join(__dirname, 'test-fixtures/markdown-repo')
+    repoPath
   });
 
   assert(result.specVersion === '2.3', 'Spec version should be 2.3');
@@ -34,6 +37,25 @@ async function runTests() {
 
   const movementIds = new Set(Object.values(data).flatMap(coll => Array.isArray(coll) ? coll.map(item => item.movementId || null) : []));
   assert(movementIds.has('mov-fixture'), 'All records should carry movementId');
+
+  const zipResult = await exportRepoToZip({
+    source: 'local',
+    repoPath
+  });
+  assert(zipResult.fileCount > 0, 'Zip export should include files');
+  const zip = await JSZip.loadAsync(zipResult.archive);
+  const zipFiles = Object.keys(zip.files).filter(name => !zip.files[name].dir);
+  const movementPath = 'data/movements/mov-fixture.md';
+  assert(
+    zipFiles.includes(movementPath),
+    'Zip archive should contain the movement markdown file'
+  );
+  const archivedMovement = await zip.file(movementPath).async('string');
+  const originalMovement = await fs.readFile(path.join(repoPath, movementPath), 'utf8');
+  assert(
+    archivedMovement === originalMovement,
+    'Exported zip should preserve original file contents'
+  );
 
   console.log('All markdown dataset loader tests passed ✅');
 }
