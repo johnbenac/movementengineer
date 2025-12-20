@@ -5731,23 +5731,46 @@
     return suffix ? `${base}-${suffix}.zip` : `${base}.zip`;
   }
 
+  function deriveMovementFilename(movementId, repoInfo) {
+    const movement = (snapshot?.movements || []).find(m => m.id === movementId);
+    const nameHint = movement?.shortName || movement?.name || movementId || 'movement';
+    const safeName =
+      (nameHint || 'movement')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/gi, '-')
+        .replace(/^-+|-+$/g, '') || 'movement';
+    const base =
+      repoInfo && repoInfo.owner && repoInfo.repo
+        ? `${repoInfo.owner}-${repoInfo.repo}`
+        : 'movement';
+    const suffix = repoInfo?.commitSha || repoInfo?.ref || null;
+    const filename = `${base}-${safeName}`;
+    return suffix ? `${filename}-${suffix}.zip` : `${filename}.zip`;
+  }
+
   async function exportCurrentRepoZip() {
     const exportBtn = document.getElementById('btn-export-repo');
-    if (!window.MarkdownDatasetLoader || !MarkdownDatasetLoader.exportRepoToZip) {
+    if (!window.MarkdownDatasetLoader || !MarkdownDatasetLoader.exportMovementToZip) {
       setStatus('Export not available in this build.');
       return;
     }
-    if (!lastRepoSourceConfig) {
-      lastRepoSourceConfig = { source: 'github', repoUrl: DEFAULT_GITHUB_REPO_URL };
+    if (!snapshot || !currentMovementId) {
+      setStatus('Select a movement to export.');
+      return;
     }
-    const config = lastRepoSourceConfig;
-    setStatus('Preparing repo zip...');
+    if (!snapshot.__repoBaselineByMovement || !snapshot.__repoBaselineByMovement[currentMovementId]) {
+      setStatus('Export unavailable: missing import provenance.');
+      return;
+    }
+    setStatus('Preparing movement zip...');
     if (exportBtn) exportBtn.disabled = true;
     try {
-      const result = await MarkdownDatasetLoader.exportRepoToZip(config, {
-        outputType: 'blob'
-      });
-      const filename = deriveRepoFilename(result, config);
+      const result = await MarkdownDatasetLoader.exportMovementToZip(
+        snapshot,
+        currentMovementId,
+        { outputType: 'blob' }
+      );
+      const filename = deriveMovementFilename(currentMovementId, result.repoInfo || snapshot.__repoInfo || lastRepoInfo);
       const url = URL.createObjectURL(result.archive);
       const anchor = document.createElement('a');
       anchor.href = url;
@@ -5759,7 +5782,7 @@
         document.body.removeChild(anchor);
         URL.revokeObjectURL(url);
       }, 0);
-      setStatus('Repo zip ready ✓');
+      setStatus('Movement zip ready ✓');
     } catch (e) {
       console.error(e);
       setStatus('Export failed');
@@ -5797,6 +5820,34 @@
     if (incoming.__repoSource) {
       target.__repoSource = incoming.__repoSource;
     }
+    const incomingFileIndex = incoming.__repoFileIndex || {};
+    const incomingRawMarkdown = incoming.__repoRawMarkdownByPath || {};
+    const incomingBaseline = incoming.__repoBaselineByMovement || {};
+    const mergedFileIndex = { ...(target.__repoFileIndex || {}) };
+    Object.keys(mergedFileIndex).forEach(key => {
+      const [collection, id] = key.split(':');
+      const record =
+        collection === 'movements'
+          ? target.movements.find(m => m.id === id)
+          : (target[collection] || []).find(item => item.id === id);
+      const movementId = collection === 'movements' ? id : record?.movementId || null;
+      if (movementId && incomingIds.has(movementId)) {
+        delete mergedFileIndex[key];
+      }
+    });
+    Object.assign(mergedFileIndex, incomingFileIndex);
+    target.__repoFileIndex = mergedFileIndex;
+    target.__repoRawMarkdownByPath = {
+      ...(target.__repoRawMarkdownByPath || {}),
+      ...incomingRawMarkdown
+    };
+    const mergedBaseline = { ...(target.__repoBaselineByMovement || {}) };
+    incomingIds.forEach(id => {
+      if (incomingBaseline[id]) {
+        mergedBaseline[id] = incomingBaseline[id];
+      }
+    });
+    target.__repoBaselineByMovement = mergedBaseline;
 
     return target;
   }
@@ -5856,12 +5907,17 @@
   async function loadMarkdownRepoAndApply(config) {
     const compiled = await MarkdownDatasetLoader.loadMovementDataset(config);
     rememberRepoSource(config, compiled);
+    const buildBaseline =
+      MarkdownDatasetLoader.buildBaselineByMovement || ((data) => ({}));
     const snapshotLike = {
       ...compiled.data,
       version: compiled.specVersion,
       specVersion: compiled.specVersion,
       __repoInfo: compiled.repoInfo || null,
-      __repoSource: config
+      __repoSource: config,
+      __repoFileIndex: compiled.fileIndex || {},
+      __repoRawMarkdownByPath: compiled.rawMarkdownByPath || {},
+      __repoBaselineByMovement: buildBaseline(compiled.data)
     };
     applyImportedSnapshot(snapshotLike, { promptOnConflict: false });
     return compiled;
@@ -5884,6 +5940,9 @@
     snapshot = StorageService.createEmptySnapshot();
     snapshot.__repoInfo = null;
     snapshot.__repoSource = null;
+    snapshot.__repoFileIndex = {};
+    snapshot.__repoRawMarkdownByPath = {};
+    snapshot.__repoBaselineByMovement = {};
     lastRepoInfo = null;
     lastRepoSourceConfig = null;
     currentMovementId = null;

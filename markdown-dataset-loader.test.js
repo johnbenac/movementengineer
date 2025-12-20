@@ -1,7 +1,12 @@
 const fs = require('fs/promises');
 const path = require('path');
 const JSZip = require('jszip');
-const { loadMovementDataset, exportRepoToZip } = require('./markdown-dataset-loader');
+const {
+  loadMovementDataset,
+  exportRepoToZip,
+  exportMovementToZip,
+  buildBaselineByMovement
+} = require('./markdown-dataset-loader');
 
 function assert(condition, message) {
   if (!condition) {
@@ -9,8 +14,24 @@ function assert(condition, message) {
   }
 }
 
-async function runTests() {
-  console.log('Running markdown dataset loader tests...');
+function createSnapshotFromCompiled(compiled, sourceConfig = null) {
+  return {
+    ...compiled.data,
+    version: compiled.specVersion,
+    specVersion: compiled.specVersion,
+    __repoInfo: compiled.repoInfo || null,
+    __repoSource: sourceConfig,
+    __repoFileIndex: compiled.fileIndex || {},
+    __repoRawMarkdownByPath: compiled.rawMarkdownByPath || {},
+    __repoBaselineByMovement: buildBaselineByMovement(compiled.data)
+  };
+}
+
+function listZipFiles(zip) {
+  return Object.keys(zip.files).filter(name => !zip.files[name].dir);
+}
+
+async function testLoadAndRepoExport() {
   const repoPath = path.join(__dirname, 'test-fixtures/markdown-repo');
   const result = await loadMovementDataset({
     source: 'local',
@@ -19,6 +40,11 @@ async function runTests() {
 
   assert(result.specVersion === '2.3', 'Spec version should be 2.3');
   assert(result.data, 'Result should contain data');
+  assert(result.fileIndex && Object.keys(result.fileIndex).length > 0, 'fileIndex should be populated');
+  assert(
+    result.rawMarkdownByPath && Object.keys(result.rawMarkdownByPath).length > 0,
+    'rawMarkdownByPath should be populated'
+  );
 
   const { data } = result;
   assert(Array.isArray(data.movements) && data.movements.length === 1, 'Should compile one movement');
@@ -35,7 +61,9 @@ async function runTests() {
     'Texts should be sorted by order then id'
   );
 
-  const movementIds = new Set(Object.values(data).flatMap(coll => Array.isArray(coll) ? coll.map(item => item.movementId || null) : []));
+  const movementIds = new Set(
+    Object.values(data).flatMap(coll => Array.isArray(coll) ? coll.map(item => item.movementId || null) : [])
+  );
   assert(movementIds.has('mov-fixture'), 'All records should carry movementId');
 
   const zipResult = await exportRepoToZip({
@@ -44,7 +72,7 @@ async function runTests() {
   });
   assert(zipResult.fileCount > 0, 'Zip export should include files');
   const zip = await JSZip.loadAsync(zipResult.archive);
-  const zipFiles = Object.keys(zip.files).filter(name => !zip.files[name].dir);
+  const zipFiles = listZipFiles(zip);
   const movementPath = 'data/movements/mov-fixture.md';
   assert(
     zipFiles.includes(movementPath),
@@ -56,7 +84,74 @@ async function runTests() {
     archivedMovement === originalMovement,
     'Exported zip should preserve original file contents'
   );
+}
 
+async function testMovementScopedExport() {
+  const repoPath = path.join(__dirname, 'test-fixtures/multi-movement-repo');
+  const compiled = await loadMovementDataset({
+    source: 'local',
+    repoPath
+  });
+  const snapshot = createSnapshotFromCompiled(compiled, { source: 'local', repoPath });
+  const movementId = 'mov-catholic';
+
+  const zipResult = await exportMovementToZip(snapshot, movementId, { outputType: 'nodebuffer' });
+  const zip = await JSZip.loadAsync(zipResult.archive);
+  const zipFiles = listZipFiles(zip);
+  const expectedFiles = [
+    'movements/catholic/movement.md',
+    'movements/catholic/entities/ent-saint.md',
+    'movements/catholic/practices/prc-pray.md'
+  ];
+  expectedFiles.forEach(file => {
+    assert(zipFiles.includes(file), `Movement export should include ${file}`);
+  });
+
+  const excluded = [
+    'app.js',
+    'docs/readme.md',
+    'movements/upside/movement.md',
+    'movements/upside/entities/ent-hero.md'
+  ];
+  excluded.forEach(file => {
+    assert(!zipFiles.includes(file), `Movement export should not include ${file}`);
+  });
+
+  for (const file of expectedFiles) {
+    const archived = await zip.file(file).async('string');
+    const original = await fs.readFile(path.join(repoPath, file), 'utf8');
+    assert(archived === original, `Exported file ${file} should match original bytes`);
+  }
+
+  const mutatedSnapshot = JSON.parse(JSON.stringify(snapshot));
+  const targetEntity = mutatedSnapshot.entities.find(e => e.id === 'ent-saint');
+  assert(targetEntity, 'Fixture should include ent-saint entity');
+  targetEntity.name = 'Updated Saint';
+
+  const changed = await exportMovementToZip(mutatedSnapshot, movementId, { outputType: 'nodebuffer' });
+  const changedZip = await JSZip.loadAsync(changed.archive);
+  const changedFiles = listZipFiles(changedZip);
+  assert(changedFiles.length === expectedFiles.length, 'Movement export should keep file count stable');
+
+  const changedEntity = await changedZip.file('movements/catholic/entities/ent-saint.md').async('string');
+  const originalEntity = await fs.readFile(
+    path.join(repoPath, 'movements/catholic/entities/ent-saint.md'),
+    'utf8'
+  );
+  assert(changedEntity !== originalEntity, 'Changed entity file should differ after mutation');
+
+  const unchangedFiles = expectedFiles.filter(file => file !== 'movements/catholic/entities/ent-saint.md');
+  for (const file of unchangedFiles) {
+    const archived = await changedZip.file(file).async('string');
+    const original = await fs.readFile(path.join(repoPath, file), 'utf8');
+    assert(archived === original, `Unchanged file ${file} should stay byte-identical`);
+  }
+}
+
+async function runTests() {
+  console.log('Running markdown dataset loader tests...');
+  await testLoadAndRepoExport();
+  await testMovementScopedExport();
   console.log('All markdown dataset loader tests passed ✅');
 }
 
