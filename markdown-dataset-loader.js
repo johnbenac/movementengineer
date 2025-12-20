@@ -15,6 +15,121 @@
     'notes'
   ];
 
+  const COLLECTION_BODY_FIELDS = {
+    movements: 'summary',
+    textCollections: 'description',
+    texts: 'content',
+    entities: 'summary',
+    practices: 'description',
+    events: 'description',
+    rules: 'details',
+    claims: 'text',
+    media: 'description',
+    notes: 'body'
+  };
+
+  const COLLECTION_EXPORT_FIELDS = {
+    movements: ['id', 'movementId', 'name', 'shortName', 'status', 'tags', 'order'],
+    textCollections: ['id', 'movementId', 'name', 'rootTextIds', 'tags', 'order'],
+    texts: ['id', 'movementId', 'title', 'label', 'parentId', 'mainFunction', 'tags', 'mentionsEntityIds', 'order'],
+    entities: ['id', 'movementId', 'name', 'kind', 'tags', 'sourceEntityIds', 'sourcesOfTruth', 'order'],
+    practices: [
+      'id',
+      'movementId',
+      'name',
+      'kind',
+      'frequency',
+      'tags',
+      'involvedEntityIds',
+      'instructionsTextIds',
+      'supportingClaimIds',
+      'sourceEntityIds',
+      'sourcesOfTruth',
+      'order'
+    ],
+    events: [
+      'id',
+      'movementId',
+      'name',
+      'recurrence',
+      'timingRule',
+      'tags',
+      'mainPracticeIds',
+      'mainEntityIds',
+      'readingTextIds',
+      'supportingClaimIds',
+      'order'
+    ],
+    rules: [
+      'id',
+      'movementId',
+      'shortText',
+      'kind',
+      'appliesTo',
+      'domain',
+      'tags',
+      'supportingTextIds',
+      'supportingClaimIds',
+      'relatedPracticeIds',
+      'sourceEntityIds',
+      'sourcesOfTruth',
+      'order'
+    ],
+    claims: [
+      'id',
+      'movementId',
+      'category',
+      'tags',
+      'aboutEntityIds',
+      'sourceTextIds',
+      'sourceEntityIds',
+      'sourcesOfTruth',
+      'order'
+    ],
+    media: [
+      'id',
+      'movementId',
+      'kind',
+      'uri',
+      'title',
+      'tags',
+      'linkedEntityIds',
+      'linkedPracticeIds',
+      'linkedEventIds',
+      'linkedTextIds',
+      'order'
+    ],
+    notes: ['id', 'movementId', 'targetType', 'targetId', 'author', 'context', 'tags', 'order']
+  };
+
+  const COLLECTION_ARRAY_FIELDS = {
+    movements: new Set(['tags']),
+    textCollections: new Set(['rootTextIds', 'tags']),
+    texts: new Set(['tags', 'mentionsEntityIds']),
+    entities: new Set(['tags', 'sourceEntityIds', 'sourcesOfTruth']),
+    practices: new Set([
+      'tags',
+      'involvedEntityIds',
+      'instructionsTextIds',
+      'supportingClaimIds',
+      'sourceEntityIds',
+      'sourcesOfTruth'
+    ]),
+    events: new Set(['tags', 'mainPracticeIds', 'mainEntityIds', 'readingTextIds', 'supportingClaimIds']),
+    rules: new Set([
+      'appliesTo',
+      'domain',
+      'tags',
+      'supportingTextIds',
+      'supportingClaimIds',
+      'relatedPracticeIds',
+      'sourceEntityIds',
+      'sourcesOfTruth'
+    ]),
+    claims: new Set(['tags', 'aboutEntityIds', 'sourceTextIds', 'sourceEntityIds', 'sourcesOfTruth']),
+    media: new Set(['tags', 'linkedEntityIds', 'linkedPracticeIds', 'linkedEventIds', 'linkedTextIds']),
+    notes: new Set(['tags'])
+  };
   const NOTE_TARGET_TYPES = {
     movement: 'Movement',
     movementnode: 'Movement', // legacy typo safeguard
@@ -130,6 +245,18 @@
     return String(body).trim();
   }
 
+  function toYamlFrontMatter(obj) {
+    const yaml = getYamlLib();
+    return yaml.dump(obj, { lineWidth: 120 }).trimEnd();
+  }
+
+  function stringifyFrontMatter(obj, body) {
+    const front = toYamlFrontMatter(obj);
+    const cleanBody = body || '';
+    const bodyWithNewline = cleanBody ? `\n${cleanBody.trimEnd()}\n` : '\n';
+    return `---\n${front}\n---${bodyWithNewline}`;
+  }
+
   function parseFrontMatter(text, filePath) {
     const content = text || '';
     const frontMatterMatch = content.match(/^---\s*[\r\n]+([\s\S]*?)[\r\n]+---[\r\n]?([\s\S]*)$/);
@@ -148,6 +275,15 @@
       throw new Error(`Front matter must define a YAML object in ${filePath}`);
     }
     return { frontMatter: data, body: body || '' };
+  }
+
+  function createDatasetSnapshot(data, meta = {}) {
+    return {
+      specVersion: meta.specVersion || SPEC_VERSION,
+      generatedAt: meta.generatedAt || new Date().toISOString(),
+      data,
+      ...meta
+    };
   }
 
   // ------------------------
@@ -841,6 +977,46 @@
     return records;
   }
 
+  function serialiseRecordsToMarkdown(records) {
+    return records.map(({ collection, frontMatter, body }) => {
+      const filename = `${frontMatter.id}.md`;
+      const path = `data/${collection}/${filename}`;
+      const serialised = stringifyFrontMatter(frontMatter, body);
+      return { path, content: serialised };
+    });
+  }
+
+  function buildRecordsFromData(data) {
+    const records = [];
+    COLLECTION_NAMES.forEach(collection => {
+      (data[collection] || []).forEach(item => {
+        const bodyField = COLLECTION_BODY_FIELDS[collection];
+        const body = bodyField ? trimBody(item[bodyField]) : '';
+        const frontMatter = {};
+        const fields = COLLECTION_EXPORT_FIELDS[collection] || [];
+        fields.forEach(field => {
+          const value = item[field];
+          if (value === undefined || value === null || value === '') return;
+          const isArrayField = COLLECTION_ARRAY_FIELDS[collection]?.has(field);
+          if (isArrayField) {
+            const arr = Array.isArray(value) ? value.filter(v => v !== undefined && v !== null) : [];
+            if (!arr.length) return;
+            frontMatter[field] = arr;
+            return;
+          }
+          if (field === 'movementId' && collection === 'movements') return;
+          frontMatter[field] = value;
+        });
+        if (collection === 'movements') {
+          frontMatter.movementId = item.movementId || item.id;
+        }
+        if (!frontMatter.id && item.id) frontMatter.id = item.id;
+        records.push({ collection, frontMatter, body, filePath: '' });
+      });
+    });
+    return records;
+  }
+
   async function loadMovementDataset(config) {
     if (!config || typeof config !== 'object') {
       throw new Error('Source config is required to load a movement dataset.');
@@ -883,11 +1059,51 @@
     };
   }
 
+  async function exportDatasetToZip(snapshotLike, options = {}) {
+    const jszip = isNode() ? require('jszip') : window.JSZip;
+    if (!jszip) {
+      throw new Error('JSZip is required to export datasets.');
+    }
+    const zip = new jszip();
+    const dataset = snapshotLike && snapshotLike.data ? snapshotLike.data : snapshotLike;
+    const normalisedData = ensureDataShape();
+    COLLECTION_NAMES.forEach(name => {
+      normalisedData[name] = Array.isArray(dataset?.[name]) ? dataset[name] : [];
+    });
+    const meta = options.meta || {};
+    const repoInfo = options.repoInfo || snapshotLike?.__repoInfo || snapshotLike?.repoInfo || null;
+    const snapshot = createDatasetSnapshot(normalisedData, {
+      specVersion: snapshotLike?.specVersion || SPEC_VERSION,
+      ...meta,
+      repoInfo
+    });
+    const records = buildRecordsFromData(snapshot.data);
+    const files = serialiseRecordsToMarkdown(records);
+    files.forEach(file => {
+      zip.file(file.path, file.content);
+    });
+    zip.file('meta.json', JSON.stringify({
+      specVersion: snapshot.specVersion || SPEC_VERSION,
+      generatedAt: snapshot.generatedAt,
+      repoInfo: snapshot.repoInfo || null
+    }, null, 2));
+
+    if (options.includeSnapshotJson) {
+      zip.file('dataset.json', JSON.stringify(snapshot.data, null, 2));
+    }
+
+    if (isNode()) {
+      return zip.generateAsync({ type: 'nodebuffer' });
+    }
+    return zip.generateAsync({ type: 'blob' });
+  }
+
   const api = {
     loadMovementDataset,
     createLocalRepoReader,
     createGitHubRepoReader,
-    parseGitHubRepoUrl
+    parseGitHubRepoUrl,
+    exportDatasetToZip
   };
 
   async function importMovementRepo(repoUrl) {

@@ -1,5 +1,6 @@
 const path = require('path');
-const { loadMovementDataset } = require('./markdown-dataset-loader');
+const JSZip = require('jszip');
+const { loadMovementDataset, exportDatasetToZip } = require('./markdown-dataset-loader');
 
 function assert(condition, message) {
   if (!condition) {
@@ -34,6 +35,14 @@ async function runTests() {
 
   const movementIds = new Set(Object.values(data).flatMap(coll => Array.isArray(coll) ? coll.map(item => item.movementId || null) : []));
   assert(movementIds.has('mov-fixture'), 'All records should carry movementId');
+
+  const zipBuffer = await exportDatasetToZip(data, { includeSnapshotJson: true });
+  const zip = await JSZip.loadAsync(zipBuffer);
+  const movementFile = zip.file('data/movements/mov-fixture.md');
+  assert(movementFile, 'Zip should contain movement markdown');
+  const movementContent = await movementFile.async('string');
+  assert(/Fixture Movement/.test(movementContent), 'Movement file should include movement name');
+  assert(zip.file('dataset.json'), 'Zip should include dataset.json when requested');
 
   console.log('All markdown dataset loader tests passed ✅');
 }

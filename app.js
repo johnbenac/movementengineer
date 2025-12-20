@@ -144,6 +144,17 @@
     fatalImportErrorDom.body.textContent = '';
   }
 
+  function triggerFileDownload(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
   function markDirty(source) {
     if (source === 'movement') {
       movementFormDirty = true;
@@ -5674,6 +5685,25 @@
     }
   }
 
+  async function handleExportRepoZip() {
+    try {
+      const safeSnapshot = StorageService.ensureAllCollections(
+        snapshot || StorageService.createEmptySnapshot()
+      );
+      const blob = await MarkdownDatasetLoader.exportDatasetToZip(safeSnapshot, {
+        repoInfo: safeSnapshot.__repoInfo || null,
+        includeSnapshotJson: true
+      });
+      const filename = `movement-dataset-${new Date().toISOString().replace(/[:.]/g, '-')}.zip`;
+      triggerFileDownload(blob, filename);
+      setStatus('Exported dataset as repo zip');
+    } catch (e) {
+      console.error(e);
+      setStatus('Export failed');
+      showFatalImportError(e);
+    }
+  }
+
   function createMovementSnapshot(movementId, fullSnapshot) {
     const source = StorageService.ensureAllCollections(
       fullSnapshot || StorageService.createEmptySnapshot()
@@ -5760,6 +5790,9 @@
     }
 
     fullSnapshot = mergeMovementSnapshotIntoExisting(fullSnapshot, incoming);
+    if (incoming.__repoInfo) {
+      fullSnapshot.__repoInfo = incoming.__repoInfo;
+    }
     StorageService.saveSnapshot(fullSnapshot);
     snapshot = fullSnapshot;
     currentMovementId = incomingMovements[0]?.id || currentMovementId;
@@ -5777,7 +5810,8 @@
     const snapshotLike = {
       ...compiled.data,
       version: compiled.specVersion,
-      specVersion: compiled.specVersion
+      specVersion: compiled.specVersion,
+      __repoInfo: compiled.repoInfo || null
     };
     applyImportedSnapshot(snapshotLike, { promptOnConflict: false });
     return compiled;
@@ -5850,6 +5884,7 @@
 
     // Top bar actions
     addListenerById('btn-reset-defaults', 'click', resetToDefaults);
+    addListenerById('btn-export-repo', 'click', handleExportRepoZip);
 
     // Movement form
     addListenerById('btn-save-movement', 'click', saveMovementFromForm);
