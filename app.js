@@ -493,38 +493,6 @@
     return btn ? btn.dataset.tab : 'dashboard';
   }
 
-  function parseModuleTabList(value) {
-    if (!value) return null;
-    if (Array.isArray(value)) return value;
-    if (typeof value !== 'string') return null;
-    const parsed = value
-      .split(',')
-      .map(part => part.trim())
-      .filter(Boolean);
-    return parsed;
-  }
-
-  function getModuleTabPreference() {
-    if (Array.isArray(bootstrapOptions.moduleTabs)) {
-      return bootstrapOptions.moduleTabs;
-    }
-    try {
-      const fromStorage = localStorage.getItem('me:moduleTabs');
-      if (typeof fromStorage === 'string') {
-        return parseModuleTabList(fromStorage);
-      }
-    } catch (err) {
-      console.warn('Failed to read module tab preference', err);
-    }
-    return null;
-  }
-
-  function isModuleTabEnabled(tabName) {
-    const enabledTabs = getModuleTabPreference();
-    if (!enabledTabs) return true;
-    return enabledTabs.includes(tabName);
-  }
-
   let lastRenderedModuleTabName = null;
 
   function unmountActiveModuleTab(ctx) {
@@ -547,9 +515,8 @@
     const tabName = getActiveTabName();
     const moduleTab = movementEngineerGlobal?.tabs?.[tabName];
     const ctx = movementEngineerGlobal?.ctx;
-    const moduleOverrideEnabled = isModuleTabEnabled(tabName);
 
-    if (moduleOverrideEnabled && moduleTab && typeof moduleTab.render === 'function' && ctx) {
+    if (moduleTab && typeof moduleTab.render === 'function' && ctx) {
       try {
         if (!moduleTab.__mounted && typeof moduleTab.mount === 'function') {
           moduleTab.mount(ctx);
@@ -591,7 +558,9 @@
         renderItemDetail();
         break;
       case 'comparison':
-        renderComparison();
+        showFatalImportError(
+          new Error('Comparison tab has been migrated to ES modules. Legacy renderer removed.')
+        );
         break;
       default:
         break;
@@ -5690,138 +5659,6 @@
     pruneNavigationState(collName, currentItemId);
     currentItemId = null;
     saveSnapshot();
-  }
-
-  // ---- Comparison tab ----
-
-  function renderComparison() {
-    const selector = document.getElementById('comparison-selector');
-    const wrapper = document.getElementById('comparison-table-wrapper');
-    if (!selector || !wrapper) return;
-    clearElement(selector);
-    clearElement(wrapper);
-
-    if (!snapshot.movements.length) {
-      const p = document.createElement('p');
-      p.textContent = 'No movements to compare yet.';
-      selector.appendChild(p);
-      return;
-    }
-
-    snapshot.movements.forEach(rel => {
-      const label = document.createElement('label');
-      const cb = document.createElement('input');
-      cb.type = 'checkbox';
-      cb.value = rel.id;
-      cb.className = 'cmp-rel';
-      cb.checked = true;
-      cb.addEventListener('change', updateComparisonTable);
-      label.appendChild(cb);
-      label.appendChild(document.createTextNode(' ' + (rel.name || rel.id)));
-      selector.appendChild(label);
-    });
-
-    updateComparisonTable();
-  }
-
-  function updateComparisonTable() {
-    const wrapper = document.getElementById('comparison-table-wrapper');
-    if (!wrapper) return;
-    clearElement(wrapper);
-
-    if (typeof ViewModels === 'undefined') {
-      const p = document.createElement('p');
-      p.textContent = 'ViewModels module not loaded.';
-      wrapper.appendChild(p);
-      return;
-    }
-
-    const selectedIds = Array.from(
-      document.querySelectorAll('.cmp-rel:checked')
-    ).map(cb => cb.value);
-    if (!selectedIds.length) {
-      const p = document.createElement('p');
-      p.textContent = 'Select at least one movement.';
-      wrapper.appendChild(p);
-      return;
-    }
-
-    const cmpVm = ViewModels.buildComparisonViewModel(snapshot, {
-      movementIds: selectedIds
-    });
-
-    const rows = cmpVm.rows || [];
-    if (!rows.length) {
-      const p = document.createElement('p');
-      p.textContent = 'No data available for comparison.';
-      wrapper.appendChild(p);
-      return;
-    }
-
-    const table = document.createElement('table');
-
-    const headerRow = document.createElement('tr');
-    const metricTh = document.createElement('th');
-    metricTh.textContent = 'Metric';
-    headerRow.appendChild(metricTh);
-
-    rows.forEach(row => {
-      const th = document.createElement('th');
-      th.textContent = row.movement?.name || row.movement?.id || '—';
-      headerRow.appendChild(th);
-    });
-    table.appendChild(headerRow);
-
-    function addMetricRow(label, getter) {
-      const tr = document.createElement('tr');
-      const th = document.createElement('th');
-      th.textContent = label;
-      tr.appendChild(th);
-      rows.forEach(row => {
-        const td = document.createElement('td');
-        td.textContent = getter(row);
-        tr.appendChild(td);
-      });
-      table.appendChild(tr);
-    }
-
-    addMetricRow('Total texts', r => r.textCounts.totalTexts ?? 0);
-    addMetricRow('Roots (depth 0)', r => r.textCounts.rootCount ?? 0);
-    addMetricRow('Max depth', r =>
-      Number.isFinite(r.textCounts.maxDepth) ? r.textCounts.maxDepth : '—'
-    );
-    addMetricRow('Entities', r => r.entityCounts.total ?? 0);
-    addMetricRow('Practices', r => r.practiceCounts.total ?? 0);
-    addMetricRow('Events', r => r.eventCounts.total ?? 0);
-    addMetricRow('Rules', r => r.ruleCount ?? 0);
-    addMetricRow('Claims', r => r.claimCount ?? 0);
-
-    // Compact histograms
-    addMetricRow('Entities by kind', r =>
-      r.entityCounts.byKind
-        ? Object.entries(r.entityCounts.byKind)
-            .map(([k, v]) => `${k}:${v}`)
-            .join(', ')
-        : ''
-    );
-
-    addMetricRow('Practices by kind', r =>
-      r.practiceCounts.byKind
-        ? Object.entries(r.practiceCounts.byKind)
-            .map(([k, v]) => `${k}:${v}`)
-            .join(', ')
-        : ''
-    );
-
-    addMetricRow('Events by recurrence', r =>
-      r.eventCounts.byRecurrence
-        ? Object.entries(r.eventCounts.byRecurrence)
-            .map(([k, v]) => `${k}:${v}`)
-            .join(', ')
-        : ''
-    );
-
-    wrapper.appendChild(table);
   }
 
   // ---- Import / export / reset ----
