@@ -44,6 +44,7 @@
     filterDepth: null,
     filterNodeTypes: []
   };
+  let hasBootstrapped = false;
 
   function normaliseSelectionType(type) {
     return typeof type === 'string' ? type.toLowerCase() : null;
@@ -160,6 +161,73 @@
     if (movement) movementFormDirty = false;
     if (item) itemEditorDirty = false;
     updateDirtyState();
+  }
+
+  function getLegacyState() {
+    return {
+      snapshot,
+      currentMovementId,
+      currentCollectionName,
+      currentItemId,
+      currentTextId,
+      currentShelfId,
+      currentBookId,
+      canonFilters: { ...canonFilters },
+      navigationStack: [...navigationStack],
+      navigationIndex,
+      graphWorkbenchState: { ...graphWorkbenchState },
+      dirty: {
+        isDirty,
+        snapshotDirty,
+        movementFormDirty,
+        itemEditorDirty
+      }
+    };
+  }
+
+  function setLegacyState(nextState = {}) {
+    if (nextState.snapshot) snapshot = nextState.snapshot;
+    if ('currentMovementId' in nextState) {
+      currentMovementId = nextState.currentMovementId;
+    }
+    if ('currentCollectionName' in nextState) {
+      currentCollectionName = nextState.currentCollectionName;
+    }
+    if ('currentItemId' in nextState) currentItemId = nextState.currentItemId;
+    if ('currentTextId' in nextState) currentTextId = nextState.currentTextId;
+    if ('currentShelfId' in nextState) currentShelfId = nextState.currentShelfId;
+    if ('currentBookId' in nextState) currentBookId = nextState.currentBookId;
+    if (nextState.canonFilters) {
+      canonFilters = {
+        ...DEFAULT_CANON_FILTERS,
+        ...nextState.canonFilters
+      };
+    }
+    if (Array.isArray(nextState.navigationStack)) {
+      navigationStack = [...nextState.navigationStack];
+    }
+    if (typeof nextState.navigationIndex === 'number') {
+      navigationIndex = nextState.navigationIndex;
+    }
+    if (nextState.graphWorkbenchState) {
+      graphWorkbenchState = {
+        ...graphWorkbenchState,
+        ...nextState.graphWorkbenchState
+      };
+    }
+    if (nextState.dirty) {
+      if ('snapshotDirty' in nextState.dirty) {
+        snapshotDirty = nextState.dirty.snapshotDirty;
+      }
+      if ('movementFormDirty' in nextState.dirty) {
+        movementFormDirty = nextState.dirty.movementFormDirty;
+      }
+      if ('itemEditorDirty' in nextState.dirty) {
+        itemEditorDirty = nextState.dirty.itemEditorDirty;
+      }
+      updateDirtyState();
+    }
+    return getLegacyState();
   }
 
   function renderSaveBanner() {
@@ -6153,7 +6221,39 @@
     renderActiveTab();
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
-    init().catch(showFatalImportError);
-  });
+  const legacyApi = {
+    bootstrap() {
+      if (hasBootstrapped) return;
+      hasBootstrapped = true;
+      return init().catch(showFatalImportError);
+    },
+    init,
+    getState: getLegacyState,
+    setState: setLegacyState,
+    setStatus,
+    showFatalImportError,
+    clearFatalImportError,
+    ensureFatalImportBanner,
+    renderSaveBanner,
+    markDirty,
+    markSaved,
+    updateDirtyState,
+    dom: {
+      query: $,
+      clearElement,
+      ensureSelectOptions,
+      addListenerById
+    }
+  };
+
+  window.MovementEngineerLegacy = legacyApi;
+
+  const shouldAutoBootstrap =
+    !window.__MOVEMENT_ENGINEER_BOOTSTRAP_FROM_MODULE__;
+
+  if (shouldAutoBootstrap) {
+    document.addEventListener('DOMContentLoaded', () => {
+      legacyApi.bootstrap();
+    });
+  }
 })();
