@@ -35,7 +35,7 @@
   ]);
 
   function createEmptySnapshot() {
-    const base = { version: '3.6' };
+    const base = { version: '2.3', specVersion: '2.3' };
     COLLECTION_NAMES.forEach(name => {
       base[name] = [];
     });
@@ -53,8 +53,14 @@
   function ensureAllCollections(data) {
     const obj = data || {};
     delete obj.relations;
+    if (!obj.version) obj.version = '2.3';
+    if (!obj.specVersion) obj.specVersion = '2.3';
     COLLECTION_NAMES.forEach(name => {
       if (!Array.isArray(obj[name])) obj[name] = [];
+    });
+    obj.movements = obj.movements.map(movement => {
+      const movementId = movement?.movementId || movement?.id || null;
+      return movementId ? { ...movement, movementId } : movement;
     });
     return obj;
   }

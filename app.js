@@ -5,7 +5,7 @@
  * This file just handles DOM, localStorage, import/export, and wiring.
  */
 
-/* global DomainService, StorageService, ViewModels, EntityGraphView, JSZip, d3 */
+/* global DomainService, StorageService, ViewModels, EntityGraphView, MarkdownDatasetLoader, d3 */
 
 (function () {
   'use strict';
@@ -57,16 +57,6 @@
 
     const type = normaliseSelectionType(selection.type) || 'entity';
     graphWorkbenchState.selection = { type, id: selection.id };
-  }
-  const movementAssetStore = new Map();
-  function clearMovementAssetsForIds(movementIds) {
-    if (!movementIds || !movementIds.size) return;
-    for (const key of Array.from(movementAssetStore.keys())) {
-      const [movementId] = key.split(':');
-      if (movementIds.has(movementId)) {
-        movementAssetStore.delete(key);
-      }
-    }
   }
   let isDirty = false;
   let snapshotDirty = false;
@@ -5578,11 +5568,11 @@
     modal.className = 'markdown-modal github-import-modal';
 
     const title = document.createElement('h3');
-    title.textContent = 'Import from GitHub';
+    title.textContent = 'Load markdown repo';
 
     const description = document.createElement('p');
     description.className = 'muted';
-    description.textContent = 'Paste a GitHub repo URL in Movement Repo v1 format.';
+    description.textContent = 'Paste a GitHub repo URL that follows the Markdown spec v2.3.';
 
     const inputRow = document.createElement('div');
     inputRow.className = 'form-row';
@@ -5604,7 +5594,7 @@
     const actions = document.createElement('div');
     actions.className = 'form-actions';
     const importBtn = document.createElement('button');
-    importBtn.textContent = 'Import';
+    importBtn.textContent = 'Load';
     importBtn.type = 'button';
     const cancelBtn = document.createElement('button');
     cancelBtn.textContent = 'Cancel';
@@ -5665,18 +5655,15 @@
     }
     dom.errorBox.textContent = '';
     dom.errorBox.classList.add('hidden');
-    dom.status.textContent = 'Importing from GitHub...';
+    dom.status.textContent = 'Loading markdown data...';
     dom.importBtn.disabled = true;
     dom.input.disabled = true;
     clearFatalImportError();
 
     try {
-      const incomingSnapshot = await window.GitHubRepoImporter.importMovementRepo(url);
-      const repoInfo = incomingSnapshot.__repoInfo || null;
-      delete incomingSnapshot.__repoInfo;
-      applyImportedSnapshot(incomingSnapshot, { promptOnConflict: false });
-      dom.status.textContent = 'Import succeeded.';
-      setStatus('Imported movement(s) from GitHub');
+      await loadMarkdownRepoAndApply({ source: 'github', repoUrl: url });
+      dom.status.textContent = 'Load succeeded.';
+      setStatus('Loaded movement(s) from markdown repo');
     } catch (e) {
       dom.status.textContent = 'Import failed.';
       dom.errorBox.textContent = e.message || String(e);
@@ -5734,29 +5721,14 @@
     return target;
   }
 
-  function normaliseTextContentFields(movementSnapshot) {
-    if (!movementSnapshot || !Array.isArray(movementSnapshot.texts)) return movementSnapshot;
-    movementSnapshot.texts = movementSnapshot.texts.map(text => {
-      const next = { ...text };
-      if (next.content === undefined && next.body !== undefined) next.content = next.body;
-      if (next.contentPath === undefined && next.bodyPath !== undefined) {
-        next.contentPath = next.bodyPath;
-      }
-      delete next.body;
-      delete next.bodyPath;
-      if (next.content === undefined || next.content === null) next.content = '';
-      return next;
-    });
-    return movementSnapshot;
-  }
-
   function applyImportedSnapshot(movementSnapshot, { promptOnConflict = true } = {}) {
-    const incoming = StorageService.ensureAllCollections(
-      normaliseTextContentFields(movementSnapshot || {})
-    );
-    if (typeof validateIncomingSnapshot === 'function') {
-      validateIncomingSnapshot(incoming);
-    }
+    const incoming = StorageService.ensureAllCollections(movementSnapshot || {});
+    incoming.version = incoming.version || '2.3';
+    incoming.specVersion = incoming.specVersion || '2.3';
+    incoming.movements = normaliseArray(incoming.movements).map(movement => {
+      const movementId = movement.id || movement.movementId;
+      return { ...movement, movementId };
+    });
     const incomingMovements = incoming.movements || [];
     if (!incomingMovements.length) {
       throw new Error('No movements found in the imported file.');
@@ -5788,7 +5760,6 @@
       }
     }
 
-    clearMovementAssetsForIds(incomingIds);
     fullSnapshot = mergeMovementSnapshotIntoExisting(fullSnapshot, incoming);
     StorageService.saveSnapshot(fullSnapshot);
     snapshot = fullSnapshot;
@@ -5802,176 +5773,24 @@
     return currentMovementId;
   }
 
-  function exportCurrentMovementAsJson() {
-    if (!currentMovementId) {
-      alert('Select a movement to export.');
-      return;
-    }
-    const movementSnapshot = createMovementSnapshot(currentMovementId, snapshot);
-    if (!movementSnapshot) {
-      alert('Movement not found.');
-      return;
-    }
-
-    const json = JSON.stringify(movementSnapshot, null, 2);
-    const movement = movementSnapshot.movements[0];
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${movement.shortName || movement.id}-movement.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    setStatus('Exported movement JSON');
-  }
-
-  function importMovementFromJsonFile(file) {
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const data = JSON.parse(reader.result);
-        const result = applyImportedSnapshot(data);
-        if (result) setStatus('Imported movement JSON');
-      } catch (e) {
-        showFatalImportError(e);
-      }
+  async function loadMarkdownRepoAndApply(config) {
+    const compiled = await MarkdownDatasetLoader.loadMovementDataset(config);
+    const snapshotLike = {
+      ...compiled.data,
+      version: compiled.specVersion,
+      specVersion: compiled.specVersion
     };
-    reader.readAsText(file);
+    applyImportedSnapshot(snapshotLike, { promptOnConflict: false });
+    return compiled;
   }
 
-  function buildAssetPathForMedia(media) {
-    const base = 'media';
-    const idPart = media.id || media.slug || 'asset';
-    const mimeType = media.mimeType || '';
-
-    if (mimeType.startsWith('audio/')) return `${base}/audio/${idPart}`;
-    if (mimeType.startsWith('image/')) return `${base}/images/${idPart}`;
-    if (mimeType === 'text/csv') return `${base}/csv/${idPart}.csv`;
-    return `${base}/other/${idPart}`;
-  }
-
-  function buildZipManifest(movementSnapshot) {
-    const clone = JSON.parse(JSON.stringify(movementSnapshot || {}));
-
-    if (Array.isArray(clone.texts)) {
-      clone.texts = clone.texts.map(text => {
-        const { content, body, ...rest } = text;
-        const id = text.id || text.slug || 'text';
-        return {
-          ...rest,
-          content: content ?? body ?? '',
-          contentPath: `texts/${id}.md`
-        };
-      });
-    }
-
-    if (Array.isArray(clone.media)) {
-      clone.media = clone.media.map(media => ({
-        ...media,
-        assetPath: media.assetPath || buildAssetPathForMedia(media)
-      }));
-    }
-
-    return clone;
-  }
-
-  function addTextsToZip(zip, movementSnapshot) {
-    if (!Array.isArray(movementSnapshot.texts)) return;
-    movementSnapshot.texts.forEach(text => {
-      const id = text.id || text.slug || 'text';
-      const filePath = `texts/${id}.md`;
-      zip.file(filePath, text.content || '');
+  async function loadDefaultMarkdownDataset() {
+    const compiled = await loadMarkdownRepoAndApply({
+      source: 'github',
+      repoUrl: DEFAULT_GITHUB_REPO_URL
     });
-  }
-
-  async function addAssetsToZip(zip, movementSnapshot) {
-    if (!Array.isArray(movementSnapshot.media)) return;
-    const movementId = movementSnapshot.movements?.[0]?.id;
-    if (!movementId) return;
-
-    for (const media of movementSnapshot.media) {
-      const assetPath = media.assetPath || buildAssetPathForMedia(media);
-      const key = `${movementId}:${assetPath}`;
-      const blob = movementAssetStore.get(key);
-      if (!blob) continue;
-      zip.file(assetPath, blob);
-    }
-  }
-
-  async function exportCurrentMovementAsZip() {
-    if (!currentMovementId) {
-      alert('Select a movement to export.');
-      return;
-    }
-    const movementSnapshot = createMovementSnapshot(currentMovementId, snapshot);
-    if (!movementSnapshot) {
-      alert('Movement not found.');
-      return;
-    }
-
-    const movement = movementSnapshot.movements[0];
-    const zip = new JSZip();
-    const manifest = buildZipManifest(movementSnapshot);
-    zip.file('manifest.json', JSON.stringify(manifest, null, 2));
-    addTextsToZip(zip, movementSnapshot);
-    await addAssetsToZip(zip, movementSnapshot);
-
-    const blob = await zip.generateAsync({ type: 'blob' });
-    const filename = `${movement.shortName || movement.id}.movement.zip`;
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-    setStatus('Exported movement ZIP');
-  }
-
-  async function hydrateTextsFromZip(zip, movementSnapshot) {
-    if (!Array.isArray(movementSnapshot.texts)) return;
-    for (const text of movementSnapshot.texts) {
-      const contentPath = text.contentPath || text.bodyPath;
-      if (!contentPath) continue;
-      const file = zip.file(contentPath);
-      if (!file) continue;
-      text.content = await file.async('string');
-      delete text.bodyPath;
-      delete text.body;
-    }
-  }
-
-  async function hydrateAssetsFromZip(zip, movementSnapshot) {
-    if (!Array.isArray(movementSnapshot.media)) return;
-    const movementId = movementSnapshot.movements?.[0]?.id;
-    if (!movementId) return;
-
-    for (const media of movementSnapshot.media) {
-      const assetPath = media.assetPath;
-      if (!assetPath) continue;
-      const file = zip.file(assetPath);
-      if (!file) continue;
-      const blob = await file.async('blob');
-      const key = `${movementId}:${assetPath}`;
-      movementAssetStore.set(key, blob);
-    }
-  }
-
-  async function importMovementFromZipFile(file) {
-    try {
-      const zip = await JSZip.loadAsync(file);
-      const manifestFile = zip.file('manifest.json');
-      if (!manifestFile) throw new Error('manifest.json not found');
-
-      const manifestText = await manifestFile.async('string');
-      const manifest = JSON.parse(manifestText);
-      await hydrateTextsFromZip(zip, manifest);
-      await hydrateAssetsFromZip(zip, manifest);
-      const movementId = applyImportedSnapshot(manifest);
-      if (movementId) setStatus('Imported movement ZIP');
-    } catch (e) {
-      console.error(e);
-      showFatalImportError(e);
-    }
+    setStatus('Loaded default markdown dataset');
+    return compiled;
   }
 
   function resetToDefaults() {
@@ -5983,7 +5802,6 @@
     currentMovementId = null;
     currentItemId = null;
     currentTextId = null;
-    movementAssetStore.clear();
     resetNavigationHistory();
     clearFatalImportError();
     saveSnapshot({ clearMovementDirty: true, clearItemDirty: true });
@@ -5999,8 +5817,15 @@
 
   // ---- Init ----
 
-  function init() {
+  async function init() {
     snapshot = loadSnapshot();
+    if (!snapshot.movements.length) {
+      try {
+        await loadDefaultMarkdownDataset();
+      } catch (e) {
+        showFatalImportError(e);
+      }
+    }
     currentMovementId = snapshot.movements[0]
       ? snapshot.movements[0].id
       : null;
@@ -6032,41 +5857,7 @@
     addListenerById('btn-delete-movement', 'click', () =>
       deleteMovement(currentMovementId)
     );
-    addListenerById(
-      'btn-export-movement-json',
-      'click',
-      exportCurrentMovementAsJson
-    );
-
-    addListenerById('btn-import-movement-json', 'click', () => {
-      const input = document.getElementById('file-input-json');
-      if (!input) return;
-      input.value = '';
-      input.click();
-    });
-
-    addListenerById('file-input-json', 'change', e => {
-      const file = e.target.files && e.target.files[0];
-      if (!file) return;
-      importMovementFromJsonFile(file);
-    });
-
-    addListenerById('btn-export-movement-zip', 'click', exportCurrentMovementAsZip);
-
-    addListenerById('btn-import-movement-zip', 'click', () => {
-      const input = document.getElementById('file-input-zip');
-      if (!input) return;
-      input.value = '';
-      input.click();
-    });
-
     addListenerById('btn-import-from-github', 'click', () => openGithubImportModal());
-
-    addListenerById('file-input-zip', 'change', e => {
-      const file = e.target.files && e.target.files[0];
-      if (!file) return;
-      importMovementFromZipFile(file);
-    });
 
     ['movement-name', 'movement-shortName', 'movement-summary', 'movement-tags']
       .map(id => document.getElementById(id))
@@ -6216,5 +6007,7 @@
     renderActiveTab();
   }
 
-  document.addEventListener('DOMContentLoaded', init);
+  document.addEventListener('DOMContentLoaded', () => {
+    init().catch(showFatalImportError);
+  });
 })();

@@ -15,8 +15,10 @@
   }
 
   function addMovement(snapshot, overrides = {}) {
+    const id = overrides.id || generateId('mov-');
     const movement = {
-      id: generateId('mov-'),
+      id,
+      movementId: overrides.movementId || id,
       name: 'New Movement',
       shortName: 'New',
       summary: '',
@@ -33,6 +35,7 @@
     const movement = snapshot.movements.find(m => m.id === movementId);
     if (!movement) return null;
     Object.assign(movement, updates);
+    movement.movementId = movement.id;
     return movement;
   }
 

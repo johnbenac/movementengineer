@@ -1,5 +1,14 @@
+const path = require('path');
 const ViewModels = require('./view-models');
-const data = require('./movement-data');
+const { loadMovementDataset } = require('./markdown-dataset-loader');
+
+async function loadFixtureData() {
+  const { data } = await loadMovementDataset({
+    source: 'local',
+    repoPath: path.join(__dirname, 'test-fixtures/markdown-repo')
+  });
+  return data;
+}
 
 function assert(condition, message) {
   if (!condition) {
@@ -7,42 +16,36 @@ function assert(condition, message) {
   }
 }
 
-function testMovementDashboard() {
+function testMovementDashboard(data) {
   const vm = ViewModels.buildMovementDashboardViewModel(data, {
-    movementId: 'mov-catholic'
+    movementId: 'mov-fixture'
   });
 
-  assert(vm.movement.id === 'mov-catholic', 'Dashboard should pick the right movement');
-  assert(vm.entityStats.totalEntities === 23, 'Should count 23 entities');
-  assert(vm.practiceStats.totalPractices === 7, 'Should count 7 practices');
-  assert(vm.eventStats.totalEvents === 8, 'Should count 8 events');
+  assert(vm.movement.id === 'mov-fixture', 'Dashboard should pick the right movement');
+  assert(vm.entityStats.totalEntities === 2, 'Should count 2 entities');
+  assert(vm.practiceStats.totalPractices === 1, 'Should count 1 practice');
+  assert(vm.eventStats.totalEvents === 1, 'Should count 1 event');
 }
 
-function testEntityDetail() {
+function testEntityDetail(data) {
   const vm = ViewModels.buildEntityDetailViewModel(data, {
-    entityId: 'ent-god-trinity'
+    entityId: 'ent-guide'
   });
 
-  assert(vm.entity.id === 'ent-god-trinity', 'Entity detail should be for ent-god-trinity');
+  assert(vm.entity.id === 'ent-guide', 'Entity detail should be for ent-guide');
   assert(Array.isArray(vm.practices), 'Entity detail should include practices array');
-  assert(vm.practices.length === 2, 'The Holy Trinity should be involved in 2 practices');
-  assert(
-    vm.practices.some(p => p.id === 'pr-sunday-mass'),
-    'Practices should include Sunday Mass'
-  );
+  assert(vm.practices.length === 1, 'Guide should be involved in 1 practice');
+  assert(vm.practices.some(p => p.id === 'prc-reflection'), 'Practices should include reflection');
 }
 
-function testPracticeDetail() {
+function testPracticeDetail(data) {
   const vm = ViewModels.buildPracticeDetailViewModel(data, {
-    practiceId: 'pr-sunday-mass'
+    practiceId: 'prc-reflection'
   });
 
-  assert(vm.practice.id === 'pr-sunday-mass', 'Practice detail should be for pr-sunday-mass');
-  assert(vm.entities.length === 5, 'Practice should involve 5 entities');
-  assert(
-    vm.entities.some(e => e.id === 'ent-god-trinity'),
-    'Involved entities should include The Holy Trinity'
-  );
+  assert(vm.practice.id === 'prc-reflection', 'Practice detail should be for prc-reflection');
+  assert(vm.entities.length === 1, 'Practice should involve 1 entity');
+  assert(vm.entities.some(e => e.id === 'ent-guide'), 'Involved entities should include the guide');
 }
 
 function testGraphFiltering() {
@@ -81,13 +84,17 @@ function testGraphFiltering() {
   assert(!combined.nodes.some(n => n.id === 'e1'), 'Excluded types are filtered out');
 }
 
-function runTests() {
+async function runTests() {
   console.log('Running view-model tests...');
-  testMovementDashboard();
-  testEntityDetail();
-  testPracticeDetail();
+  const data = await loadFixtureData();
+  testMovementDashboard(data);
+  testEntityDetail(data);
+  testPracticeDetail(data);
   testGraphFiltering();
   console.log('All tests passed ✅');
 }
 
-runTests();
+runTests().catch(err => {
+  console.error(err);
+  process.exit(1);
+});

@@ -1,12 +1,11 @@
 # Movement Engineer
 
-Movement Engineer is a fully client-side tool for exploring, authoring, and comparing structured data about social movements. The app ships as a static single-page experience that runs in the browser, keeping snapshots in `localStorage` while allowing import/export for portability.
+Movement Engineer is a fully client-side tool for exploring, authoring, and comparing structured data about social movements. The app now ingests **Markdown repositories that follow the v2.3 data specification**, compiling them into the runtime dataset used by the UI and view models.
 
 ## Features
 - Browse, edit, and compare movements, entities, practices, events, rules, claims, and sources.
-- Persist your work in the browser or export/import JSON snapshots for sharing and backups.
+- Load markdown-based datasets from GitHub or the local filesystem (spec v2.3). No JSON import/export paths remain in the runtime pipeline.
 - Visualize relationships through the embedded entity graph view.
-- Auto-load bundled movement datasets from the `movements/` directory via the generated manifest.
 - Lightweight domain and view-model layers decoupled from the UI for easy testing.
 
 ## Data model (reader's cut)
@@ -38,20 +37,16 @@ This repository is static; you can open `index.html` directly in a browser or se
 2. Open `index.html` in your browser, or run a static server (for example, `npx http-server .`) and navigate to the hosted URL.
 
 ### Movement data
-Bundled datasets live anywhere under `movements/` as files named `*-data.js`, allowing each movement to keep its own subdirectory of assets. The manifest at `movements/manifest.js` ensures the browser loads each dataset. When you add or rename datasets, regenerate the manifest with:
+Movement datasets are authored as Markdown files under a `data/` directory that matches the v2.3 spec. Each collection lives in its own folder (for example `data/movements`, `data/entities`, `data/texts`, etc.), with YAML front matter describing fields and Markdown bodies providing long-form text. The compiler normalizes everything into the `data` object expected by the existing view models, injecting `movementId` on movements and canonicalising note target types to preserve UI parity.
 
-```bash
-node scripts/generate-movement-manifest.js
-```
-
-See [movement dataset file guidelines](docs/movement-dataset-file-guidelines.md) for how to split a movement’s claims, rules, entities, and related collections across multiple files while keeping loading predictable.
+On first load the app fetches the Catholic dataset from `https://github.com/johnbenac/catholic`. You can point the UI at any other spec-compliant repo via **Load markdown repo** in the dashboard. JSON datasets and manifests are no longer supported in the runtime path.
 
 ### Testing
-Domain logic tests use simple Node scripts:
+Install dependencies and run the bundled Node checks:
 
 ```bash
-node comparison-services.test.js
-node view-models.test.js
+npm install
+npm test
 ```
 
 ## License

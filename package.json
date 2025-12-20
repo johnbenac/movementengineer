@@ -1,0 +1,19 @@
+{
+  "name": "movementengineer",
+  "version": "1.0.0",
+  "description": "Movement Engineer is a client-side tool for exploring, authoring, and comparing structured data about social movements using the Markdown v2.3 dataset format.",
+  "main": "app.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "node markdown-dataset-loader.test.js && node view-models.test.js && node comparison-services.test.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "AGPL-3.0-or-later",
+  "type": "commonjs",
+  "dependencies": {
+    "js-yaml": "^4.1.0"
+  }
+}
