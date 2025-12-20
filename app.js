@@ -335,11 +335,13 @@
     navigationStack = [];
     navigationIndex = -1;
     updateNavigationButtons();
+    notifyLegacyStateChanged();
   }
 
   function pushNavigationState(collectionName, itemId) {
     if (!collectionName || !itemId) {
       updateNavigationButtons();
+      notifyLegacyStateChanged();
       return;
     }
 
@@ -350,6 +352,7 @@
       current.itemId === itemId
     ) {
       updateNavigationButtons();
+      notifyLegacyStateChanged();
       return;
     }
 
@@ -357,6 +360,7 @@
     navigationStack.push({ collectionName, itemId });
     navigationIndex = navigationStack.length - 1;
     updateNavigationButtons();
+    notifyLegacyStateChanged();
   }
 
   function pruneNavigationState(collectionName, itemId) {
@@ -379,6 +383,7 @@
       );
     }
     updateNavigationButtons();
+    notifyLegacyStateChanged();
   }
 
   function navigateHistory(direction) {
@@ -392,6 +397,7 @@
       fromHistory: true
     });
     updateNavigationButtons();
+    notifyLegacyStateChanged();
   }
 
   // ---- Movement helpers ----
@@ -408,6 +414,7 @@
     renderMovementList();
     renderActiveTab();
     closeSidebarOnMobile();
+    notifyLegacyStateChanged();
   }
 
   function addMovement() {
@@ -4822,6 +4829,7 @@
 
     renderLibraryView();
     scrollTocNodeIntoView(textId);
+    notifyLegacyStateChanged();
   }
 
   // ---- Dashboard (ViewModels) ----
@@ -5121,6 +5129,8 @@
     } else {
       updateNavigationButtons();
     }
+
+    notifyLegacyStateChanged();
   }
 
   function jumpToReferencedItem(collectionName, itemId) {
