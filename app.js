@@ -434,6 +434,8 @@
     const previousCanonFilters = { ...canonFilters };
     currentMovementId = id || null;
     currentItemId = null; // reset item selection in collection editor
+    currentShelfId = null;
+    currentBookId = null;
     currentTextId = null;
     canonFilters = { ...DEFAULT_CANON_FILTERS };
     renderMovementList();
@@ -543,10 +545,18 @@
         renderDashboard();
         break;
       case 'canon':
+        showFatalImportError(
+          new Error('Canon tab has been migrated to ES modules. Legacy renderer removed.')
+        );
+        break;
+      case 'graph':
+        showFatalImportError(
+          new Error('Graph tab has been migrated to ES modules. Legacy renderer removed.')
+        );
+        break;
       case 'entities':
       case 'practices':
       case 'calendar':
-      case 'graph':
         renderMovementSection(tabName);
         break;
       case 'claims':
@@ -804,6 +814,8 @@
   // ---- Canon (buildCanonTreeViewModel) ----
 
   function parseCsvInput(value) {
+    const helper = movementEngineerGlobal?.utils?.values?.parseCsvInput;
+    if (typeof helper === 'function') return helper(value);
     return (value || '')
       .split(',')
       .map(s => s.trim())
@@ -858,6 +870,8 @@
   }
 
   function collectDescendants(textId, nodesById, acc = new Set()) {
+    const helper = movementEngineerGlobal?.utils?.values?.collectDescendants;
+    if (typeof helper === 'function') return helper(textId, nodesById, acc);
     const node = nodesById[textId];
     if (!node || acc.has(textId)) return acc;
     acc.add(textId);
@@ -1059,6 +1073,9 @@
   }
 
   function renderMarkdownPreview(targetEl, content, { enabled = true } = {}) {
+    const helper = movementEngineerGlobal?.ui?.markdown?.renderMarkdownPreview;
+    if (typeof helper === 'function') return helper(targetEl, content, { enabled });
+
     if (!targetEl) return;
 
     if (!enabled) {
@@ -1097,6 +1114,11 @@
     onSave = null,
     onClose = null
   } = {}) {
+    const helper = movementEngineerGlobal?.ui?.markdown?.openMarkdownModal;
+    if (typeof helper === 'function') {
+      return helper({ title, initial, onSave, onClose });
+    }
+
     const overlay = document.createElement('div');
     overlay.className = 'markdown-modal-overlay';
 
@@ -3017,10 +3039,24 @@
   // ============================================================
 
   function normaliseArray(value) {
-    return Array.isArray(value) ? value : [];
+    const helper = movementEngineerGlobal?.utils?.values?.normaliseArray;
+    if (typeof helper === 'function') return helper(value);
+    if (!value) return [];
+    if (Array.isArray(value)) return value.filter(Boolean);
+    if (typeof value === 'string') {
+      return value
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean);
+    }
+    if (value && typeof value === 'object') return Object.values(value).filter(Boolean);
+    if (Number.isFinite(value)) return [value];
+    return [];
   }
 
   function uniqueSorted(values) {
+    const helper = movementEngineerGlobal?.utils?.values?.uniqueSorted;
+    if (typeof helper === 'function') return helper(values);
     return Array.from(new Set(values.filter(Boolean))).sort((a, b) =>
       String(a).localeCompare(String(b), undefined, { sensitivity: 'base' })
     );
@@ -4283,7 +4319,7 @@
 
     activateTab('canon');
     if (!movementId) {
-      renderLibraryView();
+      renderActiveTab();
       return;
     }
 
@@ -4299,8 +4335,8 @@
     currentTextId = textId;
     if (shelves.length) currentShelfId = shelves[0];
 
-    renderLibraryView();
-    scrollTocNodeIntoView(textId);
+    renderActiveTab();
+    setTimeout(() => scrollTocNodeIntoView(textId), 0);
     if (
       previousMovementId !== currentMovementId ||
       previousBookId !== currentBookId ||
@@ -5556,13 +5592,6 @@
     if (practiceSelect) {
       practiceSelect.addEventListener('change', renderPracticesView);
     }
-    addListenerById('library-search', 'input', renderLibraryView);
-    addListenerById('btn-add-text-collection', 'click', addTextCollection);
-    addListenerById('btn-save-text-collection', 'click', saveTextCollection);
-    addListenerById('btn-delete-text-collection', 'click', () => deleteTextCollection());
-    addListenerById('btn-add-root-text', 'click', addNewBookToShelf);
-    addListenerById('btn-add-existing-book', 'click', addExistingBookToShelf);
-
     // Collections tab
       addListenerById('collection-select', 'change', e => {
         setCollectionAndItem(e.target.value, null, { addToHistory: false });
@@ -5631,6 +5660,28 @@
     markSaved,
     ensureFatalImportBanner,
     bootstrapOptions,
-    hasInitialized: () => hasLegacyInitialized
+    hasInitialized: () => hasLegacyInitialized,
+    saveSnapshot,
+    renderLibraryView,
+    renderGraphWorkbench,
+    addTextCollection,
+    saveTextCollection,
+    deleteTextCollection,
+    addNewBookToShelf,
+    addExistingBookToShelf
   });
+
+  movementEngineerGlobal.actions = Object.assign(
+    movementEngineerGlobal.actions || {},
+    {
+      activateTab,
+      selectMovement,
+      jumpToEntity,
+      jumpToPractice,
+      jumpToText,
+      jumpToReferencedItem,
+      setCollectionAndItem,
+      saveSnapshot
+    }
+  );
 })();
