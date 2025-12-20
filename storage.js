@@ -22,6 +22,14 @@
     'notes'
   ];
 
+  const META_FIELDS = [
+    '__repoInfo',
+    '__repoSource',
+    '__repoFileIndex',
+    '__repoRawMarkdownByPath',
+    '__repoBaselineByMovement'
+  ];
+
   const COLLECTIONS_WITH_MOVEMENT_ID = new Set([
     'textCollections',
     'texts',
@@ -39,6 +47,11 @@
     COLLECTION_NAMES.forEach(name => {
       base[name] = [];
     });
+    base.__repoInfo = null;
+    base.__repoSource = null;
+    base.__repoFileIndex = {};
+    base.__repoRawMarkdownByPath = {};
+    base.__repoBaselineByMovement = {};
     return base;
   }
 
@@ -61,6 +74,11 @@
     obj.movements = obj.movements.map(movement => {
       const movementId = movement?.movementId || movement?.id || null;
       return movementId ? { ...movement, movementId } : movement;
+    });
+    META_FIELDS.forEach(field => {
+      if (obj[field] === undefined) {
+        obj[field] = field === '__repoInfo' || field === '__repoSource' ? null : {};
+      }
     });
     return obj;
   }

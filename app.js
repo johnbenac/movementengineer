@@ -5731,6 +5731,13 @@
     return suffix ? `${base}-${suffix}.zip` : `${base}.zip`;
   }
 
+  function deriveMovementFilename(movementId) {
+    const movement =
+      (snapshot?.movements || []).find(m => m.id === movementId) || null;
+    const name = movement?.name || movementId || 'movement';
+    return `${name.replace(/\s+/g, '-').toLowerCase() || 'movement'}.zip`;
+  }
+
   async function exportCurrentRepoZip() {
     const exportBtn = document.getElementById('btn-export-repo');
     if (!window.MarkdownDatasetLoader || !MarkdownDatasetLoader.exportRepoToZip) {
@@ -5768,6 +5775,44 @@
     }
   }
 
+  async function exportCurrentMovementZip() {
+    const exportBtn = document.getElementById('btn-export-repo');
+    if (!window.MarkdownDatasetLoader || !MarkdownDatasetLoader.exportMovementToZip) {
+      setStatus('Export not available in this build.');
+      return;
+    }
+    if (!currentMovementId) {
+      setStatus('Select a movement to export.');
+      return;
+    }
+    const currentSnapshot = StorageService.ensureAllCollections(snapshot || {});
+    setStatus('Preparing movement zip...');
+    if (exportBtn) exportBtn.disabled = true;
+    try {
+      const result = await MarkdownDatasetLoader.exportMovementToZip(currentSnapshot, currentMovementId, {
+        outputType: 'blob'
+      });
+      const filename = deriveMovementFilename(currentMovementId);
+      const url = URL.createObjectURL(result.archive);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename;
+      anchor.style.display = 'none';
+      document.body.appendChild(anchor);
+      anchor.click();
+      setTimeout(() => {
+        document.body.removeChild(anchor);
+        URL.revokeObjectURL(url);
+      }, 0);
+      setStatus('Movement zip ready ✓');
+    } catch (e) {
+      console.error(e);
+      setStatus('Export failed');
+    } finally {
+      if (exportBtn) exportBtn.disabled = false;
+    }
+  }
+
   function mergeMovementSnapshotIntoExisting(fullSnapshot, movementSnapshot) {
     const target = StorageService.ensureAllCollections(fullSnapshot || {});
     const incoming = StorageService.ensureAllCollections(movementSnapshot || {});
@@ -5796,6 +5841,21 @@
     }
     if (incoming.__repoSource) {
       target.__repoSource = incoming.__repoSource;
+    }
+    if (incoming.__repoFileIndex) {
+      target.__repoFileIndex = { ...(target.__repoFileIndex || {}), ...incoming.__repoFileIndex };
+    }
+    if (incoming.__repoRawMarkdownByPath) {
+      target.__repoRawMarkdownByPath = {
+        ...(target.__repoRawMarkdownByPath || {}),
+        ...incoming.__repoRawMarkdownByPath
+      };
+    }
+    if (incoming.__repoBaselineByMovement) {
+      target.__repoBaselineByMovement = {
+        ...(target.__repoBaselineByMovement || {}),
+        ...incoming.__repoBaselineByMovement
+      };
     }
 
     return target;
@@ -5861,7 +5921,10 @@
       version: compiled.specVersion,
       specVersion: compiled.specVersion,
       __repoInfo: compiled.repoInfo || null,
-      __repoSource: config
+      __repoSource: config,
+      __repoFileIndex: compiled.fileIndex || {},
+      __repoRawMarkdownByPath: compiled.rawMarkdownByPath || {},
+      __repoBaselineByMovement: compiled.baselineByMovement || {}
     };
     applyImportedSnapshot(snapshotLike, { promptOnConflict: false });
     return compiled;
@@ -5944,7 +6007,7 @@
       deleteMovement(currentMovementId)
     );
     addListenerById('btn-import-from-github', 'click', () => openGithubImportModal());
-    addListenerById('btn-export-repo', 'click', exportCurrentRepoZip);
+    addListenerById('btn-export-repo', 'click', exportCurrentMovementZip);
 
     ['movement-name', 'movement-shortName', 'movement-summary', 'movement-tags']
       .map(id => document.getElementById(id))

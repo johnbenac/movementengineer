@@ -120,6 +120,28 @@
     return unwrapped.trim() || null;
   }
 
+  function deepEqual(a, b) {
+    if (a === b) return true;
+    if (a === null || b === null) return a === b;
+    if (Array.isArray(a) && Array.isArray(b)) {
+      if (a.length !== b.length) return false;
+      for (let i = 0; i < a.length; i += 1) {
+        if (!deepEqual(a[i], b[i])) return false;
+      }
+      return true;
+    }
+    if (typeof a === 'object' && typeof b === 'object') {
+      const aKeys = Object.keys(a);
+      const bKeys = Object.keys(b);
+      if (aKeys.length !== bKeys.length) return false;
+      for (const key of aKeys) {
+        if (!deepEqual(a[key], b[key])) return false;
+      }
+      return true;
+    }
+    return false;
+  }
+
   function normaliseIds(value) {
     return normaliseArray(value)
       .map(cleanId)
@@ -333,6 +355,10 @@
       data[name] = [];
     });
     return data;
+  }
+
+  function deepClone(value) {
+    return JSON.parse(JSON.stringify(value));
   }
 
   function compileMovement(frontMatter, body, filePath) {
@@ -574,6 +600,95 @@
     notes: compileNote
   };
 
+  const FRONT_MATTER_FIELDS = {
+    movements: ['id', 'movementId', 'name', 'shortName', 'tags', 'status', 'order'],
+    textCollections: ['id', 'movementId', 'name', 'rootTextIds', 'tags', 'order'],
+    texts: ['id', 'movementId', 'title', 'label', 'parentId', 'mainFunction', 'tags', 'mentionsEntityIds', 'order'],
+    entities: ['id', 'movementId', 'name', 'kind', 'tags', 'sourceEntityIds', 'sourcesOfTruth', 'order'],
+    practices: [
+      'id',
+      'movementId',
+      'name',
+      'kind',
+      'frequency',
+      'tags',
+      'involvedEntityIds',
+      'instructionsTextIds',
+      'supportingClaimIds',
+      'sourceEntityIds',
+      'sourcesOfTruth',
+      'order'
+    ],
+    events: [
+      'id',
+      'movementId',
+      'name',
+      'recurrence',
+      'timingRule',
+      'tags',
+      'mainPracticeIds',
+      'mainEntityIds',
+      'readingTextIds',
+      'supportingClaimIds',
+      'order'
+    ],
+    rules: [
+      'id',
+      'movementId',
+      'shortText',
+      'kind',
+      'details',
+      'appliesTo',
+      'domain',
+      'tags',
+      'supportingTextIds',
+      'supportingClaimIds',
+      'relatedPracticeIds',
+      'sourceEntityIds',
+      'sourcesOfTruth',
+      'order'
+    ],
+    claims: [
+      'id',
+      'movementId',
+      'text',
+      'category',
+      'tags',
+      'aboutEntityIds',
+      'sourceTextIds',
+      'sourceEntityIds',
+      'sourcesOfTruth',
+      'order'
+    ],
+    media: [
+      'id',
+      'movementId',
+      'kind',
+      'uri',
+      'title',
+      'tags',
+      'linkedEntityIds',
+      'linkedPracticeIds',
+      'linkedEventIds',
+      'linkedTextIds',
+      'order'
+    ],
+    notes: ['id', 'movementId', 'targetType', 'targetId', 'author', 'context', 'tags', 'order']
+  };
+
+  const BODY_FIELD_BY_COLLECTION = {
+    movements: 'summary',
+    textCollections: 'description',
+    texts: 'content',
+    entities: 'summary',
+    practices: 'description',
+    events: 'description',
+    rules: 'details',
+    claims: 'text',
+    media: 'description',
+    notes: 'body'
+  };
+
   function sortCollection(items) {
     return items
       .slice()
@@ -797,13 +912,17 @@
   function compileRecords(records) {
     const data = ensureDataShape();
     const fileIndex = new Map();
+    const rawMarkdownByPath = {};
 
-    records.forEach(({ collection, frontMatter, body, filePath }) => {
+    records.forEach(({ collection, frontMatter, body, filePath, rawText }) => {
       const compiler = COMPILERS[collection];
       if (!compiler) return;
       const compiled = compiler(frontMatter, body, filePath);
       data[collection].push(compiled);
       fileIndex.set(`${collection}:${compiled.id}`, filePath);
+      if (filePath) {
+        rawMarkdownByPath[filePath] = rawText !== undefined ? rawText : null;
+      }
     });
 
     validateDuplicates(data);
@@ -815,7 +934,28 @@
       sorted[name] = sortCollection(data[name]);
     });
 
-    return sorted;
+    return { data: sorted, fileIndex, rawMarkdownByPath };
+  }
+
+  function buildBaselineByMovement(data) {
+    const baseline = {};
+    const movementIds = (data.movements || []).map(m => m.id);
+    movementIds.forEach(movementId => {
+      baseline[movementId] = {};
+      const movement = (data.movements || []).find(m => m.id === movementId);
+      baseline[movementId].movements = movement ? { [movement.id]: deepClone(movement) } : {};
+      COLLECTION_NAMES.forEach(collection => {
+        if (collection === 'movements') return;
+        const map = {};
+        (data[collection] || []).forEach(item => {
+          if (item.movementId === movementId) {
+            map[item.id] = deepClone(item);
+          }
+        });
+        baseline[movementId][collection] = map;
+      });
+    });
+    return baseline;
   }
 
   function detectCollectionFromPath(path) {
@@ -854,7 +994,8 @@
         collection,
         frontMatter: parsed.frontMatter,
         body: parsed.body,
-        filePath: path
+        filePath: path,
+        rawText: text
       });
     }
     return records;
@@ -898,13 +1039,169 @@
     const { reader, listing, repoInfo } = await prepareRepoSource(config);
 
     const records = await readMarkdownRecords(reader, listing);
-    const data = compileRecords(records);
+    const { data, fileIndex, rawMarkdownByPath } = compileRecords(records);
+    const baselineByMovement = buildBaselineByMovement(data);
 
     return {
       specVersion: SPEC_VERSION,
       generatedAt: new Date().toISOString(),
       data,
-      repoInfo
+      repoInfo,
+      fileIndex: Object.fromEntries(fileIndex),
+      rawMarkdownByPath,
+      baselineByMovement
+    };
+  }
+
+  function generatePathForRecord(collection, id, movementId, fileIndex) {
+    const movementPath = fileIndex ? fileIndex[`movements:${movementId}`] : null;
+    if (movementPath) {
+      const parts = movementPath.split('/').filter(Boolean);
+      if (parts[0] === 'movements' && parts.length >= 2) {
+        const base = parts.slice(0, 2).join('/');
+        if (collection === 'movements') return `${base}/movement.md`;
+        return `${base}/${collection}/${id}.md`;
+      }
+      if (parts[0] === 'data') {
+        if (collection === 'movements') return movementPath;
+        return `data/${collection}/${id}.md`;
+      }
+    }
+    if (collection === 'movements') {
+      return `movements/${id}.md`;
+    }
+    return `${collection}/${id}.md`;
+  }
+
+  function getRecordsForMovement(snapshot, movementId) {
+    const movement = (snapshot.movements || []).find(m => m.id === movementId);
+    if (!movement) return null;
+    const collections = {};
+    collections.movements = [movement];
+    COLLECTION_NAMES.forEach(collection => {
+      if (collection === 'movements') return;
+      collections[collection] = (snapshot[collection] || []).filter(item => item.movementId === movementId);
+    });
+    return collections;
+  }
+
+  function renderFrontMatter(collection, record, originalFrontMatter) {
+    const yaml = getYamlLib();
+    const fields = FRONT_MATTER_FIELDS[collection] || [];
+    const frontMatter = {};
+    fields.forEach(field => {
+      if (originalFrontMatter && Object.prototype.hasOwnProperty.call(originalFrontMatter, field)) {
+        frontMatter[field] = originalFrontMatter[field];
+      } else if (record[field] !== undefined) {
+        frontMatter[field] = record[field];
+      }
+    });
+    if (originalFrontMatter) {
+      Object.keys(originalFrontMatter).forEach(key => {
+        if (frontMatter[key] === undefined && !fields.includes(key)) {
+          frontMatter[key] = originalFrontMatter[key];
+        }
+      });
+    }
+    return yaml.dump(frontMatter, { lineWidth: 0, noRefs: true });
+  }
+
+  function renderMarkdownFromRecord(record, collection, originalFrontMatter) {
+    const frontMatter = renderFrontMatter(collection, record, originalFrontMatter);
+    const bodyField = BODY_FIELD_BY_COLLECTION[collection] || null;
+    const bodyValue = bodyField ? stringOrEmpty(record[bodyField]) : '';
+    return `---\n${frontMatter}---\n${bodyValue}`;
+  }
+
+  function patchMarkdownFromRecord(originalRaw, baselineRecord, updatedRecord, collection, filePath) {
+    const parsed = parseFrontMatter(originalRaw, filePath);
+    const bodyField = BODY_FIELD_BY_COLLECTION[collection] || null;
+    const fields = FRONT_MATTER_FIELDS[collection] || [];
+    const newFrontMatter = {};
+
+    fields.forEach(field => {
+      const baselineVal = baselineRecord ? baselineRecord[field] : undefined;
+      const updatedVal = updatedRecord[field];
+      if (baselineRecord && deepEqual(baselineVal, updatedVal)) {
+        if (parsed.frontMatter[field] !== undefined) newFrontMatter[field] = parsed.frontMatter[field];
+        return;
+      }
+      if (updatedVal !== undefined) {
+        newFrontMatter[field] = updatedVal;
+      } else if (parsed.frontMatter[field] !== undefined) {
+        newFrontMatter[field] = parsed.frontMatter[field];
+      }
+    });
+
+    Object.keys(parsed.frontMatter).forEach(key => {
+      if (newFrontMatter[key] === undefined && !fields.includes(key)) {
+        newFrontMatter[key] = parsed.frontMatter[key];
+      }
+    });
+
+    let bodyText = parsed.body || '';
+    if (bodyField) {
+      const baselineBody = baselineRecord ? baselineRecord[bodyField] || '' : '';
+      const updatedBody = updatedRecord[bodyField] || '';
+      if (!baselineRecord || !deepEqual(baselineBody, updatedBody)) {
+        bodyText = stringOrEmpty(updatedBody);
+      }
+    }
+
+    const recordForRender = bodyField ? { ...updatedRecord, [bodyField]: bodyText } : { ...updatedRecord };
+    return renderMarkdownFromRecord(recordForRender, collection, newFrontMatter);
+  }
+
+  async function exportMovementToZip(snapshot, movementId, options = {}) {
+    if (!snapshot) {
+      throw new Error('Snapshot is required to export a movement.');
+    }
+    if (!movementId) {
+      throw new Error('movementId is required to export a movement.');
+    }
+    const collections = getRecordsForMovement(snapshot, movementId);
+    if (!collections) {
+      throw new Error(`Movement ${movementId} not found in snapshot.`);
+    }
+    const JSZip = getZipLib();
+    const zip = new JSZip();
+    const fileIndex = snapshot.__repoFileIndex || {};
+    const rawMarkdownByPath = snapshot.__repoRawMarkdownByPath || {};
+    const baselineByMovement = snapshot.__repoBaselineByMovement || {};
+    const movementBaseline = baselineByMovement[movementId] || {};
+
+    const allCollections = Object.keys(collections);
+    for (const collection of allCollections) {
+      (collections[collection] || []).forEach(item => {
+        const key = `${collection}:${item.id}`;
+        const existingPath = fileIndex[key];
+        const filePath = existingPath || generatePathForRecord(collection, item.id, movementId, fileIndex);
+        const baselineRecord = movementBaseline[collection]?.[item.id] || null;
+        const rawOriginal = existingPath ? rawMarkdownByPath[existingPath] : null;
+        const isUnchanged = baselineRecord ? deepEqual(baselineRecord, item) : false;
+        let content;
+        if (isUnchanged && rawOriginal !== undefined && rawOriginal !== null) {
+          content = rawOriginal;
+        } else if (rawOriginal && baselineRecord) {
+          content = patchMarkdownFromRecord(rawOriginal, baselineRecord, item, collection, filePath);
+        } else {
+          content = renderMarkdownFromRecord(item, collection);
+        }
+        zip.file(filePath, content);
+      });
+    }
+
+    const outputType = options.outputType || (isNode() ? 'nodebuffer' : 'blob');
+    const archive = await zip.generateAsync({
+      type: outputType,
+      compression: 'DEFLATE',
+      compressionOptions: { level: 9 }
+    });
+    return {
+      archive,
+      fileCount: Object.keys(zip.files).length,
+      movementId,
+      repoInfo: snapshot.__repoInfo || null
     };
   }
 
@@ -949,6 +1246,7 @@
 
   const api = {
     loadMovementDataset,
+    exportMovementToZip,
     exportRepoToZip,
     createLocalRepoReader,
     createGitHubRepoReader,
@@ -960,13 +1258,16 @@
     const snapshot = { ...compiled.data };
     snapshot.version = snapshot.version || compiled.specVersion;
     snapshot.specVersion = compiled.specVersion;
-    if (compiled.repoInfo) {
-      snapshot.__repoInfo = compiled.repoInfo;
-    }
+    snapshot.__repoInfo = compiled.repoInfo || null;
+    snapshot.__repoSource = { source: 'github', repoUrl };
+    snapshot.__repoFileIndex = compiled.fileIndex || {};
+    snapshot.__repoRawMarkdownByPath = compiled.rawMarkdownByPath || {};
+    snapshot.__repoBaselineByMovement = compiled.baselineByMovement || {};
     return snapshot;
   }
 
   api.importMovementRepo = importMovementRepo;
+  api.exportMovementToZip = exportMovementToZip;
   api.exportRepoToZip = exportRepoToZip;
 
   if (typeof module !== 'undefined' && module.exports) {
