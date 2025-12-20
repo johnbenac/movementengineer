@@ -39,6 +39,11 @@
     COLLECTION_NAMES.forEach(name => {
       base[name] = [];
     });
+    base.__repoInfo = null;
+    base.__repoSource = null;
+    base.__repoFileIndex = null;
+    base.__repoRawMarkdownByPath = null;
+    base.__repoBaselineByMovement = null;
     return base;
   }
 
@@ -62,6 +67,11 @@
       const movementId = movement?.movementId || movement?.id || null;
       return movementId ? { ...movement, movementId } : movement;
     });
+    if (!('__repoInfo' in obj)) obj.__repoInfo = null;
+    if (!('__repoSource' in obj)) obj.__repoSource = null;
+    if (!('__repoFileIndex' in obj)) obj.__repoFileIndex = null;
+    if (!('__repoRawMarkdownByPath' in obj)) obj.__repoRawMarkdownByPath = null;
+    if (!('__repoBaselineByMovement' in obj)) obj.__repoBaselineByMovement = null;
     return obj;
   }
 

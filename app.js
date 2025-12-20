@@ -5731,6 +5731,22 @@
     return suffix ? `${base}-${suffix}.zip` : `${base}.zip`;
   }
 
+  function deriveMovementFilename(movementId) {
+    const movement = (snapshot?.movements || []).find(m => m.id === movementId);
+    const repoInfo = snapshot?.__repoInfo || lastRepoInfo || null;
+    const repoPrefix =
+      repoInfo && repoInfo.owner && repoInfo.repo
+        ? `${repoInfo.owner}-${repoInfo.repo}`
+        : 'movement';
+    const safeName = (movement?.shortName || movement?.name || movementId || 'movement')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'movement';
+    const suffix = repoInfo?.commitSha || repoInfo?.ref || null;
+    const base = `${repoPrefix}-${safeName}`;
+    return suffix ? `${base}-${suffix}.zip` : `${base}.zip`;
+  }
+
   async function exportCurrentRepoZip() {
     const exportBtn = document.getElementById('btn-export-repo');
     if (!window.MarkdownDatasetLoader || !MarkdownDatasetLoader.exportRepoToZip) {
@@ -5768,13 +5784,99 @@
     }
   }
 
+  async function exportCurrentMovementZip() {
+    const exportBtn = document.getElementById('btn-export-repo');
+    if (!window.MarkdownDatasetLoader || !MarkdownDatasetLoader.exportMovementToZip) {
+      setStatus('Export not available in this build.');
+      return;
+    }
+    if (!snapshot || !currentMovementId) {
+      setStatus('Select a movement to export.');
+      return;
+    }
+    if (
+      !snapshot.__repoFileIndex ||
+      !snapshot.__repoRawMarkdownByPath ||
+      !snapshot.__repoBaselineByMovement
+    ) {
+      setStatus('Import a repo before exporting a movement.');
+      return;
+    }
+    if (!snapshot.__repoBaselineByMovement[currentMovementId]) {
+      setStatus('No baseline available for this movement.');
+      return;
+    }
+
+    setStatus('Preparing movement zip...');
+    if (exportBtn) exportBtn.disabled = true;
+    try {
+      const result = await MarkdownDatasetLoader.exportMovementToZip(snapshot, currentMovementId, {
+        outputType: 'blob'
+      });
+      const filename = deriveMovementFilename(currentMovementId);
+      const url = URL.createObjectURL(result.archive);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename;
+      anchor.style.display = 'none';
+      document.body.appendChild(anchor);
+      anchor.click();
+      setTimeout(() => {
+        document.body.removeChild(anchor);
+        URL.revokeObjectURL(url);
+      }, 0);
+      setStatus('Movement zip ready ✓');
+    } catch (e) {
+      console.error(e);
+      setStatus('Export failed');
+    } finally {
+      if (exportBtn) exportBtn.disabled = false;
+    }
+  }
+
   function mergeMovementSnapshotIntoExisting(fullSnapshot, movementSnapshot) {
     const target = StorageService.ensureAllCollections(fullSnapshot || {});
     const incoming = StorageService.ensureAllCollections(movementSnapshot || {});
     const incomingMovements = incoming.movements || [];
     const incomingIds = new Set(incomingMovements.map(m => m.id));
+    const incomingFileIndex = incoming.__repoFileIndex || null;
+    const incomingRawMarkdownByPath = incoming.__repoRawMarkdownByPath || null;
+    const incomingBaselineByMovement = incoming.__repoBaselineByMovement || null;
 
     if (incoming.version) target.version = incoming.version;
+
+    const existingFileIndex = { ...(target.__repoFileIndex || {}) };
+    const existingRawMarkdownByPath = { ...(target.__repoRawMarkdownByPath || {}) };
+    const existingBaselineByMovement = { ...(target.__repoBaselineByMovement || {}) };
+    const previousFileIndex = target.__repoFileIndex || {};
+    const keysToRemove = new Set();
+    COLLECTION_NAMES.forEach(collName => {
+      (target[collName] || []).forEach(item => {
+        const movementId = collName === 'movements' ? item.id : item.movementId;
+        if (incomingIds.has(movementId)) {
+          keysToRemove.add(`${collName}:${item.id}`);
+        }
+      });
+    });
+    keysToRemove.forEach(key => {
+      let path = null;
+      if (previousFileIndex && typeof previousFileIndex.get === 'function') {
+        path = previousFileIndex.get(key) || null;
+      } else if (previousFileIndex && typeof previousFileIndex === 'object') {
+        path = previousFileIndex[key] || null;
+      }
+      if (path && existingRawMarkdownByPath[path]) {
+        delete existingRawMarkdownByPath[path];
+      }
+      if (existingFileIndex[key]) {
+        delete existingFileIndex[key];
+      }
+    });
+    incomingIds.forEach(id => {
+      if (existingBaselineByMovement[id]) {
+        delete existingBaselineByMovement[id];
+      }
+    });
 
     target.movements = (target.movements || [])
       .filter(m => !incomingIds.has(m.id))
@@ -5797,6 +5899,22 @@
     if (incoming.__repoSource) {
       target.__repoSource = incoming.__repoSource;
     }
+    if (incomingFileIndex) {
+      Object.assign(existingFileIndex, incomingFileIndex);
+    }
+    if (incomingRawMarkdownByPath) {
+      Object.assign(existingRawMarkdownByPath, incomingRawMarkdownByPath);
+    }
+    if (incomingBaselineByMovement) {
+      Object.assign(existingBaselineByMovement, incomingBaselineByMovement);
+    }
+    target.__repoFileIndex = Object.keys(existingFileIndex).length ? existingFileIndex : null;
+    target.__repoRawMarkdownByPath = Object.keys(existingRawMarkdownByPath).length
+      ? existingRawMarkdownByPath
+      : null;
+    target.__repoBaselineByMovement = Object.keys(existingBaselineByMovement).length
+      ? existingBaselineByMovement
+      : null;
 
     return target;
   }
@@ -5861,7 +5979,10 @@
       version: compiled.specVersion,
       specVersion: compiled.specVersion,
       __repoInfo: compiled.repoInfo || null,
-      __repoSource: config
+      __repoSource: config,
+      __repoFileIndex: compiled.fileIndex || null,
+      __repoRawMarkdownByPath: compiled.rawMarkdownByPath || null,
+      __repoBaselineByMovement: compiled.baselineByMovement || null
     };
     applyImportedSnapshot(snapshotLike, { promptOnConflict: false });
     return compiled;
@@ -5884,6 +6005,9 @@
     snapshot = StorageService.createEmptySnapshot();
     snapshot.__repoInfo = null;
     snapshot.__repoSource = null;
+    snapshot.__repoFileIndex = null;
+    snapshot.__repoRawMarkdownByPath = null;
+    snapshot.__repoBaselineByMovement = null;
     lastRepoInfo = null;
     lastRepoSourceConfig = null;
     currentMovementId = null;
@@ -5944,7 +6068,7 @@
       deleteMovement(currentMovementId)
     );
     addListenerById('btn-import-from-github', 'click', () => openGithubImportModal());
-    addListenerById('btn-export-repo', 'click', exportCurrentRepoZip);
+    addListenerById('btn-export-repo', 'click', exportCurrentMovementZip);
 
     ['movement-name', 'movement-shortName', 'movement-summary', 'movement-tags']
       .map(id => document.getElementById(id))
