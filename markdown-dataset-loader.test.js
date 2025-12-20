@@ -1,5 +1,5 @@
 const path = require('path');
-const { loadMovementDataset } = require('./markdown-dataset-loader');
+const { importMovementRepo, loadMovementDataset } = require('./markdown-dataset-loader');
 
 function assert(condition, message) {
   if (!condition) {
@@ -34,6 +34,30 @@ async function runTests() {
 
   const movementIds = new Set(Object.values(data).flatMap(coll => Array.isArray(coll) ? coll.map(item => item.movementId || null) : []));
   assert(movementIds.has('mov-fixture'), 'All records should carry movementId');
+
+  const legacyResult = await importMovementRepo({
+    source: 'local',
+    repoPath: path.join(__dirname, 'test-fixtures/markdown-repo')
+  });
+  assert(legacyResult.specVersion === result.specVersion, 'Legacy importer should return the same spec version');
+  assert(
+    JSON.stringify(legacyResult.data) === JSON.stringify(data),
+    'Legacy importer should delegate to loadMovementDataset'
+  );
+
+  const wikiRepoResult = await loadMovementDataset({
+    source: 'local',
+    repoPath: path.join(__dirname, 'test-fixtures/movements-repo')
+  });
+  assert(wikiRepoResult.data.movements[0].id === 'mov-demo', 'Movement IDs should normalise wiki links');
+  assert(
+    wikiRepoResult.data.texts[0].mentionsEntityIds[0] === 'ent-demo',
+    'Reference fields should strip wiki link syntax'
+  );
+  assert(
+    wikiRepoResult.data.claims[0].text === 'Demo claim text stored in the body content.',
+    'Claims should fall back to body content when text is absent'
+  );
 
   console.log('All markdown dataset loader tests passed ✅');
 }

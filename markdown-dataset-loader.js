@@ -64,6 +64,21 @@
     return typeof value === 'string' ? value : '';
   }
 
+  function normaliseId(value) {
+    const str = stringOrNull(value);
+    if (!str) return null;
+    const trimmed = str.trim();
+    const wikiMatch = trimmed.match(/^\[\[(.+?)\]\]$/);
+    const unwrapped = wikiMatch ? wikiMatch[1] : trimmed;
+    return unwrapped.trim();
+  }
+
+  function normaliseIdArray(values) {
+    return normaliseArray(values)
+      .map(normaliseId)
+      .filter(Boolean);
+  }
+
   function numberOrNull(value) {
     const num = Number(value);
     return Number.isFinite(num) ? num : null;
@@ -182,8 +197,18 @@
     };
   }
 
-  async function fetchJson(url) {
-    const res = await fetch(url);
+  function getFetch(config) {
+    const fetchFn =
+      (config && (config.fetchFn || config.fetch)) ||
+      (typeof fetch !== 'undefined' ? fetch : null);
+    if (!fetchFn) {
+      throw new Error('Fetch API is not available. Provide a fetch implementation via config.fetchFn.');
+    }
+    return fetchFn;
+  }
+
+  async function fetchJson(url, fetchFn) {
+    const res = await fetchFn(url);
     if (!res.ok) {
       const body = await res.text();
       throw new Error(`GitHub API request failed (${res.status} ${res.statusText}): ${body || url}`);
@@ -191,17 +216,19 @@
     return res.json();
   }
 
-  async function resolveGitHubTree(owner, repo, refHint) {
-    const repoInfo = await fetchJson(`https://api.github.com/repos/${owner}/${repo}`);
+  async function resolveGitHubTree(owner, repo, refHint, fetchFn) {
+    const repoInfo = await fetchJson(`https://api.github.com/repos/${owner}/${repo}`, fetchFn);
     const ref = refHint || repoInfo.default_branch || 'main';
     const tree = await fetchJson(
-      `https://api.github.com/repos/${owner}/${repo}/git/trees/${encodeURIComponent(ref)}?recursive=1`
+      `https://api.github.com/repos/${owner}/${repo}/git/trees/${encodeURIComponent(ref)}?recursive=1`,
+      fetchFn
     );
     const commitSha = ref;
     return { tree, ref, commitSha };
   }
 
   function createGitHubRepoReader(config) {
+    const fetchFn = getFetch(config);
     const parsed = parseGitHubRepoUrl(config.repoUrl);
     const subdir = (config.subdir || parsed.subdir || '').replace(/^\/+|\/+$/g, '');
     const refOverride = config.ref || parsed.ref || null;
@@ -209,7 +236,7 @@
     async function listFiles(rootPath = '') {
       let treeInfo;
       try {
-        treeInfo = await resolveGitHubTree(parsed.owner, parsed.repo, refOverride);
+        treeInfo = await resolveGitHubTree(parsed.owner, parsed.repo, refOverride, fetchFn);
       } catch (err) {
         throw new Error(`Failed to list files from GitHub: ${err.message || err}`);
       }
@@ -228,7 +255,7 @@
       const prefix = subdir ? `${subdir}/` : '';
       const path = `${prefix}${filePath}`.replace(/\/{2,}/g, '/');
       const url = `https://raw.githubusercontent.com/${parsed.owner}/${parsed.repo}/${baseRef}/${path}`;
-      const res = await fetch(url);
+      const res = await fetchFn(url);
       if (!res.ok) {
         throw new Error(`Failed to fetch ${path} (${res.status} ${res.statusText}).`);
       }
@@ -251,14 +278,14 @@
   }
 
   function compileMovement(frontMatter, body, filePath) {
-    const id = stringOrNull(frontMatter.id);
+    const id = normaliseId(frontMatter.id);
     const name = stringOrNull(frontMatter.name);
     if (!id || !name) {
       throw new Error(`Movement is missing required id or name (${filePath})`);
     }
     return {
       id,
-      movementId: stringOrNull(frontMatter.movementId) || id,
+      movementId: normaliseId(frontMatter.movementId) || id,
       name,
       shortName: stringOrNull(frontMatter.shortName),
       tags: normaliseArray(frontMatter.tags).map(String),
@@ -269,8 +296,8 @@
   }
 
   function compileTextCollection(frontMatter, body, filePath) {
-    const id = stringOrNull(frontMatter.id);
-    const movementId = stringOrNull(frontMatter.movementId);
+    const id = normaliseId(frontMatter.id);
+    const movementId = normaliseId(frontMatter.movementId);
     const name = stringOrNull(frontMatter.name);
     if (!id || !movementId || !name) {
       throw new Error(`TextCollection missing required fields (${filePath})`);
@@ -279,7 +306,7 @@
       id,
       movementId,
       name,
-      rootTextIds: normaliseArray(frontMatter.rootTextIds).map(String),
+      rootTextIds: normaliseIdArray(frontMatter.rootTextIds),
       description: trimBody(body),
       tags: normaliseArray(frontMatter.tags).map(String),
       order: numberOrNull(frontMatter.order)
@@ -287,8 +314,8 @@
   }
 
   function compileText(frontMatter, body, filePath) {
-    const id = stringOrNull(frontMatter.id);
-    const movementId = stringOrNull(frontMatter.movementId);
+    const id = normaliseId(frontMatter.id);
+    const movementId = normaliseId(frontMatter.movementId);
     const title = stringOrNull(frontMatter.title);
     if (!id || !movementId || !title) {
       throw new Error(`Text missing required fields (${filePath})`);
@@ -298,18 +325,18 @@
       movementId,
       title,
       label: stringOrNull(frontMatter.label),
-      parentId: stringOrNull(frontMatter.parentId),
+      parentId: normaliseId(frontMatter.parentId),
       mainFunction: stringOrNull(frontMatter.mainFunction),
       tags: normaliseArray(frontMatter.tags).map(String),
-      mentionsEntityIds: normaliseArray(frontMatter.mentionsEntityIds).map(String),
+      mentionsEntityIds: normaliseIdArray(frontMatter.mentionsEntityIds),
       order: numberOrNull(frontMatter.order),
       content: trimBody(body)
     };
   }
 
   function compileEntity(frontMatter, body, filePath) {
-    const id = stringOrNull(frontMatter.id);
-    const movementId = stringOrNull(frontMatter.movementId);
+    const id = normaliseId(frontMatter.id);
+    const movementId = normaliseId(frontMatter.movementId);
     const name = stringOrNull(frontMatter.name);
     if (!id || !movementId || !name) {
       throw new Error(`Entity missing required fields (${filePath})`);
@@ -320,7 +347,7 @@
       name,
       kind: stringOrNull(frontMatter.kind),
       tags: normaliseArray(frontMatter.tags).map(String),
-      sourceEntityIds: normaliseArray(frontMatter.sourceEntityIds).map(String),
+      sourceEntityIds: normaliseIdArray(frontMatter.sourceEntityIds),
       sourcesOfTruth: normaliseArray(frontMatter.sourcesOfTruth).map(String),
       order: numberOrNull(frontMatter.order),
       summary: trimBody(body)
@@ -328,8 +355,8 @@
   }
 
   function compilePractice(frontMatter, body, filePath) {
-    const id = stringOrNull(frontMatter.id);
-    const movementId = stringOrNull(frontMatter.movementId);
+    const id = normaliseId(frontMatter.id);
+    const movementId = normaliseId(frontMatter.movementId);
     const name = stringOrNull(frontMatter.name);
     if (!id || !movementId || !name) {
       throw new Error(`Practice missing required fields (${filePath})`);
@@ -341,10 +368,10 @@
       kind: stringOrNull(frontMatter.kind),
       frequency: stringOrNull(frontMatter.frequency),
       tags: normaliseArray(frontMatter.tags).map(String),
-      involvedEntityIds: normaliseArray(frontMatter.involvedEntityIds).map(String),
-      instructionsTextIds: normaliseArray(frontMatter.instructionsTextIds).map(String),
-      supportingClaimIds: normaliseArray(frontMatter.supportingClaimIds).map(String),
-      sourceEntityIds: normaliseArray(frontMatter.sourceEntityIds).map(String),
+      involvedEntityIds: normaliseIdArray(frontMatter.involvedEntityIds),
+      instructionsTextIds: normaliseIdArray(frontMatter.instructionsTextIds),
+      supportingClaimIds: normaliseIdArray(frontMatter.supportingClaimIds),
+      sourceEntityIds: normaliseIdArray(frontMatter.sourceEntityIds),
       sourcesOfTruth: normaliseArray(frontMatter.sourcesOfTruth).map(String),
       order: numberOrNull(frontMatter.order),
       description: trimBody(body)
@@ -352,8 +379,8 @@
   }
 
   function compileEvent(frontMatter, body, filePath) {
-    const id = stringOrNull(frontMatter.id);
-    const movementId = stringOrNull(frontMatter.movementId);
+    const id = normaliseId(frontMatter.id);
+    const movementId = normaliseId(frontMatter.movementId);
     const name = stringOrNull(frontMatter.name);
     if (!id || !movementId || !name) {
       throw new Error(`Event missing required fields (${filePath})`);
@@ -365,18 +392,18 @@
       recurrence: stringOrNull(frontMatter.recurrence),
       timingRule: stringOrNull(frontMatter.timingRule),
       tags: normaliseArray(frontMatter.tags).map(String),
-      mainPracticeIds: normaliseArray(frontMatter.mainPracticeIds).map(String),
-      mainEntityIds: normaliseArray(frontMatter.mainEntityIds).map(String),
-      readingTextIds: normaliseArray(frontMatter.readingTextIds).map(String),
-      supportingClaimIds: normaliseArray(frontMatter.supportingClaimIds).map(String),
+      mainPracticeIds: normaliseIdArray(frontMatter.mainPracticeIds),
+      mainEntityIds: normaliseIdArray(frontMatter.mainEntityIds),
+      readingTextIds: normaliseIdArray(frontMatter.readingTextIds),
+      supportingClaimIds: normaliseIdArray(frontMatter.supportingClaimIds),
       order: numberOrNull(frontMatter.order),
       description: trimBody(body)
     };
   }
 
   function compileRule(frontMatter, body, filePath) {
-    const id = stringOrNull(frontMatter.id);
-    const movementId = stringOrNull(frontMatter.movementId);
+    const id = normaliseId(frontMatter.id);
+    const movementId = normaliseId(frontMatter.movementId);
     const shortText = stringOrNull(frontMatter.shortText);
     const kind = frontMatter.kind === undefined ? null : stringOrNull(frontMatter.kind);
     if (!id || !movementId || !shortText) {
@@ -393,19 +420,20 @@
       appliesTo: normaliseArray(frontMatter.appliesTo).map(String),
       domain: normaliseArray(frontMatter.domain).map(String),
       tags: normaliseArray(frontMatter.tags).map(String),
-      supportingTextIds: normaliseArray(frontMatter.supportingTextIds).map(String),
-      supportingClaimIds: normaliseArray(frontMatter.supportingClaimIds).map(String),
-      relatedPracticeIds: normaliseArray(frontMatter.relatedPracticeIds).map(String),
-      sourceEntityIds: normaliseArray(frontMatter.sourceEntityIds).map(String),
+      supportingTextIds: normaliseIdArray(frontMatter.supportingTextIds),
+      supportingClaimIds: normaliseIdArray(frontMatter.supportingClaimIds),
+      relatedPracticeIds: normaliseIdArray(frontMatter.relatedPracticeIds),
+      sourceEntityIds: normaliseIdArray(frontMatter.sourceEntityIds),
       sourcesOfTruth: normaliseArray(frontMatter.sourcesOfTruth).map(String),
       order: numberOrNull(frontMatter.order)
     };
   }
 
-  function compileClaim(frontMatter, _body, filePath) {
-    const id = stringOrNull(frontMatter.id);
-    const movementId = stringOrNull(frontMatter.movementId);
-    const text = stringOrNull(frontMatter.text);
+  function compileClaim(frontMatter, body, filePath) {
+    const id = normaliseId(frontMatter.id);
+    const movementId = normaliseId(frontMatter.movementId);
+    const bodyText = trimBody(body);
+    const text = stringOrNull(frontMatter.text) || (bodyText ? bodyText : null);
     if (!id || !movementId || !text) {
       throw new Error(`Claim missing required fields (${filePath})`);
     }
@@ -415,17 +443,17 @@
       text,
       category: stringOrNull(frontMatter.category),
       tags: normaliseArray(frontMatter.tags).map(String),
-      aboutEntityIds: normaliseArray(frontMatter.aboutEntityIds).map(String),
-      sourceTextIds: normaliseArray(frontMatter.sourceTextIds).map(String),
-      sourceEntityIds: normaliseArray(frontMatter.sourceEntityIds).map(String),
+      aboutEntityIds: normaliseIdArray(frontMatter.aboutEntityIds),
+      sourceTextIds: normaliseIdArray(frontMatter.sourceTextIds),
+      sourceEntityIds: normaliseIdArray(frontMatter.sourceEntityIds),
       sourcesOfTruth: normaliseArray(frontMatter.sourcesOfTruth).map(String),
       order: numberOrNull(frontMatter.order)
     };
   }
 
   function compileMedia(frontMatter, body, filePath) {
-    const id = stringOrNull(frontMatter.id);
-    const movementId = stringOrNull(frontMatter.movementId);
+    const id = normaliseId(frontMatter.id);
+    const movementId = normaliseId(frontMatter.movementId);
     const kind = stringOrNull(frontMatter.kind);
     const uri = stringOrNull(frontMatter.uri);
     if (!id || !movementId || !kind || !uri) {
@@ -438,20 +466,20 @@
       uri,
       title: stringOrNull(frontMatter.title),
       tags: normaliseArray(frontMatter.tags).map(String),
-      linkedEntityIds: normaliseArray(frontMatter.linkedEntityIds).map(String),
-      linkedPracticeIds: normaliseArray(frontMatter.linkedPracticeIds).map(String),
-      linkedEventIds: normaliseArray(frontMatter.linkedEventIds).map(String),
-      linkedTextIds: normaliseArray(frontMatter.linkedTextIds).map(String),
+      linkedEntityIds: normaliseIdArray(frontMatter.linkedEntityIds),
+      linkedPracticeIds: normaliseIdArray(frontMatter.linkedPracticeIds),
+      linkedEventIds: normaliseIdArray(frontMatter.linkedEventIds),
+      linkedTextIds: normaliseIdArray(frontMatter.linkedTextIds),
       order: numberOrNull(frontMatter.order),
       description: trimBody(body)
     };
   }
 
   function compileNote(frontMatter, body, filePath) {
-    const id = stringOrNull(frontMatter.id);
-    const movementId = stringOrNull(frontMatter.movementId);
+    const id = normaliseId(frontMatter.id);
+    const movementId = normaliseId(frontMatter.movementId);
     const rawTarget = frontMatter.targetType;
-    const targetId = stringOrNull(frontMatter.targetId);
+    const targetId = normaliseId(frontMatter.targetId);
     if (!id || !movementId || !rawTarget || !targetId) {
       throw new Error(`Note missing required fields (${filePath})`);
     }
@@ -735,11 +763,24 @@
 
   function detectCollectionFromPath(path) {
     const parts = path.split('/').filter(Boolean);
-    if (parts[0] !== 'data' || parts.length < 3) return null;
-    const collectionDir = parts[1];
-    if (!COLLECTION_NAMES.includes(collectionDir)) return null;
+    if (parts.length < 2) return null;
     if (!/\.md$/i.test(parts[parts.length - 1])) return null;
-    return collectionDir;
+
+    const dataIndex = parts.lastIndexOf('data');
+    if (dataIndex !== -1 && dataIndex < parts.length - 1) {
+      const candidate = parts[dataIndex + 1];
+      if (COLLECTION_NAMES.includes(candidate)) return candidate;
+    }
+
+    const movementsIndex = parts.lastIndexOf('movements');
+    if (movementsIndex !== -1 && movementsIndex < parts.length - 1) {
+      const collectionCandidate = parts[movementsIndex + 2];
+      if (COLLECTION_NAMES.includes(collectionCandidate)) return collectionCandidate;
+      const hasMovementFileDirectly = parts.length === movementsIndex + 3;
+      if (hasMovementFileDirectly) return 'movements';
+    }
+
+    return null;
   }
 
   async function readMarkdownRecords(reader, repoListing) {
@@ -748,7 +789,7 @@
     const paths = files.filter(path => detectCollectionFromPath(path));
 
     if (paths.length === 0) {
-      throw new Error('No markdown records were found under the expected data/ folders.');
+      throw new Error('No markdown records were found under the expected data/ or movements/<id>/ folders.');
     }
 
     for (const path of paths) {
@@ -765,43 +806,79 @@
     return records;
   }
 
+  async function importMovementRepo(configOrUrl) {
+    const config =
+      typeof configOrUrl === 'string'
+        ? { repoUrl: configOrUrl }
+        : { ...(configOrUrl || {}) };
+    const source = config.source || 'github';
+    if (source === 'github' && !config.repoUrl) {
+      throw new Error('repoUrl is required for GitHub sources.');
+    }
+    return loadMovementDataset({ ...config, source });
+  }
+
   async function loadMovementDataset(config) {
     if (!config || typeof config !== 'object') {
       throw new Error('Source config is required to load a movement dataset.');
     }
-    const rootPath = config.rootPath || 'data';
-    if (typeof rootPath === 'string' && rootPath.endsWith('.json')) {
+    const preferredRootPath = config.rootPath ?? 'data';
+    if (typeof preferredRootPath === 'string' && preferredRootPath.endsWith('.json')) {
       throw new Error('JSON sources are not supported in v2.3. Provide a markdown repository path.');
     }
 
     let reader;
-    let listing;
     if (config.source === 'local') {
       reader = createLocalRepoReader(config.repoPath || config.root || '.');
-      const files = await reader.listFiles(rootPath);
-      listing = { files };
     } else if (config.source === 'github') {
       if (!config.repoUrl) {
         throw new Error('repoUrl is required for GitHub sources.');
       }
       reader = createGitHubRepoReader(config);
-      listing = await reader.listFiles(rootPath);
     } else {
       throw new Error('Unknown source type. Use { source: "local" } or { source: "github" }.');
     }
 
-    const records = await readMarkdownRecords(reader, listing);
-    const data = compileRecords(records);
+    const rootCandidates = [preferredRootPath];
+    if (!config.rootPath) {
+      rootCandidates.push('', 'movements');
+    }
+    const uniqueRootCandidates = Array.from(new Set(rootCandidates));
 
-    return {
-      specVersion: SPEC_VERSION,
-      generatedAt: new Date().toISOString(),
-      data
-    };
+    let lastError = null;
+    for (const rootPath of uniqueRootCandidates) {
+      try {
+        let listing;
+        if (config.source === 'local') {
+          const files = await reader.listFiles(rootPath);
+          listing = { files };
+        } else {
+          listing = await reader.listFiles(rootPath);
+        }
+        const records = await readMarkdownRecords(reader, listing);
+        const data = compileRecords(records);
+
+        return {
+          specVersion: SPEC_VERSION,
+          generatedAt: new Date().toISOString(),
+          data
+        };
+      } catch (err) {
+        const message = err && err.message ? err.message : '';
+        lastError = err;
+        if (message.includes('No markdown records were found') || err?.code === 'ENOENT') {
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    throw lastError || new Error('No markdown records were found under the expected data/ or movements/<id>/ folders.');
   }
 
   const api = {
     loadMovementDataset,
+    importMovementRepo,
     createLocalRepoReader,
     createGitHubRepoReader,
     parseGitHubRepoUrl
@@ -812,5 +889,9 @@
   }
   if (typeof window !== 'undefined') {
     window.MarkdownDatasetLoader = api;
+    window.GitHubRepoImporter = window.GitHubRepoImporter || {
+      importMovementRepo: api.importMovementRepo,
+      parseGitHubRepoUrl: api.parseGitHubRepoUrl
+    };
   }
 })();
