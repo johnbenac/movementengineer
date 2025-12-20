@@ -332,15 +332,20 @@
   }
 
   function resetNavigationHistory() {
+    const hadHistory = navigationStack.length > 0 || navigationIndex !== -1;
     navigationStack = [];
     navigationIndex = -1;
     updateNavigationButtons();
+    if (hadHistory) {
+      notifyLegacyStateChanged();
+    }
   }
 
-  function pushNavigationState(collectionName, itemId) {
+  function pushNavigationState(collectionName, itemId, options = {}) {
+    const { notify = true } = options;
     if (!collectionName || !itemId) {
       updateNavigationButtons();
-      return;
+      return false;
     }
 
     const current = navigationStack[navigationIndex];
@@ -350,21 +355,28 @@
       current.itemId === itemId
     ) {
       updateNavigationButtons();
-      return;
+      return false;
     }
 
     navigationStack = navigationStack.slice(0, navigationIndex + 1);
     navigationStack.push({ collectionName, itemId });
     navigationIndex = navigationStack.length - 1;
     updateNavigationButtons();
+    if (notify) {
+      notifyLegacyStateChanged();
+    }
+    return true;
   }
 
-  function pruneNavigationState(collectionName, itemId) {
+  function pruneNavigationState(collectionName, itemId, options = {}) {
+    const { notify = true } = options;
     if (!navigationStack.length) return;
     const filtered = [];
+    let pruned = false;
     navigationStack.forEach((entry, idx) => {
       if (entry.collectionName === collectionName && entry.itemId === itemId) {
         if (idx <= navigationIndex) navigationIndex -= 1;
+        pruned = true;
         return;
       }
       filtered.push(entry);
@@ -379,19 +391,27 @@
       );
     }
     updateNavigationButtons();
+    if (pruned && notify) {
+      notifyLegacyStateChanged();
+    }
   }
 
   function navigateHistory(direction) {
     if (!navigationStack.length) return;
     const target = navigationIndex + direction;
     if (target < 0 || target >= navigationStack.length) return;
+    const previousIndex = navigationIndex;
     navigationIndex = target;
     const state = navigationStack[navigationIndex];
-    setCollectionAndItem(state.collectionName, state.itemId, {
+    const stateChanged = setCollectionAndItem(state.collectionName, state.itemId, {
       addToHistory: false,
-      fromHistory: true
+      fromHistory: true,
+      notify: false
     });
     updateNavigationButtons();
+    if (stateChanged || navigationIndex !== previousIndex) {
+      notifyLegacyStateChanged();
+    }
   }
 
   // ---- Movement helpers ----
@@ -401,6 +421,10 @@
   }
 
   function selectMovement(id) {
+    const prevMovementId = currentMovementId;
+    const prevItemId = currentItemId;
+    const prevTextId = currentTextId;
+    const prevCanonFilters = { ...canonFilters };
     currentMovementId = id || null;
     currentItemId = null; // reset item selection in collection editor
     currentTextId = null;
@@ -408,6 +432,16 @@
     renderMovementList();
     renderActiveTab();
     closeSidebarOnMobile();
+    const canonFiltersChanged =
+      JSON.stringify(prevCanonFilters) !== JSON.stringify(canonFilters);
+    if (
+      prevMovementId !== currentMovementId ||
+      prevItemId !== currentItemId ||
+      prevTextId !== currentTextId ||
+      canonFiltersChanged
+    ) {
+      notifyLegacyStateChanged();
+    }
   }
 
   function addMovement() {
@@ -5082,11 +5116,19 @@
   }
 
   function setCollectionAndItem(collectionName, itemId, options = {}) {
-    const { addToHistory = true, fromHistory = false } = options;
+    const {
+      addToHistory = true,
+      fromHistory = false,
+      notify = true
+    } = options;
+    const prevCollectionName = currentCollectionName;
+    const prevItemId = currentItemId;
+    const prevNavigationIndex = navigationIndex;
+    const prevNavigationStack = navigationStack;
 
     if (!COLLECTION_NAMES.includes(collectionName)) {
       setStatus('Unknown collection: ' + collectionName);
-      return;
+      return false;
     }
 
     currentCollectionName = collectionName;
@@ -5117,10 +5159,19 @@
     renderItemDetail();
 
     if (addToHistory && currentItemId && !fromHistory) {
-      pushNavigationState(collectionName, currentItemId);
+      pushNavigationState(collectionName, currentItemId, { notify: false });
     } else {
       updateNavigationButtons();
     }
+    const navigationChanged =
+      prevNavigationIndex !== navigationIndex || prevNavigationStack !== navigationStack;
+    const selectionChanged =
+      prevCollectionName !== currentCollectionName || prevItemId !== currentItemId;
+    const stateChanged = selectionChanged || navigationChanged;
+    if (stateChanged && notify) {
+      notifyLegacyStateChanged();
+    }
+    return stateChanged;
   }
 
   function jumpToReferencedItem(collectionName, itemId) {
