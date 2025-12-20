@@ -69,6 +69,8 @@
   let isCanonCollectionInputsInitialized = false;
   let fatalImportErrorDom = null;
   let githubImportModal = null;
+  let lastRepoSourceConfig = null;
+  let lastRepoInfo = null;
   const DEFAULT_GITHUB_REPO_URL = 'https://github.com/johnbenac/movementengineer';
 
   function updateDirtyState() {
@@ -5694,6 +5696,78 @@
     return movementSnapshot;
   }
 
+  function rememberRepoSource(config, compiled) {
+    if (config && config.source === 'github') {
+      lastRepoSourceConfig = {
+        source: 'github',
+        repoUrl: config.repoUrl,
+        ref: compiled?.repoInfo?.ref || config.ref || null,
+        subdir: compiled?.repoInfo?.subdir || config.subdir || ''
+      };
+      lastRepoInfo = compiled?.repoInfo || null;
+    }
+  }
+
+  function deriveRepoFilename(result, config) {
+    const repoInfo = result?.repoInfo || lastRepoInfo || null;
+    const parsed =
+      repoInfo && repoInfo.owner && repoInfo.repo
+        ? { owner: repoInfo.owner, repo: repoInfo.repo }
+        : (() => {
+            try {
+              if (config?.repoUrl && MarkdownDatasetLoader.parseGitHubRepoUrl) {
+                return MarkdownDatasetLoader.parseGitHubRepoUrl(config.repoUrl);
+              }
+            } catch (e) {
+              return null;
+            }
+            return null;
+          })();
+    const base =
+      parsed && parsed.owner && parsed.repo
+        ? `${parsed.owner}-${parsed.repo}`
+        : 'movement-repo';
+    const suffix = repoInfo?.commitSha || repoInfo?.ref || null;
+    return suffix ? `${base}-${suffix}.zip` : `${base}.zip`;
+  }
+
+  async function exportCurrentRepoZip() {
+    const exportBtn = document.getElementById('btn-export-repo');
+    if (!window.MarkdownDatasetLoader || !MarkdownDatasetLoader.exportRepoToZip) {
+      setStatus('Export not available in this build.');
+      return;
+    }
+    if (!lastRepoSourceConfig) {
+      lastRepoSourceConfig = { source: 'github', repoUrl: DEFAULT_GITHUB_REPO_URL };
+    }
+    const config = lastRepoSourceConfig;
+    setStatus('Preparing repo zip...');
+    if (exportBtn) exportBtn.disabled = true;
+    try {
+      const result = await MarkdownDatasetLoader.exportRepoToZip(config, {
+        outputType: 'blob'
+      });
+      const filename = deriveRepoFilename(result, config);
+      const url = URL.createObjectURL(result.archive);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename;
+      anchor.style.display = 'none';
+      document.body.appendChild(anchor);
+      anchor.click();
+      setTimeout(() => {
+        document.body.removeChild(anchor);
+        URL.revokeObjectURL(url);
+      }, 0);
+      setStatus('Repo zip ready ✓');
+    } catch (e) {
+      console.error(e);
+      setStatus('Export failed');
+    } finally {
+      if (exportBtn) exportBtn.disabled = false;
+    }
+  }
+
   function mergeMovementSnapshotIntoExisting(fullSnapshot, movementSnapshot) {
     const target = StorageService.ensureAllCollections(fullSnapshot || {});
     const incoming = StorageService.ensureAllCollections(movementSnapshot || {});
@@ -5716,6 +5790,13 @@
       );
       target[collName] = filteredExisting.concat(incomingItems);
     });
+
+    if (incoming.__repoInfo) {
+      target.__repoInfo = incoming.__repoInfo;
+    }
+    if (incoming.__repoSource) {
+      target.__repoSource = incoming.__repoSource;
+    }
 
     return target;
   }
@@ -5774,10 +5855,13 @@
 
   async function loadMarkdownRepoAndApply(config) {
     const compiled = await MarkdownDatasetLoader.loadMovementDataset(config);
+    rememberRepoSource(config, compiled);
     const snapshotLike = {
       ...compiled.data,
       version: compiled.specVersion,
-      specVersion: compiled.specVersion
+      specVersion: compiled.specVersion,
+      __repoInfo: compiled.repoInfo || null,
+      __repoSource: config
     };
     applyImportedSnapshot(snapshotLike, { promptOnConflict: false });
     return compiled;
@@ -5798,6 +5882,10 @@
     );
     if (!ok) return;
     snapshot = StorageService.createEmptySnapshot();
+    snapshot.__repoInfo = null;
+    snapshot.__repoSource = null;
+    lastRepoInfo = null;
+    lastRepoSourceConfig = null;
     currentMovementId = null;
     currentItemId = null;
     currentTextId = null;
@@ -5818,6 +5906,12 @@
 
   async function init() {
     snapshot = loadSnapshot();
+    if (snapshot.__repoSource) {
+      lastRepoSourceConfig = snapshot.__repoSource;
+    }
+    if (snapshot.__repoInfo) {
+      lastRepoInfo = snapshot.__repoInfo;
+    }
     if (!snapshot.movements.length) {
       try {
         await loadDefaultMarkdownDataset();
@@ -5857,6 +5951,7 @@
       deleteMovement(currentMovementId)
     );
     addListenerById('btn-import-from-github', 'click', () => openGithubImportModal());
+    addListenerById('btn-export-repo', 'click', exportCurrentRepoZip);
 
     ['movement-name', 'movement-shortName', 'movement-summary', 'movement-tags']
       .map(id => document.getElementById(id))
