@@ -11,6 +11,7 @@
   'use strict';
 
   const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
+  movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
   const bootstrapOptions = movementEngineerGlobal.bootstrapOptions || {};
   movementEngineerGlobal.bootstrapOptions = bootstrapOptions;
   if (typeof bootstrapOptions.legacyAutoInit === 'undefined') {
@@ -487,6 +488,38 @@
     while (el.firstChild) el.removeChild(el.firstChild);
   }
 
+  function parseModuleTabList(raw) {
+    if (!raw) return null;
+    if (Array.isArray(raw)) return raw.map(String);
+    if (typeof raw === 'string') {
+      return raw
+        .split(',')
+        .map(part => part.trim())
+        .filter(Boolean);
+    }
+    return null;
+  }
+
+  function isModuleTabEnabled(tabName) {
+    const enabledFromBootstrap = parseModuleTabList(
+      movementEngineerGlobal.bootstrapOptions?.moduleTabs
+    );
+    if (enabledFromBootstrap) {
+      return enabledFromBootstrap.includes(tabName);
+    }
+
+    try {
+      const stored = parseModuleTabList(localStorage.getItem('me:moduleTabs'));
+      if (stored) {
+        return stored.includes(tabName);
+      }
+    } catch (error) {
+      console.warn('Unable to read module tab preferences from localStorage', error);
+    }
+
+    return true;
+  }
+
   function getActiveTabName() {
     const btn = document.querySelector('.tab.active');
     return btn ? btn.dataset.tab : 'dashboard';
@@ -494,6 +527,27 @@
 
   function renderActiveTab() {
     const tabName = getActiveTabName();
+    const moduleTab = movementEngineerGlobal?.tabs?.[tabName];
+    const ctx = movementEngineerGlobal?.ctx;
+
+    if (
+      moduleTab &&
+      typeof moduleTab.render === 'function' &&
+      ctx &&
+      isModuleTabEnabled(tabName)
+    ) {
+      try {
+        if (!moduleTab.__mounted && typeof moduleTab.mount === 'function') {
+          moduleTab.mount(ctx);
+          moduleTab.__mounted = true;
+        }
+        moduleTab.render(ctx);
+      } catch (err) {
+        showFatalImportError(err);
+      }
+      return;
+    }
+
     switch (tabName) {
       case 'dashboard':
         renderMovementForm();

@@ -1,6 +1,7 @@
 import { createStore } from './store.js';
 import { createStatusUi } from './ui/status.js';
 import { createDomUtils } from './ui/dom.js';
+import { registerComparisonTab } from './tabs/comparison.js';
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.bootstrapOptions = movementEngineerGlobal.bootstrapOptions || {};
@@ -31,6 +32,8 @@ const ctx = {
   actions: movementEngineerGlobal.actions || {},
   components: movementEngineerGlobal.components || {}
 };
+
+registerComparisonTab(ctx);
 
 movementEngineerGlobal.ctx = ctx;
 movementEngineerGlobal.store = store;
