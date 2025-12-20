@@ -50,6 +50,12 @@
     throw new Error('YAML parser not available. Ensure js-yaml is loaded.');
   }
 
+  function getZipLib() {
+    if (isNode()) return require('jszip');
+    if (typeof window !== 'undefined' && window.JSZip) return window.JSZip;
+    throw new Error('JSZip is not available. Ensure jszip is loaded.');
+  }
+
   let cachedFetch = null;
   function getFetchWithProxy() {
     if (cachedFetch) return cachedFetch;
@@ -841,6 +847,251 @@
     return records;
   }
 
+  // ------------------------
+  // Repo writers
+  // ------------------------
+
+  function slugify(value, fallback) {
+    const base =
+      value === undefined || value === null ? '' : typeof value === 'string' ? value : String(value);
+    const slug = base
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    return slug || fallback || 'movement';
+  }
+
+  function setIfPresent(target, key, value) {
+    if (value === undefined || value === null) return;
+    target[key] = value;
+  }
+
+  function setArrayIfPresent(target, key, arr) {
+    if (!Array.isArray(arr) || arr.length === 0) return;
+    target[key] = arr.slice();
+  }
+
+  function serialiseRecord(collection, item, { schema, includeSchema = false } = {}) {
+    const frontMatter = {};
+    if (includeSchema && schema) {
+      frontMatter.schema = schema;
+    }
+
+    switch (collection) {
+      case 'movements': {
+        const movementId = item.movementId || item.id;
+        frontMatter.id = item.id;
+        frontMatter.movementId = movementId;
+        frontMatter.name = stringOrEmpty(item.name);
+        setIfPresent(frontMatter, 'shortName', stringOrNull(item.shortName));
+        setArrayIfPresent(frontMatter, 'tags', normaliseArray(item.tags));
+        setIfPresent(frontMatter, 'status', stringOrNull(item.status));
+        setIfPresent(frontMatter, 'order', numberOrNull(item.order));
+        return { frontMatter, body: stringOrEmpty(item.summary) };
+      }
+      case 'textCollections': {
+        frontMatter.id = item.id;
+        frontMatter.movementId = item.movementId;
+        frontMatter.name = stringOrEmpty(item.name);
+        setArrayIfPresent(frontMatter, 'rootTextIds', normaliseIds(item.rootTextIds));
+        setArrayIfPresent(frontMatter, 'tags', normaliseArray(item.tags));
+        setIfPresent(frontMatter, 'order', numberOrNull(item.order));
+        return { frontMatter, body: stringOrEmpty(item.description) };
+      }
+      case 'texts': {
+        frontMatter.id = item.id;
+        frontMatter.movementId = item.movementId;
+        frontMatter.title = stringOrEmpty(item.title);
+        setIfPresent(frontMatter, 'label', stringOrNull(item.label));
+        setIfPresent(frontMatter, 'parentId', stringOrNull(item.parentId));
+        setIfPresent(frontMatter, 'mainFunction', stringOrNull(item.mainFunction));
+        setArrayIfPresent(frontMatter, 'tags', normaliseArray(item.tags));
+        setArrayIfPresent(frontMatter, 'mentionsEntityIds', normaliseIds(item.mentionsEntityIds));
+        setIfPresent(frontMatter, 'order', numberOrNull(item.order));
+        return { frontMatter, body: stringOrEmpty(item.content) };
+      }
+      case 'entities': {
+        frontMatter.id = item.id;
+        frontMatter.movementId = item.movementId;
+        frontMatter.name = stringOrEmpty(item.name);
+        setIfPresent(frontMatter, 'kind', stringOrNull(item.kind));
+        setArrayIfPresent(frontMatter, 'tags', normaliseArray(item.tags));
+        setArrayIfPresent(frontMatter, 'sourceEntityIds', normaliseIds(item.sourceEntityIds));
+        setArrayIfPresent(frontMatter, 'sourcesOfTruth', normaliseArray(item.sourcesOfTruth));
+        setIfPresent(frontMatter, 'order', numberOrNull(item.order));
+        return { frontMatter, body: stringOrEmpty(item.summary) };
+      }
+      case 'practices': {
+        frontMatter.id = item.id;
+        frontMatter.movementId = item.movementId;
+        frontMatter.name = stringOrEmpty(item.name);
+        setIfPresent(frontMatter, 'kind', stringOrNull(item.kind));
+        setIfPresent(frontMatter, 'frequency', stringOrNull(item.frequency));
+        setArrayIfPresent(frontMatter, 'tags', normaliseArray(item.tags));
+        setArrayIfPresent(frontMatter, 'involvedEntityIds', normaliseIds(item.involvedEntityIds));
+        setArrayIfPresent(frontMatter, 'instructionsTextIds', normaliseIds(item.instructionsTextIds));
+        setArrayIfPresent(frontMatter, 'supportingClaimIds', normaliseIds(item.supportingClaimIds));
+        setArrayIfPresent(frontMatter, 'sourceEntityIds', normaliseIds(item.sourceEntityIds));
+        setArrayIfPresent(frontMatter, 'sourcesOfTruth', normaliseArray(item.sourcesOfTruth));
+        setIfPresent(frontMatter, 'order', numberOrNull(item.order));
+        return { frontMatter, body: stringOrEmpty(item.description) };
+      }
+      case 'events': {
+        frontMatter.id = item.id;
+        frontMatter.movementId = item.movementId;
+        frontMatter.name = stringOrEmpty(item.name);
+        setIfPresent(frontMatter, 'recurrence', stringOrNull(item.recurrence));
+        setIfPresent(frontMatter, 'timingRule', stringOrNull(item.timingRule));
+        setArrayIfPresent(frontMatter, 'tags', normaliseArray(item.tags));
+        setArrayIfPresent(frontMatter, 'mainPracticeIds', normaliseIds(item.mainPracticeIds));
+        setArrayIfPresent(frontMatter, 'mainEntityIds', normaliseIds(item.mainEntityIds));
+        setArrayIfPresent(frontMatter, 'readingTextIds', normaliseIds(item.readingTextIds));
+        setArrayIfPresent(frontMatter, 'supportingClaimIds', normaliseIds(item.supportingClaimIds));
+        setIfPresent(frontMatter, 'order', numberOrNull(item.order));
+        return { frontMatter, body: stringOrEmpty(item.description) };
+      }
+      case 'rules': {
+        frontMatter.id = item.id;
+        frontMatter.movementId = item.movementId;
+        frontMatter.shortText = stringOrEmpty(item.shortText);
+        setIfPresent(frontMatter, 'kind', stringOrNull(item.kind));
+        setArrayIfPresent(frontMatter, 'appliesTo', normaliseArray(item.appliesTo));
+        setArrayIfPresent(frontMatter, 'domain', normaliseArray(item.domain));
+        setArrayIfPresent(frontMatter, 'tags', normaliseArray(item.tags));
+        setArrayIfPresent(frontMatter, 'supportingTextIds', normaliseIds(item.supportingTextIds));
+        setArrayIfPresent(frontMatter, 'supportingClaimIds', normaliseIds(item.supportingClaimIds));
+        setArrayIfPresent(frontMatter, 'relatedPracticeIds', normaliseIds(item.relatedPracticeIds));
+        setArrayIfPresent(frontMatter, 'sourceEntityIds', normaliseIds(item.sourceEntityIds));
+        setArrayIfPresent(frontMatter, 'sourcesOfTruth', normaliseArray(item.sourcesOfTruth));
+        setIfPresent(frontMatter, 'order', numberOrNull(item.order));
+        return { frontMatter, body: stringOrEmpty(item.details) };
+      }
+      case 'claims': {
+        frontMatter.id = item.id;
+        frontMatter.movementId = item.movementId;
+        frontMatter.text = stringOrEmpty(item.text);
+        setIfPresent(frontMatter, 'category', stringOrNull(item.category));
+        setArrayIfPresent(frontMatter, 'tags', normaliseArray(item.tags));
+        setArrayIfPresent(frontMatter, 'aboutEntityIds', normaliseIds(item.aboutEntityIds));
+        setArrayIfPresent(frontMatter, 'sourceTextIds', normaliseIds(item.sourceTextIds));
+        setArrayIfPresent(frontMatter, 'sourceEntityIds', normaliseIds(item.sourceEntityIds));
+        setArrayIfPresent(frontMatter, 'sourcesOfTruth', normaliseArray(item.sourcesOfTruth));
+        setIfPresent(frontMatter, 'order', numberOrNull(item.order));
+        return { frontMatter, body: stringOrEmpty(item.text) };
+      }
+      case 'media': {
+        frontMatter.id = item.id;
+        frontMatter.movementId = item.movementId;
+        frontMatter.kind = stringOrEmpty(item.kind);
+        frontMatter.uri = stringOrEmpty(item.uri);
+        setIfPresent(frontMatter, 'title', stringOrNull(item.title));
+        setArrayIfPresent(frontMatter, 'tags', normaliseArray(item.tags));
+        setArrayIfPresent(frontMatter, 'linkedEntityIds', normaliseIds(item.linkedEntityIds));
+        setArrayIfPresent(frontMatter, 'linkedPracticeIds', normaliseIds(item.linkedPracticeIds));
+        setArrayIfPresent(frontMatter, 'linkedEventIds', normaliseIds(item.linkedEventIds));
+        setArrayIfPresent(frontMatter, 'linkedTextIds', normaliseIds(item.linkedTextIds));
+        setIfPresent(frontMatter, 'order', numberOrNull(item.order));
+        return { frontMatter, body: stringOrEmpty(item.description) };
+      }
+      case 'notes': {
+        frontMatter.id = item.id;
+        frontMatter.movementId = item.movementId;
+        frontMatter.targetType = stringOrEmpty(item.targetType);
+        frontMatter.targetId = stringOrEmpty(item.targetId);
+        setIfPresent(frontMatter, 'author', stringOrNull(item.author));
+        setIfPresent(frontMatter, 'context', stringOrNull(item.context));
+        setArrayIfPresent(frontMatter, 'tags', normaliseArray(item.tags));
+        setIfPresent(frontMatter, 'order', numberOrNull(item.order));
+        return { frontMatter, body: stringOrEmpty(item.body) };
+      }
+      default:
+        throw new Error(`Unsupported collection for serialisation: ${collection}`);
+    }
+  }
+
+  function renderMarkdownFile(frontMatter, body) {
+    const yaml = getYamlLib();
+    const fmText = yaml.dump(frontMatter, { noRefs: true, lineWidth: -1 });
+    const bodyText = body === undefined || body === null ? '' : String(body);
+    const trimmedBody = bodyText.trimEnd();
+    const bodyBlock = trimmedBody ? `\n\n${trimmedBody}\n` : '\n';
+    return `---\n${fmText}---${bodyBlock}`;
+  }
+
+  function prepareDataset(data) {
+    const shaped = ensureDataShape();
+    if (!data || typeof data !== 'object') return shaped;
+    COLLECTION_NAMES.forEach(name => {
+      shaped[name] = Array.isArray(data[name]) ? data[name].slice() : [];
+    });
+    return shaped;
+  }
+
+  function createMarkdownRepoFiles(data, options = {}) {
+    const dataset = prepareDataset(data);
+    const baseDir = options.baseDir === undefined ? 'movements' : options.baseDir;
+    const schema = options.schema || 'movement-repo-v2';
+    const files = [];
+    const movements = sortCollection(dataset.movements);
+
+    if (movements.length === 0) {
+      throw new Error('Cannot export markdown: no movements found in dataset.');
+    }
+
+    movements.forEach(movement => {
+      const movementSlug = slugify(
+        movement.shortName || movement.name || movement.id,
+        movement.id || 'movement'
+      );
+      const movementDir = baseDir ? `${baseDir}/${movementSlug}` : movementSlug;
+      const { frontMatter, body } = serialiseRecord('movements', movement, {
+        schema,
+        includeSchema: true
+      });
+      files.push({
+        path: `${movementDir}/movement.md`,
+        content: renderMarkdownFile(frontMatter, body)
+      });
+
+      COLLECTION_NAMES.forEach(collection => {
+        if (collection === 'movements') return;
+        const items = (dataset[collection] || []).filter(item => item.movementId === movement.id);
+        if (!items.length) return;
+        const sortedItems = sortCollection(items);
+        sortedItems.forEach(item => {
+          const nameForSlug = item.name || item.title || item.shortText || item.id;
+          const fileName = `${slugify(nameForSlug, item.id)}.md`;
+          const serialised = serialiseRecord(collection, item);
+          files.push({
+            path: `${movementDir}/${collection}/${fileName}`,
+            content: renderMarkdownFile(serialised.frontMatter, serialised.body)
+          });
+        });
+      });
+    });
+
+    return files;
+  }
+
+  async function exportMarkdownRepoToZip(data, options = {}) {
+    const files = createMarkdownRepoFiles(data, options);
+    const JSZip = getZipLib();
+    const zip = new JSZip();
+    files.forEach(file => zip.file(file.path, file.content));
+    const outputType = options.outputType || (isNode() ? 'nodebuffer' : 'blob');
+    const archive = await zip.generateAsync({
+      type: outputType,
+      compression: 'DEFLATE',
+      compressionOptions: { level: 9 }
+    });
+    return {
+      archive,
+      fileName: options.fileName || 'movement-markdown.zip',
+      files
+    };
+  }
+
   async function loadMovementDataset(config) {
     if (!config || typeof config !== 'object') {
       throw new Error('Source config is required to load a movement dataset.');
@@ -887,7 +1138,9 @@
     loadMovementDataset,
     createLocalRepoReader,
     createGitHubRepoReader,
-    parseGitHubRepoUrl
+    parseGitHubRepoUrl,
+    createMarkdownRepoFiles,
+    exportMarkdownRepoToZip
   };
 
   async function importMovementRepo(repoUrl) {

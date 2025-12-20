@@ -5783,6 +5783,37 @@
     return compiled;
   }
 
+  async function exportMarkdownZip() {
+    const exportBtn = document.getElementById('btn-export-markdown');
+    if (exportBtn) exportBtn.disabled = true;
+    try {
+      const dataset = StorageService.ensureAllCollections(
+        snapshot || StorageService.createEmptySnapshot()
+      );
+      const { archive, fileName } = await MarkdownDatasetLoader.exportMarkdownRepoToZip(dataset, {
+        baseDir: 'movements',
+        schema: 'movement-repo-v2'
+      });
+      const blob =
+        archive instanceof Blob ? archive : new Blob([archive], { type: 'application/zip' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setStatus('Exported markdown zip');
+    } catch (e) {
+      console.error(e);
+      setStatus('Export failed');
+      alert(`Failed to export markdown zip: ${e.message || e}`);
+    } finally {
+      if (exportBtn) exportBtn.disabled = false;
+    }
+  }
+
   async function loadDefaultMarkdownDataset() {
     const compiled = await loadMarkdownRepoAndApply({
       source: 'github',
@@ -5856,6 +5887,7 @@
     addListenerById('btn-delete-movement', 'click', () =>
       deleteMovement(currentMovementId)
     );
+    addListenerById('btn-export-markdown', 'click', exportMarkdownZip);
     addListenerById('btn-import-from-github', 'click', () => openGithubImportModal());
 
     ['movement-name', 'movement-shortName', 'movement-summary', 'movement-tags']

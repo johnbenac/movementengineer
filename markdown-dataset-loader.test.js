@@ -1,5 +1,11 @@
+const fs = require('fs');
+const os = require('os');
 const path = require('path');
-const { loadMovementDataset } = require('./markdown-dataset-loader');
+const {
+  loadMovementDataset,
+  createMarkdownRepoFiles,
+  exportMarkdownRepoToZip
+} = require('./markdown-dataset-loader');
 
 function assert(condition, message) {
   if (!condition) {
@@ -34,6 +40,27 @@ async function runTests() {
 
   const movementIds = new Set(Object.values(data).flatMap(coll => Array.isArray(coll) ? coll.map(item => item.movementId || null) : []));
   assert(movementIds.has('mov-fixture'), 'All records should carry movementId');
+
+  const repoFiles = createMarkdownRepoFiles(data, { schema: 'movement-repo-v2' });
+  assert(repoFiles.length > 0, 'Exporter should emit files');
+  assert(repoFiles.some(f => f.path.endsWith('/movement.md')), 'Exporter should include movement file');
+
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'md-export-'));
+  repoFiles.forEach(file => {
+    const dest = path.join(tmpDir, file.path);
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.writeFileSync(dest, file.content, 'utf8');
+  });
+
+  const roundTrip = await loadMovementDataset({ source: 'local', repoPath: tmpDir });
+  assert(
+    JSON.stringify(roundTrip.data) === JSON.stringify(data),
+    'Exported markdown should round-trip to the same dataset'
+  );
+  fs.rmSync(tmpDir, { recursive: true, force: true });
+
+  const zipResult = await exportMarkdownRepoToZip(data, { outputType: 'nodebuffer' });
+  assert(Buffer.isBuffer(zipResult.archive), 'Zip export should return a buffer in Node');
 
   console.log('All markdown dataset loader tests passed ✅');
 }
