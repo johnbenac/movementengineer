@@ -1,7 +1,5 @@
 import { expect, test } from '@playwright/test';
-import path from 'path';
-
-const indexUrl = `file://${path.join(process.cwd(), 'index.html')}`;
+const indexUrl = '/index.html';
 
 const comparisonSnapshot = {
   version: '2.3',
