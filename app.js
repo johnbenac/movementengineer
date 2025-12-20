@@ -331,17 +331,25 @@
       navigationIndex < 0 || navigationIndex >= navigationStack.length - 1;
   }
 
-  function resetNavigationHistory() {
+  function resetNavigationHistory({ notify = true } = {}) {
+    const previousLength = navigationStack.length;
+    const previousIndex = navigationIndex;
     navigationStack = [];
     navigationIndex = -1;
     updateNavigationButtons();
+    if (notify && (previousLength || previousIndex !== -1)) {
+      notifyLegacyStateChanged();
+    }
   }
 
-  function pushNavigationState(collectionName, itemId) {
+  function pushNavigationState(collectionName, itemId, { notify = true } = {}) {
     if (!collectionName || !itemId) {
       updateNavigationButtons();
-      return;
+      return false;
     }
+
+    const previousIndex = navigationIndex;
+    const previousLength = navigationStack.length;
 
     const current = navigationStack[navigationIndex];
     if (
@@ -350,17 +358,26 @@
       current.itemId === itemId
     ) {
       updateNavigationButtons();
-      return;
+      return false;
     }
 
     navigationStack = navigationStack.slice(0, navigationIndex + 1);
     navigationStack.push({ collectionName, itemId });
     navigationIndex = navigationStack.length - 1;
     updateNavigationButtons();
+    const hasChanged =
+      navigationStack.length !== previousLength ||
+      navigationIndex !== previousIndex;
+    if (hasChanged && notify) {
+      notifyLegacyStateChanged();
+    }
+    return hasChanged;
   }
 
-  function pruneNavigationState(collectionName, itemId) {
-    if (!navigationStack.length) return;
+  function pruneNavigationState(collectionName, itemId, { notify = true } = {}) {
+    if (!navigationStack.length) return false;
+    const previousLength = navigationStack.length;
+    const previousIndex = navigationIndex;
     const filtered = [];
     navigationStack.forEach((entry, idx) => {
       if (entry.collectionName === collectionName && entry.itemId === itemId) {
@@ -378,18 +395,27 @@
         0
       );
     }
+    const hasChanged =
+      navigationStack.length !== previousLength ||
+      navigationIndex !== previousIndex;
     updateNavigationButtons();
+    if (hasChanged && notify) {
+      notifyLegacyStateChanged();
+    }
+    return hasChanged;
   }
 
   function navigateHistory(direction) {
     if (!navigationStack.length) return;
     const target = navigationIndex + direction;
     if (target < 0 || target >= navigationStack.length) return;
+    const previousIndex = navigationIndex;
     navigationIndex = target;
     const state = navigationStack[navigationIndex];
     setCollectionAndItem(state.collectionName, state.itemId, {
       addToHistory: false,
-      fromHistory: true
+      fromHistory: true,
+      navigationChangedExternally: previousIndex !== navigationIndex
     });
     updateNavigationButtons();
   }
@@ -401,6 +427,10 @@
   }
 
   function selectMovement(id) {
+    const previousMovementId = currentMovementId;
+    const previousItemId = currentItemId;
+    const previousTextId = currentTextId;
+    const previousCanonFilters = { ...canonFilters };
     currentMovementId = id || null;
     currentItemId = null; // reset item selection in collection editor
     currentTextId = null;
@@ -408,6 +438,17 @@
     renderMovementList();
     renderActiveTab();
     closeSidebarOnMobile();
+    const filtersChanged = Object.keys(DEFAULT_CANON_FILTERS).some(
+      key => previousCanonFilters[key] !== canonFilters[key]
+    );
+    if (
+      previousMovementId !== currentMovementId ||
+      previousItemId !== currentItemId ||
+      previousTextId !== currentTextId ||
+      filtersChanged
+    ) {
+      notifyLegacyStateChanged();
+    }
   }
 
   function addMovement() {
@@ -4795,6 +4836,10 @@
 
   function jumpToText(textId) {
     if (!textId) return;
+    const previousMovementId = currentMovementId;
+    const previousBookId = currentBookId;
+    const previousTextId = currentTextId;
+    const previousShelfId = currentShelfId;
     const text = (snapshot?.texts || []).find(t => t.id === textId);
     if (text?.movementId && text.movementId !== currentMovementId) {
       currentMovementId = text.movementId;
@@ -4822,6 +4867,14 @@
 
     renderLibraryView();
     scrollTocNodeIntoView(textId);
+    if (
+      previousMovementId !== currentMovementId ||
+      previousBookId !== currentBookId ||
+      previousTextId !== currentTextId ||
+      previousShelfId !== currentShelfId
+    ) {
+      notifyLegacyStateChanged();
+    }
   }
 
   // ---- Dashboard (ViewModels) ----
@@ -5082,7 +5135,15 @@
   }
 
   function setCollectionAndItem(collectionName, itemId, options = {}) {
-    const { addToHistory = true, fromHistory = false } = options;
+    const {
+      addToHistory = true,
+      fromHistory = false,
+      navigationChangedExternally = false
+    } = options;
+    const previousCollectionName = currentCollectionName;
+    const previousItemId = currentItemId;
+    const previousNavIndex = navigationIndex;
+    const previousNavLength = navigationStack.length;
 
     if (!COLLECTION_NAMES.includes(collectionName)) {
       setStatus('Unknown collection: ' + collectionName);
@@ -5116,10 +5177,25 @@
     renderCollectionList();
     renderItemDetail();
 
+    let navigationChanged = false;
     if (addToHistory && currentItemId && !fromHistory) {
-      pushNavigationState(collectionName, currentItemId);
+      navigationChanged = pushNavigationState(collectionName, currentItemId, {
+        notify: false
+      });
     } else {
       updateNavigationButtons();
+    }
+
+    const selectionChanged =
+      previousCollectionName !== currentCollectionName ||
+      previousItemId !== currentItemId;
+    const navigationStateChanged =
+      navigationChanged ||
+      navigationIndex !== previousNavIndex ||
+      navigationStack.length !== previousNavLength ||
+      navigationChangedExternally;
+    if (selectionChanged || navigationStateChanged) {
+      notifyLegacyStateChanged();
     }
   }
 
