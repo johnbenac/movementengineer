@@ -11,8 +11,12 @@
   'use strict';
 
   const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
+  movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
   const bootstrapOptions = movementEngineerGlobal.bootstrapOptions || {};
   movementEngineerGlobal.bootstrapOptions = bootstrapOptions;
+  if (!Array.isArray(bootstrapOptions.moduleTabs)) {
+    bootstrapOptions.moduleTabs = ['comparison'];
+  }
   if (typeof bootstrapOptions.legacyAutoInit === 'undefined') {
     bootstrapOptions.legacyAutoInit = true;
   }
@@ -482,6 +486,37 @@
     return document.querySelector(selector);
   }
 
+  function getEnabledModuleTabs() {
+    const fromLocalStorage = (() => {
+      try {
+        const raw = window.localStorage
+          ? window.localStorage.getItem('me:moduleTabs')
+          : null;
+        if (!raw) return null;
+        return raw
+          .split(',')
+          .map(part => part.trim())
+          .filter(Boolean);
+      } catch (err) {
+        console.warn('Failed to read moduleTabs from localStorage', err);
+        return null;
+      }
+    })();
+    if (Array.isArray(fromLocalStorage)) {
+      return fromLocalStorage;
+    }
+    if (Array.isArray(movementEngineerGlobal.bootstrapOptions?.moduleTabs)) {
+      return movementEngineerGlobal.bootstrapOptions.moduleTabs;
+    }
+    return null;
+  }
+
+  function isModuleTabEnabled(tabName) {
+    const enabledTabs = getEnabledModuleTabs();
+    if (!Array.isArray(enabledTabs)) return true;
+    return enabledTabs.includes(tabName);
+  }
+
   function clearElement(el) {
     if (!el) return;
     while (el.firstChild) el.removeChild(el.firstChild);
@@ -494,6 +529,27 @@
 
   function renderActiveTab() {
     const tabName = getActiveTabName();
+    const moduleTab = window.MovementEngineer?.tabs?.[tabName];
+    const ctx = window.MovementEngineer?.ctx;
+
+    if (
+      moduleTab &&
+      typeof moduleTab.render === 'function' &&
+      ctx &&
+      isModuleTabEnabled(tabName)
+    ) {
+      try {
+        if (!moduleTab.__mounted && typeof moduleTab.mount === 'function') {
+          moduleTab.mount(ctx);
+          moduleTab.__mounted = true;
+        }
+        moduleTab.render(ctx);
+      } catch (err) {
+        showFatalImportError(err);
+      }
+      return;
+    }
+
     switch (tabName) {
       case 'dashboard':
         renderMovementForm();

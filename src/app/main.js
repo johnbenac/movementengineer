@@ -1,12 +1,16 @@
 import { createStore } from './store.js';
 import { createStatusUi } from './ui/status.js';
 import { createDomUtils } from './ui/dom.js';
+import { registerComparisonTab } from './tabs/comparison.js';
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.bootstrapOptions = movementEngineerGlobal.bootstrapOptions || {};
 if (typeof movementEngineerGlobal.bootstrapOptions.legacyAutoInit === 'undefined') {
   movementEngineerGlobal.bootstrapOptions.legacyAutoInit = true;
 }
+movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
+movementEngineerGlobal.actions = movementEngineerGlobal.actions || {};
+movementEngineerGlobal.components = movementEngineerGlobal.components || {};
 
 const legacy = movementEngineerGlobal.legacy;
 const services = {
@@ -41,3 +45,5 @@ movementEngineerGlobal.services = services;
 if (legacy) {
   legacy.context = ctx;
 }
+
+registerComparisonTab(ctx);
