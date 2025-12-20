@@ -35,6 +35,42 @@ async function runTests() {
   const movementIds = new Set(Object.values(data).flatMap(coll => Array.isArray(coll) ? coll.map(item => item.movementId || null) : []));
   assert(movementIds.has('mov-fixture'), 'All records should carry movementId');
 
+  const legacyResult = await loadMovementDataset({
+    source: 'local',
+    repoPath: path.join(__dirname, 'test-fixtures/markdown-repo-movements-structure')
+  });
+  assert(legacyResult.data.movements.length === 1, 'Legacy layout should load one movement');
+  assert(
+    legacyResult.data.entities.length === 1 &&
+      legacyResult.data.entities[0].id === 'ent-legacy',
+    'Legacy layout should load nested entities'
+  );
+
+  // Ensure the legacy GitHub importer shim is exposed when a window object exists.
+  const loaderPath = require.resolve('./markdown-dataset-loader');
+  delete require.cache[loaderPath];
+  const originalWindow = global.window;
+  global.window = {};
+  require(loaderPath);
+  assert(
+    window.GitHubRepoImporter &&
+      typeof window.GitHubRepoImporter.importMovementRepo === 'function',
+    'GitHubRepoImporter should be available on window'
+  );
+  let shimThrew = false;
+  try {
+    await window.GitHubRepoImporter.importMovementRepo('');
+  } catch (err) {
+    shimThrew = true;
+    assert(
+      /repoUrl is required/.test(err.message),
+      'Shim should validate repoUrl before loading'
+    );
+  } finally {
+    global.window = originalWindow;
+  }
+  assert(shimThrew, 'Shim should reject missing repoUrl');
+
   console.log('All markdown dataset loader tests passed ✅');
 }
 

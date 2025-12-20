@@ -55,6 +55,20 @@
     return value.filter(v => v !== undefined && v !== null);
   }
 
+  function stripWikiLink(value) {
+    if (typeof value !== 'string') return value;
+    const trimmed = value.trim();
+    const wikiMatch = trimmed.match(/^\[\[\s*(.+?)\s*\]\]$/);
+    return wikiMatch ? wikiMatch[1] : trimmed;
+  }
+
+  function normaliseIds(value) {
+    return normaliseArray(value)
+      .map(v => stripWikiLink(typeof v === 'string' ? v : String(v)))
+      .map(v => v.trim())
+      .filter(v => v.length > 0);
+  }
+
   function stringOrNull(value) {
     if (typeof value === 'string') return value;
     return value === undefined || value === null ? null : String(value);
@@ -62,6 +76,13 @@
 
   function stringOrEmpty(value) {
     return typeof value === 'string' ? value : '';
+  }
+
+  function idOrNull(value) {
+    const str = stringOrNull(value);
+    if (str === null) return null;
+    const cleaned = stripWikiLink(str).trim();
+    return cleaned.length ? cleaned : null;
   }
 
   function numberOrNull(value) {
@@ -251,14 +272,14 @@
   }
 
   function compileMovement(frontMatter, body, filePath) {
-    const id = stringOrNull(frontMatter.id);
+    const id = idOrNull(frontMatter.id);
     const name = stringOrNull(frontMatter.name);
     if (!id || !name) {
       throw new Error(`Movement is missing required id or name (${filePath})`);
     }
     return {
       id,
-      movementId: stringOrNull(frontMatter.movementId) || id,
+      movementId: idOrNull(frontMatter.movementId) || id,
       name,
       shortName: stringOrNull(frontMatter.shortName),
       tags: normaliseArray(frontMatter.tags).map(String),
@@ -269,8 +290,8 @@
   }
 
   function compileTextCollection(frontMatter, body, filePath) {
-    const id = stringOrNull(frontMatter.id);
-    const movementId = stringOrNull(frontMatter.movementId);
+    const id = idOrNull(frontMatter.id);
+    const movementId = idOrNull(frontMatter.movementId);
     const name = stringOrNull(frontMatter.name);
     if (!id || !movementId || !name) {
       throw new Error(`TextCollection missing required fields (${filePath})`);
@@ -279,7 +300,7 @@
       id,
       movementId,
       name,
-      rootTextIds: normaliseArray(frontMatter.rootTextIds).map(String),
+      rootTextIds: normaliseIds(frontMatter.rootTextIds),
       description: trimBody(body),
       tags: normaliseArray(frontMatter.tags).map(String),
       order: numberOrNull(frontMatter.order)
@@ -287,8 +308,8 @@
   }
 
   function compileText(frontMatter, body, filePath) {
-    const id = stringOrNull(frontMatter.id);
-    const movementId = stringOrNull(frontMatter.movementId);
+    const id = idOrNull(frontMatter.id);
+    const movementId = idOrNull(frontMatter.movementId);
     const title = stringOrNull(frontMatter.title);
     if (!id || !movementId || !title) {
       throw new Error(`Text missing required fields (${filePath})`);
@@ -298,18 +319,18 @@
       movementId,
       title,
       label: stringOrNull(frontMatter.label),
-      parentId: stringOrNull(frontMatter.parentId),
+      parentId: idOrNull(frontMatter.parentId),
       mainFunction: stringOrNull(frontMatter.mainFunction),
       tags: normaliseArray(frontMatter.tags).map(String),
-      mentionsEntityIds: normaliseArray(frontMatter.mentionsEntityIds).map(String),
+      mentionsEntityIds: normaliseIds(frontMatter.mentionsEntityIds),
       order: numberOrNull(frontMatter.order),
       content: trimBody(body)
     };
   }
 
   function compileEntity(frontMatter, body, filePath) {
-    const id = stringOrNull(frontMatter.id);
-    const movementId = stringOrNull(frontMatter.movementId);
+    const id = idOrNull(frontMatter.id);
+    const movementId = idOrNull(frontMatter.movementId);
     const name = stringOrNull(frontMatter.name);
     if (!id || !movementId || !name) {
       throw new Error(`Entity missing required fields (${filePath})`);
@@ -320,7 +341,7 @@
       name,
       kind: stringOrNull(frontMatter.kind),
       tags: normaliseArray(frontMatter.tags).map(String),
-      sourceEntityIds: normaliseArray(frontMatter.sourceEntityIds).map(String),
+      sourceEntityIds: normaliseIds(frontMatter.sourceEntityIds),
       sourcesOfTruth: normaliseArray(frontMatter.sourcesOfTruth).map(String),
       order: numberOrNull(frontMatter.order),
       summary: trimBody(body)
@@ -328,8 +349,8 @@
   }
 
   function compilePractice(frontMatter, body, filePath) {
-    const id = stringOrNull(frontMatter.id);
-    const movementId = stringOrNull(frontMatter.movementId);
+    const id = idOrNull(frontMatter.id);
+    const movementId = idOrNull(frontMatter.movementId);
     const name = stringOrNull(frontMatter.name);
     if (!id || !movementId || !name) {
       throw new Error(`Practice missing required fields (${filePath})`);
@@ -341,10 +362,10 @@
       kind: stringOrNull(frontMatter.kind),
       frequency: stringOrNull(frontMatter.frequency),
       tags: normaliseArray(frontMatter.tags).map(String),
-      involvedEntityIds: normaliseArray(frontMatter.involvedEntityIds).map(String),
-      instructionsTextIds: normaliseArray(frontMatter.instructionsTextIds).map(String),
-      supportingClaimIds: normaliseArray(frontMatter.supportingClaimIds).map(String),
-      sourceEntityIds: normaliseArray(frontMatter.sourceEntityIds).map(String),
+      involvedEntityIds: normaliseIds(frontMatter.involvedEntityIds),
+      instructionsTextIds: normaliseIds(frontMatter.instructionsTextIds),
+      supportingClaimIds: normaliseIds(frontMatter.supportingClaimIds),
+      sourceEntityIds: normaliseIds(frontMatter.sourceEntityIds),
       sourcesOfTruth: normaliseArray(frontMatter.sourcesOfTruth).map(String),
       order: numberOrNull(frontMatter.order),
       description: trimBody(body)
@@ -352,8 +373,8 @@
   }
 
   function compileEvent(frontMatter, body, filePath) {
-    const id = stringOrNull(frontMatter.id);
-    const movementId = stringOrNull(frontMatter.movementId);
+    const id = idOrNull(frontMatter.id);
+    const movementId = idOrNull(frontMatter.movementId);
     const name = stringOrNull(frontMatter.name);
     if (!id || !movementId || !name) {
       throw new Error(`Event missing required fields (${filePath})`);
@@ -365,18 +386,18 @@
       recurrence: stringOrNull(frontMatter.recurrence),
       timingRule: stringOrNull(frontMatter.timingRule),
       tags: normaliseArray(frontMatter.tags).map(String),
-      mainPracticeIds: normaliseArray(frontMatter.mainPracticeIds).map(String),
-      mainEntityIds: normaliseArray(frontMatter.mainEntityIds).map(String),
-      readingTextIds: normaliseArray(frontMatter.readingTextIds).map(String),
-      supportingClaimIds: normaliseArray(frontMatter.supportingClaimIds).map(String),
+      mainPracticeIds: normaliseIds(frontMatter.mainPracticeIds),
+      mainEntityIds: normaliseIds(frontMatter.mainEntityIds),
+      readingTextIds: normaliseIds(frontMatter.readingTextIds),
+      supportingClaimIds: normaliseIds(frontMatter.supportingClaimIds),
       order: numberOrNull(frontMatter.order),
       description: trimBody(body)
     };
   }
 
   function compileRule(frontMatter, body, filePath) {
-    const id = stringOrNull(frontMatter.id);
-    const movementId = stringOrNull(frontMatter.movementId);
+    const id = idOrNull(frontMatter.id);
+    const movementId = idOrNull(frontMatter.movementId);
     const shortText = stringOrNull(frontMatter.shortText);
     const kind = frontMatter.kind === undefined ? null : stringOrNull(frontMatter.kind);
     if (!id || !movementId || !shortText) {
@@ -393,19 +414,19 @@
       appliesTo: normaliseArray(frontMatter.appliesTo).map(String),
       domain: normaliseArray(frontMatter.domain).map(String),
       tags: normaliseArray(frontMatter.tags).map(String),
-      supportingTextIds: normaliseArray(frontMatter.supportingTextIds).map(String),
-      supportingClaimIds: normaliseArray(frontMatter.supportingClaimIds).map(String),
-      relatedPracticeIds: normaliseArray(frontMatter.relatedPracticeIds).map(String),
-      sourceEntityIds: normaliseArray(frontMatter.sourceEntityIds).map(String),
+      supportingTextIds: normaliseIds(frontMatter.supportingTextIds),
+      supportingClaimIds: normaliseIds(frontMatter.supportingClaimIds),
+      relatedPracticeIds: normaliseIds(frontMatter.relatedPracticeIds),
+      sourceEntityIds: normaliseIds(frontMatter.sourceEntityIds),
       sourcesOfTruth: normaliseArray(frontMatter.sourcesOfTruth).map(String),
       order: numberOrNull(frontMatter.order)
     };
   }
 
-  function compileClaim(frontMatter, _body, filePath) {
-    const id = stringOrNull(frontMatter.id);
-    const movementId = stringOrNull(frontMatter.movementId);
-    const text = stringOrNull(frontMatter.text);
+  function compileClaim(frontMatter, body, filePath) {
+    const id = idOrNull(frontMatter.id);
+    const movementId = idOrNull(frontMatter.movementId);
+    const text = stringOrNull(frontMatter.text) || trimBody(body);
     if (!id || !movementId || !text) {
       throw new Error(`Claim missing required fields (${filePath})`);
     }
@@ -415,17 +436,17 @@
       text,
       category: stringOrNull(frontMatter.category),
       tags: normaliseArray(frontMatter.tags).map(String),
-      aboutEntityIds: normaliseArray(frontMatter.aboutEntityIds).map(String),
-      sourceTextIds: normaliseArray(frontMatter.sourceTextIds).map(String),
-      sourceEntityIds: normaliseArray(frontMatter.sourceEntityIds).map(String),
+      aboutEntityIds: normaliseIds(frontMatter.aboutEntityIds),
+      sourceTextIds: normaliseIds(frontMatter.sourceTextIds),
+      sourceEntityIds: normaliseIds(frontMatter.sourceEntityIds),
       sourcesOfTruth: normaliseArray(frontMatter.sourcesOfTruth).map(String),
       order: numberOrNull(frontMatter.order)
     };
   }
 
   function compileMedia(frontMatter, body, filePath) {
-    const id = stringOrNull(frontMatter.id);
-    const movementId = stringOrNull(frontMatter.movementId);
+    const id = idOrNull(frontMatter.id);
+    const movementId = idOrNull(frontMatter.movementId);
     const kind = stringOrNull(frontMatter.kind);
     const uri = stringOrNull(frontMatter.uri);
     if (!id || !movementId || !kind || !uri) {
@@ -438,20 +459,20 @@
       uri,
       title: stringOrNull(frontMatter.title),
       tags: normaliseArray(frontMatter.tags).map(String),
-      linkedEntityIds: normaliseArray(frontMatter.linkedEntityIds).map(String),
-      linkedPracticeIds: normaliseArray(frontMatter.linkedPracticeIds).map(String),
-      linkedEventIds: normaliseArray(frontMatter.linkedEventIds).map(String),
-      linkedTextIds: normaliseArray(frontMatter.linkedTextIds).map(String),
+      linkedEntityIds: normaliseIds(frontMatter.linkedEntityIds),
+      linkedPracticeIds: normaliseIds(frontMatter.linkedPracticeIds),
+      linkedEventIds: normaliseIds(frontMatter.linkedEventIds),
+      linkedTextIds: normaliseIds(frontMatter.linkedTextIds),
       order: numberOrNull(frontMatter.order),
       description: trimBody(body)
     };
   }
 
   function compileNote(frontMatter, body, filePath) {
-    const id = stringOrNull(frontMatter.id);
-    const movementId = stringOrNull(frontMatter.movementId);
+    const id = idOrNull(frontMatter.id);
+    const movementId = idOrNull(frontMatter.movementId);
     const rawTarget = frontMatter.targetType;
-    const targetId = stringOrNull(frontMatter.targetId);
+    const targetId = idOrNull(frontMatter.targetId);
     if (!id || !movementId || !rawTarget || !targetId) {
       throw new Error(`Note missing required fields (${filePath})`);
     }
@@ -735,11 +756,22 @@
 
   function detectCollectionFromPath(path) {
     const parts = path.split('/').filter(Boolean);
-    if (parts[0] !== 'data' || parts.length < 3) return null;
-    const collectionDir = parts[1];
-    if (!COLLECTION_NAMES.includes(collectionDir)) return null;
-    if (!/\.md$/i.test(parts[parts.length - 1])) return null;
-    return collectionDir;
+    const filename = parts[parts.length - 1];
+    if (!/\.md$/i.test(filename)) return null;
+
+    // Look backwards for the deepest directory that matches a collection name.
+    // This covers both data/<collection>/... and movements/<movementId>/<collection>/... layouts.
+    for (let i = parts.length - 2; i >= 0; i--) {
+      const part = parts[i];
+      if (part === 'data') {
+        const maybeCollection = parts[i + 1];
+        return COLLECTION_NAMES.includes(maybeCollection) ? maybeCollection : null;
+      }
+      if (COLLECTION_NAMES.includes(part)) {
+        return part;
+      }
+    }
+    return null;
   }
 
   async function readMarkdownRecords(reader, repoListing) {
@@ -769,34 +801,75 @@
     if (!config || typeof config !== 'object') {
       throw new Error('Source config is required to load a movement dataset.');
     }
-    const rootPath = config.rootPath || 'data';
-    if (typeof rootPath === 'string' && rootPath.endsWith('.json')) {
+    const preferredRoot = config.rootPath !== undefined ? config.rootPath : 'data';
+    if (typeof preferredRoot === 'string' && preferredRoot.endsWith('.json')) {
       throw new Error('JSON sources are not supported in v2.3. Provide a markdown repository path.');
     }
+    const rootsToTry =
+      config.rootPath !== undefined ? [preferredRoot] : [preferredRoot, ''].filter((v, idx, arr) => arr.indexOf(v) === idx);
 
-    let reader;
-    let listing;
-    if (config.source === 'local') {
-      reader = createLocalRepoReader(config.repoPath || config.root || '.');
-      const files = await reader.listFiles(rootPath);
-      listing = { files };
-    } else if (config.source === 'github') {
-      if (!config.repoUrl) {
-        throw new Error('repoUrl is required for GitHub sources.');
+    let lastError;
+
+    for (const rootPath of rootsToTry) {
+      try {
+        let reader;
+        let listing;
+        if (config.source === 'local') {
+          reader = createLocalRepoReader(config.repoPath || config.root || '.');
+          const files = await reader.listFiles(rootPath || '.');
+          listing = { files };
+        } else if (config.source === 'github') {
+          if (!config.repoUrl) {
+            throw new Error('repoUrl is required for GitHub sources.');
+          }
+          reader = createGitHubRepoReader(config);
+          listing = await reader.listFiles(rootPath);
+        } else {
+          throw new Error('Unknown source type. Use { source: \"local\" } or { source: \"github\" }.');
+        }
+
+        const records = await readMarkdownRecords(reader, listing);
+        const data = compileRecords(records);
+
+        return {
+          specVersion: SPEC_VERSION,
+          generatedAt: new Date().toISOString(),
+          data
+        };
+      } catch (err) {
+        lastError = err;
       }
-      reader = createGitHubRepoReader(config);
-      listing = await reader.listFiles(rootPath);
-    } else {
-      throw new Error('Unknown source type. Use { source: "local" } or { source: "github" }.');
     }
 
-    const records = await readMarkdownRecords(reader, listing);
-    const data = compileRecords(records);
+    throw lastError;
+  }
 
+  function createGitHubImporterShim(loaderApi) {
     return {
-      specVersion: SPEC_VERSION,
-      generatedAt: new Date().toISOString(),
-      data
+      async importMovementRepo(config) {
+        const normalized =
+          typeof config === 'string' || !config ? { repoUrl: config || '' } : { ...config };
+        if (!normalized.repoUrl) {
+          throw new Error('repoUrl is required for GitHub sources.');
+        }
+
+        const compiled = await loaderApi.loadMovementDataset({
+          source: 'github',
+          ...normalized
+        });
+
+        const snapshot = {
+          ...compiled.data,
+          version: compiled.specVersion,
+          specVersion: compiled.specVersion
+        };
+
+        return {
+          snapshot,
+          data: compiled.data,
+          specVersion: compiled.specVersion
+        };
+      }
     };
   }
 
@@ -812,5 +885,8 @@
   }
   if (typeof window !== 'undefined') {
     window.MarkdownDatasetLoader = api;
+    if (!window.GitHubRepoImporter) {
+      window.GitHubRepoImporter = createGitHubImporterShim(api);
+    }
   }
 })();
