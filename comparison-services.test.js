@@ -1,5 +1,14 @@
+const path = require('path');
 const ComparisonServices = require('./comparison-services');
-const baseData = require('./movement-data');
+const { loadMovementDataset } = require('./markdown-dataset-loader');
+
+async function loadFixtureData() {
+  const { data } = await loadMovementDataset({
+    source: 'local',
+    repoPath: path.join(__dirname, 'test-fixtures/markdown-repo')
+  });
+  return data;
+}
 
 function assert(condition, message) {
   if (!condition) {
@@ -7,7 +16,7 @@ function assert(condition, message) {
   }
 }
 
-function testCreateBlankBinding() {
+function testCreateBlankBinding(baseData) {
   const schema = {
     id: 'schema-basic',
     name: 'Basic Counts',
@@ -35,18 +44,18 @@ function testCreateBlankBinding() {
     ]
   };
 
-  const binding = ComparisonServices.createBlankBinding(schema, ['mov-catholic']);
+  const binding = ComparisonServices.createBlankBinding(schema, ['mov-fixture']);
 
   assert(binding.schemaId === 'schema-basic', 'Binding should reference schema id');
   assert(binding.movementIds.length === 1, 'Binding should include one movement');
   assert(
-    binding.movementIds[0] === 'mov-catholic',
-    'Binding movement should be mov-catholic'
+    binding.movementIds[0] === 'mov-fixture',
+    'Binding movement should be mov-fixture'
   );
   assert(Array.isArray(binding.cells), 'Binding.cells should be an array');
   assert(
     binding.cells.length === 2,
-    'There should be one cell per dimension for mov-catholic'
+    'There should be one cell per dimension for mov-fixture'
   );
 
   binding.cells.forEach(cell => {
@@ -54,7 +63,7 @@ function testCreateBlankBinding() {
   });
 }
 
-function testSetBindingValueIsPure() {
+function testSetBindingValueIsPure(baseData) {
   const schema = {
     id: 'schema-basic',
     name: 'Basic Counts',
@@ -70,19 +79,19 @@ function testSetBindingValueIsPure() {
     ]
   };
 
-  const binding = ComparisonServices.createBlankBinding(schema, ['mov-catholic']);
+  const binding = ComparisonServices.createBlankBinding(schema, ['mov-fixture']);
   const originalCell = binding.cells[0];
 
   const updated = ComparisonServices.setBindingValue(
     binding,
     'entity_count',
-    'mov-catholic',
+    'mov-fixture',
     42,
     'Manual override'
   );
 
   const updatedCell = updated.cells.find(
-    c => c.dimensionId === 'entity_count' && c.movementId === 'mov-catholic'
+    c => c.dimensionId === 'entity_count' && c.movementId === 'mov-fixture'
   );
 
   assert(
@@ -99,7 +108,7 @@ function testSetBindingValueIsPure() {
   );
 }
 
-function testBuildComparisonMatrixAutoCounts() {
+function testBuildComparisonMatrixAutoCounts(baseData) {
   const schema = {
     id: 'schema-basic',
     name: 'Basic Counts',
@@ -123,12 +132,12 @@ function testBuildComparisonMatrixAutoCounts() {
     ]
   };
 
-  const binding = ComparisonServices.createBlankBinding(schema, ['mov-catholic']);
+  const binding = ComparisonServices.createBlankBinding(schema, ['mov-fixture']);
   const matrix = ComparisonServices.buildComparisonMatrix(baseData, schema, binding);
 
   assert(matrix.schemaId === 'schema-basic', 'Matrix should reference schema id');
   assert(matrix.movements.length === 1, 'There should be one movement in the matrix');
-  assert(matrix.movements[0].id === 'mov-catholic', 'Movement id should be mov-catholic');
+  assert(matrix.movements[0].id === 'mov-fixture', 'Movement id should be mov-fixture');
   assert(matrix.rows.length === 2, 'There should be a row per dimension');
 
   const entityRow = matrix.rows.find(r => r.dimensionId === 'entity_count');
@@ -138,19 +147,18 @@ function testBuildComparisonMatrixAutoCounts() {
   assert(practiceRow, 'Practice count row should exist');
 
   assert(
-    entityRow.cells[0].value === 23,
-    'Auto-derived entity count should be 23 for Catholic dataset'
+    entityRow.cells[0].value === 2,
+    'Auto-derived entity count should be 2 for fixture dataset'
   );
   assert(
-    practiceRow.cells[0].value === 7,
-    'Auto-derived practice count should be 7 for Catholic dataset'
+    practiceRow.cells[0].value === 1,
+    'Auto-derived practice count should be 1 for fixture dataset'
   );
 
-  // Now override the entity count in the binding and ensure override wins
   const overridden = ComparisonServices.setBindingValue(
     binding,
     'entity_count',
-    'mov-catholic',
+    'mov-fixture',
     99
   );
   const matrixOverride = ComparisonServices.buildComparisonMatrix(
@@ -168,13 +176,13 @@ function testBuildComparisonMatrixAutoCounts() {
   );
 }
 
-function testApplyTemplateToMovement() {
+function testApplyTemplateToMovement(baseData) {
   const template = {
     id: 'tmpl-entities-skeleton',
     name: 'Entity Skeleton Template',
     description: 'Copies entities from a source movement but clears summaries and sources.',
     tags: [],
-    sourceMovementId: 'mov-catholic',
+    sourceMovementId: 'mov-fixture',
     rules: [
       {
         id: 'rule-entities',
@@ -196,10 +204,9 @@ function testApplyTemplateToMovement() {
 
   const originalMovementCount = baseData.movements.length;
   const sourceEntityCount = baseData.entities.filter(
-    e => e.movementId === 'mov-catholic'
+    e => e.movementId === 'mov-fixture'
   ).length;
 
-  // Original data should be unchanged
   assert(
     baseData.movements.length === originalMovementCount,
     'Base data should remain unchanged after templating'
@@ -221,7 +228,6 @@ function testApplyTemplateToMovement() {
     'New movement should include extra template tag'
   );
 
-  // Entities: base has 23, new data should have base + copied skeleton(s)
   assert(
     newData.entities.length === baseData.entities.length + sourceEntityCount,
     'Skeleton entities should be added for the new movement based on the source movement'
@@ -239,7 +245,6 @@ function testApplyTemplateToMovement() {
     'Skeleton entity should have a new id'
   );
 
-  // Summary and sources should be cleared for skeleton
   assert(
     !skeleton.summary,
     'Skeleton entity summary should be cleared (empty string or null)'
@@ -254,13 +259,17 @@ function testApplyTemplateToMovement() {
   );
 }
 
-function runTests() {
+async function runTests() {
   console.log('Running comparison-services tests...');
-  testCreateBlankBinding();
-  testSetBindingValueIsPure();
-  testBuildComparisonMatrixAutoCounts();
-  testApplyTemplateToMovement();
+  const baseData = await loadFixtureData();
+  testCreateBlankBinding(baseData);
+  testSetBindingValueIsPure(baseData);
+  testBuildComparisonMatrixAutoCounts(baseData);
+  testApplyTemplateToMovement(baseData);
   console.log('All comparison-services tests passed ✅');
 }
 
-runTests();
+runTests().catch(err => {
+  console.error(err);
+  process.exit(1);
+});
