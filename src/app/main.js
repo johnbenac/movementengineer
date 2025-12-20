@@ -2,6 +2,7 @@ import { createStore } from './store.js';
 import { createStatusUi } from './ui/status.js';
 import { createDomUtils } from './ui/dom.js';
 import { registerComparisonTab } from './tabs/comparison.js';
+import { registerNotesTab } from './tabs/notes.js';
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.bootstrapOptions = movementEngineerGlobal.bootstrapOptions || {};
@@ -56,3 +57,4 @@ if (legacy) {
 }
 
 registerComparisonTab(ctx);
+registerNotesTab(ctx);
