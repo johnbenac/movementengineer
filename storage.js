@@ -39,6 +39,11 @@
     COLLECTION_NAMES.forEach(name => {
       base[name] = [];
     });
+    base.__repoInfo = null;
+    base.__repoSource = null;
+    base.__repoFileIndex = {};
+    base.__repoRawMarkdownByPath = {};
+    base.__repoBaselineByMovement = {};
     return base;
   }
 
@@ -55,6 +60,11 @@
     delete obj.relations;
     if (!obj.version) obj.version = '2.3';
     if (!obj.specVersion) obj.specVersion = '2.3';
+    if (!('__repoInfo' in obj)) obj.__repoInfo = null;
+    if (!('__repoSource' in obj)) obj.__repoSource = null;
+    if (!obj.__repoFileIndex) obj.__repoFileIndex = {};
+    if (!obj.__repoRawMarkdownByPath) obj.__repoRawMarkdownByPath = {};
+    if (!obj.__repoBaselineByMovement) obj.__repoBaselineByMovement = {};
     COLLECTION_NAMES.forEach(name => {
       if (!Array.isArray(obj[name])) obj[name] = [];
     });
