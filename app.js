@@ -311,7 +311,6 @@
     if (!confirmed) return;
 
     currentMovementId = DomainService.deleteMovement(snapshot, id);
-    clearMovementAssetsForIds(new Set([id]));
     currentItemId = null;
     currentTextId = null;
     resetNavigationHistory();
