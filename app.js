@@ -44,6 +44,140 @@
     filterDepth: null,
     filterNodeTypes: []
   };
+  const legacyStoreSubscribers = new Set();
+  let legacyPublishQueued = false;
+
+  function scheduleLegacyPublish() {
+    if (legacyPublishQueued) return;
+    legacyPublishQueued = true;
+    const scheduler =
+      (typeof queueMicrotask === 'function' && queueMicrotask) ||
+      (typeof window !== 'undefined' && window.queueMicrotask) ||
+      (fn => setTimeout(fn, 0));
+    scheduler(() => {
+      legacyPublishQueued = false;
+      const state = getLegacyState();
+      legacyStoreSubscribers.forEach(cb => {
+        try {
+          cb(state);
+        } catch (err) {
+          console.error('Legacy store subscriber failed', err);
+        }
+      });
+    });
+  }
+
+  function normaliseSelection(selection) {
+    if (!selection) return null;
+    const { type, id } = selection;
+    return {
+      type: type || null,
+      id: id || null
+    };
+  }
+
+  function getLegacyState() {
+    const { selection, filterNodeTypes, ...restGraph } = graphWorkbenchState || {};
+    return {
+      snapshot,
+      currentMovementId,
+      currentCollectionName,
+      currentItemId,
+      currentTextId,
+      currentShelfId,
+      currentBookId,
+      canonFilters: { ...canonFilters },
+      navigation: {
+        stack: navigationStack.slice(),
+        index: navigationIndex
+      },
+      graphWorkbenchState: {
+        ...restGraph,
+        selection: normaliseSelection(selection),
+        filterNodeTypes: Array.isArray(filterNodeTypes)
+          ? filterNodeTypes.slice()
+          : []
+      },
+      dirty: {
+        isDirty,
+        snapshotDirty,
+        movementFormDirty,
+        itemEditorDirty
+      },
+      activeTab: typeof getActiveTabName === 'function' ? getActiveTabName() : null
+    };
+  }
+
+  function applyLegacyState(partial = {}) {
+    if (!partial || typeof partial !== 'object') return getLegacyState();
+
+    if ('snapshot' in partial) snapshot = partial.snapshot;
+    if ('currentMovementId' in partial) currentMovementId = partial.currentMovementId;
+    if ('currentCollectionName' in partial)
+      currentCollectionName = partial.currentCollectionName;
+    if ('currentItemId' in partial) currentItemId = partial.currentItemId;
+    if ('currentTextId' in partial) currentTextId = partial.currentTextId;
+    if ('currentShelfId' in partial) currentShelfId = partial.currentShelfId;
+    if ('currentBookId' in partial) currentBookId = partial.currentBookId;
+
+    if (partial.canonFilters && typeof partial.canonFilters === 'object') {
+      canonFilters = { ...canonFilters, ...partial.canonFilters };
+    }
+
+    if (partial.navigation) {
+      const { stack, index } = partial.navigation;
+      if (Array.isArray(stack)) navigationStack = stack.slice();
+      if (typeof index === 'number') navigationIndex = index;
+    }
+
+    if (partial.graphWorkbenchState) {
+      const incoming = partial.graphWorkbenchState;
+      const { selection, filterNodeTypes, ...rest } = incoming;
+      graphWorkbenchState = {
+        ...graphWorkbenchState,
+        ...rest,
+        selection: selection
+          ? { ...(graphWorkbenchState.selection || {}), ...selection }
+          : graphWorkbenchState.selection,
+        filterNodeTypes: Array.isArray(filterNodeTypes)
+          ? filterNodeTypes.slice()
+          : graphWorkbenchState.filterNodeTypes
+      };
+    }
+
+    if (partial.dirty && typeof partial.dirty === 'object') {
+      const { snapshotDirty: sd, movementFormDirty: md, itemEditorDirty: id } =
+        partial.dirty;
+      if (typeof sd === 'boolean') snapshotDirty = sd;
+      if (typeof md === 'boolean') movementFormDirty = md;
+      if (typeof id === 'boolean') itemEditorDirty = id;
+      updateDirtyState();
+      return getLegacyState();
+    }
+
+    scheduleLegacyPublish();
+    return getLegacyState();
+  }
+
+  function updateLegacyState(updater) {
+    if (typeof updater !== 'function') return getLegacyState();
+    const next = updater(getLegacyState());
+    if (next && typeof next === 'object') {
+      return applyLegacyState(next);
+    }
+    return getLegacyState();
+  }
+
+  function subscribeLegacyState(callback) {
+    if (typeof callback !== 'function') return () => {};
+    legacyStoreSubscribers.add(callback);
+    try {
+      callback(getLegacyState());
+    } catch (err) {
+      console.error('Legacy store subscriber failed on attach', err);
+    }
+    return () => legacyStoreSubscribers.delete(callback);
+  }
 
   function normaliseSelectionType(type) {
     return typeof type === 'string' ? type.toLowerCase() : null;
@@ -52,11 +186,13 @@
   function setGraphWorkbenchSelection(selection) {
     if (!selection || !selection.id) {
       graphWorkbenchState.selection = null;
+      scheduleLegacyPublish();
       return;
     }
 
     const type = normaliseSelectionType(selection.type) || 'entity';
     graphWorkbenchState.selection = { type, id: selection.id };
+    scheduleLegacyPublish();
   }
   let isDirty = false;
   let snapshotDirty = false;
@@ -76,6 +212,7 @@
   function updateDirtyState() {
     isDirty = snapshotDirty || movementFormDirty || itemEditorDirty;
     renderSaveBanner();
+    scheduleLegacyPublish();
   }
 
   function saveSnapshot(options = {}) {
@@ -292,6 +429,7 @@
     renderMovementList();
     renderActiveTab();
     closeSidebarOnMobile();
+    scheduleLegacyPublish();
   }
 
   function addMovement() {
@@ -334,6 +472,27 @@
     const btn = document.querySelector('.tab.active');
     return btn ? btn.dataset.tab : 'dashboard';
   }
+
+  window.ME = window.ME || {};
+  window.ME.store =
+    window.ME.store ||
+    {
+      getState: getLegacyState,
+      setState: applyLegacyState,
+      update: updateLegacyState,
+      subscribe: subscribeLegacyState
+    };
+  window.ME.ui = Object.assign(window.ME.ui || {}, {
+    setStatus,
+    ensureFatalImportBanner,
+    showFatalImportError,
+    clearFatalImportError
+  });
+  window.ME.dom = Object.assign(window.ME.dom || {}, {
+    $,
+    clearElement,
+    getActiveTabName
+  });
 
   function renderActiveTab() {
     const tabName = getActiveTabName();
@@ -5005,6 +5164,8 @@
     } else {
       updateNavigationButtons();
     }
+
+    scheduleLegacyPublish();
   }
 
   function jumpToReferencedItem(collectionName, itemId) {
@@ -6153,7 +6314,17 @@
     renderActiveTab();
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
-    init().catch(showFatalImportError);
-  });
+  const shouldBootstrapLegacy =
+    typeof window === 'undefined'
+      ? true
+      : window.ME_ENABLE_LEGACY_BOOTSTRAP !== false &&
+        window.localStorage?.getItem('me:disable-legacy-bootstrap') !== 'true';
+
+  if (shouldBootstrapLegacy) {
+    document.addEventListener('DOMContentLoaded', () => {
+      init().catch(showFatalImportError);
+    });
+  } else if (window.ME && window.ME.ui && typeof window.ME.ui.setStatus === 'function') {
+    window.ME.ui.setStatus('Legacy bootstrap disabled');
+  }
 })();
