@@ -24,17 +24,32 @@ const store = createStore({ legacy });
 const ui = createStatusUi({ legacy });
 const dom = createDomUtils();
 
-const ctx = {
-  store,
-  services,
-  ui,
-  dom,
-  tabs: movementEngineerGlobal.tabs || {},
-  actions: movementEngineerGlobal.actions || {},
-  components: movementEngineerGlobal.components || {}
-};
+const ctx = movementEngineerGlobal.ctx || {};
+ctx.store = store;
+ctx.services = services;
+ctx.ui = ui;
+ctx.dom = dom;
+ctx.tabs = movementEngineerGlobal.tabs || ctx.tabs || {};
+ctx.actions = movementEngineerGlobal.actions || ctx.actions || {};
+ctx.components = movementEngineerGlobal.components || ctx.components || {};
+ctx.getState = ctx.getState || store.getState;
+ctx.setState = ctx.setState || store.setState;
+ctx.update = ctx.update || store.update;
+ctx.subscribe = ctx.subscribe || store.subscribe;
+const viewModelsDescriptor = Object.getOwnPropertyDescriptor(ctx, 'ViewModels');
+if (viewModelsDescriptor?.get && !viewModelsDescriptor.set) {
+  Object.defineProperty(ctx, 'ViewModels', {
+    value: viewModelsDescriptor.get(),
+    writable: true,
+    configurable: true,
+    enumerable: viewModelsDescriptor.enumerable !== false
+  });
+} else if (!viewModelsDescriptor || viewModelsDescriptor.writable || viewModelsDescriptor.set) {
+  ctx.ViewModels = ctx.ViewModels || services.ViewModels;
+}
 
 movementEngineerGlobal.ctx = ctx;
+movementEngineerGlobal.tabs = ctx.tabs;
 movementEngineerGlobal.store = store;
 movementEngineerGlobal.ui = ui;
 movementEngineerGlobal.dom = dom;
