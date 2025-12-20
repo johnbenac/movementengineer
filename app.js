@@ -44,6 +44,7 @@
     filterDepth: null,
     filterNodeTypes: []
   };
+  const BOOTSTRAP_FLAG = '__MOVEMENT_ENGINEER_BOOTSTRAP__';
 
   function normaliseSelectionType(type) {
     return typeof type === 'string' ? type.toLowerCase() : null;
@@ -6153,7 +6154,57 @@
     renderActiveTab();
   }
 
+  function shouldUseLegacyBootstrap() {
+    const mode = window[BOOTSTRAP_FLAG];
+    return mode !== 'module';
+  }
+
+  function getLegacyState() {
+    return {
+      snapshot,
+      currentMovementId,
+      currentCollectionName,
+      currentItemId,
+      currentTextId,
+      currentShelfId,
+      currentBookId,
+      canonFilters,
+      navigationStack,
+      navigationIndex,
+      graphWorkbenchState,
+      movementFormDirty,
+      itemEditorDirty,
+      snapshotDirty,
+      isDirty,
+      lastRepoSourceConfig,
+      lastRepoInfo
+    };
+  }
+
+  window.MovementEngineerLegacyApp = {
+    init,
+    getState: getLegacyState,
+    loadSnapshot,
+    saveSnapshot,
+    setStatus,
+    showFatalImportError,
+    clearFatalImportError,
+    markDirty,
+    markSaved,
+    renderSaveBanner,
+    renderActiveTab,
+    renderMovementList,
+    addListenerById,
+    clearElement,
+    ensureSelectOptions,
+    $,
+    constants: {
+      DEFAULT_GITHUB_REPO_URL
+    }
+  };
+
   document.addEventListener('DOMContentLoaded', () => {
+    if (!shouldUseLegacyBootstrap()) return;
     init().catch(showFatalImportError);
   });
 })();
