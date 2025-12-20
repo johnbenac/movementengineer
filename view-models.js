@@ -655,7 +655,7 @@ function buildEntityGraphViewModel(data, input) {
 
   const nodes = baseGraph.nodes.filter(n => visited.has(n.id));
   const edges = baseGraph.edges.filter(
-    edge => visited.has(edge.fromId) || visited.has(edge.toId)
+    edge => visited.has(edge.fromId) && visited.has(edge.toId)
   );
 
   return { nodes, edges, centerEntityId };
