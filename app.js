@@ -13,6 +13,7 @@
   const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
   const bootstrapOptions = movementEngineerGlobal.bootstrapOptions || {};
   movementEngineerGlobal.bootstrapOptions = bootstrapOptions;
+  movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
   if (typeof bootstrapOptions.legacyAutoInit === 'undefined') {
     bootstrapOptions.legacyAutoInit = true;
   }
@@ -492,8 +493,53 @@
     return btn ? btn.dataset.tab : 'dashboard';
   }
 
+  function parseModuleTabOverrides() {
+    try {
+      const raw = window.localStorage.getItem('me:moduleTabs');
+      if (!raw) return null;
+      const list = raw
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean);
+      return list;
+    } catch (err) {
+      console.warn('Failed to parse module tab overrides', err);
+      return null;
+    }
+  }
+
+  function isModuleTabEnabled(tabName) {
+    const localOverride = parseModuleTabOverrides();
+    const moduleTabs =
+      Array.isArray(localOverride) ?
+        localOverride :
+        movementEngineerGlobal.bootstrapOptions.moduleTabs;
+    if (Array.isArray(moduleTabs)) {
+      return moduleTabs.includes(tabName);
+    }
+    return true;
+  }
+
   function renderActiveTab() {
     const tabName = getActiveTabName();
+    const moduleTab = window.MovementEngineer?.tabs?.[tabName];
+    const ctx = window.MovementEngineer?.ctx;
+
+    if (isModuleTabEnabled(tabName) && moduleTab && typeof moduleTab.render === 'function' && ctx) {
+      try {
+        if (!moduleTab.__mounted && typeof moduleTab.mount === 'function') {
+          moduleTab.mount(ctx);
+          moduleTab.__mounted = true;
+        }
+        if (!moduleTab.shouldRender || moduleTab.shouldRender(ctx)) {
+          moduleTab.render(ctx);
+        }
+      } catch (err) {
+        showFatalImportError(err);
+      }
+      return;
+    }
+
     switch (tabName) {
       case 'dashboard':
         renderMovementForm();

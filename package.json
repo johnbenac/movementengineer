@@ -7,7 +7,10 @@
     "doc": "docs"
   },
   "scripts": {
-    "test": "node markdown-dataset-loader.test.js && node view-models.test.js && node comparison-services.test.js"
+    "test": "npm run test:legacy && npm run test:unit && npm run test:e2e",
+    "test:legacy": "node markdown-dataset-loader.test.js && node view-models.test.js && node comparison-services.test.js",
+    "test:unit": "vitest run",
+    "test:e2e": "playwright test"
   },
   "keywords": [],
   "author": "",
@@ -17,5 +20,10 @@
     "js-yaml": "^4.1.0",
     "jszip": "^3.10.1",
     "undici": "^6.21.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.45.3",
+    "jsdom": "^24.1.0",
+    "vitest": "^1.6.0"
   }
 }
