@@ -11,8 +11,9 @@
   'use strict';
 
   const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
-  const bootstrapOptions = movementEngineerGlobal.bootstrapOptions || {};
-  movementEngineerGlobal.bootstrapOptions = bootstrapOptions;
+  movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
+  movementEngineerGlobal.bootstrapOptions = movementEngineerGlobal.bootstrapOptions || {};
+  const bootstrapOptions = movementEngineerGlobal.bootstrapOptions;
   if (typeof bootstrapOptions.legacyAutoInit === 'undefined') {
     bootstrapOptions.legacyAutoInit = true;
   }
@@ -492,8 +493,82 @@
     return btn ? btn.dataset.tab : 'dashboard';
   }
 
+  function parseModuleTabList(value) {
+    if (!value) return null;
+    if (Array.isArray(value)) return value;
+    if (typeof value !== 'string') return null;
+    const parsed = value
+      .split(',')
+      .map(part => part.trim())
+      .filter(Boolean);
+    return parsed;
+  }
+
+  function getModuleTabPreference() {
+    if (Array.isArray(bootstrapOptions.moduleTabs)) {
+      return bootstrapOptions.moduleTabs;
+    }
+    try {
+      const fromStorage = localStorage.getItem('me:moduleTabs');
+      if (typeof fromStorage === 'string') {
+        return parseModuleTabList(fromStorage);
+      }
+    } catch (err) {
+      console.warn('Failed to read module tab preference', err);
+    }
+    return null;
+  }
+
+  function isModuleTabEnabled(tabName) {
+    const enabledTabs = getModuleTabPreference();
+    if (!enabledTabs) return true;
+    return enabledTabs.includes(tabName);
+  }
+
+  let lastRenderedModuleTabName = null;
+
+  function unmountActiveModuleTab(ctx) {
+    if (!lastRenderedModuleTabName || !ctx) return;
+    const moduleTab = movementEngineerGlobal.tabs?.[lastRenderedModuleTabName];
+    if (moduleTab && moduleTab.__mounted && typeof moduleTab.unmount === 'function') {
+      try {
+        moduleTab.unmount(ctx);
+      } catch (err) {
+        console.error('Movement Engineer module tab unmount failed', err);
+      }
+    }
+    if (moduleTab) {
+      moduleTab.__mounted = false;
+    }
+    lastRenderedModuleTabName = null;
+  }
+
   function renderActiveTab() {
     const tabName = getActiveTabName();
+    const moduleTab = movementEngineerGlobal?.tabs?.[tabName];
+    const ctx = movementEngineerGlobal?.ctx;
+    const moduleOverrideEnabled = isModuleTabEnabled(tabName);
+
+    if (moduleOverrideEnabled && moduleTab && typeof moduleTab.render === 'function' && ctx) {
+      try {
+        if (!moduleTab.__mounted && typeof moduleTab.mount === 'function') {
+          moduleTab.mount(ctx);
+          moduleTab.__mounted = true;
+        }
+        if (!moduleTab.shouldRender || moduleTab.shouldRender(ctx) !== false) {
+          moduleTab.render(ctx);
+        }
+      } catch (err) {
+        showFatalImportError(err);
+      }
+      lastRenderedModuleTabName = tabName;
+      return;
+    }
+
+    if (lastRenderedModuleTabName) {
+      unmountActiveModuleTab(ctx);
+    }
+
     switch (tabName) {
       case 'dashboard':
         renderMovementForm();
