@@ -99,6 +99,14 @@
     return StorageService.loadSnapshot();
   }
 
+  function getSnapshot() {
+    return snapshot;
+  }
+
+  function setSnapshot(nextSnapshot) {
+    snapshot = nextSnapshot;
+  }
+
   function setStatus(text) {
     const el = document.getElementById('status');
     if (!el) return;
@@ -160,6 +168,15 @@
     if (movement) movementFormDirty = false;
     if (item) itemEditorDirty = false;
     updateDirtyState();
+  }
+
+  function getDirtyFlags() {
+    return {
+      isDirty,
+      snapshotDirty,
+      movementFormDirty,
+      itemEditorDirty
+    };
   }
 
   function renderSaveBanner() {
@@ -6153,7 +6170,77 @@
     renderActiveTab();
   }
 
+  async function bootstrap() {
+    return init();
+  }
+
+  function getCurrentSelection() {
+    return {
+      movementId: currentMovementId,
+      collectionName: currentCollectionName,
+      itemId: currentItemId,
+      textId: currentTextId
+    };
+  }
+
+  function setCurrentMovementId(id) {
+    currentMovementId = id;
+  }
+
+  function setCurrentCollectionName(name) {
+    currentCollectionName = name;
+  }
+
+  function setCurrentItemId(id) {
+    currentItemId = id;
+  }
+
+  function setCurrentTextId(id) {
+    currentTextId = id;
+  }
+
+  const legacyApi = {
+    bootstrap: () => bootstrap().catch(showFatalImportError),
+    init,
+    loadSnapshot,
+    saveSnapshot,
+    setSnapshot,
+    getSnapshot,
+    setStatus,
+    markDirty,
+    markSaved,
+    getDirtyFlags,
+    updateDirtyState,
+    renderSaveBanner,
+    persistDirtyChanges,
+    resetToDefaults,
+    showFatalImportError,
+    clearFatalImportError,
+    getCurrentSelection,
+    setCurrentMovementId,
+    setCurrentCollectionName,
+    setCurrentItemId,
+    setCurrentTextId,
+    services: {
+      DomainService,
+      StorageService,
+      ViewModels,
+      EntityGraphView,
+      MarkdownDatasetLoader,
+      d3
+    },
+    ui: {
+      setStatus,
+      showFatalImportError,
+      clearFatalImportError,
+      renderSaveBanner
+    }
+  };
+
+  window.movementEngineerApp = legacyApi;
+
   document.addEventListener('DOMContentLoaded', () => {
-    init().catch(showFatalImportError);
+    if (window.__ME_BOOTSTRAP_FROM_MODULE) return;
+    legacyApi.bootstrap();
   });
 })();
