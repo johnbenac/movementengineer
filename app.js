@@ -7,6 +7,14 @@
 
 /* global DomainService, StorageService, ViewModels, EntityGraphView, MarkdownDatasetLoader, d3 */
 
+import { renderMarkdownPreview, openMarkdownModal } from './src/app/ui/markdown.js';
+import {
+  collectDescendants,
+  normaliseArray,
+  parseCsvInput,
+  uniqueSorted
+} from './src/app/utils/values.js';
+
 (function () {
   'use strict';
 
@@ -543,10 +551,18 @@
         renderDashboard();
         break;
       case 'canon':
+        showFatalImportError(
+          new Error('Canon tab has been migrated to ES modules. Legacy renderer removed.')
+        );
+        break;
+      case 'graph':
+        showFatalImportError(
+          new Error('Graph tab has been migrated to ES modules. Legacy renderer removed.')
+        );
+        break;
       case 'entities':
       case 'practices':
       case 'calendar':
-      case 'graph':
         renderMovementSection(tabName);
         break;
       case 'claims':
@@ -803,13 +819,6 @@
 
   // ---- Canon (buildCanonTreeViewModel) ----
 
-  function parseCsvInput(value) {
-    return (value || '')
-      .split(',')
-      .map(s => s.trim())
-      .filter(Boolean);
-  }
-
   function applyTextCollectionFormToSnapshot() {
     if (isPopulatingCanonForms) return null;
 
@@ -855,16 +864,6 @@
     const select = document.getElementById('canon-collection-select');
     if (!select) return null;
     return (snapshot.textCollections || []).find(tc => tc.id === select.value);
-  }
-
-  function collectDescendants(textId, nodesById, acc = new Set()) {
-    const node = nodesById[textId];
-    if (!node || acc.has(textId)) return acc;
-    acc.add(textId);
-    (node.childIds || []).forEach(childId =>
-      collectDescendants(childId, nodesById, acc)
-    );
-    return acc;
   }
 
   function isTextInActiveTree(textId, vm) {
@@ -1056,119 +1055,6 @@
       canonFilters.child = '';
     }
     if (childSelect) childSelect.value = canonFilters.child;
-  }
-
-  function renderMarkdownPreview(targetEl, content, { enabled = true } = {}) {
-    if (!targetEl) return;
-
-    if (!enabled) {
-      targetEl.classList.add('empty');
-      targetEl.innerHTML = '<p class="muted">Select a text to see its content.</p>';
-      return;
-    }
-
-    const trimmed = (content || '').trim();
-    if (!trimmed) {
-      targetEl.classList.add('empty');
-      targetEl.innerHTML = '<p class="muted">Add markdown content to see a preview.</p>';
-      return;
-    }
-
-    targetEl.classList.remove('empty');
-    try {
-      if (window.marked && typeof window.marked.parse === 'function') {
-        const parsed = window.marked.parse(content);
-        if (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') {
-          targetEl.innerHTML = window.DOMPurify.sanitize(parsed);
-        } else {
-          targetEl.textContent = parsed;
-        }
-      } else {
-        targetEl.textContent = content;
-      }
-    } catch (err) {
-      targetEl.textContent = content;
-    }
-  }
-
-  function openMarkdownModal({
-    title = 'Edit Markdown',
-    initial = '',
-    onSave = null,
-    onClose = null
-  } = {}) {
-    const overlay = document.createElement('div');
-    overlay.className = 'markdown-modal-overlay';
-
-    const modal = document.createElement('div');
-    modal.className = 'markdown-modal';
-
-    const header = document.createElement('div');
-    header.className = 'markdown-modal-header';
-    const h2 = document.createElement('h2');
-    h2.textContent = title;
-    header.appendChild(h2);
-    modal.appendChild(header);
-
-    const body = document.createElement('div');
-    body.className = 'markdown-modal-body';
-
-    const editorWrapper = document.createElement('div');
-    editorWrapper.className = 'markdown-editor-container';
-    const textarea = document.createElement('textarea');
-    textarea.className = 'markdown-editor';
-    textarea.value = initial || '';
-    editorWrapper.appendChild(textarea);
-
-    const previewWrapper = document.createElement('div');
-    previewWrapper.className = 'markdown-preview';
-    renderMarkdownPreview(previewWrapper, textarea.value);
-
-    body.appendChild(editorWrapper);
-    body.appendChild(previewWrapper);
-    modal.appendChild(body);
-
-    const footer = document.createElement('div');
-    footer.className = 'markdown-modal-footer';
-    const saveBtn = document.createElement('button');
-    saveBtn.textContent = 'Save';
-    saveBtn.className = 'btn btn-primary';
-    const cancelBtn = document.createElement('button');
-    cancelBtn.textContent = 'Cancel';
-    cancelBtn.className = 'btn';
-    footer.appendChild(saveBtn);
-    footer.appendChild(cancelBtn);
-    modal.appendChild(footer);
-
-    overlay.appendChild(modal);
-    document.body.appendChild(overlay);
-
-    const handleInput = () => {
-      renderMarkdownPreview(previewWrapper, textarea.value);
-    };
-    textarea.addEventListener('input', handleInput);
-
-    const closeModal = (triggerOnClose = true) => {
-      textarea.removeEventListener('input', handleInput);
-      document.removeEventListener('keydown', onKeyDown);
-      if (overlay.parentElement) {
-        overlay.parentElement.removeChild(overlay);
-      }
-      if (triggerOnClose && typeof onClose === 'function') onClose();
-    };
-
-    const onKeyDown = evt => {
-      if (evt.key === 'Escape') {
-        closeModal();
-      }
-    };
-    document.addEventListener('keydown', onKeyDown);
-
-    saveBtn.addEventListener('click', () => {
-      if (typeof onSave === 'function') onSave(textarea.value);
-      closeModal(false);
-    });
-    cancelBtn.addEventListener('click', () => closeModal());
   }
 
   function ensureCanonMarkdownControls() {
@@ -3016,16 +2902,6 @@
   // Graph Workbench — Ontorum-style panes
   // ============================================================
 
-  function normaliseArray(value) {
-    return Array.isArray(value) ? value : [];
-  }
-
-  function uniqueSorted(values) {
-    return Array.from(new Set(values.filter(Boolean))).sort((a, b) =>
-      String(a).localeCompare(String(b), undefined, { sensitivity: 'base' })
-    );
-  }
-
   const GRAPH_NODE_TYPE_LABELS = {
     Entity: 'Entity',
     TextCollection: 'Canon collection',
@@ -4283,7 +4159,7 @@
 
     activateTab('canon');
     if (!movementId) {
-      renderLibraryView();
+      renderActiveTab();
       return;
     }
 
@@ -4299,7 +4175,7 @@
     currentTextId = textId;
     if (shelves.length) currentShelfId = shelves[0];
 
-    renderLibraryView();
+    renderActiveTab();
     scrollTocNodeIntoView(textId);
     if (
       previousMovementId !== currentMovementId ||
@@ -5556,13 +5432,6 @@
     if (practiceSelect) {
       practiceSelect.addEventListener('change', renderPracticesView);
     }
-    addListenerById('library-search', 'input', renderLibraryView);
-    addListenerById('btn-add-text-collection', 'click', addTextCollection);
-    addListenerById('btn-save-text-collection', 'click', saveTextCollection);
-    addListenerById('btn-delete-text-collection', 'click', () => deleteTextCollection());
-    addListenerById('btn-add-root-text', 'click', addNewBookToShelf);
-    addListenerById('btn-add-existing-book', 'click', addExistingBookToShelf);
-
     // Collections tab
       addListenerById('collection-select', 'change', e => {
         setCollectionAndItem(e.target.value, null, { addToHistory: false });
@@ -5616,6 +5485,17 @@
 
   document.addEventListener('DOMContentLoaded', handleDomContentLoaded);
 
+  movementEngineerGlobal.actions = Object.assign(movementEngineerGlobal.actions || {}, {
+    activateTab,
+    selectMovement,
+    jumpToEntity,
+    jumpToPractice,
+    jumpToText,
+    jumpToReferencedItem,
+    setCollectionAndItem,
+    saveSnapshot
+  });
+
   movementEngineerGlobal.legacy = Object.assign(movementEngineerGlobal.legacy || {}, {
     init: bootstrapLegacyApp,
     getState: getLegacyState,
@@ -5631,6 +5511,7 @@
     markSaved,
     ensureFatalImportBanner,
     bootstrapOptions,
+    saveSnapshot,
     hasInitialized: () => hasLegacyInitialized
   });
 })();
