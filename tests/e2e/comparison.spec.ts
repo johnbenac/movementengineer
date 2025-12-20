@@ -1,8 +1,4 @@
 import { expect, test } from '@playwright/test';
-import path from 'path';
-
-const indexUrl = `file://${path.join(process.cwd(), 'index.html')}`;
-
 const comparisonSnapshot = {
   version: '2.3',
   specVersion: '2.3',
@@ -36,7 +32,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('renders comparison tab via module override and responds to toggles', async ({ page }) => {
-  await page.goto(indexUrl);
+  await page.goto('/');
 
   await page.getByRole('button', { name: 'Comparison' }).click();
 

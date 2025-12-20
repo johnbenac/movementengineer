@@ -29,6 +29,17 @@ const ctx = {
   services,
   ui,
   dom,
+  legacy,
+  getState: () => store.getState(),
+  setState: next => store.setState(next),
+  update: updater => store.update(updater),
+  subscribe: fn => store.subscribe(fn),
+  setStatus: (...args) => ui.setStatus?.(...args),
+  showFatalImportError: (...args) => ui.showFatalImportError?.(...args),
+  clearFatalImportError: (...args) => ui.clearFatalImportError?.(...args),
+  get ViewModels() {
+    return services.ViewModels;
+  },
   tabs: movementEngineerGlobal.tabs || {},
   actions: movementEngineerGlobal.actions || {},
   components: movementEngineerGlobal.components || {}
