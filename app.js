@@ -543,10 +543,18 @@
         renderDashboard();
         break;
       case 'canon':
+        showFatalImportError(
+          new Error('Canon tab has been migrated to ES modules. Legacy renderer removed.')
+        );
+        break;
+      case 'graph':
+        showFatalImportError(
+          new Error('Graph tab has been migrated to ES modules. Legacy renderer removed.')
+        );
+        break;
       case 'entities':
       case 'practices':
       case 'calendar':
-      case 'graph':
         renderMovementSection(tabName);
         break;
       case 'claims':
@@ -4283,7 +4291,7 @@
 
     activateTab('canon');
     if (!movementId) {
-      renderLibraryView();
+      renderActiveTab();
       return;
     }
 
@@ -4299,8 +4307,8 @@
     currentTextId = textId;
     if (shelves.length) currentShelfId = shelves[0];
 
-    renderLibraryView();
-    scrollTocNodeIntoView(textId);
+    renderActiveTab();
+    setTimeout(() => scrollTocNodeIntoView(textId), 0);
     if (
       previousMovementId !== currentMovementId ||
       previousBookId !== currentBookId ||
@@ -5556,12 +5564,6 @@
     if (practiceSelect) {
       practiceSelect.addEventListener('change', renderPracticesView);
     }
-    addListenerById('library-search', 'input', renderLibraryView);
-    addListenerById('btn-add-text-collection', 'click', addTextCollection);
-    addListenerById('btn-save-text-collection', 'click', saveTextCollection);
-    addListenerById('btn-delete-text-collection', 'click', () => deleteTextCollection());
-    addListenerById('btn-add-root-text', 'click', addNewBookToShelf);
-    addListenerById('btn-add-existing-book', 'click', addExistingBookToShelf);
 
     // Collections tab
       addListenerById('collection-select', 'change', e => {
@@ -5616,6 +5618,17 @@
 
   document.addEventListener('DOMContentLoaded', handleDomContentLoaded);
 
+  movementEngineerGlobal.actions = Object.assign(movementEngineerGlobal.actions || {}, {
+    activateTab,
+    selectMovement,
+    jumpToEntity,
+    jumpToPractice,
+    jumpToText,
+    jumpToReferencedItem,
+    setCollectionAndItem,
+    saveSnapshot
+  });
+
   movementEngineerGlobal.legacy = Object.assign(movementEngineerGlobal.legacy || {}, {
     init: bootstrapLegacyApp,
     getState: getLegacyState,
@@ -5631,6 +5644,7 @@
     markSaved,
     ensureFatalImportBanner,
     bootstrapOptions,
-    hasInitialized: () => hasLegacyInitialized
+    hasInitialized: () => hasLegacyInitialized,
+    saveSnapshot
   });
 })();
