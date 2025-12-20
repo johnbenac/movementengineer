@@ -6,6 +6,8 @@ import { registerNotesTab } from './tabs/notes.js';
 import { registerClaimsTab } from './tabs/claims.js';
 import { registerRulesTab } from './tabs/rules.js';
 import { registerMediaTab } from './tabs/media.js';
+import { registerCanonTab } from './tabs/canon.js';
+import { registerGraphTab } from './tabs/graph.js';
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.bootstrapOptions = movementEngineerGlobal.bootstrapOptions || {};
@@ -59,8 +61,13 @@ if (legacy) {
   legacy.context = ctx;
 }
 
-registerComparisonTab(ctx);
-registerNotesTab(ctx);
-registerClaimsTab(ctx);
-registerRulesTab(ctx);
-registerMediaTab(ctx);
+const enabledTabs = movementEngineerGlobal.bootstrapOptions?.moduleTabs;
+const shouldEnable = name => !Array.isArray(enabledTabs) || enabledTabs.includes(name);
+
+if (shouldEnable('comparison')) registerComparisonTab(ctx);
+if (shouldEnable('notes')) registerNotesTab(ctx);
+if (shouldEnable('claims')) registerClaimsTab(ctx);
+if (shouldEnable('rules')) registerRulesTab(ctx);
+if (shouldEnable('media')) registerMediaTab(ctx);
+if (shouldEnable('canon')) registerCanonTab(ctx);
+if (shouldEnable('graph')) registerGraphTab(ctx);
