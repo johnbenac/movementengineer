@@ -2,7 +2,7 @@
 
 ## Context
 
-Religious families often contain diverse schools, denominations or sects.  For example, Sunni and Shia Islam have different doctrines and practices; Catholicism, Orthodoxy and Protestantism diverge on theology and liturgy; the Dharma traditions include Theravada, Mahayana and Vajrayana.  We considered adding a `Group` or `Tradition` entity to model substructures within a movement.  However, adding another major entity type would complicate the core schema.  At the same time, not capturing internal diversity would flatten distinct traditions into one generic definition.  We needed a strategy to represent multiple traditions without proliferating top‑level entities.
+Religious families often contain diverse schools, denominations or sects.  For example, Sunni and Shia Islam have different doctrines and practices; Orthodoxy, Anglicanism and Protestantism diverge on theology and liturgy; the Dharma traditions include Theravada, Mahayana and Vajrayana.  We considered adding a `Group` or `Tradition` entity to model substructures within a movement.  However, adding another major entity type would complicate the core schema.  At the same time, not capturing internal diversity would flatten distinct traditions into one generic definition.  We needed a strategy to represent multiple traditions without proliferating top‑level entities.
 
 ## Decision
 
