@@ -5912,13 +5912,6 @@
     if (snapshot.__repoInfo) {
       lastRepoInfo = snapshot.__repoInfo;
     }
-    if (!snapshot.movements.length) {
-      try {
-        await loadDefaultMarkdownDataset();
-      } catch (e) {
-        showFatalImportError(e);
-      }
-    }
     currentMovementId = snapshot.movements[0]
       ? snapshot.movements[0].id
       : null;
