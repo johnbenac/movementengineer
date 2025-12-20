@@ -335,6 +335,7 @@
     navigationStack = [];
     navigationIndex = -1;
     updateNavigationButtons();
+    notifyLegacyStateChanged();
   }
 
   function pushNavigationState(collectionName, itemId) {
@@ -357,6 +358,7 @@
     navigationStack.push({ collectionName, itemId });
     navigationIndex = navigationStack.length - 1;
     updateNavigationButtons();
+    notifyLegacyStateChanged();
   }
 
   function pruneNavigationState(collectionName, itemId) {
@@ -379,6 +381,7 @@
       );
     }
     updateNavigationButtons();
+    notifyLegacyStateChanged();
   }
 
   function navigateHistory(direction) {
@@ -392,6 +395,7 @@
       fromHistory: true
     });
     updateNavigationButtons();
+    notifyLegacyStateChanged();
   }
 
   // ---- Movement helpers ----
@@ -408,6 +412,7 @@
     renderMovementList();
     renderActiveTab();
     closeSidebarOnMobile();
+    notifyLegacyStateChanged();
   }
 
   function addMovement() {
@@ -433,6 +438,7 @@
     currentTextId = null;
     resetNavigationHistory();
     saveSnapshot();
+    notifyLegacyStateChanged();
   }
 
   // ---- DOM helpers ----
@@ -1376,6 +1382,7 @@
       p.textContent = 'No texts found for this movement.';
       treeContainer.appendChild(p);
       renderCanonForms({ collection: activeCollection, roots: [], nodesById: {} });
+      notifyLegacyStateChanged();
       return;
     }
 
@@ -1390,6 +1397,7 @@
         : 'No texts found for this movement.';
       treeContainer.appendChild(p);
       renderCanonForms({ collection: activeCollection, roots: [], nodesById: vm.nodesById });
+      notifyLegacyStateChanged();
       return;
     }
 
@@ -1506,6 +1514,8 @@
       roots: filteredRoots,
       nodesById: vm.nodesById
     });
+
+    notifyLegacyStateChanged();
   }
 
   function handleCanonFilterChange() {
@@ -1554,6 +1564,7 @@
       bookList.appendChild(renderEmptyHint('Choose a movement to see books.'));
       tocTree.appendChild(renderEmptyHint('No table of contents to show.'));
       textEditor.appendChild(renderEmptyHint('Select a movement to edit texts.'));
+      notifyLegacyStateChanged();
       return;
     }
 
@@ -1582,6 +1593,7 @@
     renderBooksPane(vm);
     renderTocPane(vm);
     renderNodeEditor(vm);
+    notifyLegacyStateChanged();
   }
 
   function renderEmptyHint(text) {
@@ -4822,6 +4834,7 @@
 
     renderLibraryView();
     scrollTocNodeIntoView(textId);
+    notifyLegacyStateChanged();
   }
 
   // ---- Dashboard (ViewModels) ----
@@ -5120,6 +5133,7 @@
       pushNavigationState(collectionName, currentItemId);
     } else {
       updateNavigationButtons();
+      notifyLegacyStateChanged();
     }
   }
 
@@ -5539,6 +5553,7 @@
     pruneNavigationState(collName, currentItemId);
     currentItemId = null;
     saveSnapshot();
+    notifyLegacyStateChanged();
   }
 
   // ---- Comparison tab ----
@@ -6017,6 +6032,7 @@
     renderActiveTab();
     clearFatalImportError();
     markSaved({ movement: true, item: true });
+    notifyLegacyStateChanged();
     return currentMovementId;
   }
 
@@ -6068,6 +6084,7 @@
     clearFatalImportError();
     saveSnapshot({ clearMovementDirty: true, clearItemDirty: true });
     setStatus('Workspace cleared');
+    notifyLegacyStateChanged();
   }
 
   function addListenerById(id, event, handler) {
