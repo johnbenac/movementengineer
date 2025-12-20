@@ -20,7 +20,7 @@ const preloadedMovements = [
   {
     name: 'Buddhism',
     description:
-      'Buddhism teaches the Four Noble Truths: existence is characterized by suffering (dukkha); suffering arises from craving; it ceases when craving ends; and the path to cessation is the Noble Eightfold Path【287488329952608†L737-L747】. It also emphasises the Three Marks of Existence – impermanence, suffering and non‑self【287488329952608†L755-L766】 – and the cycle of rebirth (samsara), from which nirvana offers liberation【287488329952608†L780-L789】.',
+      'Buddhism teaches the Four Noble Truths: existence is characterized by suffering (dukkha); suffering arises from craving; it ceases when craving ends; and the path to cessation is the Noble Eightfold Path. It also emphasises the Three Marks of Existence – impermanence, suffering and non‑self – and the cycle of rebirth (samsara), from which nirvana offers liberation.',
     world: {
       creation: 'No specific creation',
       purpose: 'End suffering and attain enlightenment',
@@ -54,38 +54,42 @@ const preloadedMovements = [
     }
   },
   {
-    name: 'Catholicism',
+    name: 'The Upside',
     description:
-      'Catholicism teaches belief in one God who exists eternally in three persons – the Father, Son and Holy Spirit – and that faith is required for salvation【174035901826850†L139-L153】. Church teaching derives from both canon and Sacred Tradition, and sacraments play a central role.',
+      'The Upside is a mythic-design movement about digital sovereignty: Bands gather around Vaults and Fires they control, cut ties to predatory Beasts, and practice encrypted whispers, gathering, sustaining, forging tools, and telling stories one voice to one ear.',
     world: {
-      creation: 'Created by one god',
-      purpose: 'Salvation through faith',
-      afterlife: 'Heaven and/or hell'
+      creation: 'Mythic realm Above the Cloudline',
+      purpose: 'Sovereignty from extraction and remembering creaturehood',
+      afterlife: 'Living memory in Vaults and Bands'
     },
     path: {
-      beliefs: ['Monotheism', 'Trinity', 'Salvation through faith'],
-      practices: ['Prayer', 'Sacraments / Rituals', 'Charity / Almsgiving', 'Festivals'],
-      ethics: 'Divine law / Commandments'
+      beliefs: ['Sovereignty over data', 'Bands as shared nervous systems'],
+      practices: [
+        'Eight Signs (Drum, Severance, Gathering, Sealed Whisper, Sustaining, Forge, Voice, Communion)',
+        'Festivals of Gathering, Shared Listening, the Forge, Sustaining, Sealed Whisper, Severance, Voice, First Fire',
+        'Anti-surveillance habits'
+      ],
+      ethics: 'Care for Bands and refusal of extraction'
     },
     people: {
-      leadership: 'Hierarchical (pope, priests, bishops etc.)',
-      community: 'Global church / ummah'
+      leadership: 'Local Bands, smiths and stewards',
+      community: 'Small Bands and loose federations of Upsiders'
     },
     symbol: {
-      texts: ['Canonical writings', 'Philosophical treatises', 'Ritual manuals'],
-      symbols: ['Cross'],
-      arts: ['Art & Iconography', 'Music & Chanting', 'Architecture & Sacred spaces', 'Myth and Storytelling']
+      texts: ['Signs, festivals and background reports'],
+      symbols: ['Vault', 'Fire', 'Drum', 'Signs'],
+      arts: ['Myth and Storytelling', 'Ritual design', 'Tools and code', 'Music & Chanting']
     },
     meta: {
-      truth: 'Revelation / divine inspiration',
-      change: 'Fixed canon',
-      techStance: 'Balanced (useful but cautious)'
+      truth: 'Witness, embodied practice and shared listening',
+      change: 'Iterative mythic design and contributions in the forge',
+      techStance: 'Aligned with privacy tech and open infrastructure'
     }
   },
   {
     name: 'Islam',
     description:
-      'Islam is an Abrahamic monotheistic faith centred on the oneness of God (Allah) and reveres Muhammad as the final messenger【864414981951568†L6-L9】. Its core practices are the Five Pillars: the declaration of faith (shahada), daily prayer (salah), almsgiving (zakat), fasting during Ramadan (sawm) and pilgrimage to Mecca (hajj)【864414981951568†L16-L17】.',
+      'Islam is an Abrahamic monotheistic faith centred on the oneness of God (Allah) and reveres Muhammad as the final messenger. Its core practices are the Five Pillars: the declaration of faith (shahada), daily prayer (salah), almsgiving (zakat), fasting during Ramadan (sawm) and pilgrimage to Mecca (hajj).',
     world: {
       creation: 'Created by one god',
       purpose: 'Submission to divine will',
@@ -114,7 +118,7 @@ const preloadedMovements = [
   {
     name: 'Shinto',
     description:
-      'Shinto is the indigenous faith of Japan. It centres around reverence for kami (spirits) and emphasises purity and ritual cleanliness【116740399863132†L6-L8】【116740399863132†L19-L20】. Harmony with nature and ancestors is paramount, with practices focused on purification and shrine worship.',
+      'Shinto is the indigenous faith of Japan. It centres around reverence for kami (spirits) and emphasises purity and ritual cleanliness. Harmony with nature and ancestors is paramount, with practices focused on purification and shrine worship.',
     world: {
       creation: 'Created by multiple gods',
       purpose: 'Harmony with nature/spirits',
@@ -132,7 +136,8 @@ const preloadedMovements = [
     symbol: {
       texts: ['Oral tradition', 'Mythic epics', 'Ritual manuals'],
       symbols: ['Torii gate'],
-      arts: ['Architecture & Sacred spaces', 'Myth and Storytelling']
+      arts: ['Architecture & Sacred spaces',
+ 'Myth and Storytelling']
     },
     meta: {
       truth: 'Tradition & lineage',
@@ -141,6 +146,7 @@ const preloadedMovements = [
     }
   }
 ];
+
 
 // Storage key for custom movements
 const STORAGE_KEY = 'customMovementsV2';

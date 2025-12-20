@@ -39,7 +39,7 @@ This repository is static; you can open `index.html` directly in a browser or se
 ### Movement data
 Movement datasets are authored as Markdown files under a `data/` directory that matches the v2.3 spec. Each collection lives in its own folder (for example `data/movements`, `data/entities`, `data/texts`, etc.), with YAML front matter describing fields and Markdown bodies providing long-form text. The compiler normalizes everything into the `data` object expected by the existing view models, injecting `movementId` on movements and canonicalising note target types to preserve UI parity.
 
-On first load the app fetches the Catholic dataset from `https://github.com/johnbenac/catholic`. You can point the UI at any other spec-compliant repo via **Load markdown repo** in the dashboard. JSON datasets and manifests are no longer supported in the runtime path.
+On first load the app fetches the Upside dataset from this repository (`https://github.com/johnbenac/movementengineer`). You can point the UI at any other spec-compliant repo via **Load markdown repo** in the dashboard. JSON datasets and manifests are no longer supported in the runtime path.
 
 ### Testing
 Install dependencies and run the bundled Node checks:

@@ -69,7 +69,7 @@
   let isCanonCollectionInputsInitialized = false;
   let fatalImportErrorDom = null;
   let githubImportModal = null;
-  const DEFAULT_GITHUB_REPO_URL = 'https://github.com/johnbenac/catholic';
+  const DEFAULT_GITHUB_REPO_URL = 'https://github.com/johnbenac/movementengineer';
 
   function updateDirtyState() {
     isDirty = snapshotDirty || movementFormDirty || itemEditorDirty;
