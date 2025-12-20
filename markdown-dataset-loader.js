@@ -50,6 +50,12 @@
     throw new Error('YAML parser not available. Ensure js-yaml is loaded.');
   }
 
+  function getZipLib() {
+    if (isNode()) return require('jszip');
+    if (typeof window !== 'undefined' && window.JSZip) return window.JSZip;
+    throw new Error('Zip generator not available. Load JSZip in the browser or install the jszip package.');
+  }
+
   let cachedFetch = null;
   function getFetchWithProxy() {
     if (cachedFetch) return cachedFetch;
@@ -818,7 +824,7 @@
     return null;
   }
 
-  async function readMarkdownRecords(reader, repoListing) {
+  async function readMarkdownRecords(reader, repoListing, { includeRawText = false } = {}) {
     const records = [];
     const files = Array.isArray(repoListing.files) ? repoListing.files : repoListing;
     const paths = files.filter(path => detectCollectionFromPath(path));
@@ -831,12 +837,16 @@
       const collection = detectCollectionFromPath(path);
       const text = await reader.readText(path, repoListing.ref, repoListing.commitSha);
       const parsed = parseFrontMatter(text, path);
-      records.push({
+      const record = {
         collection,
         frontMatter: parsed.frontMatter,
         body: parsed.body,
         filePath: path
-      });
+      };
+      if (includeRawText) {
+        record.rawText = text;
+      }
+      records.push(record);
     }
     return records;
   }
@@ -853,6 +863,8 @@
     let reader;
     let listing;
     let repoInfo = null;
+    const includeRawFiles = !!config.includeRawFiles;
+
     if (config.source === 'local') {
       reader = createLocalRepoReader(config.repoPath || config.root || '.');
       const files = await reader.listFiles(rootPath);
@@ -872,22 +884,51 @@
       throw new Error('Unknown source type. Use { source: "local" } or { source: "github" }.');
     }
 
-    const records = await readMarkdownRecords(reader, listing);
+    const records = await readMarkdownRecords(reader, listing, { includeRawText: includeRawFiles });
     const data = compileRecords(records);
+
+    const rawFiles = includeRawFiles
+      ? records.map(rec => ({ path: rec.filePath, content: rec.rawText || '' }))
+      : null;
 
     return {
       specVersion: SPEC_VERSION,
       generatedAt: new Date().toISOString(),
       data,
-      repoInfo
+      repoInfo,
+      rawFiles
     };
+  }
+
+  async function exportMovementRepoZip(config) {
+    const compiled = await loadMovementDataset({ ...config, includeRawFiles: true });
+    const files = compiled.rawFiles || [];
+    if (!files.length) {
+      throw new Error('No markdown files were loaded; cannot generate zip archive.');
+    }
+
+    const Zip = getZipLib();
+    const zip = new Zip();
+    files.forEach(file => {
+      zip.file(file.path, file.content);
+    });
+
+    const repoInfo = compiled.repoInfo || {};
+    const zipBaseName = [repoInfo.repo || 'movement-dataset', repoInfo.ref || repoInfo.commitSha]
+      .filter(Boolean)
+      .join('-') || 'movement-dataset';
+    const fileName = `${zipBaseName}.zip`;
+
+    const archive = await zip.generateAsync({ type: isNode() ? 'nodebuffer' : 'blob' });
+    return { archive, fileName, repoInfo: compiled.repoInfo || null };
   }
 
   const api = {
     loadMovementDataset,
     createLocalRepoReader,
     createGitHubRepoReader,
-    parseGitHubRepoUrl
+    parseGitHubRepoUrl,
+    exportMovementRepoZip
   };
 
   async function importMovementRepo(repoUrl) {
@@ -909,7 +950,8 @@
   if (typeof window !== 'undefined') {
     window.MarkdownDatasetLoader = api;
     window.GitHubRepoImporter = {
-      importMovementRepo
+      importMovementRepo,
+      exportMovementRepoZip
     };
   }
 })();
