@@ -550,7 +550,6 @@
       case 'rules':
       case 'media':
       case 'graph':
-      case 'notes':
         renderMovementSection(tabName);
         break;
       case 'data':
@@ -565,6 +564,11 @@
       case 'authority':
         showFatalImportError(
           new Error('Authority tab has been migrated to ES modules. Legacy renderer removed.')
+        );
+        break;
+      case 'notes':
+        showFatalImportError(
+          new Error('Notes tab has been migrated to ES modules. Legacy renderer removed.')
         );
         break;
       default:
@@ -749,8 +753,7 @@
         claims: $('#claims-table-wrapper'),
         rules: $('#rules-table-wrapper'),
         media: $('#media-gallery'),
-        graph: $('#graph-workbench-root'),
-        notes: $('#notes-table-wrapper')
+        graph: $('#graph-workbench-root')
       };
       const target = containers[name];
       if (target) {
@@ -788,9 +791,6 @@
         break;
       case 'graph':
         renderGraphWorkbench();
-        break;
-      case 'notes':
-        renderNotesView();
         break;
       default:
         break;
@@ -4678,116 +4678,6 @@
     });
   }
 
-  // ---- Notes (buildNotesViewModel) ----
-
-  function renderNotesView() {
-    const wrapper = document.getElementById('notes-table-wrapper');
-    const typeSelect = document.getElementById('notes-target-type-filter');
-    const idSelect = document.getElementById('notes-target-id-filter');
-    if (!wrapper || !typeSelect || !idSelect) return;
-    clearElement(wrapper);
-
-    // First pass to build filters from all notes
-    const baseVm = ViewModels.buildNotesViewModel(snapshot, {
-      movementId: currentMovementId,
-      targetTypeFilter: null,
-      targetIdFilter: null
-    });
-
-    const notes = baseVm.notes || [];
-    const targetTypes = Array.from(
-      new Set(notes.map(n => n.targetType).filter(Boolean))
-    ).sort();
-
-    ensureSelectOptions(
-      typeSelect,
-      targetTypes.map(t => ({ value: t, label: t })),
-      'All'
-    );
-
-    const selectedType = typeSelect.value || '';
-
-    const idsForType = notes.filter(
-      n => !selectedType || n.targetType === selectedType
-    );
-
-    const idOptionsMap = new Map();
-    idsForType.forEach(n => {
-      if (!idOptionsMap.has(n.targetId)) {
-        idOptionsMap.set(n.targetId, n.targetLabel || n.targetId);
-      }
-    });
-
-    const idOptions = Array.from(idOptionsMap.entries()).map(
-      ([value, label]) => ({ value, label })
-    );
-    ensureSelectOptions(idSelect, idOptions, 'Any');
-
-    const selectedId = idSelect.value || '';
-
-    const vm = ViewModels.buildNotesViewModel(snapshot, {
-      movementId: currentMovementId,
-      targetTypeFilter: selectedType || null,
-      targetIdFilter: selectedId || null
-    });
-
-    if (!vm.notes || vm.notes.length === 0) {
-      const p = document.createElement('p');
-      p.className = 'hint';
-      p.textContent = 'No notes match this filter.';
-      wrapper.appendChild(p);
-      return;
-    }
-
-    const table = document.createElement('table');
-    const headerRow = document.createElement('tr');
-    [
-      'Target type',
-      'Target',
-      'Author',
-      'Body',
-      'Context',
-      'Tags'
-    ].forEach(h => {
-      const th = document.createElement('th');
-      th.textContent = h;
-      headerRow.appendChild(th);
-    });
-    table.appendChild(headerRow);
-
-    vm.notes.forEach(n => {
-      const tr = document.createElement('tr');
-
-      const tdType = document.createElement('td');
-      tdType.textContent = n.targetType;
-      tr.appendChild(tdType);
-
-      const tdTarget = document.createElement('td');
-      tdTarget.textContent = n.targetLabel || n.targetId;
-      tr.appendChild(tdTarget);
-
-      const tdAuthor = document.createElement('td');
-      tdAuthor.textContent = n.author || '';
-      tr.appendChild(tdAuthor);
-
-      const tdBody = document.createElement('td');
-      tdBody.textContent = n.body;
-      tr.appendChild(tdBody);
-
-      const tdCtx = document.createElement('td');
-      tdCtx.textContent = n.context || '';
-      tr.appendChild(tdCtx);
-
-      const tdTags = document.createElement('td');
-      tdTags.textContent = (n.tags || []).join(', ');
-      tr.appendChild(tdTags);
-
-      table.appendChild(tr);
-    });
-
-    wrapper.appendChild(table);
-  }
-
   // ---- Cross-navigation helpers ----
 
   function jumpToEntity(entityId) {
@@ -6124,19 +6014,6 @@
         el.addEventListener('change', renderMediaView);
       }
     });
-
-    const notesTypeFilter = document.getElementById(
-      'notes-target-type-filter'
-    );
-    const notesIdFilter = document.getElementById(
-      'notes-target-id-filter'
-    );
-    if (notesTypeFilter) {
-      notesTypeFilter.addEventListener('change', renderNotesView);
-    }
-    if (notesIdFilter) {
-      notesIdFilter.addEventListener('change', renderNotesView);
-    }
 
     const entitySelect = document.getElementById('entity-select');
     if (entitySelect) {
