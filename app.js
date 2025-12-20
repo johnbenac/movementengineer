@@ -10,6 +10,13 @@
 (function () {
   'use strict';
 
+  const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
+  const bootstrapOptions = movementEngineerGlobal.bootstrapOptions || {};
+  movementEngineerGlobal.bootstrapOptions = bootstrapOptions;
+  if (typeof bootstrapOptions.legacyAutoInit === 'undefined') {
+    bootstrapOptions.legacyAutoInit = true;
+  }
+
   const { COLLECTION_NAMES, COLLECTIONS_WITH_MOVEMENT_ID } = DomainService;
 
   let snapshot = null;
@@ -44,6 +51,109 @@
     filterDepth: null,
     filterNodeTypes: []
   };
+  const legacySubscribers =
+    movementEngineerGlobal.__legacySubscribers || new Set();
+  movementEngineerGlobal.__legacySubscribers = legacySubscribers;
+  let hasLegacyInitialized = false;
+  let suppressLegacyNotify = false;
+
+  function notifyLegacyStateChanged() {
+    const nextState = getLegacyState();
+    legacySubscribers.forEach(listener => {
+      try {
+        listener(nextState);
+      } catch (err) {
+        console.error('Movement Engineer legacy subscriber failed', err);
+      }
+    });
+  }
+
+  function getLegacyState() {
+    return {
+      snapshot,
+      currentMovementId,
+      currentCollectionName,
+      currentItemId,
+      currentTextId,
+      currentShelfId,
+      currentBookId,
+      canonFilters: { ...canonFilters },
+      navigation: { stack: [...navigationStack], index: navigationIndex },
+      graphWorkbenchState: { ...graphWorkbenchState },
+      flags: {
+        isDirty,
+        snapshotDirty,
+        movementFormDirty,
+        itemEditorDirty,
+        isPopulatingMovementForm,
+        isPopulatingEditor,
+        isPopulatingCanonForms,
+        isCanonMarkdownInitialized,
+        isCanonCollectionInputsInitialized
+      }
+    };
+  }
+
+  function setLegacyState(nextState = {}) {
+    if ('snapshot' in nextState) snapshot = nextState.snapshot;
+    if ('currentMovementId' in nextState) currentMovementId = nextState.currentMovementId;
+    if ('currentCollectionName' in nextState) currentCollectionName = nextState.currentCollectionName;
+    if ('currentItemId' in nextState) currentItemId = nextState.currentItemId;
+    if ('currentTextId' in nextState) currentTextId = nextState.currentTextId;
+    if ('currentShelfId' in nextState) currentShelfId = nextState.currentShelfId;
+    if ('currentBookId' in nextState) currentBookId = nextState.currentBookId;
+    if (nextState.canonFilters) {
+      canonFilters = { ...DEFAULT_CANON_FILTERS, ...nextState.canonFilters };
+    }
+    if (nextState.navigation) {
+      if (Array.isArray(nextState.navigation.stack)) {
+        navigationStack = [...nextState.navigation.stack];
+      }
+      if (typeof nextState.navigation.index === 'number') {
+        navigationIndex = nextState.navigation.index;
+      }
+    }
+    if (nextState.graphWorkbenchState) {
+      graphWorkbenchState = { ...graphWorkbenchState, ...nextState.graphWorkbenchState };
+    }
+    if (nextState.flags) {
+      const flags = nextState.flags;
+      if ('isDirty' in flags) isDirty = !!flags.isDirty;
+      if ('snapshotDirty' in flags) snapshotDirty = !!flags.snapshotDirty;
+      if ('movementFormDirty' in flags) movementFormDirty = !!flags.movementFormDirty;
+      if ('itemEditorDirty' in flags) itemEditorDirty = !!flags.itemEditorDirty;
+      if ('isPopulatingMovementForm' in flags) {
+        isPopulatingMovementForm = !!flags.isPopulatingMovementForm;
+      }
+      if ('isPopulatingEditor' in flags) isPopulatingEditor = !!flags.isPopulatingEditor;
+      if ('isPopulatingCanonForms' in flags) {
+        isPopulatingCanonForms = !!flags.isPopulatingCanonForms;
+      }
+      if ('isCanonMarkdownInitialized' in flags) {
+        isCanonMarkdownInitialized = !!flags.isCanonMarkdownInitialized;
+      }
+      if ('isCanonCollectionInputsInitialized' in flags) {
+        isCanonCollectionInputsInitialized = !!flags.isCanonCollectionInputsInitialized;
+      }
+    }
+    suppressLegacyNotify = true;
+    updateDirtyState();
+    suppressLegacyNotify = false;
+    notifyLegacyStateChanged();
+    return getLegacyState();
+  }
+
+  function updateLegacyState(updater) {
+    if (!updater) return getLegacyState();
+    const nextState = typeof updater === 'function' ? updater(getLegacyState()) : updater;
+    return setLegacyState(nextState);
+  }
+
+  function subscribeLegacyState(listener) {
+    if (typeof listener !== 'function') return () => {};
+    legacySubscribers.add(listener);
+    return () => legacySubscribers.delete(listener);
+  }
 
   function normaliseSelectionType(type) {
     return typeof type === 'string' ? type.toLowerCase() : null;
@@ -52,11 +162,14 @@
   function setGraphWorkbenchSelection(selection) {
     if (!selection || !selection.id) {
       graphWorkbenchState.selection = null;
-      return;
+      notifyLegacyStateChanged();
+      return null;
     }
 
     const type = normaliseSelectionType(selection.type) || 'entity';
     graphWorkbenchState.selection = { type, id: selection.id };
+    notifyLegacyStateChanged();
+    return graphWorkbenchState.selection;
   }
   let isDirty = false;
   let snapshotDirty = false;
@@ -76,6 +189,9 @@
   function updateDirtyState() {
     isDirty = snapshotDirty || movementFormDirty || itemEditorDirty;
     renderSaveBanner();
+    if (!suppressLegacyNotify) {
+      notifyLegacyStateChanged();
+    }
   }
 
   function saveSnapshot(options = {}) {
@@ -6151,9 +6267,42 @@
     // Initial render
     renderMovementList();
     renderActiveTab();
+    notifyLegacyStateChanged();
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
-    init().catch(showFatalImportError);
+  async function bootstrapLegacyApp() {
+    if (hasLegacyInitialized) return;
+    hasLegacyInitialized = true;
+    try {
+      await init();
+    } catch (error) {
+      hasLegacyInitialized = false;
+      throw error;
+    }
+  }
+
+  function handleDomContentLoaded() {
+    if (movementEngineerGlobal.bootstrapOptions.legacyAutoInit === false) return;
+    bootstrapLegacyApp().catch(showFatalImportError);
+  }
+
+  document.addEventListener('DOMContentLoaded', handleDomContentLoaded);
+
+  movementEngineerGlobal.legacy = Object.assign(movementEngineerGlobal.legacy || {}, {
+    init: bootstrapLegacyApp,
+    getState: getLegacyState,
+    setState: setLegacyState,
+    update: updateLegacyState,
+    subscribe: subscribeLegacyState,
+    notify: notifyLegacyStateChanged,
+    setStatus,
+    showFatalImportError,
+    clearFatalImportError,
+    renderSaveBanner,
+    markDirty,
+    markSaved,
+    ensureFatalImportBanner,
+    bootstrapOptions,
+    hasInitialized: () => hasLegacyInitialized
   });
 })();
