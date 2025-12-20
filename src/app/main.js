@@ -3,6 +3,9 @@ import { createStatusUi } from './ui/status.js';
 import { createDomUtils } from './ui/dom.js';
 import { registerComparisonTab } from './tabs/comparison.js';
 import { registerNotesTab } from './tabs/notes.js';
+import { registerClaimsTab } from './tabs/claims.js';
+import { registerRulesTab } from './tabs/rules.js';
+import { registerMediaTab } from './tabs/media.js';
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.bootstrapOptions = movementEngineerGlobal.bootstrapOptions || {};
@@ -58,3 +61,6 @@ if (legacy) {
 
 registerComparisonTab(ctx);
 registerNotesTab(ctx);
+registerClaimsTab(ctx);
+registerRulesTab(ctx);
+registerMediaTab(ctx);

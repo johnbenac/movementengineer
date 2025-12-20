@@ -546,9 +546,6 @@
       case 'entities':
       case 'practices':
       case 'calendar':
-      case 'claims':
-      case 'rules':
-      case 'media':
       case 'graph':
         renderMovementSection(tabName);
         break;
@@ -564,6 +561,21 @@
       case 'notes':
         showFatalImportError(
           new Error('Notes tab has been migrated to ES modules. Legacy renderer removed.')
+        );
+        break;
+      case 'claims':
+        showFatalImportError(
+          new Error('Claims tab has been migrated to ES modules. Legacy renderer removed.')
+        );
+        break;
+      case 'rules':
+        showFatalImportError(
+          new Error('Rules tab has been migrated to ES modules. Legacy renderer removed.')
+        );
+        break;
+      case 'media':
+        showFatalImportError(
+          new Error('Media tab has been migrated to ES modules. Legacy renderer removed.')
         );
         break;
       case 'authority':
@@ -780,15 +792,6 @@
         break;
       case 'calendar':
         renderCalendarView();
-        break;
-      case 'claims':
-        renderClaimsView();
-        break;
-      case 'rules':
-        renderRulesView();
-        break;
-      case 'media':
-        renderMediaView();
         break;
       case 'graph':
         renderGraphWorkbench();
@@ -5973,50 +5976,13 @@
       });
     }
 
-    // Calendar / claims / rules / media / notes filters react on change
+    // Calendar / notes filters react on change
     const calendarFilter = document.getElementById(
       'calendar-recurrence-filter'
     );
     if (calendarFilter) {
       calendarFilter.addEventListener('change', renderCalendarView);
     }
-    const claimsCatFilter = document.getElementById(
-      'claims-category-filter'
-    );
-    const claimsEntFilter = document.getElementById(
-      'claims-entity-filter'
-    );
-    if (claimsCatFilter) {
-      claimsCatFilter.addEventListener('change', renderClaimsView);
-    }
-    if (claimsEntFilter) {
-      claimsEntFilter.addEventListener('change', renderClaimsView);
-    }
-    const rulesKindFilter = document.getElementById(
-      'rules-kind-filter'
-    );
-    const rulesDomainFilter = document.getElementById(
-      'rules-domain-filter'
-    );
-    if (rulesKindFilter) {
-      rulesKindFilter.addEventListener('change', renderRulesView);
-    }
-    if (rulesDomainFilter) {
-      rulesDomainFilter.addEventListener('input', renderRulesView);
-    }
-
-    const mediaFilters = [
-      'media-entity-filter',
-      'media-practice-filter',
-      'media-event-filter',
-      'media-text-filter'
-    ];
-    mediaFilters.forEach(id => {
-      const el = document.getElementById(id);
-      if (el) {
-        el.addEventListener('change', renderMediaView);
-      }
-    });
 
     const entitySelect = document.getElementById('entity-select');
     if (entitySelect) {
