@@ -44,6 +44,45 @@
     return typeof module !== 'undefined' && !!module.exports;
   }
 
+  let cachedFetch = null;
+
+  function getFetch() {
+    if (cachedFetch) return cachedFetch;
+    if (!isNode() && typeof fetch === 'function') {
+      cachedFetch = fetch;
+      return cachedFetch;
+    }
+
+    if (isNode()) {
+      try {
+        // Prefer undici so we can honour HTTP(S)_PROXY in the sandbox.
+        // Node's global fetch ignores these by default.
+        const { fetch: undiciFetch, ProxyAgent } = require('undici');
+        const proxyUrl =
+          process.env.HTTPS_PROXY ||
+          process.env.https_proxy ||
+          process.env.HTTP_PROXY ||
+          process.env.http_proxy ||
+          null;
+        if (proxyUrl && ProxyAgent) {
+          const agent = new ProxyAgent(proxyUrl);
+          cachedFetch = (url, options = {}) => undiciFetch(url, { dispatcher: agent, ...options });
+        } else {
+          cachedFetch = undiciFetch;
+        }
+        return cachedFetch;
+      } catch (e) {
+        if (typeof fetch === 'function') {
+          cachedFetch = fetch;
+          return cachedFetch;
+        }
+        throw new Error('Fetch API is not available in this environment.');
+      }
+    }
+
+    throw new Error('Fetch API is not available in this environment.');
+  }
+
   function getYamlLib() {
     if (isNode()) return require('js-yaml');
     if (typeof window !== 'undefined' && window.jsyaml) return window.jsyaml;
@@ -53,6 +92,20 @@
   function normaliseArray(value) {
     if (!Array.isArray(value)) return [];
     return value.filter(v => v !== undefined && v !== null);
+  }
+
+  function normaliseId(value) {
+    const strRaw = stringOrNull(value);
+    if (!strRaw) return strRaw;
+    const str = strRaw.trim();
+    const match = str.match(/^\[\[(.+?)\]\]$/);
+    return match ? match[1].trim() : str;
+  }
+
+  function normaliseIdArray(value) {
+    return normaliseArray(value)
+      .map(v => normaliseId(v))
+      .filter(v => v !== null);
   }
 
   function stringOrNull(value) {
@@ -183,7 +236,7 @@
   }
 
   async function fetchJson(url) {
-    const res = await fetch(url);
+    const res = await getFetch()(url);
     if (!res.ok) {
       const body = await res.text();
       throw new Error(`GitHub API request failed (${res.status} ${res.statusText}): ${body || url}`);
@@ -220,7 +273,8 @@
         .filter(entry => entry && entry.type === 'blob' && typeof entry.path === 'string')
         .map(entry => entry.path);
       const scoped = filtered.filter(path => (basePrefix ? path.startsWith(basePrefix + '/') : true));
-      return { files: scoped, ref, commitSha };
+      const effective = scoped.length ? scoped : filtered;
+      return { files: effective, ref, commitSha };
     }
 
     async function readText(filePath, ref, commitSha) {
@@ -228,7 +282,7 @@
       const prefix = subdir ? `${subdir}/` : '';
       const path = `${prefix}${filePath}`.replace(/\/{2,}/g, '/');
       const url = `https://raw.githubusercontent.com/${parsed.owner}/${parsed.repo}/${baseRef}/${path}`;
-      const res = await fetch(url);
+      const res = await getFetch()(url);
       if (!res.ok) {
         throw new Error(`Failed to fetch ${path} (${res.status} ${res.statusText}).`);
       }
@@ -279,7 +333,7 @@
       id,
       movementId,
       name,
-      rootTextIds: normaliseArray(frontMatter.rootTextIds).map(String),
+      rootTextIds: normaliseIdArray(frontMatter.rootTextIds),
       description: trimBody(body),
       tags: normaliseArray(frontMatter.tags).map(String),
       order: numberOrNull(frontMatter.order)
@@ -298,10 +352,10 @@
       movementId,
       title,
       label: stringOrNull(frontMatter.label),
-      parentId: stringOrNull(frontMatter.parentId),
+      parentId: normaliseId(frontMatter.parentId),
       mainFunction: stringOrNull(frontMatter.mainFunction),
       tags: normaliseArray(frontMatter.tags).map(String),
-      mentionsEntityIds: normaliseArray(frontMatter.mentionsEntityIds).map(String),
+      mentionsEntityIds: normaliseIdArray(frontMatter.mentionsEntityIds),
       order: numberOrNull(frontMatter.order),
       content: trimBody(body)
     };
@@ -320,7 +374,7 @@
       name,
       kind: stringOrNull(frontMatter.kind),
       tags: normaliseArray(frontMatter.tags).map(String),
-      sourceEntityIds: normaliseArray(frontMatter.sourceEntityIds).map(String),
+      sourceEntityIds: normaliseIdArray(frontMatter.sourceEntityIds),
       sourcesOfTruth: normaliseArray(frontMatter.sourcesOfTruth).map(String),
       order: numberOrNull(frontMatter.order),
       summary: trimBody(body)
@@ -341,10 +395,10 @@
       kind: stringOrNull(frontMatter.kind),
       frequency: stringOrNull(frontMatter.frequency),
       tags: normaliseArray(frontMatter.tags).map(String),
-      involvedEntityIds: normaliseArray(frontMatter.involvedEntityIds).map(String),
-      instructionsTextIds: normaliseArray(frontMatter.instructionsTextIds).map(String),
-      supportingClaimIds: normaliseArray(frontMatter.supportingClaimIds).map(String),
-      sourceEntityIds: normaliseArray(frontMatter.sourceEntityIds).map(String),
+      involvedEntityIds: normaliseIdArray(frontMatter.involvedEntityIds),
+      instructionsTextIds: normaliseIdArray(frontMatter.instructionsTextIds),
+      supportingClaimIds: normaliseIdArray(frontMatter.supportingClaimIds),
+      sourceEntityIds: normaliseIdArray(frontMatter.sourceEntityIds),
       sourcesOfTruth: normaliseArray(frontMatter.sourcesOfTruth).map(String),
       order: numberOrNull(frontMatter.order),
       description: trimBody(body)
@@ -365,10 +419,10 @@
       recurrence: stringOrNull(frontMatter.recurrence),
       timingRule: stringOrNull(frontMatter.timingRule),
       tags: normaliseArray(frontMatter.tags).map(String),
-      mainPracticeIds: normaliseArray(frontMatter.mainPracticeIds).map(String),
-      mainEntityIds: normaliseArray(frontMatter.mainEntityIds).map(String),
-      readingTextIds: normaliseArray(frontMatter.readingTextIds).map(String),
-      supportingClaimIds: normaliseArray(frontMatter.supportingClaimIds).map(String),
+      mainPracticeIds: normaliseIdArray(frontMatter.mainPracticeIds),
+      mainEntityIds: normaliseIdArray(frontMatter.mainEntityIds),
+      readingTextIds: normaliseIdArray(frontMatter.readingTextIds),
+      supportingClaimIds: normaliseIdArray(frontMatter.supportingClaimIds),
       order: numberOrNull(frontMatter.order),
       description: trimBody(body)
     };
@@ -393,19 +447,19 @@
       appliesTo: normaliseArray(frontMatter.appliesTo).map(String),
       domain: normaliseArray(frontMatter.domain).map(String),
       tags: normaliseArray(frontMatter.tags).map(String),
-      supportingTextIds: normaliseArray(frontMatter.supportingTextIds).map(String),
-      supportingClaimIds: normaliseArray(frontMatter.supportingClaimIds).map(String),
-      relatedPracticeIds: normaliseArray(frontMatter.relatedPracticeIds).map(String),
-      sourceEntityIds: normaliseArray(frontMatter.sourceEntityIds).map(String),
+      supportingTextIds: normaliseIdArray(frontMatter.supportingTextIds),
+      supportingClaimIds: normaliseIdArray(frontMatter.supportingClaimIds),
+      relatedPracticeIds: normaliseIdArray(frontMatter.relatedPracticeIds),
+      sourceEntityIds: normaliseIdArray(frontMatter.sourceEntityIds),
       sourcesOfTruth: normaliseArray(frontMatter.sourcesOfTruth).map(String),
       order: numberOrNull(frontMatter.order)
     };
   }
 
-  function compileClaim(frontMatter, _body, filePath) {
+  function compileClaim(frontMatter, body, filePath) {
     const id = stringOrNull(frontMatter.id);
     const movementId = stringOrNull(frontMatter.movementId);
-    const text = stringOrNull(frontMatter.text);
+    const text = stringOrNull(frontMatter.text) || trimBody(body);
     if (!id || !movementId || !text) {
       throw new Error(`Claim missing required fields (${filePath})`);
     }
@@ -415,9 +469,9 @@
       text,
       category: stringOrNull(frontMatter.category),
       tags: normaliseArray(frontMatter.tags).map(String),
-      aboutEntityIds: normaliseArray(frontMatter.aboutEntityIds).map(String),
-      sourceTextIds: normaliseArray(frontMatter.sourceTextIds).map(String),
-      sourceEntityIds: normaliseArray(frontMatter.sourceEntityIds).map(String),
+      aboutEntityIds: normaliseIdArray(frontMatter.aboutEntityIds),
+      sourceTextIds: normaliseIdArray(frontMatter.sourceTextIds),
+      sourceEntityIds: normaliseIdArray(frontMatter.sourceEntityIds),
       sourcesOfTruth: normaliseArray(frontMatter.sourcesOfTruth).map(String),
       order: numberOrNull(frontMatter.order)
     };
@@ -438,10 +492,10 @@
       uri,
       title: stringOrNull(frontMatter.title),
       tags: normaliseArray(frontMatter.tags).map(String),
-      linkedEntityIds: normaliseArray(frontMatter.linkedEntityIds).map(String),
-      linkedPracticeIds: normaliseArray(frontMatter.linkedPracticeIds).map(String),
-      linkedEventIds: normaliseArray(frontMatter.linkedEventIds).map(String),
-      linkedTextIds: normaliseArray(frontMatter.linkedTextIds).map(String),
+      linkedEntityIds: normaliseIdArray(frontMatter.linkedEntityIds),
+      linkedPracticeIds: normaliseIdArray(frontMatter.linkedPracticeIds),
+      linkedEventIds: normaliseIdArray(frontMatter.linkedEventIds),
+      linkedTextIds: normaliseIdArray(frontMatter.linkedTextIds),
       order: numberOrNull(frontMatter.order),
       description: trimBody(body)
     };
@@ -467,7 +521,7 @@
       id,
       movementId,
       targetType: canonical,
-      targetId,
+      targetId: normaliseId(targetId),
       author: stringOrNull(frontMatter.author),
       context: stringOrNull(frontMatter.context),
       tags: normaliseArray(frontMatter.tags).map(String),
@@ -734,9 +788,16 @@
   }
 
   function detectCollectionFromPath(path) {
+    if (!path || typeof path !== 'string') return null;
     const parts = path.split('/').filter(Boolean);
-    if (parts[0] !== 'data' || parts.length < 3) return null;
-    const collectionDir = parts[1];
+    const isDataRoot = parts[0] === 'data';
+    const isMovementsRoot = parts[0] === 'movements' && parts.length >= 3;
+    if (!isDataRoot && !isMovementsRoot) return null;
+    const collectionDir = isDataRoot
+      ? parts[1]
+      : parts[2] === 'movement.md'
+        ? 'movements'
+        : parts[2];
     if (!COLLECTION_NAMES.includes(collectionDir)) return null;
     if (!/\.md$/i.test(parts[parts.length - 1])) return null;
     return collectionDir;
@@ -812,5 +873,17 @@
   }
   if (typeof window !== 'undefined') {
     window.MarkdownDatasetLoader = api;
+    if (!window.GitHubRepoImporter) {
+      window.GitHubRepoImporter = {
+        importMovementRepo: async (repoUrlOrConfig) => {
+          const repoUrl =
+            typeof repoUrlOrConfig === 'string' ? repoUrlOrConfig : repoUrlOrConfig?.repoUrl;
+          if (!repoUrl) {
+            throw new Error('repoUrl is required to import a GitHub repository.');
+          }
+          return api.loadMovementDataset({ source: 'github', repoUrl });
+        }
+      };
+    }
   }
 })();
