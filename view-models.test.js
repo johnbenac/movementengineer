@@ -84,6 +84,43 @@ function testGraphFiltering() {
   assert(!combined.nodes.some(n => n.id === 'e1'), 'Excluded types are filtered out');
 }
 
+function testRuleEditorViewModel() {
+  const data = {
+    movements: [{ id: 'm1', movementId: 'm1', name: 'Movement' }],
+    rules: [
+      {
+        id: 'r1',
+        movementId: 'm1',
+        shortText: 'Keep the fast',
+        kind: 'must_do',
+        sourcesOfTruth: ['Tradition'],
+        sourceEntityIds: ['e1'],
+        supportingTextIds: ['t1'],
+        supportingClaimIds: ['c1'],
+        relatedPracticeIds: ['p1'],
+        appliesTo: ['monastics'],
+        domain: ['diet'],
+        tags: ['ascetic']
+      }
+    ],
+    texts: [{ id: 't1', movementId: 'm1', title: 'Rule of Life' }],
+    claims: [{ id: 'c1', movementId: 'm1', text: 'Fasting is required', category: 'doctrine' }],
+    practices: [{ id: 'p1', movementId: 'm1', name: 'Weekly fast', kind: 'discipline' }],
+    entities: [{ id: 'e1', movementId: 'm1', name: 'Abbot', kind: 'person' }],
+    events: [],
+    textCollections: [],
+    media: [],
+    notes: []
+  };
+
+  const vm = ViewModels.buildRuleEditorViewModel(data, { movementId: 'm1' });
+  assert(vm.rules.length === 1, 'Editor VM returns rules for the movement');
+  assert(vm.rules[0].supportingTextIds.includes('t1'), 'Rule retains supporting text ids');
+  assert(vm.options.texts.some(opt => opt.value === 't1'), 'Text options include canonical text');
+  assert(vm.options.sourcesOfTruth.includes('Tradition'), 'Sources of truth bubble up into options');
+  assert(vm.options.ruleKinds.includes('must_do'), 'Default rule kinds are included');
+}
+
 async function runTests() {
   console.log('Running view-model tests...');
   const data = await loadFixtureData();
@@ -91,6 +128,7 @@ async function runTests() {
   testEntityDetail(data);
   testPracticeDetail(data);
   testGraphFiltering();
+  testRuleEditorViewModel();
   console.log('All tests passed ✅');
 }
 

@@ -442,6 +442,14 @@ button.danger:hover {
   flex: 1;
 }
 
+.toolbar-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
 /* Split view in collections tab */
 
 .split {
@@ -1029,6 +1037,7 @@ button.danger:hover {
   border: 1px solid #e5e7eb;
   padding: 0.3rem 0.4rem;
   vertical-align: top;
+  cursor: default;
 }
 
 .table-wrapper th {
@@ -1052,6 +1061,14 @@ button.danger:hover {
 #notes-table-wrapper .note-actions button {
   padding: 0.15rem 0.45rem;
   font-size: 0.75rem;
+}
+
+.table-wrapper tr.clickable-row {
+  cursor: pointer;
+}
+
+.table-wrapper tr.selected {
+  background: #eef2ff;
 }
 
 /* Links in tables / detail */

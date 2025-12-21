@@ -12,8 +12,8 @@ const rulesSnapshot = {
     { id: 't1', movementId: 'm1', title: 'T1' },
     { id: 't2', movementId: 'm2', title: 'T2' }
   ],
-  entities: [],
-  practices: [],
+  entities: [{ id: 'e1', movementId: 'm1', name: 'Leader' }],
+  practices: [{ id: 'p1', movementId: 'm1', name: 'Practice One', kind: 'ritual' }],
   events: [],
   rules: [
     {
@@ -100,6 +100,28 @@ test('switching movements updates rules list', async ({ page }) => {
 
   await page.locator('#movement-list li').filter({ hasText: 'Two' }).click();
   await expect(rows).toHaveCount(2);
+});
+
+test('supports creating and deleting rules from the editor', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Rules' }).click();
+
+  const rows = page.locator('#rules-table-wrapper table tr');
+  await expect(rows).toHaveCount(3);
+
+  await page.getByRole('button', { name: 'Add rule' }).click();
+  await page.getByLabel('Short text').fill('Brand new rule');
+  await page.locator('#rules-editor-kind').selectOption('must_do');
+  await page.locator('#rules-editor-supporting-texts').selectOption('t1');
+  await page.locator('#rules-editor-sourcesOfTruth').fill('Tradition');
+  await page.getByRole('button', { name: 'Save rule' }).click();
+
+  await expect(rows).toHaveCount(4);
+  await expect(page.locator('#rules-table-wrapper')).toContainText('Brand new rule');
+
+  await page.getByRole('button', { name: 'Delete rule' }).click();
+  await expect(rows).toHaveCount(3);
+  await expect(page.locator('#rules-table-wrapper')).not.toContainText('Brand new rule');
 });
 
 test('shows empty-state message when no rules match', async ({ page }) => {

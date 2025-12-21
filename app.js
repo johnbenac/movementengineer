@@ -541,8 +541,9 @@
 
     switch (tabName) {
       case 'dashboard':
-        renderMovementForm();
-        renderDashboard();
+        showFatalImportError(
+          new Error('Dashboard tab has been migrated to ES modules. Legacy renderer removed.')
+        );
         break;
       case 'canon':
         showFatalImportError(
@@ -555,9 +556,13 @@
         );
         break;
       case 'entities':
-      case 'practices':
       case 'calendar':
         renderMovementSection(tabName);
+        break;
+      case 'practices':
+        showFatalImportError(
+          new Error('Practices tab has been migrated to ES modules. Legacy renderer removed.')
+        );
         break;
       case 'claims':
         showFatalImportError(
@@ -798,7 +803,9 @@
         renderEntitiesView();
         break;
       case 'practices':
-        renderPracticesView();
+        showFatalImportError(
+          new Error('Practices tab has been migrated to ES modules. Legacy renderer removed.')
+        );
         break;
       case 'calendar':
         renderCalendarView();
@@ -2745,166 +2752,6 @@
     });
   }
 
-  // ---- Practices (buildPracticeDetailViewModel) ----
-
-  function renderPracticesView() {
-    const select = document.getElementById('practice-select');
-    const detailContainer = document.getElementById('practice-detail');
-    if (!select || !detailContainer) return;
-    clearElement(detailContainer);
-
-    const practices = (snapshot.practices || []).filter(
-      p => p.movementId === currentMovementId
-    );
-    const options = practices
-      .slice()
-      .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
-      .map(p => ({ value: p.id, label: p.name || p.id }));
-    ensureSelectOptions(select, options, 'Choose practice');
-
-    const practiceId =
-      select.value || (options.length ? options[0].value : null);
-
-    if (!practiceId) {
-      const p = document.createElement('p');
-      p.className = 'hint';
-      p.textContent = 'No practices found for this movement.';
-      detailContainer.appendChild(p);
-      return;
-    }
-
-    const vm = ViewModels.buildPracticeDetailViewModel(snapshot, {
-      practiceId
-    });
-
-    if (!vm.practice) {
-      const p = document.createElement('p');
-      p.className = 'hint';
-      p.textContent = 'Practice not found.';
-      detailContainer.appendChild(p);
-      return;
-    }
-
-    const title = document.createElement('h3');
-    title.textContent =
-      vm.practice.name +
-      (vm.practice.kind ? ` (${vm.practice.kind})` : '');
-    detailContainer.appendChild(title);
-
-    const meta = document.createElement('p');
-    meta.style.fontSize = '0.8rem';
-    meta.textContent = `Frequency: ${vm.practice.frequency} · Public: ${
-      vm.practice.isPublic ? 'yes' : 'no'
-    }`;
-    detailContainer.appendChild(meta);
-
-    if (vm.practice.description) {
-      const desc = document.createElement('p');
-      desc.textContent = vm.practice.description;
-      detailContainer.appendChild(desc);
-    }
-
-    const mkSection = (label, contentBuilder) => {
-      const heading = document.createElement('div');
-      heading.className = 'section-heading small';
-      heading.textContent = label;
-      detailContainer.appendChild(heading);
-      const section = document.createElement('div');
-      section.style.fontSize = '0.8rem';
-      contentBuilder(section);
-      detailContainer.appendChild(section);
-    };
-
-    if (vm.entities && vm.entities.length) {
-      mkSection('Involves entities', section => {
-        const row = document.createElement('div');
-        row.className = 'chip-row';
-          vm.entities.forEach(e => {
-            const chip = document.createElement('span');
-            chip.className = 'chip chip-entity clickable';
-            chip.textContent = e.name || e.id;
-            chip.title = e.kind || '';
-            chip.addEventListener('click', () => jumpToEntity(e.id));
-            row.appendChild(chip);
-          });
-        section.appendChild(row);
-      });
-    }
-
-    if (vm.instructionsTexts && vm.instructionsTexts.length) {
-      mkSection('Instruction texts', section => {
-        const row = document.createElement('div');
-        row.className = 'chip-row';
-        vm.instructionsTexts.forEach(t => {
-          const chip = document.createElement('span');
-          chip.className = 'chip clickable';
-          chip.textContent = t.title || t.id;
-          chip.title = Number.isFinite(t.depth) ? `Depth ${t.depth}` : '';
-          chip.addEventListener('click', () => jumpToText(t.id));
-          row.appendChild(chip);
-        });
-        section.appendChild(row);
-      });
-    }
-
-    if (vm.supportingClaims && vm.supportingClaims.length) {
-      mkSection('Supporting claims', section => {
-        const ul = document.createElement('ul');
-        vm.supportingClaims.forEach(c => {
-          const li = document.createElement('li');
-          li.textContent =
-            (c.category ? '[' + c.category + '] ' : '') + c.text;
-          ul.appendChild(li);
-        });
-        section.appendChild(ul);
-      });
-    }
-
-    if (vm.attachedRules && vm.attachedRules.length) {
-      mkSection('Related rules', section => {
-        const ul = document.createElement('ul');
-        vm.attachedRules.forEach(r => {
-          const li = document.createElement('li');
-          li.textContent =
-            (r.kind ? '[' + r.kind + '] ' : '') + r.shortText;
-          ul.appendChild(li);
-        });
-        section.appendChild(ul);
-      });
-    }
-
-    if (vm.attachedEvents && vm.attachedEvents.length) {
-      mkSection('Scheduled in events', section => {
-        const row = document.createElement('div');
-        row.className = 'chip-row';
-        vm.attachedEvents.forEach(ev => {
-          const chip = document.createElement('span');
-          chip.className = 'chip';
-          chip.textContent = `${ev.name} (${ev.recurrence})`;
-          row.appendChild(chip);
-        });
-        section.appendChild(row);
-      });
-    }
-
-    if (vm.media && vm.media.length) {
-      mkSection('Media', section => {
-        const ul = document.createElement('ul');
-        vm.media.forEach(m => {
-          const li = document.createElement('li');
-          const a = document.createElement('a');
-          a.href = m.uri;
-          a.target = '_blank';
-          a.rel = 'noopener noreferrer';
-          a.textContent = `${m.title} (${m.kind})`;
-          li.appendChild(a);
-          ul.appendChild(li);
-        });
-        section.appendChild(ul);
-      });
-    }
-  }
-
   // ---- Calendar (buildCalendarViewModel) ----
 
   function renderCalendarView() {
@@ -4298,10 +4145,9 @@
   function jumpToPractice(practiceId) {
     if (!practiceId) return;
     const prSelect = document.getElementById('practice-select');
-    if (!prSelect) return;
     activateTab('practices');
-    prSelect.value = practiceId;
-    renderPracticesView();
+    if (prSelect) prSelect.value = practiceId;
+    renderActiveTab();
   }
 
   function jumpToText(textId) {
@@ -4345,183 +4191,6 @@
     ) {
       notifyLegacyStateChanged();
     }
-  }
-
-  // ---- Dashboard (ViewModels) ----
-
-  function renderDashboard() {
-    const container = document.getElementById('dashboard-content');
-    if (!container) return;
-    clearElement(container);
-
-    if (!currentMovementId) {
-      const p = document.createElement('p');
-      p.textContent = 'Create a movement on the left to see a dashboard.';
-      container.appendChild(p);
-      return;
-    }
-
-    if (typeof ViewModels === 'undefined') {
-      const p = document.createElement('p');
-      p.textContent = 'ViewModels module not loaded.';
-      container.appendChild(p);
-      return;
-    }
-
-    const vm = ViewModels.buildMovementDashboardViewModel(snapshot, {
-      movementId: currentMovementId
-    });
-
-    if (!vm.movement) {
-      const p = document.createElement('p');
-      p.textContent = 'Selected movement not found in dataset.';
-      container.appendChild(p);
-      return;
-    }
-
-    const title = document.createElement('h2');
-    title.textContent =
-      vm.movement.name +
-      (vm.movement.shortName ? ` (${vm.movement.shortName})` : '');
-    container.appendChild(title);
-
-    const summary = document.createElement('p');
-    summary.textContent = vm.movement.summary || 'No summary yet.';
-    container.appendChild(summary);
-
-    // Stats cards
-    const statsGrid = document.createElement('div');
-    statsGrid.className = 'stats-grid';
-
-    // Text stats
-    const textCard = document.createElement('div');
-    textCard.className = 'stat-card';
-    const textHeader = document.createElement('h3');
-    textHeader.textContent = 'Texts';
-    textCard.appendChild(textHeader);
-    const totalText = document.createElement('p');
-    totalText.textContent = `Total: ${vm.textStats.totalTexts}`;
-    textCard.appendChild(totalText);
-    const rootLine = document.createElement('p');
-    const maxDepthText = Number.isFinite(vm.textStats.maxDepth)
-      ? ` · Max depth: ${vm.textStats.maxDepth}`
-      : '';
-    rootLine.textContent = `Roots: ${vm.textStats.rootCount || 0}${maxDepthText}`;
-    textCard.appendChild(rootLine);
-    const depthList = document.createElement('ul');
-    Object.entries(vm.textStats.byDepth || {})
-      .sort(([a], [b]) => {
-        const na = Number(a);
-        const nb = Number(b);
-        const aNum = Number.isFinite(na);
-        const bNum = Number.isFinite(nb);
-        if (aNum && bNum) return na - nb;
-        if (aNum) return -1;
-        if (bNum) return 1;
-        return String(a).localeCompare(String(b));
-      })
-      .forEach(([depth, count]) => {
-        const li = document.createElement('li');
-        li.textContent = `Depth ${depth}: ${count}`;
-        depthList.appendChild(li);
-      });
-    textCard.appendChild(depthList);
-    statsGrid.appendChild(textCard);
-
-    // Entity stats
-    const entityCard = document.createElement('div');
-    entityCard.className = 'stat-card';
-    entityCard.innerHTML = `<h3>Entities</h3><p>Total: ${vm.entityStats.totalEntities}</p>`;
-    if (vm.entityStats.byKind) {
-      const ul = document.createElement('ul');
-      Object.entries(vm.entityStats.byKind).forEach(([kind, count]) => {
-        const li = document.createElement('li');
-        li.textContent = `${kind}: ${count}`;
-        ul.appendChild(li);
-      });
-      entityCard.appendChild(ul);
-    }
-    statsGrid.appendChild(entityCard);
-
-    // Practice stats
-    const practiceCard = document.createElement('div');
-    practiceCard.className = 'stat-card';
-    practiceCard.innerHTML = `<h3>Practices</h3><p>Total: ${vm.practiceStats.totalPractices}</p>`;
-    if (vm.practiceStats.byKind) {
-      const ul = document.createElement('ul');
-      Object.entries(vm.practiceStats.byKind).forEach(([kind, count]) => {
-        const li = document.createElement('li');
-        li.textContent = `${kind}: ${count}`;
-        ul.appendChild(li);
-      });
-      practiceCard.appendChild(ul);
-    }
-    statsGrid.appendChild(practiceCard);
-
-    // Event stats
-    const eventCard = document.createElement('div');
-    eventCard.className = 'stat-card';
-    eventCard.innerHTML = `<h3>Events</h3><p>Total: ${vm.eventStats.totalEvents}</p>`;
-    if (vm.eventStats.byRecurrence) {
-      const ul = document.createElement('ul');
-      Object.entries(vm.eventStats.byRecurrence).forEach(
-        ([rec, count]) => {
-          const li = document.createElement('li');
-          li.textContent = `${rec}: ${count}`;
-          ul.appendChild(li);
-        }
-      );
-      eventCard.appendChild(ul);
-    }
-    statsGrid.appendChild(eventCard);
-
-    // Rule / claim / media counts
-    const miscCard = document.createElement('div');
-    miscCard.className = 'stat-card';
-    miscCard.innerHTML =
-      '<h3>Other</h3>' +
-      `<p>Rules: ${vm.ruleCount}</p>` +
-      `<p>Claims: ${vm.claimCount}</p>` +
-      `<p>Media assets: ${vm.mediaCount}</p>`;
-    statsGrid.appendChild(miscCard);
-
-    container.appendChild(statsGrid);
-
-    // Example nodes
-    const exampleSectionTitle = document.createElement('div');
-    exampleSectionTitle.className = 'section-heading';
-    exampleSectionTitle.textContent = 'Example nodes';
-    container.appendChild(exampleSectionTitle);
-
-    const mkChipRow = (label, items, key) => {
-      const heading = document.createElement('div');
-      heading.className = 'section-heading';
-      heading.style.fontSize = '0.85rem';
-      heading.textContent = label;
-      container.appendChild(heading);
-
-      if (!items || !items.length) {
-        const p = document.createElement('p');
-        p.style.fontSize = '0.8rem';
-        p.textContent = 'None yet.';
-        container.appendChild(p);
-        return;
-      }
-
-      const row = document.createElement('div');
-      row.className = 'chip-row';
-      items.forEach(item => {
-        const chip = document.createElement('span');
-        chip.className = 'chip';
-        chip.textContent = item[key] || item.id;
-        row.appendChild(chip);
-      });
-      container.appendChild(row);
-    };
-
-    mkChipRow('Key entities', vm.exampleNodes.keyEntities, 'name');
-    mkChipRow('Key practices', vm.exampleNodes.keyPractices, 'name');
-    mkChipRow('Key events', vm.exampleNodes.keyEvents, 'name');
   }
 
   // ---- Collections tab ----
@@ -5588,10 +5257,6 @@
     if (entitySelect) {
       entitySelect.addEventListener('change', renderEntitiesView);
     }
-    const practiceSelect = document.getElementById('practice-select');
-    if (practiceSelect) {
-      practiceSelect.addEventListener('change', renderPracticesView);
-    }
     // Collections tab
       addListenerById('collection-select', 'change', e => {
         setCollectionAndItem(e.target.value, null, { addToHistory: false });
@@ -5656,6 +5321,7 @@
     showFatalImportError,
     clearFatalImportError,
     renderSaveBanner,
+    renderMovementForm,
     markDirty,
     markSaved,
     ensureFatalImportBanner,
