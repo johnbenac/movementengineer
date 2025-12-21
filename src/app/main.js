@@ -31,8 +31,10 @@ const services = {
   d3: window.d3
 };
 
-const store = createStore({ legacy });
 const ui = createStatusUi({ legacy });
+services.ui = ui;
+
+const store = createStore({ services });
 const dom = createDomUtils();
 
 const ctx = {
@@ -45,7 +47,7 @@ const ctx = {
   setState: next => store.setState(next),
   update: updater => store.update(updater),
   subscribe: fn => store.subscribe(fn),
-  setStatus: (...args) => ui.setStatus?.(...args),
+  setStatus: (...args) => store.setStatus?.(...args),
   showFatalImportError: (...args) => ui.showFatalImportError?.(...args),
   clearFatalImportError: (...args) => ui.clearFatalImportError?.(...args),
   get ViewModels() {

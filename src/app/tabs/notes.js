@@ -297,13 +297,16 @@ function renderNotesTable(wrapper, notes, clear, selectedId) {
 function persistSnapshot(ctx, snapshot, storageService, statusText) {
   const state = getState(ctx);
   const nextState = { ...state, snapshot };
-  if (typeof ctx?.setState === 'function') {
-    ctx.setState(nextState);
-  } else if (ctx?.store?.setState) {
+  if (ctx?.store?.setState) {
     ctx.store.setState(nextState);
+  } else if (typeof ctx?.setState === 'function') {
+    ctx.setState(nextState);
   }
 
-  if (storageService?.saveSnapshot) {
+  if (ctx?.store?.saveSnapshot) {
+    ctx.store.markDirty?.('item');
+    ctx.store.saveSnapshot({ show: false, clearItemDirty: true });
+  } else if (storageService?.saveSnapshot) {
     try {
       storageService.saveSnapshot(snapshot);
     } catch (err) {
@@ -314,7 +317,8 @@ function persistSnapshot(ctx, snapshot, storageService, statusText) {
   }
 
   if (statusText) {
-    ctx?.setStatus?.(statusText);
+    if (ctx?.store?.setStatus) ctx.store.setStatus(statusText);
+    else ctx?.setStatus?.(statusText);
   }
 }
 

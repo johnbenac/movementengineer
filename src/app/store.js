@@ -1,18 +1,103 @@
-function defaultLegacy() {
+const DEFAULT_CANON_FILTERS = {
+  search: '',
+  tag: '',
+  mention: '',
+  parent: '',
+  child: ''
+};
+
+const DEFAULT_GRAPH_WORKBENCH_STATE = {
+  leftWidth: 360,
+  rightWidth: 420,
+  searchKind: 'all',
+  searchQuery: '',
+  selection: null,
+  focusEntityId: null,
+  filterCenterId: null,
+  filterDepth: null,
+  filterNodeTypes: []
+};
+
+const DEFAULT_FLAGS = {
+  snapshotDirty: false,
+  movementFormDirty: false,
+  itemEditorDirty: false,
+  isDirty: false,
+  isPopulatingMovementForm: false,
+  isPopulatingEditor: false,
+  isPopulatingCanonForms: false,
+  isCanonMarkdownInitialized: false,
+  isCanonCollectionInputsInitialized: false
+};
+
+function ensureSnapshot(services) {
+  const storage = services?.StorageService;
+  if (!storage) return {};
+  const loaded =
+    typeof storage.loadSnapshot === 'function'
+      ? storage.loadSnapshot()
+      : storage.getDefaultSnapshot?.() || {};
+  return typeof storage.ensureAllCollections === 'function'
+    ? storage.ensureAllCollections(loaded)
+    : loaded || {};
+}
+
+function movementExists(snapshot, movementId) {
+  if (!movementId || !Array.isArray(snapshot?.movements)) return false;
+  return snapshot.movements.some(
+    movement => movement?.id === movementId || movement?.movementId === movementId
+  );
+}
+
+// Mirrors legacy init logic from app.js: prefer a previously selected movement when valid,
+// otherwise default to the first available movement in the snapshot.
+function computeCurrentMovementId(snapshot) {
+  if (!snapshot) return null;
+
+  const persistedSelection =
+    snapshot.currentMovementId ||
+    snapshot.__currentMovementId ||
+    snapshot?.navigation?.currentMovementId;
+  if (movementExists(snapshot, persistedSelection)) {
+    return persistedSelection;
+  }
+
+  const movements = Array.isArray(snapshot.movements) ? snapshot.movements : [];
+  if (movements.length) {
+    const first = movements[0];
+    return first?.id || first?.movementId || null;
+  }
+
+  return null;
+}
+
+function buildInitialState(snapshot) {
   return {
-    getState: () => ({}),
-    setState: () => {},
-    update: () => {},
-    subscribe: () => () => {}
+    snapshot,
+    currentMovementId: computeCurrentMovementId(snapshot),
+    currentCollectionName: 'entities',
+    currentItemId: null,
+    navigation: { stack: [], index: -1 },
+    flags: { ...DEFAULT_FLAGS },
+    currentTextId: null,
+    currentShelfId: null,
+    currentBookId: null,
+    canonFilters: { ...DEFAULT_CANON_FILTERS },
+    graphWorkbenchState: { ...DEFAULT_GRAPH_WORKBENCH_STATE },
+    statusText: ''
   };
 }
 
-export function createStore(options = {}) {
-  const legacy = options.legacy || defaultLegacy();
-  let state = legacy.getState ? legacy.getState() : {};
+function computeDirty(flags) {
+  const next = { ...DEFAULT_FLAGS, ...(flags || {}) };
+  next.isDirty = next.snapshotDirty || next.movementFormDirty || next.itemEditorDirty;
+  return next;
+}
+
+export function createStore({ services = {} } = {}) {
+  const snapshot = ensureSnapshot(services);
+  let state = buildInitialState(snapshot);
   const subscribers = new Set();
-  let isSyncingFromLegacy = false;
-  let handledByLegacyDispatch = false;
 
   function notify(nextState = state) {
     subscribers.forEach(callback => {
@@ -24,16 +109,6 @@ export function createStore(options = {}) {
     });
   }
 
-  const unsubscribeLegacy = legacy.subscribe
-    ? legacy.subscribe(next => {
-        isSyncingFromLegacy = true;
-        handledByLegacyDispatch = true;
-        state = next;
-        notify(state);
-        isSyncingFromLegacy = false;
-      })
-    : null;
-
   function getState() {
     return state;
   }
@@ -41,36 +116,80 @@ export function createStore(options = {}) {
   function setState(nextState) {
     if (!nextState) return state;
     state = nextState;
-    if (!isSyncingFromLegacy && legacy.setState) {
-      handledByLegacyDispatch = false;
-      legacy.setState(nextState);
-      if (handledByLegacyDispatch) {
-        return state;
-      }
-    }
     notify(state);
     return state;
   }
 
-  function update(updater) {
-    if (typeof updater !== 'function') {
-      return setState(updater);
+  function update(patchOrUpdater) {
+    if (typeof patchOrUpdater === 'function') {
+      const updated = patchOrUpdater(getState());
+      return updated ? setState(updated) : state;
     }
-    const updated = updater(getState());
-    return setState(updated);
+    return setState(patchOrUpdater);
   }
 
-  function subscribe(callback) {
-    if (typeof callback !== 'function') return () => {};
-    subscribers.add(callback);
-    return () => subscribers.delete(callback);
+  function subscribe(listener) {
+    if (typeof listener !== 'function') return () => {};
+    subscribers.add(listener);
+    return () => subscribers.delete(listener);
+  }
+
+  function setStatus(text) {
+    if (services?.ui?.setStatus) {
+      services.ui.setStatus(text);
+    }
+    state = { ...state, statusText: text || '' };
+    notify(state);
+  }
+
+  function markDirty(scope) {
+    const flags = computeDirty(state.flags);
+    if (scope === 'movement') {
+      flags.movementFormDirty = true;
+    }
+    if (scope === 'item') {
+      flags.itemEditorDirty = true;
+    }
+    flags.snapshotDirty = true;
+    const nextState = { ...state, flags: computeDirty(flags) };
+    return setState(nextState);
+  }
+
+  function markSaved({ movement = false, item = false } = {}) {
+    const flags = computeDirty(state.flags);
+    flags.snapshotDirty = false;
+    if (movement) flags.movementFormDirty = false;
+    if (item) flags.itemEditorDirty = false;
+    const nextState = { ...state, flags: computeDirty(flags) };
+    return setState(nextState);
+  }
+
+  function saveSnapshot({ show = true, clearMovementDirty = true, clearItemDirty = true } = {}) {
+    const snapshotToSave = state.snapshot || {};
+    if (services?.StorageService?.ensureAllCollections) {
+      services.StorageService.ensureAllCollections(snapshotToSave);
+    }
+    if (services?.StorageService?.saveSnapshot) {
+      try {
+        services.StorageService.saveSnapshot(snapshotToSave);
+      } catch (err) {
+        console.error(err);
+        setStatus('Save failed');
+        return state;
+      }
+    }
+    const flags = computeDirty(state.flags);
+    flags.snapshotDirty = false;
+    if (clearMovementDirty) flags.movementFormDirty = false;
+    if (clearItemDirty) flags.itemEditorDirty = false;
+    state = { ...state, snapshot: snapshotToSave, flags: computeDirty(flags) };
+    notify(state);
+    if (show) setStatus('Saved ✓');
+    return state;
   }
 
   function destroy() {
     subscribers.clear();
-    if (typeof unsubscribeLegacy === 'function') {
-      unsubscribeLegacy();
-    }
   }
 
   return {
@@ -78,6 +197,10 @@ export function createStore(options = {}) {
     setState,
     update,
     subscribe,
+    markDirty,
+    markSaved,
+    saveSnapshot,
+    setStatus,
     destroy
   };
 }
