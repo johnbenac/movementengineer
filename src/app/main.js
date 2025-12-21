@@ -14,6 +14,15 @@ import { registerEntitiesTab } from './tabs/entities.js';
 import { registerCalendarTab } from './tabs/calendar.js';
 import { registerCollectionsTab } from './tabs/collections.js';
 import { initShell } from './shell.js';
+import { initMovements } from './ui/movements.js';
+
+const DEFAULT_CANON_FILTERS = {
+  search: '',
+  tag: '',
+  mention: '',
+  parent: '',
+  child: ''
+};
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.bootstrapOptions = movementEngineerGlobal.bootstrapOptions || {};
@@ -70,10 +79,59 @@ movementEngineerGlobal.store = store;
 movementEngineerGlobal.ui = ui;
 movementEngineerGlobal.dom = dom;
 movementEngineerGlobal.services = services;
+movementEngineerGlobal.actions = ctx.actions;
 
 if (legacy) {
   legacy.context = ctx;
 }
+
+function syncLegacySelectionIfPresent(movementId) {
+  const legacyRef = movementEngineerGlobal.__legacyRef || movementEngineerGlobal.legacy;
+  if (!legacyRef) return;
+
+  try {
+    const legacyState = legacyRef.getState?.() || {};
+    const storeState = ctx.getState();
+    const patched = {
+      ...legacyState,
+      snapshot: storeState.snapshot,
+      currentMovementId: movementId
+    };
+
+    if (typeof legacyRef.setState === 'function') {
+      legacyRef.setState(patched);
+    } else if (typeof legacyRef.update === 'function') {
+      legacyRef.update(() => patched);
+    }
+  } catch (err) {
+    console.error('Failed syncing movement selection to legacy', err);
+  }
+}
+
+ctx.actions = ctx.actions || {};
+ctx.actions.selectMovement =
+  ctx.actions.selectMovement ||
+  function selectMovement(movementId) {
+    const state = ctx.getState();
+    const snapshot = state.snapshot || {};
+    const movements = Array.isArray(snapshot.movements) ? snapshot.movements : [];
+    if (movementId && !movements.some(movement => movement?.id === movementId)) return;
+
+    ctx.store.update(prev => ({
+      ...prev,
+      currentMovementId: movementId || null,
+      currentCollectionName: prev.currentCollectionName,
+      currentItemId: null,
+      currentTextId: null,
+      currentShelfId: null,
+      currentBookId: null,
+      canonFilters: { ...DEFAULT_CANON_FILTERS },
+      navigation: { stack: [], index: -1 }
+    }));
+
+    ctx.shell?.renderActiveTab?.();
+    syncLegacySelectionIfPresent(movementId || null);
+  };
 
 function mirrorLegacyState(nextState = {}) {
   store.setState(prev => ({
@@ -137,6 +195,9 @@ onReady(() => {
   }
   if (movementEngineerGlobal.bootstrapOptions.legacyFree && typeof legacy?.init === 'function') {
     legacy.init();
+  }
+  if (!ctx.movementsUI) {
+    ctx.movementsUI = initMovements(ctx);
   }
   if (!ctx.shell) {
     ctx.shell = initShell(ctx);
