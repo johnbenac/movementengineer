@@ -57,6 +57,7 @@ You can generate comparison reports for ranges of pull requests directly from th
 3. The workflow checks out the base branch, pulls each PR branch (falling back to the PR ref when needed), gathers all changed files and PR comments, and writes:
    - Per-PR diff files with contextual headers and the full comment transcript.
    - A master comparison file combining all requested PRs.
+   - A touched-files compilation that lists each unique file modified across the PR range (one copy per path, from the base branch) followed by the combined diff report.
 4. Download the generated artifact `pr-comparison-{start}-{end}` to retrieve the reports.
 
 ## License
