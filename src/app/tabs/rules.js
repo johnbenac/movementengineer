@@ -132,7 +132,7 @@ function disableElements(elements = [], disabled = false) {
   });
 }
 
-function renderRulesTable(wrapper, rules, clear, onSelect) {
+function renderRulesTable(wrapper, rules, clear, selectedRuleId, onSelect) {
   clear(wrapper);
 
   if (!rules || rules.length === 0) {
@@ -161,8 +161,14 @@ function renderRulesTable(wrapper, rules, clear, onSelect) {
 
   rules.forEach(r => {
     const tr = document.createElement('tr');
+    tr.classList.add('clickable-row');
+    if (selectedRuleId && r.id === selectedRuleId) {
+      tr.classList.add('selected');
+    }
     tr.addEventListener('click', () => {
       if (typeof onSelect === 'function') onSelect(r.id);
+      Array.from(table.querySelectorAll('tr')).forEach(row => row.classList.remove('selected'));
+      tr.classList.add('selected');
     });
 
     const tdKind = document.createElement('td');
@@ -591,12 +597,12 @@ function renderRulesTab(ctx) {
     domainFilter
   });
 
-  renderRulesTable(wrapper, explorerVm?.rules || [], clear, ruleId => {
+  renderRuleEditor(ctx, tabState, editorHelpers, editorVm);
+
+  renderRulesTable(wrapper, explorerVm?.rules || [], clear, tabState.selectedRuleId, ruleId => {
     tabState.selectedRuleId = ruleId;
     renderRuleEditor(ctx, tabState, editorHelpers, editorVm);
   });
-
-  renderRuleEditor(ctx, tabState, editorHelpers, editorVm);
 }
 
 export function registerRulesTab(ctx) {
