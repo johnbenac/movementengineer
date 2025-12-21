@@ -528,6 +528,125 @@ button.danger:hover {
   cursor: not-allowed;
 }
 
+.card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.4rem;
+}
+
+.card-title {
+  margin: 0.1rem 0 0.2rem;
+  font-size: 1rem;
+}
+
+.small-text {
+  font-size: 0.83rem;
+}
+
+.button-group {
+  display: inline-flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.rules-layout {
+  display: grid;
+  grid-template-columns: minmax(360px, 1fr) minmax(380px, 1fr);
+  gap: 1rem;
+  align-items: start;
+  margin-top: 0.5rem;
+}
+
+.rules-pane .card {
+  height: 100%;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 2px rgba(17, 24, 39, 0.06);
+}
+
+.rules-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.6rem;
+  margin: 0.4rem 0 0.6rem;
+}
+
+.rules-filter-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: #374151;
+}
+
+.rules-filter-grid select,
+.rules-filter-grid input {
+  font-size: 0.9rem;
+  padding: 0.35rem 0.45rem;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+}
+
+.rules-editor-card .button-group {
+  align-self: flex-end;
+}
+
+.rules-editor-top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.rules-editor-top .form-row {
+  margin-bottom: 0;
+  max-width: none;
+  flex: 1;
+}
+
+.rules-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.75rem;
+}
+
+.rules-editor-grid .form-row {
+  margin-bottom: 0;
+  max-width: none;
+}
+
+.rules-editor-grid .form-row.wide {
+  grid-column: 1 / -1;
+}
+
+.rules-editor-card select[multiple] {
+  min-height: 130px;
+}
+
+.rules-editor-card .form-actions {
+  justify-content: space-between;
+  margin-top: 0.85rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.rules-editor-card .form-actions .hint {
+  color: #4b5563;
+}
+
+.rules-browser .table-wrapper {
+  margin-top: 0.1rem;
+}
+
+@media (max-width: 1100px) {
+  .rules-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 .eyebrow {
   font-size: 0.7rem;
   text-transform: uppercase;
