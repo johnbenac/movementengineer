@@ -125,6 +125,15 @@ button.danger:hover {
   background: #fecaca;
 }
 
+button.primary {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+button.primary:hover {
+  background: #bfdbfe;
+}
+
 .status {
   font-size: 0.8rem;
   min-width: 120px;
@@ -314,6 +323,14 @@ button.danger:hover {
   flex-wrap: wrap;
   align-items: center;
   margin-top: 0.5rem;
+}
+
+.claims-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  align-items: start;
 }
 
 .sr-file-input {

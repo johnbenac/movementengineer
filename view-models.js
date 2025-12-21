@@ -1159,7 +1159,8 @@ function buildCalendarViewModel(data, input) {
 
 function buildClaimsExplorerViewModel(data, input) {
   const { movementId, categoryFilter, entityIdFilter } = input;
-  let claims = filterByMovement(data.claims, movementId);
+  const claimsForMovement = filterByMovement(data.claims, movementId);
+  let claims = claimsForMovement;
   if (Array.isArray(categoryFilter) && categoryFilter.length > 0) {
     claims = claims.filter(
       claim => claim.category && categoryFilter.includes(claim.category)
@@ -1173,7 +1174,8 @@ function buildClaimsExplorerViewModel(data, input) {
 
   const entityLookup = buildLookup(data.entities);
   const textLookup = buildLookup(data.texts);
-  const { depthById } = buildTextHierarchy(filterByMovement(data.texts, movementId));
+  const textsForMovement = filterByMovement(data.texts, movementId);
+  const { depthById } = buildTextHierarchy(textsForMovement);
 
   const claimRows = claims.map(claim => ({
     id: claim.id,
@@ -1195,7 +1197,44 @@ function buildClaimsExplorerViewModel(data, input) {
     sourcesOfTruth: normaliseArray(claim.sourcesOfTruth)
   }));
 
-  return { claims: claimRows };
+  const uniqueSorted = values =>
+    Array.from(new Set(values.filter(Boolean))).sort((a, b) =>
+      String(a).localeCompare(String(b), undefined, { sensitivity: 'base' })
+    );
+
+  const entitiesForMovement = filterByMovement(data.entities, movementId).map(entity => ({
+    id: entity.id,
+    name: entity.name ?? null,
+    kind: entity.kind ?? null
+  }));
+
+  const textOptions = textsForMovement.map(text => ({
+    id: text.id,
+    title: text.title ?? null,
+    depth: depthById.get(text.id) ?? null
+  }));
+
+  const tagOptions = uniqueSorted(
+    claimsForMovement.flatMap(claim => normaliseArray(claim.tags))
+  );
+  const sourceOfTruthOptions = uniqueSorted(
+    claimsForMovement.flatMap(claim => normaliseArray(claim.sourcesOfTruth))
+  );
+  const categories = uniqueSorted(claimsForMovement.map(claim => claim.category));
+
+  entitiesForMovement.sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id));
+  textOptions.sort((a, b) => (a.title || a.id).localeCompare(b.title || b.id));
+
+  return {
+    claims: claimRows,
+    lookups: {
+      categories,
+      entities: entitiesForMovement,
+      texts: textOptions,
+      tags: tagOptions,
+      sourcesOfTruth: sourceOfTruthOptions
+    }
+  };
 }
 
 function buildRuleExplorerViewModel(data, input) {

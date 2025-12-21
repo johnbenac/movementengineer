@@ -297,6 +297,69 @@
               </select>
             </label>
           </div>
+          <div class="claims-editor-grid">
+            <div class="card">
+              <div class="section-heading small">Claim selection</div>
+              <div class="form-row">
+                <label>Claim</label>
+                <select id="claims-claim-select">
+                  <option value="">Choose a claim</option>
+                </select>
+              </div>
+              <div class="form-actions">
+                <button type="button" id="claims-new-btn">New claim</button>
+                <button type="button" class="danger" id="claims-delete-btn">Delete</button>
+                <button type="button" class="primary" id="claims-save-btn">Save</button>
+              </div>
+            </div>
+            <div class="card">
+              <div class="section-heading small">Claim details</div>
+              <div class="form-row">
+                <label>Category</label>
+                <input id="claims-category" list="claims-category-options" placeholder="Belief, ethos, practice..." />
+                <datalist id="claims-category-options"></datalist>
+              </div>
+              <div class="form-row">
+                <label>Text</label>
+                <textarea id="claims-text" rows="3" placeholder="Short assertion for this claim"></textarea>
+              </div>
+              <div class="form-row">
+                <label>Tags (comma separated)</label>
+                <input id="claims-tags" list="claims-tag-options" placeholder="afterlife, ethics, ritual" />
+                <datalist id="claims-tag-options"></datalist>
+              </div>
+              <div class="form-row">
+                <label>Sources of truth (comma separated)</label>
+                <input
+                  id="claims-sources-of-truth"
+                  list="claims-sources-options"
+                  placeholder="tradition, revelation, observation"
+                />
+                <datalist id="claims-sources-options"></datalist>
+              </div>
+              <div class="form-row">
+                <label>Notes</label>
+                <textarea id="claims-notes" rows="2" placeholder="Optional editor notes"></textarea>
+              </div>
+            </div>
+            <div class="card">
+              <div class="section-heading small">Cross references</div>
+              <div class="form-row">
+                <label>About entities</label>
+                <select id="claims-about-entities" multiple size="6"></select>
+                <div class="hint">Use Ctrl/Cmd + click to select multiple entities.</div>
+              </div>
+              <div class="form-row">
+                <label>Source texts</label>
+                <select id="claims-source-texts" multiple size="6"></select>
+                <div class="hint">Text titles include chapter/section depth where available.</div>
+              </div>
+              <div class="form-row">
+                <label>Authority entities</label>
+                <select id="claims-source-entities" multiple size="6"></select>
+              </div>
+            </div>
+          </div>
           <div id="claims-table-wrapper" class="table-wrapper"></div>
         </div>
       </section>
