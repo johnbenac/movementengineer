@@ -201,4 +201,43 @@ describe('notes tab module', () => {
     expect(StorageService.saveSnapshot).toHaveBeenCalled();
     expect(snapshot.notes.find(n => n.id === 'n1')).toBeUndefined();
   });
+
+  it('loads and updates existing notes even when IDs are numeric', async () => {
+    const snapshot = createSnapshot();
+    snapshot.entities.push({ id: 101, movementId: 'm1', name: 'Numeric Entity' });
+    snapshot.notes.push({
+      id: 7,
+      movementId: 'm1',
+      targetType: 'Entity',
+      targetId: 101,
+      author: null,
+      body: 'Existing body',
+      tags: ['keep']
+    });
+
+    const { ctx, DomainService } = await setup({ snapshot });
+
+    const editBtn = document.querySelector('[data-note-id="7"][data-note-action="edit"]');
+    editBtn.click();
+
+    expect(document.getElementById('note-body').value).toBe('Existing body');
+
+    const datalistValues = Array.from(
+      document.querySelectorAll('#notes-target-id-options option')
+    ).map(opt => opt.value);
+    expect(datalistValues).toContain('101');
+
+    document.getElementById('note-body').value = 'Updated body';
+    document.getElementById('notes-editor-form').dispatchEvent(
+      new Event('submit', { bubbles: true, cancelable: true })
+    );
+
+    expect(DomainService.upsertItem).toHaveBeenCalledWith(
+      snapshot,
+      'notes',
+      expect.objectContaining({ id: 7, body: 'Updated body' })
+    );
+    expect(snapshot.notes.find(n => n.id === 7)?.body).toBe('Updated body');
+    expect(snapshot.notes).toHaveLength(1);
+  });
 });

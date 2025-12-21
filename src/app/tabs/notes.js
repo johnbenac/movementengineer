@@ -37,6 +37,15 @@ const TARGET_COLLECTION_BY_TYPE = {
 let selectedNoteId = null;
 let lastMovementId = null;
 
+function normaliseId(id) {
+  return id == null ? null : String(id);
+}
+
+function idsMatch(a, b) {
+  if (a == null || b == null) return false;
+  return String(a) === String(b);
+}
+
 function fallbackClear(el) {
   if (!el) return;
   while (el.firstChild) el.removeChild(el.firstChild);
@@ -160,7 +169,7 @@ function buildTargetIdOptions(snapshot, movementId, targetType, domainService) {
   return filtered
     .filter(item => item && item.id)
     .map(item => ({
-      value: item.id,
+      value: String(item.id),
       label: targetLabelForItem(targetType, item)
     }));
 }
@@ -240,7 +249,7 @@ function renderNotesTable(wrapper, notes, clear, selectedId) {
 
   notes.forEach(n => {
     const tr = document.createElement('tr');
-    if (selectedId && n.id === selectedId) {
+    if (selectedId && idsMatch(n.id, selectedId)) {
       tr.classList.add('selected');
     }
 
@@ -274,13 +283,13 @@ function renderNotesTable(wrapper, notes, clear, selectedId) {
     const editBtn = document.createElement('button');
     editBtn.type = 'button';
     editBtn.textContent = 'Edit';
-    editBtn.dataset.noteId = n.id;
+    editBtn.dataset.noteId = String(n.id);
     editBtn.dataset.noteAction = 'edit';
     const deleteBtn = document.createElement('button');
     deleteBtn.type = 'button';
     deleteBtn.className = 'danger';
     deleteBtn.textContent = 'Delete';
-    deleteBtn.dataset.noteId = n.id;
+    deleteBtn.dataset.noteId = String(n.id);
     deleteBtn.dataset.noteAction = 'delete';
     actionRow.appendChild(editBtn);
     actionRow.appendChild(deleteBtn);
@@ -354,7 +363,9 @@ function handleSaveNote(ctx) {
 
   const existing =
     Array.isArray(snapshot.notes) && selectedNoteId
-      ? snapshot.notes.find(n => n.id === selectedNoteId && n.movementId === currentMovementId)
+      ? snapshot.notes.find(
+          n => idsMatch(n.id, selectedNoteId) && n.movementId === currentMovementId
+        )
       : null;
 
   let note = existing
@@ -376,7 +387,7 @@ function handleSaveNote(ctx) {
     return;
   }
 
-  selectedNoteId = note.id;
+  selectedNoteId = normaliseId(note.id);
   persistSnapshot(ctx, snapshot, StorageService, 'Note saved');
   renderNotesTab(ctx);
 }
@@ -387,7 +398,7 @@ function handleDeleteNote(ctx, noteId) {
   const snapshot = state.snapshot;
   if (!snapshot || !Array.isArray(snapshot.notes)) return;
 
-  const note = snapshot.notes.find(n => n.id === noteId);
+  const note = snapshot.notes.find(n => idsMatch(n.id, noteId));
   if (!note) return;
 
   const preview = note.body || note.id;
@@ -396,16 +407,16 @@ function handleDeleteNote(ctx, noteId) {
 
   let deleted = false;
   if (DomainService?.deleteItem) {
-    deleted = DomainService.deleteItem(snapshot, 'notes', noteId);
+    deleted = DomainService.deleteItem(snapshot, 'notes', note.id);
   } else {
     const before = snapshot.notes.length;
-    snapshot.notes = snapshot.notes.filter(n => n.id !== noteId);
+    snapshot.notes = snapshot.notes.filter(n => !idsMatch(n.id, noteId));
     deleted = before !== snapshot.notes.length;
   }
 
   if (!deleted) return;
 
-  if (selectedNoteId === noteId) selectedNoteId = null;
+  if (idsMatch(selectedNoteId, noteId)) selectedNoteId = null;
   persistSnapshot(ctx, snapshot, StorageService, 'Note deleted');
   renderNotesTab(ctx);
 }
@@ -509,7 +520,7 @@ function renderNotesTab(ctx) {
     : [];
   const selectedNote =
     selectedNoteId && notesForMovement
-      ? notesForMovement.find(n => n.id === selectedNoteId)
+      ? notesForMovement.find(n => idsMatch(n.id, selectedNoteId))
       : null;
   if (selectedNoteId && !selectedNote) {
     selectedNoteId = null;
@@ -538,7 +549,10 @@ function renderNotesTab(ctx) {
   populateTargetIdOptions(formDom.targetIdDatalist, targetIdOptions);
 
   formDom.targetId.value =
-    selectedNote?.targetId || selectedId || formDom.targetId.value || '';
+    (selectedNote?.targetId != null ? String(selectedNote.targetId) : '') ||
+    selectedId ||
+    formDom.targetId.value ||
+    '';
   formDom.author.value = selectedNote?.author || '';
   formDom.body.value = selectedNote?.body || '';
   formDom.context.value = selectedNote?.context || '';
@@ -574,7 +588,7 @@ export function registerNotesTab(ctx) {
         const { noteAction, noteId } = actionBtn.dataset;
         if (!noteId) return;
         if (noteAction === 'edit') {
-          selectedNoteId = noteId;
+          selectedNoteId = normaliseId(noteId);
           rerender();
         } else if (noteAction === 'delete') {
           handleDeleteNote(context, noteId);
