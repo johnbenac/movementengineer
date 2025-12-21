@@ -522,7 +522,10 @@ export function registerClaimsTab(ctx) {
       addListener(saveBtn, 'click', () => handleSaveClaim(context));
       addListener(resetBtn, 'click', rerender);
       addListener(tableWrapper, 'click', event => {
-        const row = event.target.closest('tr[data-claim-id]');
+        const target = event.target instanceof Element ? event.target : event.target?.parentElement;
+        if (target?.closest('a')) return;
+
+        const row = target?.closest('tr[data-claim-id]');
         if (!row) return;
         selectedClaimId = row.dataset.claimId;
         rerender();

@@ -165,7 +165,8 @@ function renderRulesTable(wrapper, rules, clear, selectedRuleId, onSelect) {
     if (selectedRuleId && r.id === selectedRuleId) {
       tr.classList.add('selected');
     }
-    tr.addEventListener('click', () => {
+    tr.addEventListener('click', event => {
+      if (event?.target instanceof Element && event.target.closest('a')) return;
       if (typeof onSelect === 'function') onSelect(r.id);
       Array.from(table.querySelectorAll('tr')).forEach(row => row.classList.remove('selected'));
       tr.classList.add('selected');
