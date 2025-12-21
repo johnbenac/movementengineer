@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { gotoApp } from '../helpers/gotoApp';
 
 const mediaSnapshot = {
   version: '2.3',
@@ -83,7 +84,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('renders media tab via module override', async ({ page }) => {
-  await page.goto('/');
+  await gotoApp(page);
   await page.getByRole('button', { name: 'Media' }).click();
 
   await expect(page.locator('#fatal-import-error:not(.hidden)')).toHaveCount(0);
@@ -91,7 +92,7 @@ test('renders media tab via module override', async ({ page }) => {
 });
 
 test('filters media by entity and practice', async ({ page }) => {
-  await page.goto('/');
+  await gotoApp(page);
   await page.getByRole('button', { name: 'Media' }).click();
 
   const cards = page.locator('#media-gallery .card');
@@ -105,7 +106,7 @@ test('filters media by entity and practice', async ({ page }) => {
 });
 
 test('switching movements updates media list', async ({ page }) => {
-  await page.goto('/');
+  await gotoApp(page);
   await page.getByRole('button', { name: 'Media' }).click();
 
   const cards = page.locator('#media-gallery .card');
@@ -119,11 +120,11 @@ test('shows empty-state message when no media match', async ({ page }) => {
   await page.addInitScript(() => {
     const raw = localStorage.getItem('movementDesigner.v3.snapshot');
     const snap = raw ? JSON.parse(raw) : null;
-    if (snap) snap.media = [];
-    localStorage.setItem('movementDesigner.v3.snapshot', JSON.stringify(snap));
+  if (snap) snap.media = [];
+  localStorage.setItem('movementDesigner.v3.snapshot', JSON.stringify(snap));
   });
 
-  await page.goto('/');
+  await gotoApp(page);
   await page.getByRole('button', { name: 'Media' }).click();
 
   await expect(page.locator('#media-gallery')).toContainText('No media match this filter.');
