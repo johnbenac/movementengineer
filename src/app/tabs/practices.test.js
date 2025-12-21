@@ -7,7 +7,7 @@ function renderDom() {
   `;
 }
 
-function createCtx(snapshot, vm, currentMovementId = 'm1') {
+function createCtx(snapshot, vm, currentMovementId = 'm1', options = {}) {
   const clearElement = el => {
     if (!el) return;
     while (el.firstChild) el.removeChild(el.firstChild);
@@ -32,8 +32,17 @@ function createCtx(snapshot, vm, currentMovementId = 'm1') {
       el.value = prev;
     }
   };
+  const buildPracticeDetailViewModel =
+    options.vmBuilder || (() => vm);
+  const subscriptions = [];
+  const subscribe =
+    options.subscribe ||
+    (fn => {
+      subscriptions.push(fn);
+      return () => {};
+    });
   const ViewModels = {
-    buildPracticeDetailViewModel: vi.fn(() => vm)
+    buildPracticeDetailViewModel: vi.fn((...args) => buildPracticeDetailViewModel(...args))
   };
   return {
     getState: () => ({ snapshot, currentMovementId }),
@@ -44,7 +53,8 @@ function createCtx(snapshot, vm, currentMovementId = 'm1') {
       jumpToText: vi.fn(),
       jumpToPractice: vi.fn()
     },
-    subscribe: () => () => {}
+    subscribe,
+    __subscriptions: subscriptions
   };
 }
 
@@ -126,5 +136,57 @@ describe('practices tab module', () => {
     expect(document.getElementById('practice-detail').textContent).toContain(
       'No practices found for this movement.'
     );
+  });
+
+  it('selects the first available practice when the previous selection is invalid', async () => {
+    renderDom();
+    const select = document.getElementById('practice-select');
+    select.value = 'stale';
+    const snapshot = {
+      practices: [
+        { id: 'p1', movementId: 'm1', name: 'Z Practice' },
+        { id: 'p2', movementId: 'm1', name: 'A Practice' }
+      ]
+    };
+    const vmBuilder = vi.fn((snap, { practiceId }) => ({
+      practice: { id: practiceId, name: practiceId }
+    }));
+    const ctx = createCtx(snapshot, null, 'm1', { vmBuilder });
+    const { registerPracticesTab } = await import('./practices.js');
+    const tab = registerPracticesTab(ctx);
+
+    tab.render(ctx);
+
+    expect(select.value).toBe('p2');
+    expect(vmBuilder).toHaveBeenCalledWith(snapshot, { practiceId: 'p2' });
+  });
+
+  it('re-renders when the store notifies while the practices tab is active', async () => {
+    renderDom();
+    document.body.insertAdjacentHTML(
+      'beforeend',
+      '<button class="tab active" data-tab="practices"></button>'
+    );
+    const snapshot = {
+      practices: [{ id: 'p1', movementId: 'm1', name: 'Practice One' }]
+    };
+    const vm = { practice: { id: 'p1', name: 'Practice One' } };
+    const ctx = createCtx(snapshot, vm, 'm1');
+    const { registerPracticesTab } = await import('./practices.js');
+    const tab = registerPracticesTab(ctx);
+
+    const renderSpy = vi.spyOn(tab, 'render');
+
+    tab.mount(ctx);
+    tab.render(ctx);
+    renderSpy.mockClear();
+
+    ctx.__subscriptions.forEach(fn => fn());
+    expect(renderSpy).toHaveBeenCalledTimes(1);
+
+    document.querySelector('.tab').dataset.tab = 'other';
+    renderSpy.mockClear();
+    ctx.__subscriptions.forEach(fn => fn());
+    expect(renderSpy).not.toHaveBeenCalled();
   });
 });
