@@ -143,13 +143,16 @@
       <!-- Library / Canon -->
       <section id="tab-canon" class="tab-panel">
         <div class="panel-body">
-          <h2>Library</h2>
-          <p class="hint">Shelves → books → table of contents.</p>
-          <div class="library-layout">
+          <h2>Scriptorium</h2>
+          <p class="hint library-hint">
+            Walk the stacks, pull a volume, and place it on the desk to read or edit.
+          </p>
+          <div class="library-stage">
+            <div class="library-layout">
             <div class="library-pane shelves-pane">
               <div class="pane-header">
                 <div>
-                  <div class="section-heading small">Shelves</div>
+                  <div class="section-heading small">Stacks & shelves</div>
                   <p class="muted" id="shelf-hint">Choose a shelf to browse its books.</p>
                 </div>
                 <div class="inline-actions">
@@ -172,7 +175,7 @@
             <div class="library-pane books-pane">
               <div class="pane-header">
                 <div>
-                  <div class="section-heading small" id="books-pane-title">Books</div>
+                  <div class="section-heading small" id="books-pane-title">Volumes</div>
                   <p class="muted" id="books-pane-hint">Pick a shelf to see its books.</p>
                 </div>
                 <div class="inline-actions">
@@ -187,11 +190,12 @@
 
             <div class="library-pane editor-pane">
               <div class="pane-header">
-                <div class="section-heading small">Editor</div>
+                <div class="section-heading small">Scriptorium desk</div>
                 <div class="breadcrumb" id="library-breadcrumb"></div>
               </div>
               <div class="card" id="shelf-editor"></div>
               <div class="card" id="text-editor"></div>
+            </div>
             </div>
           </div>
         </div>
