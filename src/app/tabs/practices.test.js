@@ -2,12 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 function renderDom() {
   document.body.innerHTML = `
+    <div class="tab" data-tab="practices"></div>
     <select id="practice-select"></select>
     <div id="practice-detail"></div>
   `;
 }
 
-function createCtx(snapshot, vm, currentMovementId = 'm1') {
+function createCtx(snapshot, vm, currentMovementId = 'm1', overrides = {}) {
   const clearElement = el => {
     if (!el) return;
     while (el.firstChild) el.removeChild(el.firstChild);
@@ -32,19 +33,19 @@ function createCtx(snapshot, vm, currentMovementId = 'm1') {
       el.value = prev;
     }
   };
-  const ViewModels = {
+  const ViewModels = overrides.ViewModels || {
     buildPracticeDetailViewModel: vi.fn(() => vm)
   };
   return {
     getState: () => ({ snapshot, currentMovementId }),
-    services: { ViewModels },
+    services: { ViewModels, ...(overrides.services || {}) },
     dom: { clearElement, ensureSelectOptions },
-    actions: {
+    actions: overrides.actions || {
       jumpToEntity: vi.fn(),
       jumpToText: vi.fn(),
       jumpToPractice: vi.fn()
     },
-    subscribe: () => () => {}
+    subscribe: overrides.subscribe || (() => () => {})
   };
 }
 
@@ -126,5 +127,63 @@ describe('practices tab module', () => {
     expect(document.getElementById('practice-detail').textContent).toContain(
       'No practices found for this movement.'
     );
+  });
+
+  it('falls back to the first practice when the selection is invalid', async () => {
+    renderDom();
+    const snapshot = {
+      practices: [
+        { id: 'p2', movementId: 'm1', name: 'Zulu' },
+        { id: 'p1', movementId: 'm1', name: 'Alpha' }
+      ]
+    };
+    const vm = { practice: { id: 'p1', name: 'Alpha' } };
+    const ctx = createCtx(snapshot, vm);
+    document.getElementById('practice-select').value = 'missing';
+    const { registerPracticesTab } = await import('./practices.js');
+    const tab = registerPracticesTab(ctx);
+
+    tab.render(ctx);
+
+    expect(ctx.services.ViewModels.buildPracticeDetailViewModel).toHaveBeenCalledWith(snapshot, {
+      practiceId: 'p1'
+    });
+    expect(document.getElementById('practice-select').value).toBe('p1');
+  });
+
+  it('rerenders on active tab state changes and cleans up listeners on unmount', async () => {
+    renderDom();
+    const activeTab = document.querySelector('.tab[data-tab="practices"]');
+    activeTab.classList.add('active');
+    const snapshot = {
+      practices: [{ id: 'p1', movementId: 'm1', name: 'Practice One', kind: 'ritual' }]
+    };
+    const vm = { practice: { id: 'p1', name: 'Practice One' } };
+    let subscriber;
+    const subscribe = vi.fn(cb => {
+      subscriber = cb;
+      return vi.fn();
+    });
+    const ctx = createCtx(snapshot, vm, 'm1', { subscribe });
+    const { registerPracticesTab } = await import('./practices.js');
+    const tab = registerPracticesTab(ctx);
+    const renderSpy = vi.spyOn(tab, 'render');
+
+    tab.mount(ctx);
+    tab.render(ctx);
+    subscriber?.();
+
+    expect(renderSpy).toHaveBeenCalledTimes(2);
+
+    activeTab.classList.remove('active');
+    activeTab.dataset.tab = 'entities';
+    subscriber?.();
+
+    expect(renderSpy).toHaveBeenCalledTimes(2);
+
+    tab.unmount();
+    document.getElementById('practice-select').dispatchEvent(new Event('change', { bubbles: true }));
+
+    expect(renderSpy).toHaveBeenCalledTimes(2);
   });
 });

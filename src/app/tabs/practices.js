@@ -97,7 +97,11 @@ function renderPracticesTab(ctx) {
     .map(p => ({ value: p.id, label: p.name || p.id }));
   ensureSelectOptions(select, options, 'Choose practice');
 
-  const practiceId = select.value || (options.length ? options[0].value : null);
+  const optionValues = new Set(options.map(o => o.value));
+  let practiceId = optionValues.has(select.value) ? select.value : null;
+  if (!practiceId && options.length) {
+    practiceId = options[0].value;
+  }
   if (practiceId) select.value = practiceId;
 
   if (!practiceId) {
