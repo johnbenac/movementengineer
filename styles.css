@@ -1036,6 +1036,53 @@ button.danger:hover {
   text-align: left;
 }
 
+.table-wrapper table tr.selectable-row {
+  cursor: pointer;
+}
+
+.table-wrapper table tr.selectable-row:hover {
+  background: #f3f4f6;
+}
+
+.table-wrapper table tr.selected {
+  background: #eef2ff;
+}
+
+.notes-grid {
+  display: grid;
+  grid-template-columns: minmax(360px, 1.1fr) minmax(320px, 1fr);
+  gap: 0.8rem;
+  align-items: start;
+}
+
+.note-form {
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  border-radius: 6px;
+  padding: 0.75rem;
+}
+
+.note-form-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.note-form h3 {
+  margin: 0;
+}
+
+.note-form .code-pill {
+  background: #f3f4f6;
+}
+
+@media (max-width: 960px) {
+  .notes-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Links in tables / detail */
 
 a.entity-link,

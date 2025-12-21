@@ -393,7 +393,10 @@
       <section id="tab-notes" class="tab-panel">
         <div class="panel-body">
           <h2>Notes</h2>
-          <p class="hint">Browse notes by target type and target within the movement.</p>
+          <p class="hint">
+            Browse notes by target type and target within the movement. Click a row to edit or
+            delete, or start a new note in the editor.
+          </p>
           <div class="subtab-toolbar">
             <label>
               Target type:
@@ -408,7 +411,57 @@
               </select>
             </label>
           </div>
-          <div id="notes-table-wrapper" class="table-wrapper"></div>
+          <div class="notes-grid">
+            <div>
+              <p class="hint" id="notes-table-hint">Click a note row to load it into the editor.</p>
+              <div id="notes-table-wrapper" class="table-wrapper"></div>
+            </div>
+            <form id="notes-editor-form" class="note-form">
+              <div class="note-form-header">
+                <h3>Note editor</h3>
+                <span id="notes-form-id" class="code-pill"></span>
+              </div>
+              <p class="hint" id="notes-editor-hint">
+                Select a note from the table or create a new one.
+              </p>
+              <div class="form-row">
+                <label for="notes-form-target-type">Target type</label>
+                <select id="notes-form-target-type"></select>
+              </div>
+              <div class="form-row">
+                <label for="notes-form-target-id">Target</label>
+                <input
+                  id="notes-form-target-id"
+                  list="notes-target-id-options"
+                  type="text"
+                  placeholder="Pick or type a target ID"
+                />
+                <datalist id="notes-target-id-options"></datalist>
+              </div>
+              <div class="form-row">
+                <label for="notes-form-author">Author (optional)</label>
+                <input id="notes-form-author" type="text" placeholder="Author name" />
+              </div>
+              <div class="form-row">
+                <label for="notes-form-context">Context (optional)</label>
+                <input id="notes-form-context" type="text" placeholder="Context for this note" />
+              </div>
+              <div class="form-row">
+                <label for="notes-form-tags">Tags (comma-separated)</label>
+                <input id="notes-form-tags" type="text" placeholder="tag1, tag2" />
+              </div>
+              <div class="form-row">
+                <label for="notes-form-body">Body</label>
+                <textarea id="notes-form-body" rows="5" placeholder="Write the note body"></textarea>
+              </div>
+              <div class="form-actions">
+                <button id="notes-new-btn" type="button">New note</button>
+                <button id="notes-save-btn" type="submit">Save note</button>
+                <button id="notes-reset-btn" type="button">Reset</button>
+                <button id="notes-delete-btn" type="button" class="danger">Delete</button>
+              </div>
+            </form>
+          </div>
         </div>
       </section>
       <!-- Generic collection editor -->

@@ -153,3 +153,69 @@ test('shows select-movement hint when there is no selected movement', async ({ p
   await expect(page.locator('#notes-target-type-filter')).toBeDisabled();
   await expect(page.locator('#notes-target-id-filter')).toBeDisabled();
 });
+
+test('allows creating a new note from the editor', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Notes' }).click();
+
+  await page.locator('#notes-new-btn').click();
+  await page.locator('#notes-form-target-type').selectOption('Practice');
+  await page.locator('#notes-form-target-id').fill('p1');
+  await page.locator('#notes-form-author').fill('Playwright Tester');
+  await page.locator('#notes-form-context').fill('Playwright context');
+  await page.locator('#notes-form-tags').fill('new,tag');
+  await page.locator('#notes-form-body').fill('A brand new practice note');
+  await page.locator('#notes-save-btn').click();
+
+  const rows = page.locator('#notes-table-wrapper table tr');
+  await expect(rows).toHaveCount(4);
+  await expect(page.locator('#notes-table-wrapper')).toContainText('A brand new practice note');
+
+  const saved = await page.evaluate(() => {
+    const raw = localStorage.getItem('movementDesigner.v3.snapshot');
+    const snap = raw ? JSON.parse(raw) : null;
+    return snap?.notes?.find(n => n.body === 'A brand new practice note');
+  });
+  expect(saved).toBeTruthy();
+  expect(saved?.movementId).toBe('m1');
+  expect(saved?.targetType).toBe('Practice');
+});
+
+test('updates an existing note when edited in the form', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Notes' }).click();
+
+  await page.locator('tr[data-note-id="n1"]').click();
+  await page.locator('#notes-form-author').fill('Editor');
+  await page.locator('#notes-form-body').fill('Entity note updated');
+  await page.locator('#notes-save-btn').click();
+
+  await expect(page.locator('#notes-table-wrapper')).toContainText('Entity note updated');
+
+  const saved = await page.evaluate(() => {
+    const raw = localStorage.getItem('movementDesigner.v3.snapshot');
+    const snap = raw ? JSON.parse(raw) : null;
+    return snap?.notes?.find(n => n.id === 'n1');
+  });
+  expect(saved?.body).toBe('Entity note updated');
+  expect(saved?.author).toBe('Editor');
+});
+
+test('deletes a selected note', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Notes' }).click();
+
+  await page.locator('tr[data-note-id="n2"]').click();
+  page.once('dialog', dialog => dialog.accept());
+  await page.locator('#notes-delete-btn').click();
+
+  const rows = page.locator('#notes-table-wrapper table tr');
+  await expect(rows).toHaveCount(2);
+
+  const remainingCount = await page.evaluate(() => {
+    const raw = localStorage.getItem('movementDesigner.v3.snapshot');
+    const snap = raw ? JSON.parse(raw) : null;
+    return (snap?.notes || []).filter(n => n.movementId === 'm1').length;
+  });
+  expect(remainingCount).toBe(1);
+});
