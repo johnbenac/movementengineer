@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { addTextCollection } from './canon/actions.js';
+
+vi.mock('./canon/libraryView.js', () => ({ renderLibraryView: vi.fn() }));
+
 function renderDom() {
   document.body.innerHTML = `
     <button class="tab active" data-tab="canon"></button>
@@ -9,28 +13,28 @@ function renderDom() {
     <button id="btn-delete-text-collection"></button>
     <button id="btn-add-root-text"></button>
     <button id="btn-add-existing-book"></button>
+    <div id="shelf-list"></div>
+    <div id="unshelved-list"></div>
+    <div id="book-list"></div>
+    <div id="toc-tree"></div>
+    <div id="shelf-editor"></div>
+    <div id="text-editor"></div>
+    <div id="library-search-results"></div>
+    <div id="library-breadcrumb"></div>
   `;
 }
 
-function createCtx() {
-  const legacy = {
-    renderLibraryView: vi.fn(),
-    addTextCollection: vi.fn(),
-    saveTextCollection: vi.fn(),
-    deleteTextCollection: vi.fn(),
-    addNewBookToShelf: vi.fn(),
-    addExistingBookToShelf: vi.fn()
-  };
+function createCtx(overrides = {}) {
   let subscriber = null;
   return {
-    legacy,
     subscribe: fn => {
       subscriber = fn;
       return vi.fn();
     },
     get subscriber() {
       return subscriber;
-    }
+    },
+    ...overrides
   };
 }
 
@@ -38,23 +42,33 @@ describe('canon tab module', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     window.MovementEngineer = { tabs: {}, bootstrapOptions: {} };
+    window.alert = vi.fn();
     renderDom();
   });
 
-  it('renders using the legacy library renderer', async () => {
+  it('renders without requiring legacy and responds to state changes', async () => {
+    const { renderLibraryView } = await import('./canon/libraryView.js');
     const ctx = createCtx();
     const { registerCanonTab } = await import('./canon.js');
     const tab = registerCanonTab(ctx);
 
     tab.mount(ctx);
     tab.render(ctx);
+    expect(renderLibraryView).toHaveBeenCalledTimes(1);
 
-    expect(ctx.legacy.renderLibraryView).toHaveBeenCalledTimes(1);
+    ctx.subscriber?.();
+    expect(renderLibraryView).toHaveBeenCalledTimes(2);
   });
 
-  it('wires canon controls to legacy actions', async () => {
-    const ctx = createCtx();
+  it('wires canon controls to module actions', async () => {
+    const actions = await import('./canon/actions.js');
+    const addCollectionSpy = vi.spyOn(actions, 'addTextCollection');
+    const saveCollectionSpy = vi.spyOn(actions, 'saveTextCollection');
+    const deleteCollectionSpy = vi.spyOn(actions, 'deleteTextCollection');
+    const addRootSpy = vi.spyOn(actions, 'addNewBookToShelf');
+    const addExistingSpy = vi.spyOn(actions, 'addExistingBookToShelf');
     const { registerCanonTab } = await import('./canon.js');
+    const ctx = createCtx();
     const tab = registerCanonTab(ctx);
     tab.mount(ctx);
 
@@ -65,22 +79,51 @@ describe('canon tab module', () => {
     document.getElementById('btn-add-root-text').click();
     document.getElementById('btn-add-existing-book').click();
 
-    expect(ctx.legacy.renderLibraryView).toHaveBeenCalled();
-    expect(ctx.legacy.addTextCollection).toHaveBeenCalled();
-    expect(ctx.legacy.saveTextCollection).toHaveBeenCalled();
-    expect(ctx.legacy.deleteTextCollection).toHaveBeenCalled();
-    expect(ctx.legacy.addNewBookToShelf).toHaveBeenCalled();
-    expect(ctx.legacy.addExistingBookToShelf).toHaveBeenCalled();
+    expect(addCollectionSpy).toHaveBeenCalled();
+    expect(saveCollectionSpy).toHaveBeenCalled();
+    expect(deleteCollectionSpy).toHaveBeenCalled();
+    expect(addRootSpy).toHaveBeenCalled();
+    expect(addExistingSpy).toHaveBeenCalled();
   });
 
-  it('responds to state changes when canon tab is active', async () => {
-    const ctx = createCtx();
-    const { registerCanonTab } = await import('./canon.js');
-    const tab = registerCanonTab(ctx);
-    tab.mount(ctx);
+  it('adds a text collection and persists through store actions', () => {
+    let state = {
+      snapshot: { textCollections: [], texts: [] },
+      currentMovementId: 'm1',
+      currentShelfId: null,
+      currentBookId: null,
+      currentTextId: null
+    };
+    const markDirty = vi.fn();
+    const saveSnapshot = vi.fn();
+    const DomainService = {
+      addNewItem: vi.fn((snap, collection) => {
+        const created = { id: 'tc-1', movementId: 'm1' };
+        snap[collection] = snap[collection] || [];
+        snap[collection].push(created);
+        return created;
+      })
+    };
+    const ctx = {
+      getState: () => state,
+      update: updater => {
+        const next = typeof updater === 'function' ? updater(state) : updater;
+        state = next;
+      },
+      services: { DomainService },
+      store: { markDirty, saveSnapshot },
+      setStatus: vi.fn()
+    };
 
-    ctx.subscriber?.();
+    const created = addTextCollection(ctx);
 
-    expect(ctx.legacy.renderLibraryView).toHaveBeenCalled();
+    expect(created?.id).toBe('tc-1');
+    expect(state.currentShelfId).toBe('tc-1');
+    expect(markDirty).toHaveBeenCalledWith('item');
+    expect(saveSnapshot).toHaveBeenCalledWith({
+      show: false,
+      clearItemDirty: true,
+      clearMovementDirty: false
+    });
   });
 });

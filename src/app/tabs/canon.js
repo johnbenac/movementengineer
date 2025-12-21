@@ -1,3 +1,12 @@
+import { renderLibraryView } from './canon/libraryView.js';
+import {
+  addExistingBookToShelf,
+  addNewBookToShelf,
+  addTextCollection,
+  deleteTextCollection,
+  saveTextCollection
+} from './canon/actions.js';
+
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
 
@@ -11,11 +20,6 @@ export function registerCanonTab(ctx) {
   const tab = {
     __handlers: null,
     mount(context) {
-      const legacy =
-        context?.legacy ||
-        movementEngineerGlobal.legacy ||
-        movementEngineerGlobal.__legacyRef ||
-        {};
       const listeners = [];
 
       const rerender = () => tab.render(context);
@@ -26,46 +30,43 @@ export function registerCanonTab(ctx) {
       };
 
       const searchInput = document.getElementById('library-search');
-      addListener(searchInput, 'input', () => legacy.renderLibraryView?.(), listeners);
+      addListener(searchInput, 'input', () => rerender(), listeners);
 
       const addShelfBtn = document.getElementById('btn-add-text-collection');
-      addListener(addShelfBtn, 'click', () => legacy.addTextCollection?.(), listeners);
+      addListener(addShelfBtn, 'click', () => {
+        addTextCollection(context);
+        rerender();
+      }, listeners);
 
       const saveShelfBtn = document.getElementById('btn-save-text-collection');
-      addListener(saveShelfBtn, 'click', () => legacy.saveTextCollection?.(), listeners);
+      addListener(saveShelfBtn, 'click', () => {
+        saveTextCollection(context);
+        rerender();
+      }, listeners);
 
       const deleteShelfBtn = document.getElementById('btn-delete-text-collection');
-      addListener(
-        deleteShelfBtn,
-        'click',
-        () => legacy.deleteTextCollection?.(),
-        listeners
-      );
+      addListener(deleteShelfBtn, 'click', () => {
+        deleteTextCollection(context);
+        rerender();
+      }, listeners);
 
       const addRootTextBtn = document.getElementById('btn-add-root-text');
-      addListener(addRootTextBtn, 'click', () => legacy.addNewBookToShelf?.(), listeners);
+      addListener(addRootTextBtn, 'click', () => {
+        addNewBookToShelf(context);
+        rerender();
+      }, listeners);
 
       const addExistingBookBtn = document.getElementById('btn-add-existing-book');
-      addListener(
-        addExistingBookBtn,
-        'click',
-        () => legacy.addExistingBookToShelf?.(),
-        listeners
-      );
+      addListener(addExistingBookBtn, 'click', () => {
+        addExistingBookToShelf(context);
+        rerender();
+      }, listeners);
 
       const unsubscribe = context?.subscribe ? context.subscribe(handleStateChange) : null;
       this.__handlers = { listeners, unsubscribe, rerender };
     },
     render(context) {
-      const legacy =
-        context?.legacy || movementEngineerGlobal.legacy || movementEngineerGlobal.__legacyRef;
-      if (!legacy || typeof legacy.renderLibraryView !== 'function') {
-        context?.showFatalImportError?.(
-          new Error('Canon tab has been migrated to ES modules. Legacy renderer missing.')
-        );
-        return;
-      }
-      legacy.renderLibraryView();
+      renderLibraryView(context);
     },
     unmount() {
       const h = this.__handlers;
