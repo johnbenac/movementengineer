@@ -2,12 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 function renderDom() {
   document.body.innerHTML = `
+    <button class="tab active" data-tab="practices"></button>
     <select id="practice-select"></select>
     <div id="practice-detail"></div>
   `;
 }
 
-function createCtx(snapshot, vm, currentMovementId = 'm1') {
+function createCtx(snapshot, vm, currentMovementId = 'm1', overrides = {}) {
   const clearElement = el => {
     if (!el) return;
     while (el.firstChild) el.removeChild(el.firstChild);
@@ -32,6 +33,16 @@ function createCtx(snapshot, vm, currentMovementId = 'm1') {
       el.value = prev;
     }
   };
+  const subscriptions = [];
+  let unsubscribed = false;
+  const subscribe =
+    overrides.subscribe ||
+    (cb => {
+      subscriptions.push(cb);
+      return () => {
+        unsubscribed = true;
+      };
+    });
   const ViewModels = {
     buildPracticeDetailViewModel: vi.fn(() => vm)
   };
@@ -44,7 +55,9 @@ function createCtx(snapshot, vm, currentMovementId = 'm1') {
       jumpToText: vi.fn(),
       jumpToPractice: vi.fn()
     },
-    subscribe: () => () => {}
+    subscribe,
+    __subscriptions: subscriptions,
+    __wasUnsubscribed: () => unsubscribed
   };
 }
 
@@ -126,5 +139,39 @@ describe('practices tab module', () => {
     expect(document.getElementById('practice-detail').textContent).toContain(
       'No practices found for this movement.'
     );
+  });
+
+  it('re-renders on store updates while active and cleans up on unmount', async () => {
+    renderDom();
+    const snapshot = {
+      practices: [{ id: 'p1', movementId: 'm1', name: 'Practice One', kind: 'ritual' }]
+    };
+    const vm = {
+      practice: { id: 'p1', name: 'Practice One' },
+      entities: [],
+      instructionsTexts: [],
+      supportingClaims: [],
+      attachedRules: [],
+      attachedEvents: [],
+      media: []
+    };
+    const ctx = createCtx(snapshot, vm);
+    const { registerPracticesTab } = await import('./practices.js');
+    const tab = registerPracticesTab(ctx);
+    const renderSpy = vi.spyOn(tab, 'render');
+
+    tab.mount(ctx);
+    expect(ctx.__subscriptions.length).toBe(1);
+
+    ctx.__subscriptions[0]?.();
+    expect(renderSpy).toHaveBeenCalledTimes(1);
+
+    renderSpy.mockClear();
+    tab.unmount();
+    document
+      .getElementById('practice-select')
+      .dispatchEvent(new Event('change', { bubbles: true }));
+    expect(renderSpy).not.toHaveBeenCalled();
+    expect(ctx.__wasUnsubscribed()).toBe(true);
   });
 });

@@ -3920,6 +3920,11 @@
     const prSelect = document.getElementById('practice-select');
     activateTab('practices');
     if (prSelect) prSelect.value = practiceId;
+    const moduleTab = movementEngineerGlobal?.tabs?.practices;
+    if (moduleTab?.render && movementEngineerGlobal?.ctx) {
+      moduleTab.render(movementEngineerGlobal.ctx);
+      return;
+    }
     renderActiveTab();
   }
 
