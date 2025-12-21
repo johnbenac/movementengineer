@@ -3,6 +3,7 @@ import { createStatusUi } from './ui/status.js';
 import { createDomUtils } from './ui/dom.js';
 import { registerDashboardTab } from './tabs/dashboard.js';
 import { registerComparisonTab } from './tabs/comparison.js';
+import { registerEntitiesTab } from './tabs/entities.js';
 import { registerNotesTab } from './tabs/notes.js';
 import { registerPracticesTab } from './tabs/practices.js';
 import { registerClaimsTab } from './tabs/claims.js';
@@ -68,6 +69,7 @@ const shouldEnable = name => !Array.isArray(enabledTabs) || enabledTabs.includes
 
 if (shouldEnable('dashboard')) registerDashboardTab(ctx);
 if (shouldEnable('comparison')) registerComparisonTab(ctx);
+if (shouldEnable('entities')) registerEntitiesTab(ctx);
 if (shouldEnable('notes')) registerNotesTab(ctx);
 if (shouldEnable('practices')) registerPracticesTab(ctx);
 if (shouldEnable('claims')) registerClaimsTab(ctx);
