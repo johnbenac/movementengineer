@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { gotoApp } from '../helpers/gotoApp';
 
-test('legacy-free entry loads without the legacy bundle', async ({ page }) => {
+test('module entry loads without the legacy bundle', async ({ page }) => {
   await gotoApp(page);
 
   const mode = await page.evaluate(() => {
@@ -14,8 +14,8 @@ test('legacy-free entry loads without the legacy bundle', async ({ page }) => {
     };
   });
 
-  expect(mode.mode).toBe('legacy-free');
-  expect(mode.legacyAutoInit).toBe(false);
+  expect(mode.mode).toBe('module');
+  expect(mode.legacyAutoInit).toBe(undefined);
   expect(mode.legacyExists).toBe(false);
-  expect(mode.meModeAttr).toBe('legacy-free');
+  expect(mode.meModeAttr).toBe('module');
 });

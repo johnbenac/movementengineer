@@ -8,11 +8,9 @@
     (function () {
       const g = window.MovementEngineer || (window.MovementEngineer = {});
       g.bootstrapOptions = g.bootstrapOptions || {};
-      g.bootstrapOptions.legacyAutoInit = false;
-      g.bootstrapOptions.legacyFree = true;
-      g.bootstrapOptions.__mode = 'legacy-free';
-      document.documentElement.dataset.meMode = 'legacy-free';
-      console.info('[MovementEngineer] legacy-free mode enabled');
+      g.bootstrapOptions.__mode = 'module';
+      document.documentElement.dataset.meMode = 'module';
+      console.info('[MovementEngineer] module mode enabled');
     })();
   </script>
   <link rel="stylesheet" href="./styles.css" />
