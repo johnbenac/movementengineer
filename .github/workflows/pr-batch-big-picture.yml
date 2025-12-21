@@ -1,0 +1,53 @@
+name: PR batch big picture
+
+on:
+  workflow_dispatch:
+    inputs:
+      start_pr:
+        description: Starting PR number (inclusive)
+        required: true
+        type: number
+      end_pr:
+        description: Ending PR number (inclusive)
+        required: true
+        type: number
+      base_branch:
+        description: Base branch to diff against
+        required: false
+        default: main
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  build-report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Generate PR batch big picture
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python scripts/pr_batch_big_picture.py \
+            ${{ inputs.start_pr }} \
+            ${{ inputs.end_pr }} \
+            --base-branch ${{ inputs.base_branch }} \
+            --remote origin \
+            --output-dir artifacts
+
+      - name: Upload comparison artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-big-picture-${{ inputs.start_pr }}-${{ inputs.end_pr }}
+          path: artifacts
