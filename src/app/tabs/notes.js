@@ -36,6 +36,7 @@ const TARGET_COLLECTION_BY_TYPE = {
 
 let selectedNoteId = null;
 let lastMovementId = null;
+let targetTypeOverride = null;
 
 function fallbackClear(el) {
   if (!el) return;
@@ -405,7 +406,10 @@ function handleDeleteNote(ctx, noteId) {
 
   if (!deleted) return;
 
-  if (selectedNoteId === noteId) selectedNoteId = null;
+  if (selectedNoteId === noteId) {
+    selectedNoteId = null;
+    targetTypeOverride = null;
+  }
   persistSnapshot(ctx, snapshot, StorageService, 'Note deleted');
   renderNotesTab(ctx);
 }
@@ -424,9 +428,11 @@ function renderNotesTab(ctx) {
   const formDom = getFormDom();
   if (!wrapper || !typeSelect || !idSelect || !formDom) return;
 
-  if (lastMovementId !== currentMovementId) {
+  const movementChanged = lastMovementId !== currentMovementId;
+  if (movementChanged) {
     selectedNoteId = null;
     lastMovementId = currentMovementId || null;
+    targetTypeOverride = null;
   }
 
   if (!currentMovementId) {
@@ -513,26 +519,51 @@ function renderNotesTab(ctx) {
       : null;
   if (selectedNoteId && !selectedNote) {
     selectedNoteId = null;
+    targetTypeOverride = null;
   }
 
   const targetTypeOptions = buildTargetTypeOptions(snapshot);
   ensureSelectOptions(formDom.targetType, targetTypeOptions);
 
-  const desiredTargetType =
-    selectedNote?.targetType || typeSelect.value || targetTypeOptions[0]?.value || '';
+  const currentFormTargetType = movementChanged ? '' : formDom.targetType?.value || '';
+  const firstTypeWithNotes = notesAll.find(note => note.targetType)?.targetType || '';
+
+  const targetTypeWithSuggestions =
+    targetTypeOverride ||
+    (selectedNote?.targetType && currentFormTargetType !== selectedNote.targetType
+      ? selectedNote.targetType
+      : currentFormTargetType) ||
+    selectedNote?.targetType ||
+    typeSelect.value ||
+    firstTypeWithNotes ||
+    targetTypeOptions.find(option => {
+      const opts = buildTargetIdOptions(
+        snapshot,
+        currentMovementId,
+        option.value,
+        services.DomainService
+      );
+      return opts.length > 0;
+    })?.value ||
+    targetTypeOptions[0]?.value ||
+    '';
+
   if (
-    desiredTargetType &&
-    !targetTypeOptions.some(option => option.value === desiredTargetType)
+    targetTypeWithSuggestions &&
+    !targetTypeOptions.some(option => option.value === targetTypeWithSuggestions)
   ) {
-    targetTypeOptions.push({ value: desiredTargetType, label: labelForTargetType(desiredTargetType) });
+    targetTypeOptions.push({
+      value: targetTypeWithSuggestions,
+      label: labelForTargetType(targetTypeWithSuggestions)
+    });
     ensureSelectOptions(formDom.targetType, targetTypeOptions);
   }
-  if (formDom.targetType) formDom.targetType.value = desiredTargetType;
+  if (formDom.targetType) formDom.targetType.value = targetTypeWithSuggestions;
 
   const targetIdOptions = buildTargetIdOptions(
     snapshot,
     currentMovementId,
-    desiredTargetType,
+    targetTypeWithSuggestions,
     services.DomainService
   );
   populateTargetIdOptions(formDom.targetIdDatalist, targetIdOptions);
@@ -574,6 +605,7 @@ export function registerNotesTab(ctx) {
         const { noteAction, noteId } = actionBtn.dataset;
         if (!noteId) return;
         if (noteAction === 'edit') {
+          targetTypeOverride = null;
           selectedNoteId = noteId;
           rerender();
         } else if (noteAction === 'delete') {
@@ -587,6 +619,7 @@ export function registerNotesTab(ctx) {
       };
 
       const handleFormReset = () => {
+        targetTypeOverride = null;
         selectedNoteId = null;
         rerender();
       };
@@ -595,7 +628,10 @@ export function registerNotesTab(ctx) {
         if (selectedNoteId) handleDeleteNote(context, selectedNoteId);
       };
 
-      const handleTypeChange = () => rerender();
+      const handleTypeChange = () => {
+        targetTypeOverride = formDom?.targetType?.value || null;
+        rerender();
+      };
 
       if (typeSelect) typeSelect.addEventListener('change', rerender);
       if (idSelect) idSelect.addEventListener('change', rerender);
