@@ -13,6 +13,15 @@ import { registerGraphTab } from './tabs/graph.js';
 import { registerEntitiesTab } from './tabs/entities.js';
 import { registerCalendarTab } from './tabs/calendar.js';
 import { registerCollectionsTab } from './tabs/collections.js';
+import { initShell } from './shell.js';
+
+function onReady(fn) {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', fn, { once: true });
+  } else {
+    fn();
+  }
+}
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.bootstrapOptions = movementEngineerGlobal.bootstrapOptions || {};
@@ -86,3 +95,7 @@ if (shouldEnable('graph')) registerGraphTab(ctx);
 if (shouldEnable('entities')) registerEntitiesTab(ctx);
 if (shouldEnable('calendar')) registerCalendarTab(ctx);
 if (shouldEnable('collections')) registerCollectionsTab(ctx);
+
+onReady(() => {
+  initShell(ctx);
+});
