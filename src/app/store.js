@@ -6,7 +6,7 @@ const DEFAULT_CANON_FILTERS = {
   child: ''
 };
 
-const DEFAULT_GRAPH_WORKBENCH_STATE = {
+export const DEFAULT_GRAPH_WORKBENCH_STATE = {
   leftWidth: 360,
   rightWidth: 420,
   searchKind: 'all',
