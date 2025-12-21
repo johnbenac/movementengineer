@@ -180,8 +180,8 @@ describe('notes tab module', () => {
     const { ctx, DomainService, StorageService } = await setup({ snapshot });
     vi.spyOn(window, 'confirm').mockReturnValue(true);
 
-    const editBtn = document.querySelector('[data-note-id="n1"][data-note-action="edit"]');
-    editBtn.click();
+    const row = document.querySelector('tr[data-note-id="n1"]');
+    row.click();
 
     document.getElementById('note-body').value = 'Updated text';
     document.getElementById('notes-editor-form').dispatchEvent(
@@ -216,8 +216,8 @@ describe('notes tab module', () => {
 
     const { DomainService, snapshot: snap } = await setup({ snapshot });
 
-    const editBtn = document.querySelector('[data-note-id="123"][data-note-action="edit"]');
-    editBtn.click();
+    const row = document.querySelector('tr[data-note-id="123"]');
+    row.click();
 
     expect(document.getElementById('note-body').value).toBe('Original body');
 
