@@ -18,6 +18,19 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 
 
+def parse_pr_number(value: str) -> int:
+    """Parse PR numbers allowing float strings with no fractional component."""
+    try:
+        number = float(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(f"Invalid PR number: {value}") from exc
+
+    if not number.is_integer():
+        raise argparse.ArgumentTypeError(f"PR number must be an integer: {value}")
+
+    return int(number)
+
+
 def run_command(cmd: str, check: bool = True, capture_output: bool = True) -> str:
     """Run a shell command and return the result."""
     result = subprocess.run(
@@ -290,8 +303,8 @@ def main() -> None:
         description="Automate diff generation for ranges of pull requests",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("start_pr", type=int, help="Starting PR number")
-    parser.add_argument("end_pr", type=int, help="Ending PR number (inclusive)")
+    parser.add_argument("start_pr", type=parse_pr_number, help="Starting PR number")
+    parser.add_argument("end_pr", type=parse_pr_number, help="Ending PR number (inclusive)")
     parser.add_argument(
         "--base-branch",
         default="main",
