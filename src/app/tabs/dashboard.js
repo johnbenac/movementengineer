@@ -1,0 +1,241 @@
+const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
+movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
+
+function fallbackClear(el) {
+  if (!el) return;
+  while (el.firstChild) el.removeChild(el.firstChild);
+}
+
+function getClear(ctx) {
+  return ctx?.dom?.clearElement || fallbackClear;
+}
+
+function getState(ctx) {
+  return ctx?.getState?.() || ctx?.store?.getState?.() || {};
+}
+
+function getLegacy(ctx) {
+  return ctx?.legacy || movementEngineerGlobal.legacy || {};
+}
+
+function getViewModels(ctx) {
+  return ctx?.services?.ViewModels || ctx?.ViewModels || window.ViewModels;
+}
+
+function appendParagraph(container, text) {
+  const p = document.createElement('p');
+  p.textContent = text;
+  container.appendChild(p);
+}
+
+function createStatCard(titleText) {
+  const card = document.createElement('div');
+  card.className = 'stat-card';
+  const heading = document.createElement('h3');
+  heading.textContent = titleText;
+  card.appendChild(heading);
+  return card;
+}
+
+function appendExampleRow(container, label, items, key) {
+  const heading = document.createElement('div');
+  heading.className = 'section-heading';
+  heading.style.fontSize = '0.85rem';
+  heading.textContent = label;
+  container.appendChild(heading);
+
+  if (!items || !items.length) {
+    const none = document.createElement('p');
+    none.style.fontSize = '0.8rem';
+    none.textContent = 'None yet.';
+    container.appendChild(none);
+    return;
+  }
+
+  const row = document.createElement('div');
+  row.className = 'chip-row';
+  items.forEach(item => {
+    const chip = document.createElement('span');
+    chip.className = 'chip';
+    chip.textContent = item[key] || item.id;
+    row.appendChild(chip);
+  });
+  container.appendChild(row);
+}
+
+function renderDashboardTab(ctx) {
+  const clear = getClear(ctx);
+  const legacy = getLegacy(ctx);
+  if (typeof legacy.renderMovementForm === 'function') {
+    legacy.renderMovementForm();
+  }
+
+  const container = document.getElementById('dashboard-content');
+  if (!container) return;
+
+  clear(container);
+
+  const state = getState(ctx);
+  const snapshot = state.snapshot;
+  const currentMovementId = state.currentMovementId;
+
+  if (!currentMovementId) {
+    appendParagraph(container, 'Create a movement on the left to see a dashboard.');
+    return;
+  }
+
+  const ViewModels = getViewModels(ctx);
+  if (!ViewModels || typeof ViewModels.buildMovementDashboardViewModel !== 'function') {
+    appendParagraph(container, 'ViewModels module not loaded.');
+    return;
+  }
+
+  const vm = ViewModels.buildMovementDashboardViewModel(snapshot, {
+    movementId: currentMovementId
+  });
+
+  if (!vm?.movement) {
+    appendParagraph(container, 'Selected movement not found in dataset.');
+    return;
+  }
+
+  const title = document.createElement('h2');
+  title.textContent =
+    vm.movement.name + (vm.movement.shortName ? ` (${vm.movement.shortName})` : '');
+  container.appendChild(title);
+
+  const summary = document.createElement('p');
+  summary.textContent = vm.movement.summary || 'No summary yet.';
+  container.appendChild(summary);
+
+  const statsGrid = document.createElement('div');
+  statsGrid.className = 'stats-grid';
+
+  const textCard = createStatCard('Texts');
+  const totalText = document.createElement('p');
+  totalText.textContent = `Total: ${vm.textStats?.totalTexts ?? 0}`;
+  textCard.appendChild(totalText);
+  const rootLine = document.createElement('p');
+  const maxDepthText = Number.isFinite(vm.textStats?.maxDepth)
+    ? ` · Max depth: ${vm.textStats.maxDepth}`
+    : '';
+  rootLine.textContent = `Roots: ${vm.textStats?.rootCount || 0}${maxDepthText}`;
+  textCard.appendChild(rootLine);
+  const depthList = document.createElement('ul');
+  Object.entries(vm.textStats?.byDepth || {})
+    .sort(([a], [b]) => {
+      const na = Number(a);
+      const nb = Number(b);
+      const aNum = Number.isFinite(na);
+      const bNum = Number.isFinite(nb);
+      if (aNum && bNum) return na - nb;
+      if (aNum) return -1;
+      if (bNum) return 1;
+      return String(a).localeCompare(String(b));
+    })
+    .forEach(([depth, count]) => {
+      const li = document.createElement('li');
+      li.textContent = `Depth ${depth}: ${count}`;
+      depthList.appendChild(li);
+    });
+  textCard.appendChild(depthList);
+  statsGrid.appendChild(textCard);
+
+  const entityCard = createStatCard('Entities');
+  const entityTotal = document.createElement('p');
+  entityTotal.textContent = `Total: ${vm.entityStats?.totalEntities ?? 0}`;
+  entityCard.appendChild(entityTotal);
+  if (vm.entityStats?.byKind) {
+    const ul = document.createElement('ul');
+    Object.entries(vm.entityStats.byKind).forEach(([kind, count]) => {
+      const li = document.createElement('li');
+      li.textContent = `${kind}: ${count}`;
+      ul.appendChild(li);
+    });
+    entityCard.appendChild(ul);
+  }
+  statsGrid.appendChild(entityCard);
+
+  const practiceCard = createStatCard('Practices');
+  const practiceTotal = document.createElement('p');
+  practiceTotal.textContent = `Total: ${vm.practiceStats?.totalPractices ?? 0}`;
+  practiceCard.appendChild(practiceTotal);
+  if (vm.practiceStats?.byKind) {
+    const ul = document.createElement('ul');
+    Object.entries(vm.practiceStats.byKind).forEach(([kind, count]) => {
+      const li = document.createElement('li');
+      li.textContent = `${kind}: ${count}`;
+      ul.appendChild(li);
+    });
+    practiceCard.appendChild(ul);
+  }
+  statsGrid.appendChild(practiceCard);
+
+  const eventCard = createStatCard('Events');
+  const eventTotal = document.createElement('p');
+  eventTotal.textContent = `Total: ${vm.eventStats?.totalEvents ?? 0}`;
+  eventCard.appendChild(eventTotal);
+  if (vm.eventStats?.byRecurrence) {
+    const ul = document.createElement('ul');
+    Object.entries(vm.eventStats.byRecurrence).forEach(([recurrence, count]) => {
+      const li = document.createElement('li');
+      li.textContent = `${recurrence}: ${count}`;
+      ul.appendChild(li);
+    });
+    eventCard.appendChild(ul);
+  }
+  statsGrid.appendChild(eventCard);
+
+  const miscCard = createStatCard('Other');
+  const rules = document.createElement('p');
+  rules.textContent = `Rules: ${vm.ruleCount ?? 0}`;
+  const claims = document.createElement('p');
+  claims.textContent = `Claims: ${vm.claimCount ?? 0}`;
+  const media = document.createElement('p');
+  media.textContent = `Media assets: ${vm.mediaCount ?? 0}`;
+  miscCard.appendChild(rules);
+  miscCard.appendChild(claims);
+  miscCard.appendChild(media);
+  statsGrid.appendChild(miscCard);
+
+  container.appendChild(statsGrid);
+
+  const exampleSectionTitle = document.createElement('div');
+  exampleSectionTitle.className = 'section-heading';
+  exampleSectionTitle.textContent = 'Example nodes';
+  container.appendChild(exampleSectionTitle);
+
+  appendExampleRow(container, 'Key entities', vm.exampleNodes?.keyEntities, 'name');
+  appendExampleRow(container, 'Key practices', vm.exampleNodes?.keyPractices, 'name');
+  appendExampleRow(container, 'Key events', vm.exampleNodes?.keyEvents, 'name');
+}
+
+export function registerDashboardTab(ctx) {
+  const tab = {
+    __handlers: null,
+    mount(context) {
+      const rerender = () => tab.render(context);
+      const handleStateChange = () => {
+        const active = document.querySelector('.tab.active');
+        if (!active || active.dataset.tab !== 'dashboard') return;
+        rerender();
+      };
+
+      const unsubscribe = context?.subscribe ? context.subscribe(handleStateChange) : null;
+      this.__handlers = { rerender, unsubscribe };
+    },
+    render: renderDashboardTab,
+    unmount() {
+      const h = this.__handlers;
+      if (!h) return;
+      if (typeof h.unsubscribe === 'function') h.unsubscribe();
+      this.__handlers = null;
+    }
+  };
+
+  movementEngineerGlobal.tabs.dashboard = tab;
+  if (ctx?.tabs) {
+    ctx.tabs.dashboard = tab;
+  }
+  return tab;
+}
