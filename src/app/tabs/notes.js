@@ -36,6 +36,7 @@ const TARGET_COLLECTION_BY_TYPE = {
 
 let selectedNoteId = null;
 let lastMovementId = null;
+let lastRenderedNoteId = null;
 
 function fallbackClear(el) {
   if (!el) return;
@@ -434,6 +435,7 @@ function renderNotesTab(ctx) {
     idSelect.disabled = true;
     setNoteFormEnabled(formDom, false, false);
     clearNoteForm(formDom);
+    lastRenderedNoteId = null;
     if (formDom.formTitle) formDom.formTitle.textContent = 'Create note';
     if (formDom.targetIdDatalist) fallbackClear(formDom.targetIdDatalist);
     clear(wrapper);
@@ -514,12 +516,19 @@ function renderNotesTab(ctx) {
   if (selectedNoteId && !selectedNote) {
     selectedNoteId = null;
   }
+  const isSameSelectedNote = selectedNote?.id && selectedNote.id === lastRenderedNoteId;
 
   const targetTypeOptions = buildTargetTypeOptions(snapshot);
   ensureSelectOptions(formDom.targetType, targetTypeOptions);
 
+  const selectedFormTargetType = formDom.targetType?.value || '';
   const desiredTargetType =
-    selectedNote?.targetType || typeSelect.value || targetTypeOptions[0]?.value || '';
+    (isSameSelectedNote && selectedFormTargetType) ||
+    selectedNote?.targetType ||
+    selectedFormTargetType ||
+    typeSelect.value ||
+    targetTypeOptions[0]?.value ||
+    '';
   if (
     desiredTargetType &&
     !targetTypeOptions.some(option => option.value === desiredTargetType)
@@ -548,6 +557,7 @@ function renderNotesTab(ctx) {
     formDom.formTitle.textContent = selectedNote ? 'Edit note' : 'Create note';
   }
   setNoteFormEnabled(formDom, true, Boolean(selectedNote));
+  lastRenderedNoteId = selectedNote ? selectedNote.id : null;
 }
 
 export function registerNotesTab(ctx) {
@@ -641,6 +651,7 @@ export function registerNotesTab(ctx) {
       if (typeof h.unsubscribe === 'function') h.unsubscribe();
       selectedNoteId = null;
       lastMovementId = null;
+      lastRenderedNoteId = null;
       this.__handlers = null;
     }
   };

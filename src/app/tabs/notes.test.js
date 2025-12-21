@@ -201,4 +201,22 @@ describe('notes tab module', () => {
     expect(StorageService.saveSnapshot).toHaveBeenCalled();
     expect(snapshot.notes.find(n => n.id === 'n1')).toBeUndefined();
   });
+
+  it('populates target ID suggestions from the selected target type', async () => {
+    const snapshot = createSnapshot();
+    snapshot.practices.push({ id: 'p1', movementId: 'm1', name: 'A practice' });
+
+    await setup({ snapshot });
+
+    const typeSelect = document.getElementById('note-target-type');
+    typeSelect.value = 'Practice';
+    typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+
+    const options = Array.from(
+      document.querySelectorAll('#notes-target-id-options option')
+    ).map(opt => opt.value);
+
+    expect(typeSelect.value).toBe('Practice');
+    expect(options).toContain('p1');
+  });
 });
