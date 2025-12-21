@@ -49,5 +49,15 @@ npm install
 npm test
 ```
 
+## PR batch diff automation
+You can generate comparison reports for ranges of pull requests directly from the GitHub web UI.
+
+1. Open the **Actions** tab and choose **PR Batch Big Picture**.
+2. Click **Run workflow**, then provide `start_pr`, `end_pr`, and (optionally) override the `base_branch` or `remote`.
+3. The workflow checks out the base branch, pulls each PR branch (falling back to the PR ref when needed), gathers all changed files and PR comments, and writes:
+   - Per-PR diff files with contextual headers and the full comment transcript.
+   - A master comparison file combining all requested PRs.
+4. Download the generated artifact `pr-comparison-{start}-{end}` to retrieve the reports.
+
 ## License
 This project is licensed under the [GNU Affero General Public License v3.0](LICENSE).
