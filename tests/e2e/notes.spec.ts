@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { gotoApp } from '../helpers/gotoApp';
 
 const notesSnapshot = {
   version: '2.3',
@@ -73,7 +74,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('renders notes tab and filters by target type + id', async ({ page }) => {
-  await page.goto('/');
+  await gotoApp(page);
 
   await page.getByRole('button', { name: 'Notes' }).click();
 
@@ -98,7 +99,7 @@ test('renders notes tab and filters by target type + id', async ({ page }) => {
 });
 
 test('switching movements updates notes list', async ({ page }) => {
-  await page.goto('/');
+  await gotoApp(page);
 
   await page.getByRole('button', { name: 'Notes' }).click();
 
@@ -119,7 +120,7 @@ test('shows empty-state message when no notes exist for movement', async ({ page
     localStorage.setItem('movementDesigner.v3.snapshot', JSON.stringify(snap));
   });
 
-  await page.goto('/');
+  await gotoApp(page);
   await page.getByRole('button', { name: 'Notes' }).click();
 
   await expect(page.locator('#notes-table-wrapper')).toContainText(
@@ -143,7 +144,7 @@ test('shows select-movement hint when there is no selected movement', async ({ p
     { snapshot: emptySnapshot }
   );
 
-  await page.goto('/');
+  await gotoApp(page);
   await page.getByRole('button', { name: 'Notes' }).click();
 
   await expect(page.locator('#notes-table-wrapper')).toContainText(
