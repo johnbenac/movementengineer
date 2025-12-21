@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { gotoApp } from '../helpers/gotoApp';
 
 const canonSnapshot = {
   version: '2.3',
@@ -43,7 +44,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('canon tab renders without fatal error', async ({ page }) => {
-  await page.goto('/');
+  await gotoApp(page);
   await page.getByRole('button', { name: 'Library' }).click();
 
   await expect(page.locator('#fatal-import-error:not(.hidden)')).toHaveCount(0);
@@ -51,7 +52,7 @@ test('canon tab renders without fatal error', async ({ page }) => {
 });
 
 test('selecting shelf, book, and toc node updates the editor', async ({ page }) => {
-  await page.goto('/');
+  await gotoApp(page);
   await page.getByRole('button', { name: 'Library' }).click();
 
   await page.locator('#shelf-list .shelf-card').first().click();
@@ -62,7 +63,7 @@ test('selecting shelf, book, and toc node updates the editor', async ({ page }) 
 });
 
 test('switching movements updates canon view', async ({ page }) => {
-  await page.goto('/');
+  await gotoApp(page);
   await page.getByRole('button', { name: 'Library' }).click();
 
   await expect(page.locator('#book-list .book-card')).toHaveCount(1);

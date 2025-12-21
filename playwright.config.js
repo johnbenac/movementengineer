@@ -2,10 +2,14 @@ const path = require('path');
 const { defineConfig } = require('@playwright/test');
 
 const DEFAULT_BASE_URL = 'http://127.0.0.1:4173';
+const entryPath = process.env.ME_E2E_ENTRY || '/';
 
 module.exports = defineConfig({
   testDir: path.join(__dirname, 'tests', 'e2e'),
   testMatch: /.*\.spec\.(ts|js)/,
+  metadata: {
+    entryPath
+  },
   use: {
     headless: true,
     baseURL: process.env.PLAYWRIGHT_BASE_URL || DEFAULT_BASE_URL

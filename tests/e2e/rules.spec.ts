@@ -1,4 +1,6 @@
 import { expect, test } from '@playwright/test';
+import { gotoApp } from '../helpers/gotoApp';
+import { gotoApp } from '../helpers/gotoApp';
 
 const rulesSnapshot = {
   version: '2.3',
@@ -70,7 +72,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('renders rules tab via module override', async ({ page }) => {
-  await page.goto('/');
+  await gotoApp(page);
   await page.getByRole('button', { name: 'Rules' }).click();
 
   await expect(page.locator('#fatal-import-error:not(.hidden)')).toHaveCount(0);
@@ -78,7 +80,7 @@ test('renders rules tab via module override', async ({ page }) => {
 });
 
 test('filters rules by kind and domain', async ({ page }) => {
-  await page.goto('/');
+  await gotoApp(page);
   await page.getByRole('button', { name: 'Rules' }).click();
 
   const rows = page.locator('#rules-table-wrapper table tr');
@@ -92,7 +94,7 @@ test('filters rules by kind and domain', async ({ page }) => {
 });
 
 test('switching movements updates rules list', async ({ page }) => {
-  await page.goto('/');
+  await gotoApp(page);
   await page.getByRole('button', { name: 'Rules' }).click();
 
   const rows = page.locator('#rules-table-wrapper table tr');
@@ -103,7 +105,7 @@ test('switching movements updates rules list', async ({ page }) => {
 });
 
 test('supports creating and deleting rules from the editor', async ({ page }) => {
-  await page.goto('/');
+  await gotoApp(page);
   await page.getByRole('button', { name: 'Rules' }).click();
 
   const rows = page.locator('#rules-table-wrapper table tr');
@@ -132,7 +134,7 @@ test('shows empty-state message when no rules match', async ({ page }) => {
     localStorage.setItem('movementDesigner.v3.snapshot', JSON.stringify(snap));
   });
 
-  await page.goto('/');
+  await gotoApp(page);
   await page.getByRole('button', { name: 'Rules' }).click();
 
   await expect(page.locator('#rules-table-wrapper')).toContainText(

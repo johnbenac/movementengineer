@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { gotoApp } from '../helpers/gotoApp';
 
 const claimsSnapshot = {
   version: '2.3',
@@ -67,7 +68,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('renders claims tab via module override', async ({ page }) => {
-  await page.goto('/');
+  await gotoApp(page);
 
   await page.getByRole('button', { name: 'Claims' }).click();
 
@@ -76,7 +77,7 @@ test('renders claims tab via module override', async ({ page }) => {
 });
 
 test('filters claims by category and entity', async ({ page }) => {
-  await page.goto('/');
+  await gotoApp(page);
   await page.getByRole('button', { name: 'Claims' }).click();
 
   const rows = page.locator('#claims-table-wrapper table tr');
@@ -90,7 +91,7 @@ test('filters claims by category and entity', async ({ page }) => {
 });
 
 test('switching movements updates claims list', async ({ page }) => {
-  await page.goto('/');
+  await gotoApp(page);
   await page.getByRole('button', { name: 'Claims' }).click();
 
   const rows = page.locator('#claims-table-wrapper table tr');
@@ -108,7 +109,7 @@ test('shows empty-state message when no claims match', async ({ page }) => {
     localStorage.setItem('movementDesigner.v3.snapshot', JSON.stringify(snap));
   });
 
-  await page.goto('/');
+  await gotoApp(page);
   await page.getByRole('button', { name: 'Claims' }).click();
 
   await expect(page.locator('#claims-table-wrapper')).toContainText(
