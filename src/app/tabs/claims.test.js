@@ -28,7 +28,7 @@ function renderDom() {
   `;
 }
 
-function createCtx(snapshot, currentMovementId = 'm1') {
+function createCtx(snapshot, currentMovementId = 'm1', overrides = {}) {
   const clearElement = el => {
     if (!el) return;
     while (el.firstChild) el.removeChild(el.firstChild);
@@ -67,7 +67,8 @@ function createCtx(snapshot, currentMovementId = 'm1') {
           sourcesOfTruth: ['Source']
         }
       ]
-    }))
+        })),
+    ...overrides.ViewModels
   };
   const DomainService = {
     addNewItem: vi.fn((snap, coll, movementId) => {
@@ -85,7 +86,8 @@ function createCtx(snapshot, currentMovementId = 'm1') {
     deleteItem: vi.fn((snap, coll, id) => {
       snap[coll] = snap[coll].filter(c => c.id !== id);
     }),
-    generateId: vi.fn(() => 'gen-1')
+    generateId: vi.fn(() => 'gen-1'),
+    ...overrides.DomainService
   };
   const legacy = { markDirty: vi.fn() };
   let state = { snapshot, currentMovementId };
@@ -228,5 +230,61 @@ describe('claims tab module', () => {
       })
     );
     expect(ctx.legacy.markDirty).toHaveBeenCalledWith('item');
+  });
+
+  it('keeps claim selection when clicking a link inside a row', async () => {
+    renderDom();
+    const snapshot = {
+      claims: [
+        { id: 'c1', movementId: 'm1', text: 'One', category: null },
+        { id: 'c2', movementId: 'm1', text: 'Two', category: null }
+      ],
+      entities: [],
+      texts: []
+    };
+    const ViewModels = {
+      buildClaimsExplorerViewModel: vi.fn(() => ({
+        claims: [
+          {
+            id: 'c1',
+            text: 'One',
+            category: null,
+            tags: [],
+            aboutEntities: [],
+            sourceEntities: [],
+            sourceTexts: [],
+            sourcesOfTruth: []
+          },
+          {
+            id: 'c2',
+            text: 'Two',
+            category: null,
+            tags: [],
+            aboutEntities: [],
+            sourceEntities: [],
+            sourceTexts: [],
+            sourcesOfTruth: []
+          }
+        ]
+      }))
+    };
+    const ctx = createCtx(snapshot, 'm1', { ViewModels });
+    const { registerClaimsTab } = await import('./claims.js');
+    const tab = registerClaimsTab(ctx);
+
+    tab.mount(ctx);
+    tab.render(ctx);
+
+    const secondRow = document.querySelector('tr[data-claim-id="c2"]');
+    const firstDataCell = secondRow?.querySelector('td');
+    const link = document.createElement('a');
+    link.href = '#claim-two';
+    link.textContent = 'Open';
+    firstDataCell?.appendChild(link);
+
+    link.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    const selectedRow = document.querySelector('tr.selected');
+    expect(selectedRow?.dataset.claimId).toBe('c1');
   });
 });
