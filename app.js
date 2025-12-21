@@ -555,9 +555,13 @@
         );
         break;
       case 'entities':
-      case 'practices':
       case 'calendar':
         renderMovementSection(tabName);
+        break;
+      case 'practices':
+        showFatalImportError(
+          new Error('Practices tab has been migrated to ES modules. Legacy renderer removed.')
+        );
         break;
       case 'claims':
         showFatalImportError(
@@ -796,9 +800,6 @@
         break;
       case 'entities':
         renderEntitiesView();
-        break;
-      case 'practices':
-        renderPracticesView();
         break;
       case 'calendar':
         renderCalendarView();
@@ -2745,166 +2746,6 @@
     });
   }
 
-  // ---- Practices (buildPracticeDetailViewModel) ----
-
-  function renderPracticesView() {
-    const select = document.getElementById('practice-select');
-    const detailContainer = document.getElementById('practice-detail');
-    if (!select || !detailContainer) return;
-    clearElement(detailContainer);
-
-    const practices = (snapshot.practices || []).filter(
-      p => p.movementId === currentMovementId
-    );
-    const options = practices
-      .slice()
-      .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
-      .map(p => ({ value: p.id, label: p.name || p.id }));
-    ensureSelectOptions(select, options, 'Choose practice');
-
-    const practiceId =
-      select.value || (options.length ? options[0].value : null);
-
-    if (!practiceId) {
-      const p = document.createElement('p');
-      p.className = 'hint';
-      p.textContent = 'No practices found for this movement.';
-      detailContainer.appendChild(p);
-      return;
-    }
-
-    const vm = ViewModels.buildPracticeDetailViewModel(snapshot, {
-      practiceId
-    });
-
-    if (!vm.practice) {
-      const p = document.createElement('p');
-      p.className = 'hint';
-      p.textContent = 'Practice not found.';
-      detailContainer.appendChild(p);
-      return;
-    }
-
-    const title = document.createElement('h3');
-    title.textContent =
-      vm.practice.name +
-      (vm.practice.kind ? ` (${vm.practice.kind})` : '');
-    detailContainer.appendChild(title);
-
-    const meta = document.createElement('p');
-    meta.style.fontSize = '0.8rem';
-    meta.textContent = `Frequency: ${vm.practice.frequency} · Public: ${
-      vm.practice.isPublic ? 'yes' : 'no'
-    }`;
-    detailContainer.appendChild(meta);
-
-    if (vm.practice.description) {
-      const desc = document.createElement('p');
-      desc.textContent = vm.practice.description;
-      detailContainer.appendChild(desc);
-    }
-
-    const mkSection = (label, contentBuilder) => {
-      const heading = document.createElement('div');
-      heading.className = 'section-heading small';
-      heading.textContent = label;
-      detailContainer.appendChild(heading);
-      const section = document.createElement('div');
-      section.style.fontSize = '0.8rem';
-      contentBuilder(section);
-      detailContainer.appendChild(section);
-    };
-
-    if (vm.entities && vm.entities.length) {
-      mkSection('Involves entities', section => {
-        const row = document.createElement('div');
-        row.className = 'chip-row';
-          vm.entities.forEach(e => {
-            const chip = document.createElement('span');
-            chip.className = 'chip chip-entity clickable';
-            chip.textContent = e.name || e.id;
-            chip.title = e.kind || '';
-            chip.addEventListener('click', () => jumpToEntity(e.id));
-            row.appendChild(chip);
-          });
-        section.appendChild(row);
-      });
-    }
-
-    if (vm.instructionsTexts && vm.instructionsTexts.length) {
-      mkSection('Instruction texts', section => {
-        const row = document.createElement('div');
-        row.className = 'chip-row';
-        vm.instructionsTexts.forEach(t => {
-          const chip = document.createElement('span');
-          chip.className = 'chip clickable';
-          chip.textContent = t.title || t.id;
-          chip.title = Number.isFinite(t.depth) ? `Depth ${t.depth}` : '';
-          chip.addEventListener('click', () => jumpToText(t.id));
-          row.appendChild(chip);
-        });
-        section.appendChild(row);
-      });
-    }
-
-    if (vm.supportingClaims && vm.supportingClaims.length) {
-      mkSection('Supporting claims', section => {
-        const ul = document.createElement('ul');
-        vm.supportingClaims.forEach(c => {
-          const li = document.createElement('li');
-          li.textContent =
-            (c.category ? '[' + c.category + '] ' : '') + c.text;
-          ul.appendChild(li);
-        });
-        section.appendChild(ul);
-      });
-    }
-
-    if (vm.attachedRules && vm.attachedRules.length) {
-      mkSection('Related rules', section => {
-        const ul = document.createElement('ul');
-        vm.attachedRules.forEach(r => {
-          const li = document.createElement('li');
-          li.textContent =
-            (r.kind ? '[' + r.kind + '] ' : '') + r.shortText;
-          ul.appendChild(li);
-        });
-        section.appendChild(ul);
-      });
-    }
-
-    if (vm.attachedEvents && vm.attachedEvents.length) {
-      mkSection('Scheduled in events', section => {
-        const row = document.createElement('div');
-        row.className = 'chip-row';
-        vm.attachedEvents.forEach(ev => {
-          const chip = document.createElement('span');
-          chip.className = 'chip';
-          chip.textContent = `${ev.name} (${ev.recurrence})`;
-          row.appendChild(chip);
-        });
-        section.appendChild(row);
-      });
-    }
-
-    if (vm.media && vm.media.length) {
-      mkSection('Media', section => {
-        const ul = document.createElement('ul');
-        vm.media.forEach(m => {
-          const li = document.createElement('li');
-          const a = document.createElement('a');
-          a.href = m.uri;
-          a.target = '_blank';
-          a.rel = 'noopener noreferrer';
-          a.textContent = `${m.title} (${m.kind})`;
-          li.appendChild(a);
-          ul.appendChild(li);
-        });
-        section.appendChild(ul);
-      });
-    }
-  }
-
   // ---- Calendar (buildCalendarViewModel) ----
 
   function renderCalendarView() {
@@ -4299,9 +4140,12 @@
     if (!practiceId) return;
     const prSelect = document.getElementById('practice-select');
     if (!prSelect) return;
-    activateTab('practices');
     prSelect.value = practiceId;
-    renderPracticesView();
+    if (getActiveTabName() === 'practices') {
+      renderActiveTab();
+    } else {
+      activateTab('practices');
+    }
   }
 
   function jumpToText(textId) {
@@ -5587,10 +5431,6 @@
     const entitySelect = document.getElementById('entity-select');
     if (entitySelect) {
       entitySelect.addEventListener('change', renderEntitiesView);
-    }
-    const practiceSelect = document.getElementById('practice-select');
-    if (practiceSelect) {
-      practiceSelect.addEventListener('change', renderPracticesView);
     }
     // Collections tab
       addListenerById('collection-select', 'change', e => {
