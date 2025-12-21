@@ -28,11 +28,13 @@ const services = {
   ViewModels: window.ViewModels,
   EntityGraphView: window.EntityGraphView,
   MarkdownDatasetLoader: window.MarkdownDatasetLoader,
-  d3: window.d3
+  d3: window.d3,
+  ui: null
 };
 
-const store = createStore({ legacy });
 const ui = createStatusUi({ legacy });
+services.ui = ui;
+const store = createStore({ services });
 const dom = createDomUtils();
 
 const ctx = {
