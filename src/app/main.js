@@ -14,6 +14,15 @@ import { registerEntitiesTab } from './tabs/entities.js';
 import { registerCalendarTab } from './tabs/calendar.js';
 import { registerCollectionsTab } from './tabs/collections.js';
 import { initShell } from './shell.js';
+import { initMovements } from './ui/movements.js';
+
+const DEFAULT_CANON_FILTERS = {
+  search: '',
+  tag: '',
+  mention: '',
+  parent: '',
+  child: ''
+};
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.bootstrapOptions = movementEngineerGlobal.bootstrapOptions || {};
@@ -70,6 +79,7 @@ movementEngineerGlobal.store = store;
 movementEngineerGlobal.ui = ui;
 movementEngineerGlobal.dom = dom;
 movementEngineerGlobal.services = services;
+movementEngineerGlobal.actions = ctx.actions;
 
 if (legacy) {
   legacy.context = ctx;
@@ -109,6 +119,147 @@ const shouldEnable = name =>
   enabledTabs.includes(name) ||
   (name === 'collections' && enabledTabs.includes('data'));
 
+function syncLegacySelectionIfPresent(movementId) {
+  const legacyRef = movementEngineerGlobal.__legacyRef || movementEngineerGlobal.legacy;
+  if (!legacyRef) return;
+  try {
+    const storeState = ctx.getState();
+    const nextLegacyState = {
+      ...(legacyRef.getState?.() || {}),
+      snapshot: storeState.snapshot,
+      currentMovementId: movementId
+    };
+    if (typeof legacyRef.setState === 'function') {
+      legacyRef.setState(nextLegacyState);
+    } else if (typeof legacyRef.update === 'function') {
+      legacyRef.update(() => nextLegacyState);
+    }
+  } catch (err) {
+    console.error('Failed syncing movement selection to legacy', err);
+  }
+}
+
+ctx.actions.selectMovement =
+  ctx.actions.selectMovement ||
+  function selectMovement(movementId) {
+    const state = ctx.getState();
+    const snapshot = state.snapshot || {};
+    const movements = Array.isArray(snapshot.movements) ? snapshot.movements : [];
+    const movement =
+      movements.find(m => m?.id === movementId || m?.movementId === movementId) || null;
+    if (!movement) return;
+    ctx.store.setState(prev => ({
+      ...prev,
+      currentMovementId: movement.id,
+      currentItemId: null,
+      currentTextId: null,
+      currentShelfId: null,
+      currentBookId: null,
+      canonFilters: { ...DEFAULT_CANON_FILTERS },
+      navigation: { stack: [], index: -1 }
+    }));
+    ctx.shell?.renderActiveTab?.();
+    syncLegacySelectionIfPresent(movement.id);
+  };
+
+ctx.actions.addMovement =
+  ctx.actions.addMovement ||
+  function addMovement(overrides = {}) {
+    const DomainService = ctx.services?.DomainService || window.DomainService;
+    const state = ctx.getState();
+    const snapshot = state.snapshot || {};
+    const movements = Array.isArray(snapshot.movements) ? snapshot.movements : [];
+    const nextSnapshot = { ...snapshot, movements: [...movements] };
+    const newMovement = DomainService?.addMovement
+      ? DomainService.addMovement(nextSnapshot, overrides)
+      : (() => {
+          const id =
+            overrides.id ||
+            DomainService?.generateId?.('mov-') ||
+            window.crypto?.randomUUID?.() ||
+            `mov-${Date.now()}`;
+          const movement = {
+            id,
+            movementId: overrides.movementId || id,
+            name: overrides.name || 'New Movement',
+            shortName: overrides.shortName || 'New',
+            summary: overrides.summary || '',
+            notes: overrides.notes ?? null,
+            tags: overrides.tags || []
+          };
+          nextSnapshot.movements.push(movement);
+          return movement;
+        })();
+    const newMovementId = newMovement?.id;
+    ctx.store.setState(prev => ({
+      ...prev,
+      snapshot: nextSnapshot,
+      currentMovementId: newMovementId,
+      currentItemId: null,
+      currentTextId: null,
+      currentShelfId: null,
+      currentBookId: null,
+      navigation: { stack: [], index: -1 }
+    }));
+    ctx.store.markDirty('movement');
+    ctx.store.saveSnapshot({ clearMovementDirty: true, clearItemDirty: false, show: true });
+    ctx.shell?.renderActiveTab?.();
+    if (newMovementId) syncLegacySelectionIfPresent(newMovementId);
+    return newMovement;
+  };
+
+ctx.actions.deleteMovement =
+  ctx.actions.deleteMovement ||
+  function deleteMovement(movementId, options = {}) {
+    const DomainService = ctx.services?.DomainService || window.DomainService;
+    const state = ctx.getState();
+    const snapshot = state.snapshot || {};
+    const movements = Array.isArray(snapshot.movements) ? snapshot.movements : [];
+    const targetId = movementId || state.currentMovementId;
+    if (!targetId) return null;
+    const movement = movements.find(m => m?.id === targetId);
+    if (!movement) return null;
+    const shouldDelete =
+      options.confirmDelete === false
+        ? true
+        : options.confirmDelete?.(movement) ??
+          window.confirm?.(
+            'Delete this movement AND all data with this movementId?\n\n' +
+              (movement.name || movement.id) +
+              '\n\nThis cannot be undone.'
+          );
+    if (!shouldDelete) return null;
+
+    const nextSnapshot = { ...snapshot, movements: [...movements] };
+    const collections = DomainService?.COLLECTIONS_WITH_MOVEMENT_ID || [];
+    collections.forEach(name => {
+      if (Array.isArray(snapshot[name])) {
+        nextSnapshot[name] = [...snapshot[name]];
+      }
+    });
+    const fallbackMovementId = DomainService?.deleteMovement
+      ? DomainService.deleteMovement(nextSnapshot, targetId)
+      : (() => {
+          nextSnapshot.movements = nextSnapshot.movements.filter(m => m.id !== targetId);
+          return nextSnapshot.movements[0]?.id || null;
+        })();
+    ctx.store.setState(prev => ({
+      ...prev,
+      snapshot: nextSnapshot,
+      currentMovementId: fallbackMovementId,
+      currentItemId: null,
+      currentTextId: null,
+      currentShelfId: null,
+      currentBookId: null,
+      navigation: { stack: [], index: -1 }
+    }));
+    ctx.store.markDirty('movement');
+    ctx.store.saveSnapshot({ clearMovementDirty: true, clearItemDirty: false, show: true });
+    ctx.shell?.renderActiveTab?.();
+    syncLegacySelectionIfPresent(fallbackMovementId);
+    return fallbackMovementId;
+  };
+
 if (shouldEnable('dashboard')) registerDashboardTab(ctx);
 if (shouldEnable('comparison')) registerComparisonTab(ctx);
 if (shouldEnable('notes')) registerNotesTab(ctx);
@@ -137,6 +288,9 @@ onReady(() => {
   }
   if (movementEngineerGlobal.bootstrapOptions.legacyFree && typeof legacy?.init === 'function') {
     legacy.init();
+  }
+  if (!ctx.movementsUI) {
+    ctx.movementsUI = initMovements(ctx);
   }
   if (!ctx.shell) {
     ctx.shell = initShell(ctx);
