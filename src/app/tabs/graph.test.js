@@ -1,4 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  mountGraphWorkbench,
+  renderGraphWorkbench,
+  unmountGraphWorkbench
+} from './graph/workbench.js';
+
+vi.mock('./graph/workbench.js', () => ({
+  mountGraphWorkbench: vi.fn(),
+  renderGraphWorkbench: vi.fn(),
+  unmountGraphWorkbench: vi.fn()
+}));
 
 function renderDom() {
   document.body.innerHTML = `
@@ -7,23 +18,19 @@ function renderDom() {
   `;
 }
 
-function createCtx(hasLegacy = true) {
+function createCtx() {
   let subscriber = null;
-  const legacy = hasLegacy
-    ? {
-        renderGraphWorkbench: vi.fn()
-      }
-    : null;
-
+  const unsubscribe = vi.fn();
   return {
-    legacy,
     subscribe: fn => {
       subscriber = fn;
-      return vi.fn();
+      return unsubscribe;
     },
-    showFatalImportError: vi.fn(),
     get subscriber() {
       return subscriber;
+    },
+    get unsubscribe() {
+      return unsubscribe;
     }
   };
 }
@@ -31,11 +38,12 @@ function createCtx(hasLegacy = true) {
 describe('graph tab module', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.clearAllMocks();
     window.MovementEngineer = { tabs: {}, bootstrapOptions: {} };
     renderDom();
   });
 
-  it('delegates rendering to the legacy graph workbench', async () => {
+  it('mounts and renders the graph workbench module', async () => {
     const ctx = createCtx();
     const { registerGraphTab } = await import('./graph.js');
     const tab = registerGraphTab(ctx);
@@ -43,7 +51,8 @@ describe('graph tab module', () => {
     tab.mount(ctx);
     tab.render(ctx);
 
-    expect(ctx.legacy.renderGraphWorkbench).toHaveBeenCalledTimes(1);
+    expect(mountGraphWorkbench).toHaveBeenCalledWith(ctx);
+    expect(renderGraphWorkbench).toHaveBeenCalledWith(ctx);
   });
 
   it('rerenders when subscribed state changes while active', async () => {
@@ -54,16 +63,18 @@ describe('graph tab module', () => {
     tab.mount(ctx);
     ctx.subscriber?.();
 
-    expect(ctx.legacy.renderGraphWorkbench).toHaveBeenCalled();
+    expect(renderGraphWorkbench).toHaveBeenCalled();
   });
 
-  it('shows a fatal error when legacy renderer is missing', async () => {
-    const ctx = createCtx(false);
+  it('unmounts and unsubscribes cleanly', async () => {
+    const ctx = createCtx();
     const { registerGraphTab } = await import('./graph.js');
     const tab = registerGraphTab(ctx);
 
-    tab.render(ctx);
+    tab.mount(ctx);
+    tab.unmount(ctx);
 
-    expect(ctx.showFatalImportError).toHaveBeenCalled();
+    expect(ctx.unsubscribe).toHaveBeenCalled();
+    expect(unmountGraphWorkbench).toHaveBeenCalledWith(ctx);
   });
 });

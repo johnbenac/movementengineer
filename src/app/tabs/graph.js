@@ -1,3 +1,9 @@
+import {
+  mountGraphWorkbench,
+  renderGraphWorkbench,
+  unmountGraphWorkbench
+} from './graph/workbench.js';
+
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
 
@@ -14,22 +20,15 @@ export function registerGraphTab(ctx) {
 
       const unsubscribe = context?.subscribe ? context.subscribe(handleStateChange) : null;
       this.__handlers = { unsubscribe, rerender };
+      mountGraphWorkbench(context);
     },
     render(context) {
-      const legacy =
-        context?.legacy || movementEngineerGlobal.legacy || movementEngineerGlobal.__legacyRef;
-      if (!legacy || typeof legacy.renderGraphWorkbench !== 'function') {
-        context?.showFatalImportError?.(
-          new Error('Graph tab has been migrated to ES modules. Legacy renderer missing.')
-        );
-        return;
-      }
-      legacy.renderGraphWorkbench();
+      renderGraphWorkbench(context);
     },
-    unmount() {
+    unmount(context) {
       const h = this.__handlers;
-      if (!h) return;
-      if (typeof h.unsubscribe === 'function') h.unsubscribe();
+      if (h?.unsubscribe) h.unsubscribe();
+      unmountGraphWorkbench(context);
       this.__handlers = null;
     }
   };
