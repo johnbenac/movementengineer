@@ -108,7 +108,7 @@ async function testMovementScopedExport() {
   });
 
   const excluded = [
-    'app.js',
+    'non-movement-asset.js',
     'docs/readme.md',
     'movements/upside/movement.md',
     'movements/upside/entities/ent-hero.md'
