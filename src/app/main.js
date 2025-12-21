@@ -1,6 +1,7 @@
 import { createStore } from './store.js';
 import { createStatusUi } from './ui/status.js';
 import { createDomUtils } from './ui/dom.js';
+import { registerDashboardTab } from './tabs/dashboard.js';
 import { registerComparisonTab } from './tabs/comparison.js';
 import { registerNotesTab } from './tabs/notes.js';
 import { registerPracticesTab } from './tabs/practices.js';
@@ -65,6 +66,7 @@ if (legacy) {
 const enabledTabs = movementEngineerGlobal.bootstrapOptions?.moduleTabs;
 const shouldEnable = name => !Array.isArray(enabledTabs) || enabledTabs.includes(name);
 
+if (shouldEnable('dashboard')) registerDashboardTab(ctx);
 if (shouldEnable('comparison')) registerComparisonTab(ctx);
 if (shouldEnable('notes')) registerNotesTab(ctx);
 if (shouldEnable('practices')) registerPracticesTab(ctx);
