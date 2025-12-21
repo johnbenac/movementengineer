@@ -11,6 +11,7 @@ import { registerMediaTab } from './tabs/media.js';
 import { registerCanonTab } from './tabs/canon.js';
 import { registerGraphTab } from './tabs/graph.js';
 import { registerEntitiesTab } from './tabs/entities.js';
+import { registerCalendarTab } from './tabs/calendar.js';
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.bootstrapOptions = movementEngineerGlobal.bootstrapOptions || {};
@@ -74,6 +75,7 @@ if (shouldEnable('practices')) registerPracticesTab(ctx);
 if (shouldEnable('claims')) registerClaimsTab(ctx);
 if (shouldEnable('rules')) registerRulesTab(ctx);
 if (shouldEnable('media')) registerMediaTab(ctx);
+if (shouldEnable('calendar')) registerCalendarTab(ctx);
 if (shouldEnable('canon')) registerCanonTab(ctx);
 if (shouldEnable('graph')) registerGraphTab(ctx);
 if (shouldEnable('entities')) registerEntitiesTab(ctx);
