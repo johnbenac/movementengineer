@@ -128,6 +128,75 @@ def get_pr_comments(pr_number: int) -> List[Dict[str, str]]:
     return normalized
 
 
+def normalize_check_entry(check: Dict[str, str]) -> Dict[str, str]:
+    """Normalize a status check entry from GitHub's GraphQL response."""
+    typename = check.get("__typename") or "Unknown"
+
+    normalized_check = {
+        "name": "",
+        "status": "",
+        "conclusion": "",
+        "startedAt": "",
+        "completedAt": "",
+        "url": "",
+        "type": typename,
+    }
+
+    if typename == "CheckRun":
+        normalized_check.update(
+            {
+                "name": check.get("name") or "(no name)",
+                "status": check.get("status") or "",
+                "conclusion": check.get("conclusion") or "",
+                "startedAt": check.get("startedAt") or "",
+                "completedAt": check.get("completedAt") or "",
+                "url": check.get("detailsUrl") or "",
+            }
+        )
+    elif typename == "StatusContext":
+        normalized_check.update(
+            {
+                "name": check.get("context") or "(no name)",
+                "status": check.get("state") or "",
+                "conclusion": check.get("state") or "",
+                "url": check.get("targetUrl") or "",
+            }
+        )
+    else:
+        normalized_check.update(
+            {
+                "name": check.get("name") or "(no name)",
+                "status": check.get("status") or check.get("state") or "",
+                "conclusion": check.get("conclusion")
+                or check.get("status")
+                or check.get("state")
+                or "",
+                "url": check.get("url") or "",
+            }
+        )
+
+    return normalized_check
+
+
+def get_pr_checks(pr_number: int) -> List[Dict[str, str]]:
+    """Fetch status check results for a pull request."""
+    checks_json = run_command(f"gh pr view {pr_number} --json statusCheckRollup")
+    data = json.loads(checks_json)
+
+    normalized: List[Dict[str, str]] = []
+    for check in data.get("statusCheckRollup") or []:
+        normalized.append(normalize_check_entry(check))
+
+    normalized.sort(
+        key=lambda c: (
+            c.get("completedAt") or "",
+            c.get("startedAt") or "",
+            c.get("name") or "",
+        )
+    )
+    return normalized
+
+
 def filter_existing_files(files: List[str]) -> Tuple[List[str], List[str]]:
     """Filter list of files to only those that exist on current branch."""
     existing_files: List[str] = []
@@ -222,6 +291,7 @@ def run_big_picture(
     pr_info: Dict[str, str],
     files: List[str],
     comments: List[Dict[str, str]],
+    checks: List[Dict[str, str]],
     output_file: str,
     base_branch: str = "main",
     local_branch: str | None = None,
@@ -254,6 +324,37 @@ def run_big_picture(
         diff_file.write("=" * 80 + "\n")
         diff_file.write(diff_output if diff_output else "# No differences found\n")
         diff_file.write("\n\n")
+        diff_file.write("=" * 80 + "\n")
+        diff_file.write(f"Checks ({len(checks)}):\n")
+        if not checks:
+            diff_file.write("# No checks found\n")
+        else:
+            for check in checks:
+                name = check.get("name") or "(no name)"
+                status = check.get("status") or ""
+                conclusion = check.get("conclusion") or ""
+                started_at = check.get("startedAt") or ""
+                completed_at = check.get("completedAt") or ""
+                url = check.get("url") or ""
+                check_type = check.get("type") or "Unknown"
+
+                heading = f"- {name} [{check_type}]"
+                details: List[str] = []
+                if status:
+                    details.append(f"status={status}")
+                if conclusion and conclusion != status:
+                    details.append(f"conclusion={conclusion}")
+                if started_at:
+                    details.append(f"started={started_at}")
+                if completed_at:
+                    details.append(f"completed={completed_at}")
+                if details:
+                    heading += " (" + ", ".join(details) + ")"
+                if url:
+                    heading += f" [{url}]"
+                diff_file.write(heading + "\n")
+            diff_file.write("\n")
+
         diff_file.write("=" * 80 + "\n")
         diff_file.write(f"Comments ({len(comments)}):\n")
 
@@ -498,6 +599,12 @@ def main() -> None:
                 print(f"Failed to retrieve comments for PR #{pr_info['number']}: {exc}")
                 comments = []
 
+            try:
+                checks = get_pr_checks(pr_info["number"])
+            except (subprocess.CalledProcessError, json.JSONDecodeError, KeyError) as exc:
+                print(f"Failed to retrieve checks for PR #{pr_info['number']}: {exc}")
+                checks = []
+
             output_file = os.path.join(
                 args.output_dir, f"pr-{pr_info['number']}-implementation.txt"
             )
@@ -505,6 +612,7 @@ def main() -> None:
                 pr_info,
                 existing_files,
                 comments,
+                checks,
                 output_file,
                 base_branch=args.base_branch,
                 local_branch=local_branch,
