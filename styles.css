@@ -308,6 +308,17 @@ button.danger:hover {
   resize: vertical;
 }
 
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0.9rem;
+  align-items: start;
+}
+
+.form-grid .form-row {
+  max-width: none;
+}
+
 .form-actions {
   display: flex;
   gap: 0.5rem;

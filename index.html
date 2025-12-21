@@ -328,6 +328,68 @@
               />
             </label>
           </div>
+          <div class="section-heading">Rule editor</div>
+          <div id="rules-editor" class="form-grid">
+            <div id="rule-editor-status" class="hint hidden"></div>
+            <div class="form-row">
+              <label for="rules-select">Select rule</label>
+              <select id="rules-select"></select>
+            </div>
+            <div class="form-row">
+              <label for="rule-short-text">Short text</label>
+              <input id="rule-short-text" type="text" placeholder="Concise summary" />
+            </div>
+            <div class="form-row">
+              <label for="rule-kind">Kind</label>
+              <select id="rule-kind"></select>
+            </div>
+            <div class="form-row">
+              <label for="rule-details">Details</label>
+              <textarea id="rule-details" rows="3" placeholder="Expanded description"></textarea>
+            </div>
+            <div class="form-row">
+              <label for="rule-domain">Domain (comma separated)</label>
+              <input id="rule-domain" type="text" list="rule-domain-options" placeholder="worship, diet" />
+              <datalist id="rule-domain-options"></datalist>
+            </div>
+            <div class="form-row">
+              <label for="rule-applies-to">Applies to (comma separated)</label>
+              <input id="rule-applies-to" type="text" placeholder="pilgrims, clergy, novices" />
+            </div>
+            <div class="form-row">
+              <label for="rule-tags">Tags (comma separated)</label>
+              <input id="rule-tags" type="text" placeholder="tag1, tag2" />
+            </div>
+            <div class="form-row">
+              <label for="rule-supporting-texts">Supporting texts</label>
+              <select id="rule-supporting-texts" multiple size="4"></select>
+            </div>
+            <div class="form-row">
+              <label for="rule-supporting-claims">Supporting claims</label>
+              <select id="rule-supporting-claims" multiple size="4"></select>
+            </div>
+            <div class="form-row">
+              <label for="rule-related-practices">Related practices</label>
+              <select id="rule-related-practices" multiple size="4"></select>
+            </div>
+            <div class="form-row">
+              <label for="rule-source-entities">Source entities</label>
+              <select id="rule-source-entities" multiple size="4"></select>
+            </div>
+            <div class="form-row">
+              <label for="rule-sources-of-truth">Sources of truth (comma separated)</label>
+              <input
+                id="rule-sources-of-truth"
+                type="text"
+                placeholder="tradition, council notes, archive"
+              />
+            </div>
+            <div class="form-actions">
+              <button id="btn-add-rule" type="button">Add rule</button>
+              <button id="btn-save-rule" type="button">Save rule</button>
+              <button id="btn-delete-rule" class="danger" type="button">Delete rule</button>
+            </div>
+          </div>
           <div id="rules-table-wrapper" class="table-wrapper"></div>
         </div>
       </section>

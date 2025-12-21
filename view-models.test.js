@@ -84,6 +84,19 @@ function testGraphFiltering() {
   assert(!combined.nodes.some(n => n.id === 'e1'), 'Excluded types are filtered out');
 }
 
+function testRuleEditorViewModel(data) {
+  const vm = ViewModels.buildRuleEditorViewModel(data, { movementId: 'mov-fixture' });
+  assert(vm.rules.some(r => r.id === 'rul-attend'), 'Rule editor exposes rules for movement');
+  assert(
+    vm.referenceOptions.texts.some(t => t.value === 'txt-verse'),
+    'Rule editor exposes supporting text options'
+  );
+  assert(
+    vm.referenceOptions.practices.some(p => p.value === 'prc-reflection'),
+    'Rule editor exposes practice options'
+  );
+}
+
 async function runTests() {
   console.log('Running view-model tests...');
   const data = await loadFixtureData();
@@ -91,6 +104,7 @@ async function runTests() {
   testEntityDetail(data);
   testPracticeDetail(data);
   testGraphFiltering();
+  testRuleEditorViewModel(data);
   console.log('All tests passed ✅');
 }
 

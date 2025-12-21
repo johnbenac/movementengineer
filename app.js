@@ -822,6 +822,42 @@
       .filter(Boolean);
   }
 
+  // ---- Rule CRUD (shared with modern tabs) ----
+
+  function createRule(movementId = currentMovementId) {
+    if (!movementId) return null;
+    const rule = DomainService.addNewItem(snapshot, 'rules', movementId);
+    snapshotDirty = true;
+    updateDirtyState();
+    return rule;
+  }
+
+  function saveRule(ruleId, updates = {}) {
+    if (!ruleId) return null;
+    const existing = (snapshot.rules || []).find(r => r.id === ruleId);
+    if (!existing) return null;
+    const nextRule = {
+      ...existing,
+      ...updates,
+      id: ruleId,
+      movementId: existing.movementId || currentMovementId || updates.movementId
+    };
+    DomainService.upsertItem(snapshot, 'rules', nextRule);
+    snapshotDirty = true;
+    updateDirtyState();
+    return nextRule;
+  }
+
+  function deleteRule(ruleId) {
+    if (!ruleId) return false;
+    const deleted = DomainService.deleteItem(snapshot, 'rules', ruleId);
+    if (deleted) {
+      snapshotDirty = true;
+      updateDirtyState();
+    }
+    return deleted;
+  }
+
   function applyTextCollectionFormToSnapshot() {
     if (isPopulatingCanonForms) return null;
 
@@ -5668,7 +5704,10 @@
     saveTextCollection,
     deleteTextCollection,
     addNewBookToShelf,
-    addExistingBookToShelf
+    addExistingBookToShelf,
+    createRule,
+    saveRule,
+    deleteRule
   });
 
   movementEngineerGlobal.actions = Object.assign(
@@ -5681,7 +5720,10 @@
       jumpToText,
       jumpToReferencedItem,
       setCollectionAndItem,
-      saveSnapshot
+      saveSnapshot,
+      createRule,
+      saveRule,
+      deleteRule
     }
   );
 })();

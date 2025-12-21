@@ -1253,6 +1253,73 @@ function buildRuleExplorerViewModel(data, input) {
   return { rules: ruleRows };
 }
 
+function buildRuleEditorViewModel(data, input) {
+  const { movementId } = input;
+  const rules = filterByMovement(data.rules, movementId).map(rule => ({
+    id: rule.id,
+    label: rule.shortText || rule.id,
+    kind: rule.kind ?? null,
+    domain: normaliseArray(rule.domain)
+  }));
+
+  const texts = filterByMovement(data.texts, movementId);
+  const claims = filterByMovement(data.claims, movementId);
+  const practices = filterByMovement(data.practices, movementId);
+  const entities = filterByMovement(data.entities, movementId);
+  const { depthById } = buildTextHierarchy(texts);
+
+  const domainOptions = Array.from(
+    new Set(rules.flatMap(rule => normaliseArray(rule.domain)).filter(Boolean))
+  ).sort((a, b) => String(a).localeCompare(String(b)));
+
+  const textOptions = texts
+    .slice()
+    .sort((a, b) => (a.title || '').localeCompare(b.title || ''))
+    .map(text => {
+      const depth = depthById.get(text.id);
+      const depthLabel = Number.isFinite(depth) ? ` (depth ${depth})` : '';
+      return {
+        value: text.id,
+        label: `${text.title || text.id}${depthLabel}`
+      };
+    });
+
+  const claimOptions = claims
+    .slice()
+    .sort((a, b) => (a.text || '').localeCompare(b.text || ''))
+    .map(claim => ({
+      value: claim.id,
+      label: `${claim.category ? '[' + claim.category + '] ' : ''}${claim.text}`
+    }));
+
+  const practiceOptions = practices
+    .slice()
+    .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+    .map(practice => ({
+      value: practice.id,
+      label: `${practice.name || practice.id}${practice.kind ? ` (${practice.kind})` : ''}`
+    }));
+
+  const entityOptions = entities
+    .slice()
+    .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+    .map(entity => ({
+      value: entity.id,
+      label: `${entity.name || entity.id}${entity.kind ? ` (${entity.kind})` : ''}`
+    }));
+
+  return {
+    rules,
+    domainOptions,
+    referenceOptions: {
+      texts: textOptions,
+      claims: claimOptions,
+      practices: practiceOptions,
+      entities: entityOptions
+    }
+  };
+}
+
 function buildAuthorityViewModel(data, input) {
   const { movementId } = input;
   const claims = filterByMovement(data.claims, movementId);
@@ -1496,6 +1563,7 @@ const ViewModels = {
   buildCalendarViewModel,
   buildClaimsExplorerViewModel,
   buildRuleExplorerViewModel,
+  buildRuleEditorViewModel,
   buildAuthorityViewModel,
   buildMediaGalleryViewModel,
   buildComparisonViewModel,
