@@ -201,4 +201,51 @@ describe('notes tab module', () => {
     expect(StorageService.saveSnapshot).toHaveBeenCalled();
     expect(snapshot.notes.find(n => n.id === 'n1')).toBeUndefined();
   });
+
+  it('updates an existing note even when the ID is numeric', async () => {
+    const snapshot = createSnapshot();
+    snapshot.notes.push({
+      id: 123,
+      movementId: 'm1',
+      targetType: 'Entity',
+      targetId: 'e1',
+      author: 'Orig',
+      body: 'Original body',
+      tags: []
+    });
+
+    const { DomainService, snapshot: snap } = await setup({ snapshot });
+
+    const editBtn = document.querySelector('[data-note-id="123"][data-note-action="edit"]');
+    editBtn.click();
+
+    expect(document.getElementById('note-body').value).toBe('Original body');
+
+    document.getElementById('note-body').value = 'Updated text';
+    document.getElementById('notes-editor-form').dispatchEvent(
+      new Event('submit', { bubbles: true, cancelable: true })
+    );
+
+    expect(DomainService.addNewItem).not.toHaveBeenCalled();
+    expect(DomainService.upsertItem).toHaveBeenCalledWith(
+      snap,
+      'notes',
+      expect.objectContaining({ id: 123, body: 'Updated text' })
+    );
+    expect(snap.notes.find(n => n.id === 123)?.body).toBe('Updated text');
+  });
+
+  it('keeps the selected target type and updates target ID suggestions', async () => {
+    await setup();
+
+    const targetTypeSelect = document.getElementById('note-target-type');
+    targetTypeSelect.value = 'Entity';
+    targetTypeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+
+    expect(document.getElementById('note-target-type').value).toBe('Entity');
+    const datalistOptions = Array.from(
+      document.getElementById('notes-target-id-options').querySelectorAll('option')
+    );
+    expect(datalistOptions.map(opt => opt.value)).toContain('e1');
+  });
 });

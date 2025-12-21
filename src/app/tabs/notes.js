@@ -37,6 +37,11 @@ const TARGET_COLLECTION_BY_TYPE = {
 let selectedNoteId = null;
 let lastMovementId = null;
 
+function idsMatch(a, b) {
+  if (a == null || b == null) return false;
+  return String(a) === String(b);
+}
+
 function fallbackClear(el) {
   if (!el) return;
   while (el.firstChild) el.removeChild(el.firstChild);
@@ -240,7 +245,7 @@ function renderNotesTable(wrapper, notes, clear, selectedId) {
 
   notes.forEach(n => {
     const tr = document.createElement('tr');
-    if (selectedId && n.id === selectedId) {
+    if (selectedId && idsMatch(n.id, selectedId)) {
       tr.classList.add('selected');
     }
 
@@ -354,7 +359,9 @@ function handleSaveNote(ctx) {
 
   const existing =
     Array.isArray(snapshot.notes) && selectedNoteId
-      ? snapshot.notes.find(n => n.id === selectedNoteId && n.movementId === currentMovementId)
+      ? snapshot.notes.find(
+          n => idsMatch(n.id, selectedNoteId) && n.movementId === currentMovementId
+        )
       : null;
 
   let note = existing
@@ -387,7 +394,7 @@ function handleDeleteNote(ctx, noteId) {
   const snapshot = state.snapshot;
   if (!snapshot || !Array.isArray(snapshot.notes)) return;
 
-  const note = snapshot.notes.find(n => n.id === noteId);
+  const note = snapshot.notes.find(n => idsMatch(n.id, noteId));
   if (!note) return;
 
   const preview = note.body || note.id;
@@ -405,7 +412,7 @@ function handleDeleteNote(ctx, noteId) {
 
   if (!deleted) return;
 
-  if (selectedNoteId === noteId) selectedNoteId = null;
+  if (idsMatch(selectedNoteId, noteId)) selectedNoteId = null;
   persistSnapshot(ctx, snapshot, StorageService, 'Note deleted');
   renderNotesTab(ctx);
 }
@@ -509,7 +516,7 @@ function renderNotesTab(ctx) {
     : [];
   const selectedNote =
     selectedNoteId && notesForMovement
-      ? notesForMovement.find(n => n.id === selectedNoteId)
+      ? notesForMovement.find(n => idsMatch(n.id, selectedNoteId))
       : null;
   if (selectedNoteId && !selectedNote) {
     selectedNoteId = null;
@@ -518,13 +525,18 @@ function renderNotesTab(ctx) {
   const targetTypeOptions = buildTargetTypeOptions(snapshot);
   ensureSelectOptions(formDom.targetType, targetTypeOptions);
 
+  const currentFormTargetType = formDom.targetType?.value || '';
   const desiredTargetType =
-    selectedNote?.targetType || typeSelect.value || targetTypeOptions[0]?.value || '';
-  if (
-    desiredTargetType &&
-    !targetTypeOptions.some(option => option.value === desiredTargetType)
-  ) {
-    targetTypeOptions.push({ value: desiredTargetType, label: labelForTargetType(desiredTargetType) });
+    selectedNote?.targetType ||
+    currentFormTargetType ||
+    typeSelect.value ||
+    targetTypeOptions[0]?.value ||
+    '';
+  if (desiredTargetType && !targetTypeOptions.some(option => option.value === desiredTargetType)) {
+    targetTypeOptions.push({
+      value: desiredTargetType,
+      label: labelForTargetType(desiredTargetType)
+    });
     ensureSelectOptions(formDom.targetType, targetTypeOptions);
   }
   if (formDom.targetType) formDom.targetType.value = desiredTargetType;
