@@ -75,6 +75,11 @@ function hint(text) {
   return p;
 }
 
+function isInteractiveTarget(event) {
+  if (!event || !event.target || typeof event.target.closest !== 'function') return false;
+  return !!event.target.closest('a, button, input, select, textarea, option');
+}
+
 function getState(ctx) {
   return ctx?.getState?.() || ctx?.store?.getState?.() || {};
 }
@@ -165,7 +170,8 @@ function renderRulesTable(wrapper, rules, clear, selectedRuleId, onSelect) {
     if (selectedRuleId && r.id === selectedRuleId) {
       tr.classList.add('selected');
     }
-    tr.addEventListener('click', () => {
+    tr.addEventListener('click', event => {
+      if (isInteractiveTarget(event)) return;
       if (typeof onSelect === 'function') onSelect(r.id);
       Array.from(table.querySelectorAll('tr')).forEach(row => row.classList.remove('selected'));
       tr.classList.add('selected');

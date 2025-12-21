@@ -256,6 +256,11 @@ function renderClaimsTable(wrapper, claims, clear, selectedId) {
   wrapper.appendChild(table);
 }
 
+function isInteractiveTarget(event) {
+  if (!event || !event.target || typeof event.target.closest !== 'function') return false;
+  return !!event.target.closest('a, button, input, select, textarea, option');
+}
+
 function getClaimFormElements() {
   return {
     idInput: document.getElementById('claim-id'),
@@ -522,6 +527,7 @@ export function registerClaimsTab(ctx) {
       addListener(saveBtn, 'click', () => handleSaveClaim(context));
       addListener(resetBtn, 'click', rerender);
       addListener(tableWrapper, 'click', event => {
+        if (isInteractiveTarget(event)) return;
         const row = event.target.closest('tr[data-claim-id]');
         if (!row) return;
         selectedClaimId = row.dataset.claimId;
