@@ -14,6 +14,7 @@ import { registerEntitiesTab } from './tabs/entities.js';
 import { registerCalendarTab } from './tabs/calendar.js';
 import { registerCollectionsTab } from './tabs/collections.js';
 import { initShell } from './shell.js';
+import { initMovements } from './ui/movements.js';
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.bootstrapOptions = movementEngineerGlobal.bootstrapOptions || {};
@@ -27,6 +28,14 @@ movementEngineerGlobal.bootstrapOptions.__mode =
 if (!document.documentElement.dataset.meMode && movementEngineerGlobal.bootstrapOptions.__mode) {
   document.documentElement.dataset.meMode = movementEngineerGlobal.bootstrapOptions.__mode;
 }
+
+const DEFAULT_CANON_FILTERS = {
+  search: '',
+  tag: '',
+  mention: '',
+  parent: '',
+  child: ''
+};
 
 const legacy = movementEngineerGlobal.__legacyRef || movementEngineerGlobal.legacy;
 const services = {
@@ -65,6 +74,7 @@ const ctx = {
   components: movementEngineerGlobal.components || {}
 };
 
+movementEngineerGlobal.actions = ctx.actions;
 movementEngineerGlobal.ctx = ctx;
 movementEngineerGlobal.store = store;
 movementEngineerGlobal.ui = ui;
@@ -103,6 +113,63 @@ function mirrorLegacyState(nextState = {}) {
   }));
 }
 
+function syncLegacySelectionIfPresent(movementId) {
+  const legacyRef = movementEngineerGlobal.__legacyRef || movementEngineerGlobal.legacy;
+  if (!legacyRef || (!legacyRef.setState && !legacyRef.update)) return;
+  try {
+    const legacyState = legacyRef.getState?.() || {};
+    const storeState = ctx.getState?.() || {};
+    const patched = {
+      ...legacyState,
+      snapshot: storeState.snapshot,
+      currentMovementId: movementId
+    };
+    if (typeof legacyRef.setState === 'function') {
+      legacyRef.setState(patched);
+    } else if (typeof legacyRef.update === 'function') {
+      legacyRef.update(() => patched);
+    }
+  } catch (err) {
+    console.error('Failed syncing movement selection to legacy', err);
+  }
+}
+
+ctx.actions.selectMovement =
+  ctx.actions.selectMovement ||
+  function selectMovement(movementId) {
+    const state = ctx.getState?.() || {};
+    const snapshot = state.snapshot || {};
+    const movements = Array.isArray(snapshot.movements) ? snapshot.movements : [];
+    const exists = movementId ? movements.some(m => m?.id === movementId) : false;
+    if (movementId && !exists) return;
+
+    const nextMovementId = movementId === null ? null : movementId || state.currentMovementId;
+
+    store.setState(prev => {
+      const nextSnapshot = { ...(prev.snapshot || {}) };
+      if (nextMovementId) {
+        nextSnapshot.__ui = { ...(nextSnapshot.__ui || {}), currentMovementId: nextMovementId };
+      } else if (nextSnapshot.__ui?.currentMovementId) {
+        nextSnapshot.__ui = { ...(nextSnapshot.__ui || {}) };
+        delete nextSnapshot.__ui.currentMovementId;
+      }
+      return {
+        ...prev,
+        snapshot: nextSnapshot,
+        currentMovementId: nextMovementId,
+        currentItemId: null,
+        currentTextId: null,
+        currentShelfId: null,
+        currentBookId: null,
+        canonFilters: { ...DEFAULT_CANON_FILTERS },
+        navigation: { stack: [], index: -1 }
+      };
+    });
+
+    syncLegacySelectionIfPresent(nextMovementId);
+    ctx.shell?.renderActiveTab?.();
+  };
+
 const enabledTabs = movementEngineerGlobal.bootstrapOptions?.moduleTabs;
 const shouldEnable = name =>
   !Array.isArray(enabledTabs) ||
@@ -137,6 +204,9 @@ onReady(() => {
   }
   if (movementEngineerGlobal.bootstrapOptions.legacyFree && typeof legacy?.init === 'function') {
     legacy.init();
+  }
+  if (!ctx.movementsUI) {
+    ctx.movementsUI = initMovements(ctx);
   }
   if (!ctx.shell) {
     ctx.shell = initShell(ctx);

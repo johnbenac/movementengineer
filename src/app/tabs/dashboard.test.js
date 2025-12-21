@@ -7,24 +7,17 @@ function renderDom(withTab = false) {
   `;
 }
 
-function createCtx(state, vm, options = {}) {
-  const { withLegacy = true } = options;
+function createCtx(state, vm) {
   const ViewModels = vm
     ? {
         buildMovementDashboardViewModel: vi.fn(() => vm)
       }
     : null;
-  const legacy = withLegacy
-    ? {
-        renderMovementForm: vi.fn()
-      }
-    : {};
   const subscribers = new Set();
   return {
     getState: () => state,
     ViewModels,
     services: ViewModels ? { ViewModels } : {},
-    legacy,
     subscribe: fn => {
       subscribers.add(fn);
       return () => subscribers.delete(fn);
@@ -69,7 +62,6 @@ describe('dashboard tab module', () => {
     expect(content.textContent).toContain('Total: 4');
     expect(content.textContent).toContain('Rules: 7');
     expect(content.querySelectorAll('.chip-row .chip').length).toBe(3);
-    expect(ctx.legacy.renderMovementForm).toHaveBeenCalled();
   });
 
   it('shows empty state when no movement is selected', async () => {
@@ -88,7 +80,7 @@ describe('dashboard tab module', () => {
   it('shows message when ViewModels are missing', async () => {
     renderDom();
     const state = { snapshot: {}, currentMovementId: 'm1' };
-    const ctx = createCtx(state, null, { withLegacy: false });
+    const ctx = createCtx(state, null);
     const { registerDashboardTab } = await import('./dashboard.js');
     const tab = registerDashboardTab(ctx);
 
