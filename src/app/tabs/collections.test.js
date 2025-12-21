@@ -148,7 +148,10 @@ describe('collections tab module', () => {
       collectionName: 'entities',
       itemId: 'e1'
     });
-    expect(store.saveSnapshot).toHaveBeenCalled();
+    expect(store.saveSnapshot).toHaveBeenCalledWith({
+      clearItemDirty: true,
+      clearMovementDirty: false
+    });
   });
 
   it('jumps to referenced items and activates the collections tab', async () => {
@@ -173,5 +176,40 @@ describe('collections tab module', () => {
 
     expect(actions.activateTab).toHaveBeenCalledWith('collections');
     expect(ctx.getState().currentItemId).toBe('e1');
+  });
+
+  it('marks item editor as dirty when user edits the JSON', async () => {
+    renderDom();
+    const snapshot = { entities: [{ id: 'e1', movementId: 'm1', name: 'Alpha' }] };
+    const store = {
+      markDirty: vi.fn(),
+      markSaved: vi.fn(),
+      saveSnapshot: vi.fn(),
+      getState: () => ({}),
+      setState: vi.fn(),
+      update: vi.fn()
+    };
+    const ctx = createCtx(
+      {
+        snapshot,
+        currentMovementId: 'm1',
+        currentCollectionName: 'entities',
+        currentItemId: 'e1',
+        navigation: { stack: [], index: -1 },
+        flags: {}
+      },
+      { store }
+    );
+    const { registerCollectionsTab } = await import('./collections.js');
+    const tab = registerCollectionsTab(ctx);
+
+    tab.mount(ctx);
+    tab.render(ctx);
+
+    const editor = document.getElementById('item-editor');
+    editor.value = JSON.stringify(snapshot.entities[0], null, 2);
+    editor.dispatchEvent(new Event('input'));
+
+    expect(store.markDirty).toHaveBeenCalledWith('item');
   });
 });
