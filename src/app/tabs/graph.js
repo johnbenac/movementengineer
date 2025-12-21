@@ -1,3 +1,9 @@
+import {
+  mountGraphWorkbench,
+  renderGraphWorkbench,
+  unmountGraphWorkbench
+} from './graph/workbench.js';
+
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
 
@@ -5,6 +11,7 @@ export function registerGraphTab(ctx) {
   const tab = {
     __handlers: null,
     mount(context) {
+      mountGraphWorkbench(context);
       const rerender = () => tab.render(context);
       const handleStateChange = () => {
         const active = document.querySelector('.tab.active');
@@ -16,20 +23,14 @@ export function registerGraphTab(ctx) {
       this.__handlers = { unsubscribe, rerender };
     },
     render(context) {
-      const legacy =
-        context?.legacy || movementEngineerGlobal.legacy || movementEngineerGlobal.__legacyRef;
-      if (!legacy || typeof legacy.renderGraphWorkbench !== 'function') {
-        context?.showFatalImportError?.(
-          new Error('Graph tab has been migrated to ES modules. Legacy renderer missing.')
-        );
-        return;
-      }
-      legacy.renderGraphWorkbench();
+      renderGraphWorkbench(context);
     },
-    unmount() {
+    unmount(context) {
       const h = this.__handlers;
-      if (!h) return;
-      if (typeof h.unsubscribe === 'function') h.unsubscribe();
+      if (typeof unmountGraphWorkbench === 'function') {
+        unmountGraphWorkbench(context);
+      }
+      if (h && typeof h.unsubscribe === 'function') h.unsubscribe();
       this.__handlers = null;
     }
   };
