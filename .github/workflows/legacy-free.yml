@@ -1,0 +1,29 @@
+name: legacy-free
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  legacy-free:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Unit tests (legacy-free)
+        run: npm run test:unit
+
+      - name: Playwright E2E (legacy-free)
+        env:
+          ME_E2E_ENTRY: /legacy-free.html
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:4173
+        run: npm run test:e2e:legacyfree
