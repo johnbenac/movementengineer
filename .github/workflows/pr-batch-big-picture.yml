@@ -60,4 +60,5 @@ jobs:
             /tmp/pr-*-implementation.txt
             /tmp/pr-comparison-${{ inputs.start_pr }}-${{ inputs.end_pr }}.txt
             /tmp/pr-summaries-${{ inputs.start_pr }}-${{ inputs.end_pr }}.txt
+            /tmp/pr-touched-files-${{ inputs.start_pr }}-${{ inputs.end_pr }}.txt
           if-no-files-found: warn

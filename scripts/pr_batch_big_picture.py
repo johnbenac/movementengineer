@@ -15,7 +15,7 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Set, Tuple
 
 
 def parse_pr_number(value: str) -> int:
@@ -312,6 +312,60 @@ def create_master_comparison(
     return True
 
 
+def create_touched_files_compilation(
+    touched_files: Set[str],
+    base_branch: str,
+    start_pr: int,
+    end_pr: int,
+    output_file: str,
+    master_comparison_file: str | None = None,
+) -> bool:
+    """Create a compilation of unique touched files from the base branch."""
+    print("Creating touched files compilation...")
+
+    if not touched_files:
+        print("Warning: No touched files available for compilation")
+        return False
+
+    sorted_files = sorted(touched_files)
+
+    with open(output_file, "w", encoding="utf-8") as outf:
+        outf.write(f"# Touched Files (base branch) for PRs {start_pr}-{end_pr}\n")
+        outf.write(f"# Total unique files: {len(sorted_files)}\n")
+        outf.write(f"# Source branch: {base_branch}\n")
+        outf.write(f"# Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        outf.write("=" * 80 + "\n\n")
+
+        for file_path in sorted_files:
+            ref_path = f"{base_branch}:{file_path}"
+            try:
+                file_contents = run_command(f"git show {shlex.quote(ref_path)}")
+            except subprocess.CalledProcessError:
+                print(
+                    f"Skipping {file_path} because it does not exist on {base_branch}"
+                )
+                continue
+
+            outf.write("=" * 80 + "\n")
+            outf.write(f"# File: {file_path}\n")
+            outf.write(f"# Source: {base_branch}\n\n")
+            outf.write(file_contents)
+            if not file_contents.endswith("\n"):
+                outf.write("\n")
+            outf.write("\n\n")
+
+        if master_comparison_file and os.path.exists(master_comparison_file):
+            outf.write("=" * 80 + "\n")
+            outf.write(
+                "# Appended master comparison (diffs and summaries)\n\n"
+            )
+            with open(master_comparison_file, "r", encoding="utf-8") as master_file:
+                outf.write(master_file.read())
+
+    print(f"✓ Created touched files compilation: {output_file}")
+    return True
+
+
 def create_summary_compilation(
     pr_files: List[Tuple[Dict[str, str], str]],
     start_pr: int,
@@ -387,6 +441,7 @@ def main() -> None:
 
         print(f"Collecting info for PRs {args.start_pr} to {args.end_pr}...")
         pr_infos: List[Dict[str, str]] = []
+        touched_files: Set[str] = set()
 
         for pr_num in range(args.start_pr, args.end_pr + 1):
             try:
@@ -435,6 +490,7 @@ def main() -> None:
                 f"Files to process ({len(existing_files)}): "
                 f"{', '.join(existing_files)}"
             )
+            touched_files.update(existing_files)
 
             try:
                 comments = get_pr_comments(pr_info["number"])
@@ -470,10 +526,23 @@ def main() -> None:
                 successful_prs, args.start_pr, args.end_pr, summary_output
             )
 
+            touched_output = os.path.join(
+                args.output_dir, f"pr-touched-files-{args.start_pr}-{args.end_pr}.txt"
+            )
+            create_touched_files_compilation(
+                touched_files,
+                args.base_branch,
+                args.start_pr,
+                args.end_pr,
+                touched_output,
+                master_output,
+            )
+
             print(f"\n✓ Successfully processed {len(successful_prs)} PR(s)")
             print(f"✓ Individual files: {args.output_dir}/pr-{{num}}-implementation.txt")
             print(f"✓ Master comparison: {master_output}")
             print(f"✓ Summary compilation: {summary_output}")
+            print(f"✓ Touched files compilation: {touched_output}")
         else:
             print("\nNo PRs were successfully processed")
 
