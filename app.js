@@ -555,7 +555,6 @@
         );
         break;
       case 'entities':
-      case 'calendar':
         renderMovementSection(tabName);
         break;
       case 'practices':
@@ -595,6 +594,11 @@
       case 'authority':
         showFatalImportError(
           new Error('Authority tab has been migrated to ES modules. Legacy renderer removed.')
+        );
+        break;
+      case 'calendar':
+        showFatalImportError(
+          new Error('Calendar tab has been migrated to ES modules. Legacy renderer removed.')
         );
         break;
       default:
@@ -775,7 +779,6 @@
         canon: $('#shelf-list'),
         entities: $('#entity-detail'),
         practices: $('#practice-detail'),
-        calendar: $('#calendar-view'),
         claims: $('#claims-table-wrapper'),
         rules: $('#rules-table-wrapper'),
         media: $('#media-gallery'),
@@ -807,9 +810,6 @@
         showFatalImportError(
           new Error('Practices tab has been migrated to ES modules. Legacy renderer removed.')
         );
-        break;
-      case 'calendar':
-        renderCalendarView();
         break;
       case 'graph':
         renderGraphWorkbench();
@@ -2519,135 +2519,6 @@
     currentTextId = null;
     saveSnapshot();
     renderCanonView();
-  }
-
-  // ---- Calendar (buildCalendarViewModel) ----
-
-  function renderCalendarView() {
-    const wrapper = document.getElementById('calendar-view');
-    const select = document.getElementById('calendar-recurrence-filter');
-    if (!wrapper || !select) return;
-    clearElement(wrapper);
-
-    const val = select.value;
-    const recurrenceFilter = val ? [val] : [];
-
-    const vm = ViewModels.buildCalendarViewModel(snapshot, {
-      movementId: currentMovementId,
-      recurrenceFilter
-    });
-
-    if (!vm.events || vm.events.length === 0) {
-      const p = document.createElement('p');
-      p.className = 'hint';
-      p.textContent = 'No events in the calendar for this filter.';
-      wrapper.appendChild(p);
-      return;
-    }
-
-    vm.events.forEach(e => {
-      const card = document.createElement('div');
-      card.className = 'card';
-
-      const title = document.createElement('h4');
-      title.textContent = e.name;
-      card.appendChild(title);
-
-      const meta = document.createElement('div');
-      meta.className = 'meta';
-      meta.textContent = `${e.recurrence} · ${e.timingRule}`;
-      card.appendChild(meta);
-
-      if (e.description) {
-        const p = document.createElement('p');
-        p.textContent = e.description;
-        card.appendChild(p);
-      }
-
-      if (e.tags && e.tags.length) {
-        const row = document.createElement('div');
-        row.className = 'chip-row';
-        e.tags.forEach(tag => {
-          const chip = document.createElement('span');
-          chip.className = 'chip chip-tag';
-          chip.textContent = tag;
-          row.appendChild(chip);
-        });
-        card.appendChild(row);
-      }
-
-      if (e.mainPractices && e.mainPractices.length) {
-        const heading = document.createElement('div');
-        heading.style.fontSize = '0.75rem';
-        heading.textContent = 'Practices:';
-        card.appendChild(heading);
-
-        const row = document.createElement('div');
-        row.className = 'chip-row';
-        e.mainPractices.forEach(p => {
-          const chip = document.createElement('span');
-          chip.className = 'chip clickable';
-          chip.textContent = p.name || p.id;
-          chip.addEventListener('click', () => jumpToPractice(p.id));
-          row.appendChild(chip);
-        });
-        card.appendChild(row);
-      }
-
-      if (e.mainEntities && e.mainEntities.length) {
-        const heading = document.createElement('div');
-        heading.style.fontSize = '0.75rem';
-        heading.textContent = 'Entities:';
-        card.appendChild(heading);
-
-        const row = document.createElement('div');
-        row.className = 'chip-row';
-        e.mainEntities.forEach(ent => {
-          const chip = document.createElement('span');
-          chip.className = 'chip chip-entity clickable';
-          chip.textContent = ent.name || ent.id;
-          chip.addEventListener('click', () => jumpToEntity(ent.id));
-          row.appendChild(chip);
-        });
-        card.appendChild(row);
-      }
-
-      if (e.readings && e.readings.length) {
-        const heading = document.createElement('div');
-        heading.style.fontSize = '0.75rem';
-        heading.textContent = 'Readings:';
-        card.appendChild(heading);
-
-        const row = document.createElement('div');
-        row.className = 'chip-row';
-        e.readings.forEach(t => {
-          const chip = document.createElement('span');
-          chip.className = 'chip clickable';
-          chip.textContent = t.title || t.id;
-          chip.addEventListener('click', () => jumpToText(t.id));
-          row.appendChild(chip);
-        });
-        card.appendChild(row);
-      }
-
-      if (e.supportingClaims && e.supportingClaims.length) {
-        const heading = document.createElement('div');
-        heading.style.fontSize = '0.75rem';
-        heading.textContent = 'Supporting claims:';
-        card.appendChild(heading);
-
-        const ul = document.createElement('ul');
-        e.supportingClaims.forEach(c => {
-          const li = document.createElement('li');
-          li.textContent =
-            (c.category ? '[' + c.category + '] ' : '') + c.text;
-          ul.appendChild(li);
-        });
-        card.appendChild(ul);
-      }
-
-      wrapper.appendChild(card);
-    });
   }
 
   // ============================================================
@@ -5007,14 +4878,6 @@
         renderActiveTab();
       });
     });
-
-    // Calendar / notes filters react on change
-    const calendarFilter = document.getElementById(
-      'calendar-recurrence-filter'
-    );
-    if (calendarFilter) {
-      calendarFilter.addEventListener('change', renderCalendarView);
-    }
 
     // Collections tab
       addListenerById('collection-select', 'change', e => {
