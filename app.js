@@ -318,10 +318,6 @@
     renderActiveTab();
   }
 
-  function focusDataTab() {
-    if (getActiveTabName() !== 'data') activateTab('data');
-  }
-
   function updateNavigationButtons() {
     const backBtn = document.getElementById('btn-preview-back');
     const fwdBtn = document.getElementById('btn-preview-forward');
@@ -489,6 +485,11 @@
     while (el.firstChild) el.removeChild(el.firstChild);
   }
 
+  function getLabelForItem(item) {
+    if (!item || typeof item !== 'object') return '';
+    return item.name || item.title || item.shortText || item.text || item.id || '[no label]';
+  }
+
   function getActiveTabName() {
     const btn = document.querySelector('.tab.active');
     return btn ? btn.dataset.tab : 'dashboard';
@@ -582,9 +583,10 @@
           new Error('Media tab has been migrated to ES modules. Legacy renderer removed.')
         );
         break;
-      case 'data':
-        renderCollectionList();
-        renderItemDetail();
+      case 'collections':
+        showFatalImportError(
+          new Error('Collections tab has been migrated to ES modules. Legacy renderer removed.')
+        );
         break;
       case 'comparison':
         showFatalImportError(
@@ -3482,7 +3484,7 @@
           btn.type = 'button';
           btn.textContent = 'Jump to source record';
           btn.addEventListener('click', () =>
-            jumpToReferencedItem(edge.source.collection, edge.source.id)
+            actions.jumpToReferencedItem?.(edge.source.collection, edge.source.id)
           );
           edgeCard.appendChild(btn);
         }
@@ -3663,6 +3665,7 @@
   function renderGraphWorkbench() {
     const root = document.getElementById('graph-workbench-root');
     if (!root) return;
+    const actions = movementEngineerGlobal.actions || {};
 
     // If no movement selected, show hint and bail (consistent with other tabs)
     if (!currentMovementId) {
@@ -3841,569 +3844,6 @@
     ) {
       notifyLegacyStateChanged();
     }
-  }
-
-  // ---- Collections tab ----
-
-  function getLabelForItem(item) {
-    if (!item || typeof item !== 'object') return '';
-    return (
-      item.name ||
-      item.title ||
-      item.shortText ||
-      item.text ||
-      item.id ||
-      '[no label]'
-    );
-  }
-
-  function isMovementFilterEnabled() {
-    const filterCheckbox = document.getElementById(
-      'collection-filter-by-movement'
-    );
-    return Boolean(filterCheckbox && filterCheckbox.checked);
-  }
-
-  function renderCollectionList() {
-    const list = document.getElementById('collection-items');
-    if (!list) return;
-    clearElement(list);
-
-    const collName = currentCollectionName;
-    const coll = snapshot[collName] || [];
-    const filterByMovement = isMovementFilterEnabled();
-
-    let items = coll;
-    if (
-      filterByMovement &&
-      currentMovementId &&
-      COLLECTIONS_WITH_MOVEMENT_ID.has(collName)
-    ) {
-      items = coll.filter(item => item.movementId === currentMovementId);
-    }
-
-    if (!items.length) {
-      const li = document.createElement('li');
-      li.textContent = 'No items in this collection.';
-      li.style.fontStyle = 'italic';
-      li.style.cursor = 'default';
-      list.appendChild(li);
-      document.getElementById('btn-delete-item').disabled = true;
-      return;
-    }
-
-    items.forEach(item => {
-      const li = document.createElement('li');
-      li.dataset.id = item.id;
-      if (item.id === currentItemId) li.classList.add('selected');
-      const primary = document.createElement('span');
-      primary.textContent = getLabelForItem(item);
-      const secondary = document.createElement('span');
-      secondary.className = 'secondary';
-      secondary.textContent = item.id;
-      li.appendChild(primary);
-      li.appendChild(secondary);
-      li.addEventListener('click', () => {
-        setCollectionAndItem(collName, item.id);
-      });
-      list.appendChild(li);
-    });
-
-    document.getElementById('btn-delete-item').disabled = !currentItemId;
-  }
-
-  function mapIdToLabel(collectionName, id) {
-    if (!id) return '—';
-    if (collectionName === 'movements') {
-      const movement = getMovementById(id);
-      return movement ? movement.name || movement.id : id;
-    }
-    const coll = snapshot[collectionName] || [];
-    const item = coll.find(it => it.id === id);
-    return item ? getLabelForItem(item) : id;
-  }
-
-  function setCollectionAndItem(collectionName, itemId, options = {}) {
-    const {
-      addToHistory = true,
-      fromHistory = false,
-      navigationChangedExternally = false
-    } = options;
-    const previousCollectionName = currentCollectionName;
-    const previousItemId = currentItemId;
-    const previousNavIndex = navigationIndex;
-    const previousNavLength = navigationStack.length;
-
-    if (!COLLECTION_NAMES.includes(collectionName)) {
-      setStatus('Unknown collection: ' + collectionName);
-      return;
-    }
-
-    currentCollectionName = collectionName;
-    const select = document.getElementById('collection-select');
-    if (select && select.value !== collectionName) select.value = collectionName;
-
-    const coll = snapshot[collectionName] || [];
-    const foundItem = itemId ? coll.find(it => it.id === itemId) : null;
-
-    const movementFilter = document.getElementById('collection-filter-by-movement');
-    if (
-      movementFilter &&
-      movementFilter.checked &&
-      foundItem &&
-      COLLECTIONS_WITH_MOVEMENT_ID.has(collectionName) &&
-      foundItem.movementId &&
-      currentMovementId &&
-      foundItem.movementId !== currentMovementId
-    ) {
-      movementFilter.checked = false;
-    }
-
-    currentItemId = foundItem ? foundItem.id : null;
-
-    focusDataTab();
-
-    renderCollectionList();
-    renderItemDetail();
-
-    let navigationChanged = false;
-    if (addToHistory && currentItemId && !fromHistory) {
-      navigationChanged = pushNavigationState(collectionName, currentItemId, {
-        notify: false
-      });
-    } else {
-      updateNavigationButtons();
-    }
-
-    const selectionChanged =
-      previousCollectionName !== currentCollectionName ||
-      previousItemId !== currentItemId;
-    const navigationStateChanged =
-      navigationChanged ||
-      navigationIndex !== previousNavIndex ||
-      navigationStack.length !== previousNavLength ||
-      navigationChangedExternally;
-    if (selectionChanged || navigationStateChanged) {
-      notifyLegacyStateChanged();
-    }
-  }
-
-  function jumpToReferencedItem(collectionName, itemId) {
-    if (!collectionName || !itemId) return;
-    if (collectionName === 'movements') {
-      selectMovement(itemId);
-      activateTab('dashboard');
-      return;
-    }
-    const coll = snapshot[collectionName];
-    if (!Array.isArray(coll)) {
-      setStatus('Unknown collection: ' + collectionName);
-      return;
-    }
-    const exists = coll.find(it => it.id === itemId);
-    if (!exists) {
-      setStatus('Referenced item not found');
-      return;
-    }
-    setCollectionAndItem(collectionName, itemId);
-  }
-
-  function renderPreviewValue(container, value, type, refCollection) {
-    const placeholder = () => {
-      const span = document.createElement('span');
-      span.className = 'muted';
-      span.textContent = '—';
-      container.appendChild(span);
-    };
-
-    switch (type) {
-      case 'chips': {
-        const arr = Array.isArray(value) ? value.filter(Boolean) : [];
-        if (!arr.length) return placeholder();
-        const row = document.createElement('div');
-        row.className = 'chip-row';
-        arr.forEach(v => {
-          const chip = document.createElement('span');
-          chip.className = 'chip';
-          chip.textContent = v;
-          row.appendChild(chip);
-        });
-        container.appendChild(row);
-        return;
-      }
-      case 'id': {
-        if (!value) return placeholder();
-        const chip = document.createElement('span');
-        chip.className = 'chip clickable';
-        chip.textContent = mapIdToLabel(refCollection, value);
-        chip.title = 'Open ' + value;
-        if (refCollection) {
-          chip.addEventListener('click', () =>
-            jumpToReferencedItem(refCollection, value)
-          );
-        }
-        container.appendChild(chip);
-        return;
-      }
-      case 'idList': {
-        const ids = Array.isArray(value) ? value.filter(Boolean) : [];
-        if (!ids.length) return placeholder();
-        const row = document.createElement('div');
-        row.className = 'chip-row';
-        ids.forEach(id => {
-          const chip = document.createElement('span');
-          chip.className = 'chip clickable';
-          chip.textContent = mapIdToLabel(refCollection, id);
-          chip.title = 'Open ' + id;
-          if (refCollection) {
-            chip.addEventListener('click', () =>
-              jumpToReferencedItem(refCollection, id)
-            );
-          }
-          row.appendChild(chip);
-        });
-        container.appendChild(row);
-        return;
-      }
-      case 'paragraph': {
-        if (!value) return placeholder();
-        const p = document.createElement('p');
-        p.textContent = value;
-        container.appendChild(p);
-        return;
-      }
-      case 'boolean': {
-        if (typeof value !== 'boolean') return placeholder();
-        const span = document.createElement('span');
-        span.textContent = value ? 'Yes' : 'No';
-        container.appendChild(span);
-        return;
-      }
-      case 'link': {
-        if (!value) return placeholder();
-        const a = document.createElement('a');
-        a.href = value;
-        a.target = '_blank';
-        a.rel = 'noreferrer';
-        a.textContent = value;
-        container.appendChild(a);
-        return;
-      }
-      case 'code': {
-        if (!value) return placeholder();
-        const pre = document.createElement('pre');
-        pre.textContent = value;
-        container.appendChild(pre);
-        return;
-      }
-      default: {
-        if (value === undefined || value === null || value === '')
-          return placeholder();
-        const span = document.createElement('span');
-        span.textContent = value;
-        container.appendChild(span);
-      }
-    }
-  }
-
-  function renderPreviewRow(container, label, value, type, refCollection) {
-    const row = document.createElement('div');
-    row.className = 'preview-row';
-    const lbl = document.createElement('div');
-    lbl.className = 'preview-label';
-    lbl.textContent = label;
-    const val = document.createElement('div');
-    val.className = 'preview-value';
-    renderPreviewValue(val, value, type, refCollection);
-    row.appendChild(lbl);
-    row.appendChild(val);
-    container.appendChild(row);
-  }
-
-  const PREVIEW_FIELDS = {
-    entities: [
-      { label: 'Kind', key: 'kind' },
-      { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
-      { label: 'Summary', key: 'summary', type: 'paragraph' },
-      { label: 'Tags', key: 'tags', type: 'chips' },
-      { label: 'Sources of truth', key: 'sourcesOfTruth', type: 'chips' },
-      { label: 'Source entities', key: 'sourceEntityIds', type: 'idList', ref: 'entities' },
-      { label: 'Notes', key: 'notes', type: 'paragraph' }
-    ],
-    practices: [
-      { label: 'Kind', key: 'kind' },
-      { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
-      { label: 'Description', key: 'description', type: 'paragraph' },
-      { label: 'Frequency', key: 'frequency' },
-      { label: 'Public', key: 'isPublic', type: 'boolean' },
-      { label: 'Tags', key: 'tags', type: 'chips' },
-      { label: 'Involved entities', key: 'involvedEntityIds', type: 'idList', ref: 'entities' },
-      { label: 'Instructions texts', key: 'instructionsTextIds', type: 'idList', ref: 'texts' },
-      { label: 'Supporting claims', key: 'supportingClaimIds', type: 'idList', ref: 'claims' },
-      { label: 'Sources of truth', key: 'sourcesOfTruth', type: 'chips' },
-      { label: 'Source entities', key: 'sourceEntityIds', type: 'idList', ref: 'entities' },
-      { label: 'Notes', key: 'notes', type: 'paragraph' }
-    ],
-    events: [
-      { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
-      { label: 'Description', key: 'description', type: 'paragraph' },
-      { label: 'Recurrence', key: 'recurrence' },
-      { label: 'Timing rule', key: 'timingRule' },
-      { label: 'Tags', key: 'tags', type: 'chips' },
-      { label: 'Main practices', key: 'mainPracticeIds', type: 'idList', ref: 'practices' },
-      { label: 'Main entities', key: 'mainEntityIds', type: 'idList', ref: 'entities' },
-      { label: 'Readings', key: 'readingTextIds', type: 'idList', ref: 'texts' },
-      { label: 'Supporting claims', key: 'supportingClaimIds', type: 'idList', ref: 'claims' }
-    ],
-    rules: [
-      { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
-      { label: 'Kind', key: 'kind' },
-      { label: 'Details', key: 'details', type: 'paragraph' },
-      { label: 'Applies to', key: 'appliesTo', type: 'chips' },
-      { label: 'Domain', key: 'domain', type: 'chips' },
-      { label: 'Tags', key: 'tags', type: 'chips' },
-      { label: 'Supporting texts', key: 'supportingTextIds', type: 'idList', ref: 'texts' },
-      { label: 'Supporting claims', key: 'supportingClaimIds', type: 'idList', ref: 'claims' },
-      { label: 'Related practices', key: 'relatedPracticeIds', type: 'idList', ref: 'practices' },
-      { label: 'Sources of truth', key: 'sourcesOfTruth', type: 'chips' },
-      { label: 'Source entities', key: 'sourceEntityIds', type: 'idList', ref: 'entities' }
-    ],
-    claims: [
-      { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
-      { label: 'Category', key: 'category' },
-      { label: 'Text', key: 'text', type: 'paragraph' },
-      { label: 'Tags', key: 'tags', type: 'chips' },
-      { label: 'About entities', key: 'aboutEntityIds', type: 'idList', ref: 'entities' },
-      { label: 'Source texts', key: 'sourceTextIds', type: 'idList', ref: 'texts' },
-      { label: 'Sources of truth', key: 'sourcesOfTruth', type: 'chips' },
-      { label: 'Source entities', key: 'sourceEntityIds', type: 'idList', ref: 'entities' },
-      { label: 'Notes', key: 'notes', type: 'paragraph' }
-    ],
-    textCollections: [
-      { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
-      { label: 'Description', key: 'description', type: 'paragraph' },
-      { label: 'Tags', key: 'tags', type: 'chips' },
-      { label: 'Root texts', key: 'rootTextIds', type: 'idList', ref: 'texts' }
-    ],
-    texts: [
-      { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
-      { label: 'Label', key: 'label' },
-      { label: 'Parent text', key: 'parentId', type: 'id', ref: 'texts' },
-      { label: 'Content', key: 'content', type: 'paragraph' },
-      { label: 'Main function', key: 'mainFunction' },
-      { label: 'Tags', key: 'tags', type: 'chips' },
-      { label: 'Mentions entities', key: 'mentionsEntityIds', type: 'idList', ref: 'entities' }
-    ],
-    media: [
-      { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
-      { label: 'Kind', key: 'kind' },
-      { label: 'URI', key: 'uri', type: 'link' },
-      { label: 'Title', key: 'title' },
-      { label: 'Description', key: 'description', type: 'paragraph' },
-      { label: 'Tags', key: 'tags', type: 'chips' },
-      { label: 'Linked entities', key: 'linkedEntityIds', type: 'idList', ref: 'entities' },
-      { label: 'Linked practices', key: 'linkedPracticeIds', type: 'idList', ref: 'practices' },
-      { label: 'Linked events', key: 'linkedEventIds', type: 'idList', ref: 'events' },
-      { label: 'Linked texts', key: 'linkedTextIds', type: 'idList', ref: 'texts' }
-    ],
-    notes: [
-      { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
-      { label: 'Target type', key: 'targetType' },
-      { label: 'Target', key: 'targetId' },
-      { label: 'Author', key: 'author' },
-      { label: 'Context', key: 'context', type: 'paragraph' },
-      { label: 'Body', key: 'body', type: 'paragraph' },
-      { label: 'Tags', key: 'tags', type: 'chips' }
-    ]
-  };
-
-  function renderItemPreview() {
-    const titleEl = document.getElementById('item-preview-title');
-    const subtitleEl = document.getElementById('item-preview-subtitle');
-    const body = document.getElementById('item-preview-body');
-    const badge = document.getElementById('item-preview-collection');
-    if (!titleEl || !subtitleEl || !body || !badge) return;
-
-    clearElement(body);
-    badge.textContent = currentCollectionName;
-
-    if (!currentItemId) {
-      titleEl.textContent = 'Select an item';
-      subtitleEl.textContent = 'Preview will appear here';
-      const p = document.createElement('p');
-      p.className = 'muted';
-      p.textContent = 'Pick an item on the left to see a human-friendly summary.';
-      body.appendChild(p);
-      return;
-    }
-
-    const coll = snapshot[currentCollectionName] || [];
-    const item = coll.find(it => it.id === currentItemId);
-    if (!item) {
-      titleEl.textContent = 'Not found';
-      subtitleEl.textContent = '';
-      const p = document.createElement('p');
-      p.className = 'muted';
-      p.textContent = 'The selected item could not be loaded.';
-      body.appendChild(p);
-      return;
-    }
-
-    titleEl.textContent = getLabelForItem(item);
-    subtitleEl.textContent = `${currentCollectionName.slice(0, -1)} · ${item.id}`;
-
-    const fields = PREVIEW_FIELDS[currentCollectionName];
-    if (!fields) {
-      renderPreviewRow(body, 'Details', JSON.stringify(item, null, 2), 'code');
-      return;
-    }
-
-    fields.forEach(field => {
-      const value = item[field.key];
-      renderPreviewRow(body, field.label, value, field.type, field.ref);
-    });
-
-    if (currentCollectionName === 'texts') {
-      const applyMovementFilter = isMovementFilterEnabled();
-      const children = (snapshot.texts || [])
-        .filter(text => text.parentId === item.id)
-        .filter(text => {
-          if (!applyMovementFilter || !currentMovementId) return true;
-          return text.movementId === currentMovementId;
-        })
-        .sort((a, b) =>
-          getLabelForItem(a).localeCompare(getLabelForItem(b), undefined, {
-            sensitivity: 'base'
-          })
-        )
-        .map(text => text.id);
-
-      renderPreviewRow(body, 'Child texts', children, 'idList', 'texts');
-    }
-  }
-
-  function renderItemEditor() {
-    const collName = currentCollectionName;
-    const coll = snapshot[collName] || [];
-    const editor = document.getElementById('item-editor');
-    const deleteBtn = document.getElementById('btn-delete-item');
-
-    if (!currentItemId) {
-      isPopulatingEditor = true;
-      editor.value = '';
-      isPopulatingEditor = false;
-      editor.disabled = coll.length === 0;
-      deleteBtn.disabled = true;
-      renderItemPreview();
-      return;
-    }
-
-    const item = coll.find(it => it.id === currentItemId);
-    if (!item) {
-      isPopulatingEditor = true;
-      editor.value = '';
-      isPopulatingEditor = false;
-      editor.disabled = true;
-      deleteBtn.disabled = true;
-      renderItemPreview();
-      return;
-    }
-
-    editor.disabled = false;
-    deleteBtn.disabled = false;
-    isPopulatingEditor = true;
-    editor.value = JSON.stringify(item, null, 2);
-    isPopulatingEditor = false;
-    renderItemPreview();
-  }
-
-  function renderItemDetail() {
-    renderItemPreview();
-    renderItemEditor();
-  }
-
-  function saveItemFromEditor(options = {}) {
-    const { persist = true } = options;
-    const collName = currentCollectionName;
-    const coll = snapshot[collName];
-    if (!Array.isArray(coll)) {
-      alert('Unknown collection: ' + collName);
-      return false;
-    }
-
-    const editor = document.getElementById('item-editor');
-    const raw = editor.value.trim();
-    if (!raw) {
-      alert('Editor is empty. Nothing to save.');
-      return false;
-    }
-
-    let obj;
-    try {
-      obj = JSON.parse(raw);
-    } catch (e) {
-      alert('Invalid JSON: ' + e.message);
-      return false;
-    }
-
-    if (!obj.id) {
-      alert('Object must have an "id" field.');
-      return false;
-    }
-
-    try {
-      DomainService.upsertItem(snapshot, collName, obj);
-      currentItemId = obj.id;
-      itemEditorDirty = false;
-      snapshotDirty = true;
-      updateDirtyState();
-      if (persist) saveSnapshot({ clearItemDirty: true });
-      pushNavigationState(collName, currentItemId);
-    } catch (e) {
-      alert(e.message);
-      return false;
-    }
-    return true;
-  }
-
-  function addNewItem() {
-    const collName = currentCollectionName;
-    try {
-      const skeleton = DomainService.addNewItem(
-        snapshot,
-        collName,
-        currentMovementId
-      );
-      currentItemId = skeleton.id;
-      saveSnapshot({ show: false }); // we'll call setStatus manually
-      setStatus('New item created');
-      setCollectionAndItem(collName, skeleton.id);
-    } catch (e) {
-      alert(e.message);
-    }
-  }
-
-  function deleteCurrentItem() {
-    const collName = currentCollectionName;
-    const coll = snapshot[collName];
-    if (!Array.isArray(coll) || !currentItemId) return;
-
-    const item = coll.find(it => it.id === currentItemId);
-    const label = getLabelForItem(item);
-    const ok = window.confirm(
-      `Delete this ${collName.slice(0, -1)}?\n\n${label}\n\nThis cannot be undone.`
-    );
-    if (!ok) return;
-
-    try {
-      DomainService.deleteItem(snapshot, collName, currentItemId);
-    } catch (e) {
-      alert(e.message);
-      return;
-    }
-    pruneNavigationState(collName, currentItemId);
-    currentItemId = null;
-    saveSnapshot();
   }
 
   // ---- Import / export / reset ----
@@ -4884,34 +4324,7 @@
         renderActiveTab();
       });
     });
-    // Collections tab
-      addListenerById('collection-select', 'change', e => {
-        setCollectionAndItem(e.target.value, null, { addToHistory: false });
-      });
-
-      addListenerById('collection-filter-by-movement', 'change', () => {
-        renderCollectionList();
-        renderItemDetail();
-      });
-
-      addListenerById('btn-add-item', 'click', addNewItem);
-      addListenerById('btn-delete-item', 'click', deleteCurrentItem);
-      addListenerById('btn-save-item', 'click', saveItemFromEditor);
-
-    const navBack = document.getElementById('btn-preview-back');
-    const navForward = document.getElementById('btn-preview-forward');
-    if (navBack) navBack.addEventListener('click', () => navigateHistory(-1));
-    if (navForward) navForward.addEventListener('click', () => navigateHistory(1));
-
-      addListenerById('btn-save-banner', 'click', () => persistDirtyChanges());
-
-    const itemEditor = document.getElementById('item-editor');
-    if (itemEditor) {
-      itemEditor.addEventListener('input', () => {
-        if (isPopulatingEditor) return;
-        markDirty('item');
-      });
-    }
+    addListenerById('btn-save-banner', 'click', () => persistDirtyChanges());
 
     // Initial render
     renderMovementList();
@@ -4972,8 +4385,6 @@
       jumpToEntity,
       jumpToPractice,
       jumpToText,
-      jumpToReferencedItem,
-      setCollectionAndItem,
       saveSnapshot
     }
   );
