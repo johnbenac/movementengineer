@@ -14,10 +14,6 @@ function getState(ctx) {
   return ctx?.getState?.() || ctx?.store?.getState?.() || {};
 }
 
-function getLegacy(ctx) {
-  return ctx?.legacy || movementEngineerGlobal.legacy || movementEngineerGlobal.__legacyRef || {};
-}
-
 function getViewModels(ctx) {
   return ctx?.services?.ViewModels || ctx?.ViewModels || window.ViewModels;
 }
@@ -65,11 +61,6 @@ function appendExampleRow(container, label, items, key) {
 
 function renderDashboardTab(ctx) {
   const clear = getClear(ctx);
-  const legacy = getLegacy(ctx);
-  if (typeof legacy.renderMovementForm === 'function') {
-    legacy.renderMovementForm();
-  }
-
   const container = document.getElementById('dashboard-content');
   if (!container) return;
 

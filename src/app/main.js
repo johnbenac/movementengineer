@@ -13,6 +13,7 @@ import { registerGraphTab } from './tabs/graph.js';
 import { registerEntitiesTab } from './tabs/entities.js';
 import { registerCalendarTab } from './tabs/calendar.js';
 import { registerCollectionsTab } from './tabs/collections.js';
+import { initMovements } from './ui/movements.js';
 import { initShell } from './shell.js';
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
@@ -70,9 +71,31 @@ movementEngineerGlobal.store = store;
 movementEngineerGlobal.ui = ui;
 movementEngineerGlobal.dom = dom;
 movementEngineerGlobal.services = services;
+movementEngineerGlobal.actions = ctx.actions;
 
 if (legacy) {
   legacy.context = ctx;
+}
+
+function syncLegacySelectionIfPresent(movementId) {
+  const legacyRef = movementEngineerGlobal.__legacyRef || movementEngineerGlobal.legacy;
+  if (!legacyRef?.setState && !legacyRef?.update) return;
+  try {
+    const legacyState = legacyRef.getState?.() || {};
+    const storeState = ctx.getState();
+    const patched = {
+      ...legacyState,
+      snapshot: storeState.snapshot,
+      currentMovementId: movementId
+    };
+    if (legacyRef.setState) {
+      legacyRef.setState(patched);
+    } else if (legacyRef.update) {
+      legacyRef.update(() => patched);
+    }
+  } catch (err) {
+    console.error('Failed syncing movement selection to legacy', err);
+  }
 }
 
 function mirrorLegacyState(nextState = {}) {
@@ -109,6 +132,31 @@ const shouldEnable = name =>
   enabledTabs.includes(name) ||
   (name === 'collections' && enabledTabs.includes('data'));
 
+ctx.actions.selectMovement =
+  ctx.actions.selectMovement ||
+  function selectMovement(movementId) {
+    const state = ctx.getState();
+    const snapshot = state.snapshot || {};
+    const movements = Array.isArray(snapshot.movements) ? snapshot.movements : [];
+    const movement =
+      movements.find(m => m?.id === movementId || m?.movementId === movementId) || null;
+    if (!movement) return;
+    const canonicalId = movement.id || movement.movementId || movementId;
+
+    ctx.store.setState(prev => ({
+      ...prev,
+      currentMovementId: canonicalId,
+      currentItemId: null,
+      currentTextId: null,
+      currentShelfId: null,
+      currentBookId: null,
+      navigation: { stack: [], index: -1 }
+    }));
+
+    syncLegacySelectionIfPresent(canonicalId);
+    ctx.shell?.renderActiveTab?.();
+  };
+
 if (shouldEnable('dashboard')) registerDashboardTab(ctx);
 if (shouldEnable('comparison')) registerComparisonTab(ctx);
 if (shouldEnable('notes')) registerNotesTab(ctx);
@@ -137,6 +185,9 @@ onReady(() => {
   }
   if (movementEngineerGlobal.bootstrapOptions.legacyFree && typeof legacy?.init === 'function') {
     legacy.init();
+  }
+  if (!ctx.movementsUI) {
+    ctx.movementsUI = initMovements(ctx);
   }
   if (!ctx.shell) {
     ctx.shell = initShell(ctx);
