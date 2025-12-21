@@ -59,6 +59,3 @@ You can generate comparison reports for ranges of pull requests directly from th
    - A master comparison file combining all requested PRs.
    - A touched-files compilation that lists each unique file modified across the PR range (one copy per path, from the base branch) followed by the combined diff report.
 4. Download the generated artifact `pr-comparison-{start}-{end}` to retrieve the reports.
-
-## License
-This project is licensed under the [GNU Affero General Public License v3.0](LICENSE).
