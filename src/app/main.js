@@ -1,4 +1,5 @@
 import { createStore } from './store.js';
+import { createActions } from './actions.js';
 import { createStatusUi } from './ui/status.js';
 import { createDomUtils } from './ui/dom.js';
 import { registerDashboardTab } from './tabs/dashboard.js';
@@ -64,6 +65,11 @@ const ctx = {
   tabs: movementEngineerGlobal.tabs || {},
   actions: movementEngineerGlobal.actions || {},
   components: movementEngineerGlobal.components || {}
+};
+
+ctx.actions = {
+  ...createActions(ctx),
+  ...(ctx.actions || {})
 };
 
 movementEngineerGlobal.ctx = ctx;

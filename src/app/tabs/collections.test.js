@@ -148,7 +148,11 @@ describe('collections tab module', () => {
       collectionName: 'entities',
       itemId: 'e1'
     });
-    expect(store.saveSnapshot).toHaveBeenCalled();
+    expect(store.saveSnapshot).toHaveBeenCalledWith({
+      clearItemDirty: true,
+      clearMovementDirty: false,
+      show: true
+    });
   });
 
   it('jumps to referenced items and activates the collections tab', async () => {
@@ -173,5 +177,70 @@ describe('collections tab module', () => {
 
     expect(actions.activateTab).toHaveBeenCalledWith('collections');
     expect(ctx.getState().currentItemId).toBe('e1');
+  });
+
+  it('marks items dirty and saves snapshots when creating new items', async () => {
+    renderDom();
+    const store = {
+      markDirty: vi.fn(),
+      saveSnapshot: vi.fn(),
+      getState: () => ({}),
+      setState: vi.fn(),
+      update: vi.fn()
+    };
+    const ctx = createCtx(
+      {
+        snapshot: { entities: [] },
+        currentMovementId: 'm1',
+        currentCollectionName: 'entities',
+        currentItemId: null,
+        navigation: { stack: [], index: -1 },
+        flags: {}
+      },
+      { store }
+    );
+    const { registerCollectionsTab } = await import('./collections.js');
+    const tab = registerCollectionsTab(ctx);
+
+    tab.addNewItem(ctx);
+
+    expect(store.markDirty).toHaveBeenCalledWith('item');
+    expect(store.saveSnapshot).toHaveBeenCalledWith({
+      show: true,
+      clearMovementDirty: false,
+      clearItemDirty: true
+    });
+  });
+
+  it('marks the editor dirty when text changes', async () => {
+    renderDom();
+    const store = {
+      markDirty: vi.fn(),
+      markSaved: vi.fn(),
+      saveSnapshot: vi.fn(),
+      getState: () => ({}),
+      setState: vi.fn(),
+      update: vi.fn()
+    };
+    const ctx = createCtx(
+      {
+        snapshot: { entities: [{ id: 'e1', movementId: 'm1', name: 'Alpha' }] },
+        currentMovementId: 'm1',
+        currentCollectionName: 'entities',
+        currentItemId: 'e1',
+        navigation: { stack: [], index: -1 },
+        flags: {}
+      },
+      { store }
+    );
+    const { registerCollectionsTab } = await import('./collections.js');
+    const tab = registerCollectionsTab(ctx);
+
+    tab.mount(ctx);
+    const editor = document.getElementById('item-editor');
+    editor.value = '{"id":"e1"}';
+    editor.dispatchEvent(new Event('input'));
+
+    expect(store.markDirty).toHaveBeenCalledWith('item');
   });
 });

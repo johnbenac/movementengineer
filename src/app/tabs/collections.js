@@ -124,7 +124,7 @@ function getStore(ctx) {
 }
 
 function getActions(ctx) {
-  return ctx?.actions || movementEngineerGlobal.actions || {};
+  return ctx?.actions || {};
 }
 
 function applyState(ctx, updater) {
@@ -636,8 +636,8 @@ function addNewItem(ctx, tab) {
   };
   applyState(ctx, nextState);
   const store = getStore(ctx);
-  store?.markDirty?.('snapshot');
-  store?.saveSnapshot?.({ show: false, clearMovementDirty: false, clearItemDirty: true });
+  store?.markDirty?.('item');
+  store?.saveSnapshot?.({ show: true, clearMovementDirty: false, clearItemDirty: true });
   ctx.setStatus?.('New item created');
   tab.render?.(ctx);
 }
@@ -697,11 +697,10 @@ function saveCurrentItem(ctx, tab, options = {}) {
   applyState(ctx, nextState);
   if (persist) {
     const store = getStore(ctx);
-    store?.saveSnapshot?.({ clearItemDirty: true, clearMovementDirty: false });
+    store?.saveSnapshot?.({ show: true, clearItemDirty: true, clearMovementDirty: false });
   } else {
     const store = getStore(ctx);
-    store?.markSaved?.({ item: true });
-    store?.markDirty?.('snapshot');
+    store?.markDirty?.('item');
   }
   tab.render?.(ctx);
   return true;
@@ -743,8 +742,8 @@ function deleteCurrentItem(ctx, tab) {
   };
   applyState(ctx, nextState);
   const store = getStore(ctx);
-  store?.markDirty?.('snapshot');
-  store?.saveSnapshot?.({ clearItemDirty: true, clearMovementDirty: false });
+  store?.markDirty?.('item');
+  store?.saveSnapshot?.({ show: true, clearItemDirty: true, clearMovementDirty: false });
   tab.render?.(ctx);
 }
 
@@ -861,13 +860,6 @@ export function registerCollectionsTab(ctx) {
   if (ctx?.tabs) {
     ctx.tabs.collections = tab;
   }
-  movementEngineerGlobal.actions = movementEngineerGlobal.actions || {};
-  movementEngineerGlobal.actions.setCollectionAndItem = (collectionName, itemId, options) =>
-    tab.setCollectionAndItem(ctx, collectionName, itemId, options);
-  movementEngineerGlobal.actions.jumpToReferencedItem = (collectionName, itemId) =>
-    tab.jumpToReferencedItem(ctx, collectionName, itemId);
-  movementEngineerGlobal.actions.navigateCollectionHistory = direction =>
-    tab.navigateHistory(ctx, direction);
 
   return tab;
 }
