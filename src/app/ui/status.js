@@ -1,18 +1,4 @@
-export function createStatusUi({ legacy } = {}) {
-  if (
-    legacy &&
-    typeof legacy.setStatus === 'function' &&
-    typeof legacy.showFatalImportError === 'function' &&
-    typeof legacy.clearFatalImportError === 'function'
-  ) {
-    return {
-      setStatus: legacy.setStatus,
-      showFatalImportError: legacy.showFatalImportError,
-      clearFatalImportError: legacy.clearFatalImportError,
-      ensureFatalImportBanner: legacy.ensureFatalImportBanner
-    };
-  }
-
+export function createStatusUi() {
   let fatalImportErrorDom = null;
 
   function ensureFatalImportBanner() {

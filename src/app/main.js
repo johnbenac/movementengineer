@@ -20,9 +20,7 @@ import { createActions } from './actions.js';
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.bootstrapOptions = movementEngineerGlobal.bootstrapOptions || {};
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
-if (typeof movementEngineerGlobal.bootstrapOptions.legacyAutoInit === 'undefined') {
-  movementEngineerGlobal.bootstrapOptions.legacyAutoInit = true;
-}
+movementEngineerGlobal.bootstrapOptions.legacyAutoInit = false;
 movementEngineerGlobal.bootstrapOptions.__mode =
   movementEngineerGlobal.bootstrapOptions.__mode ||
   (movementEngineerGlobal.bootstrapOptions.legacyFree ? 'legacy-free' : 'legacy-on');
@@ -30,7 +28,6 @@ if (!document.documentElement.dataset.meMode && movementEngineerGlobal.bootstrap
   document.documentElement.dataset.meMode = movementEngineerGlobal.bootstrapOptions.__mode;
 }
 
-const legacy = movementEngineerGlobal.__legacyRef || movementEngineerGlobal.legacy;
 const services = {
   DomainService: window.DomainService,
   StorageService: window.StorageService,
@@ -41,7 +38,7 @@ const services = {
   ui: null
 };
 
-const ui = createStatusUi({ legacy });
+const ui = createStatusUi();
 services.ui = ui;
 const store = createStore({ services });
 const dom = createDomUtils();
@@ -51,7 +48,6 @@ const ctx = {
   services,
   ui,
   dom,
-  legacy,
   getState: () => store.getState(),
   setState: next => store.setState(next),
   update: updater => store.update(updater),
@@ -78,59 +74,6 @@ movementEngineerGlobal.ui = ui;
 movementEngineerGlobal.dom = dom;
 movementEngineerGlobal.services = services;
 movementEngineerGlobal.actions = ctx.actions;
-
-if (legacy) {
-  legacy.context = ctx;
-}
-
-function syncLegacySelectionIfPresent(movementId) {
-  const legacyRef = movementEngineerGlobal.__legacyRef || movementEngineerGlobal.legacy;
-  if (!legacyRef?.setState && !legacyRef?.update) return;
-  try {
-    const legacyState = legacyRef.getState?.() || {};
-    const storeState = ctx.getState();
-    const patched = {
-      ...legacyState,
-      snapshot: storeState.snapshot,
-      currentMovementId: movementId
-    };
-    if (legacyRef.setState) {
-      legacyRef.setState(patched);
-    } else if (legacyRef.update) {
-      legacyRef.update(() => patched);
-    }
-  } catch (err) {
-    console.error('Failed syncing movement selection to legacy', err);
-  }
-}
-
-function mirrorLegacyState(nextState = {}) {
-  store.setState(prev => ({
-    ...prev,
-    snapshot: nextState.snapshot || prev.snapshot,
-    currentMovementId:
-      typeof nextState.currentMovementId === 'undefined'
-        ? prev.currentMovementId
-        : nextState.currentMovementId,
-    currentCollectionName: nextState.currentCollectionName || prev.currentCollectionName,
-    currentItemId:
-      typeof nextState.currentItemId === 'undefined'
-        ? prev.currentItemId
-        : nextState.currentItemId,
-    currentTextId:
-      typeof nextState.currentTextId === 'undefined'
-        ? prev.currentTextId
-        : nextState.currentTextId,
-    currentShelfId:
-      typeof nextState.currentShelfId === 'undefined'
-        ? prev.currentShelfId
-        : nextState.currentShelfId,
-    canonFilters: nextState.canonFilters || prev.canonFilters,
-    navigation: nextState.navigation || prev.navigation,
-    graphWorkbenchState: nextState.graphWorkbenchState || prev.graphWorkbenchState,
-    flags: nextState.flags || prev.flags
-  }));
-}
 
 const enabledTabs = movementEngineerGlobal.bootstrapOptions?.moduleTabs;
 const shouldEnable = name =>
@@ -159,7 +102,6 @@ ctx.actions.selectMovement =
       navigation: { stack: [], index: -1 }
     }));
 
-    syncLegacySelectionIfPresent(canonicalId);
     ctx.shell?.renderActiveTab?.();
   };
 
@@ -185,13 +127,6 @@ function onReady(fn) {
 }
 
 onReady(() => {
-  if (legacy?.subscribe) {
-    mirrorLegacyState(legacy.getState?.());
-    legacy.subscribe(mirrorLegacyState);
-  }
-  if (movementEngineerGlobal.bootstrapOptions.legacyFree && typeof legacy?.init === 'function') {
-    legacy.init();
-  }
   if (!ctx.movementsUI) {
     ctx.movementsUI = initMovements(ctx);
   }
@@ -199,17 +134,3 @@ onReady(() => {
     ctx.shell = initShell(ctx);
   }
 });
-
-document.addEventListener(
-  'DOMContentLoaded',
-  () => {
-    movementEngineerGlobal.bootstrapOptions.__mode = 'legacy-free';
-    movementEngineerGlobal.bootstrapOptions.legacyAutoInit = false;
-    document.documentElement.dataset.meMode = 'legacy-free';
-    if (legacy) {
-      movementEngineerGlobal.__legacyRef = legacy;
-      movementEngineerGlobal.legacy = null;
-    }
-  },
-  { once: true }
-);
