@@ -49,5 +49,12 @@ npm install
 npm test
 ```
 
+### PR comparison automation
+Run the **PR batch big picture** workflow from the GitHub Actions tab to generate per-PR diffs and a master comparison artifact. Supply the starting and ending PR numbers (inclusive) and optionally a base branch (defaults to `main`). The workflow will:
+
+- Fetch each PR branch, gather changed files, and capture all issue and review comments.
+- Produce `/tmp/pr-{num}-implementation.txt` files containing comments plus diffs against the base branch.
+- Produce a combined `/tmp/pr-comparison-{start}-{end}.txt` master report and upload all outputs as workflow artifacts you can download from the run summary.
+
 ## License
 This project is licensed under the [GNU Affero General Public License v3.0](LICENSE).

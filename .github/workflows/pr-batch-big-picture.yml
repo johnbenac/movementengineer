@@ -1,0 +1,51 @@
+name: PR batch big picture
+
+on:
+  workflow_dispatch:
+    inputs:
+      start_pr:
+        description: Starting PR number
+        required: true
+        type: number
+      end_pr:
+        description: Ending PR number (inclusive)
+        required: true
+        type: number
+      base_branch:
+        description: Base branch used for comparisons
+        required: true
+        default: main
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.base_branch }}
+
+      - name: Generate comparison files
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 scripts/pr_batch_big_picture.py \
+            ${{ inputs.start_pr }} \
+            ${{ inputs.end_pr }} \
+            --base "${{ inputs.base_branch }}"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-comparison-${{ inputs.start_pr }}-${{ inputs.end_pr }}
+          if-no-files-found: warn
+          path: |
+            /tmp/pr-*-implementation.txt
+            /tmp/pr-comparison-${{ inputs.start_pr }}-${{ inputs.end_pr }}.txt
