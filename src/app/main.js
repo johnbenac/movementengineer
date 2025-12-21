@@ -15,6 +15,7 @@ import { registerCalendarTab } from './tabs/calendar.js';
 import { registerCollectionsTab } from './tabs/collections.js';
 import { initMovements } from './ui/movements.js';
 import { initShell } from './shell.js';
+import { createActions } from './actions.js';
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.bootstrapOptions = movementEngineerGlobal.bootstrapOptions || {};
@@ -64,6 +65,11 @@ const ctx = {
   tabs: movementEngineerGlobal.tabs || {},
   actions: movementEngineerGlobal.actions || {},
   components: movementEngineerGlobal.components || {}
+};
+
+ctx.actions = {
+  ...createActions(ctx),
+  ...(ctx.actions || {})
 };
 
 movementEngineerGlobal.ctx = ctx;
