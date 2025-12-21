@@ -245,6 +245,8 @@ function renderNotesTable(wrapper, notes, clear, selectedId) {
 
   notes.forEach(n => {
     const tr = document.createElement('tr');
+    tr.classList.add('clickable-row');
+    tr.dataset.noteId = n.id;
     if (selectedId && idsMatch(n.id, selectedId)) {
       tr.classList.add('selected');
     }
@@ -276,18 +278,12 @@ function renderNotesTable(wrapper, notes, clear, selectedId) {
     const tdActions = document.createElement('td');
     const actionRow = document.createElement('div');
     actionRow.className = 'note-actions';
-    const editBtn = document.createElement('button');
-    editBtn.type = 'button';
-    editBtn.textContent = 'Edit';
-    editBtn.dataset.noteId = n.id;
-    editBtn.dataset.noteAction = 'edit';
     const deleteBtn = document.createElement('button');
     deleteBtn.type = 'button';
     deleteBtn.className = 'danger';
     deleteBtn.textContent = 'Delete';
     deleteBtn.dataset.noteId = n.id;
     deleteBtn.dataset.noteAction = 'delete';
-    actionRow.appendChild(editBtn);
     actionRow.appendChild(deleteBtn);
     tdActions.appendChild(actionRow);
     tr.appendChild(tdActions);
@@ -582,15 +578,19 @@ export function registerNotesTab(ctx) {
         const target = event.target;
         if (!target) return;
         const actionBtn = target.closest('[data-note-action]');
-        if (!actionBtn) return;
-        const { noteAction, noteId } = actionBtn.dataset;
-        if (!noteId) return;
-        if (noteAction === 'edit') {
-          selectedNoteId = noteId;
-          rerender();
-        } else if (noteAction === 'delete') {
-          handleDeleteNote(context, noteId);
+        if (actionBtn) {
+          const { noteAction, noteId } = actionBtn.dataset;
+          if (!noteId) return;
+          if (noteAction === 'delete') {
+            handleDeleteNote(context, noteId);
+          }
+          return;
         }
+
+        const noteRow = target.closest('tr[data-note-id]');
+        if (!noteRow?.dataset?.noteId) return;
+        selectedNoteId = noteRow.dataset.noteId;
+        rerender();
       };
 
       const handleFormSubmit = e => {
