@@ -11,7 +11,11 @@ export function registerCanonTab(ctx) {
   const tab = {
     __handlers: null,
     mount(context) {
-      const legacy = context?.legacy || movementEngineerGlobal.legacy || {};
+      const legacy =
+        context?.legacy ||
+        movementEngineerGlobal.legacy ||
+        movementEngineerGlobal.__legacyRef ||
+        {};
       const listeners = [];
 
       const rerender = () => tab.render(context);
@@ -53,7 +57,8 @@ export function registerCanonTab(ctx) {
       this.__handlers = { listeners, unsubscribe, rerender };
     },
     render(context) {
-      const legacy = context?.legacy || movementEngineerGlobal.legacy;
+      const legacy =
+        context?.legacy || movementEngineerGlobal.legacy || movementEngineerGlobal.__legacyRef;
       if (!legacy || typeof legacy.renderLibraryView !== 'function') {
         context?.showFatalImportError?.(
           new Error('Canon tab has been migrated to ES modules. Legacy renderer missing.')
