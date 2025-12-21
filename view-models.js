@@ -1200,7 +1200,8 @@ function buildClaimsExplorerViewModel(data, input) {
 
 function buildRuleExplorerViewModel(data, input) {
   const { movementId, kindFilter, domainFilter } = input;
-  let rules = filterByMovement(data.rules, movementId);
+  const rulesForMovement = filterByMovement(data.rules, movementId);
+  let rules = rulesForMovement;
   if (Array.isArray(kindFilter) && kindFilter.length > 0) {
     rules = rules.filter(rule => kindFilter.includes(rule.kind));
   }
@@ -1210,10 +1211,56 @@ function buildRuleExplorerViewModel(data, input) {
     );
   }
 
+  const textsForMovement = filterByMovement(data.texts, movementId);
+  const claimsForMovement = filterByMovement(data.claims, movementId);
+  const practicesForMovement = filterByMovement(data.practices, movementId);
+  const entitiesForMovement = filterByMovement(data.entities, movementId);
+
   const textLookup = buildLookup(data.texts);
   const claimLookup = buildLookup(data.claims);
   const practiceLookup = buildLookup(data.practices);
-  const { depthById } = buildTextHierarchy(filterByMovement(data.texts, movementId));
+  const { depthById } = buildTextHierarchy(textsForMovement);
+
+  const lookups = {
+    texts: textsForMovement
+      .map(text => ({
+        id: text.id,
+        title: text.title,
+        label: text.label ?? null,
+        depth: depthById.get(text.id) ?? null
+      }))
+      .sort((a, b) => (a.title || a.label || '').localeCompare(b.title || b.label || '')),
+    claims: claimsForMovement
+      .map(claim => ({
+        id: claim.id,
+        text: claim.text,
+        category: claim.category ?? null
+      }))
+      .sort((a, b) => (a.text || '').localeCompare(b.text || '')),
+    practices: practicesForMovement
+      .map(practice => ({
+        id: practice.id,
+        name: practice.name,
+        kind: practice.kind ?? null
+      }))
+      .sort((a, b) => (a.name || '').localeCompare(b.name || '')),
+    entities: entitiesForMovement
+      .map(entity => ({
+        id: entity.id,
+        name: entity.name,
+        kind: entity.kind ?? null
+      }))
+      .sort((a, b) => (a.name || '').localeCompare(b.name || '')),
+    domains: Array.from(
+      new Set(rulesForMovement.flatMap(rule => normaliseArray(rule.domain)).filter(Boolean))
+    ).sort((a, b) => String(a).localeCompare(String(b))),
+    tags: Array.from(
+      new Set(rulesForMovement.flatMap(rule => normaliseArray(rule.tags)).filter(Boolean))
+    ).sort((a, b) => String(a).localeCompare(String(b))),
+    appliesTo: Array.from(
+      new Set(rulesForMovement.flatMap(rule => normaliseArray(rule.appliesTo)).filter(Boolean))
+    ).sort((a, b) => String(a).localeCompare(String(b)))
+  };
 
   const ruleRows = rules.map(rule => ({
     id: rule.id,
@@ -1223,6 +1270,7 @@ function buildRuleExplorerViewModel(data, input) {
     appliesTo: normaliseArray(rule.appliesTo),
     domain: normaliseArray(rule.domain),
     tags: normaliseArray(rule.tags),
+    supportingTextIds: normaliseArray(rule.supportingTextIds),
     supportingTexts: normaliseArray(rule.supportingTextIds)
       .map(id => textLookup.get(id))
       .filter(Boolean)
@@ -1239,6 +1287,7 @@ function buildRuleExplorerViewModel(data, input) {
         text: claim.text,
         category: claim.category ?? null
       })),
+    supportingClaimIds: normaliseArray(rule.supportingClaimIds),
     relatedPractices: normaliseArray(rule.relatedPracticeIds)
       .map(id => practiceLookup.get(id))
       .filter(Boolean)
@@ -1247,10 +1296,12 @@ function buildRuleExplorerViewModel(data, input) {
         name: practice.name,
         kind: practice.kind ?? null
       })),
-    sourcesOfTruth: normaliseArray(rule.sourcesOfTruth)
+    relatedPracticeIds: normaliseArray(rule.relatedPracticeIds),
+    sourcesOfTruth: normaliseArray(rule.sourcesOfTruth),
+    sourceEntityIds: normaliseArray(rule.sourceEntityIds)
   }));
 
-  return { rules: ruleRows };
+  return { rules: ruleRows, lookups };
 }
 
 function buildAuthorityViewModel(data, input) {

@@ -50,6 +50,65 @@ function getViewModels(ctx) {
   return ctx?.services?.ViewModels || ctx?.ViewModels || window.ViewModels;
 }
 
+function getDomainService(ctx) {
+  return ctx?.services?.DomainService || ctx?.DomainService || window.DomainService;
+}
+
+function parseCsvInput(value) {
+  return (value || '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+
+function setMultiSelectValues(selectEl, values = []) {
+  if (!selectEl) return;
+  const valueSet = new Set(values);
+  Array.from(selectEl.options).forEach(opt => {
+    opt.selected = valueSet.has(opt.value);
+  });
+}
+
+function buildLookupOptions(items = [], labelKey = 'name') {
+  return items.map(item => ({
+    value: item.id,
+    label: item[labelKey] || item.id
+  }));
+}
+
+function ensureEditorContainer(clear) {
+  const panel = document.getElementById('tab-rules');
+  if (!panel) return null;
+  let editor = document.getElementById('rules-editor');
+  if (!editor) {
+    editor = document.createElement('div');
+    editor.id = 'rules-editor';
+    panel.querySelector('.panel-body')?.appendChild(editor);
+  }
+  clear(editor);
+  return editor;
+}
+
+function updateSnapshot(ctx, updater) {
+  if (typeof updater !== 'function') return null;
+  const state = getState(ctx);
+  const snapshot = state.snapshot;
+  if (!snapshot) return null;
+  const nextSnapshot = JSON.parse(JSON.stringify(snapshot));
+  const result = updater(nextSnapshot);
+  if (typeof ctx?.update === 'function') {
+    ctx.update(prev => ({ ...prev, snapshot: nextSnapshot }));
+  } else if (typeof ctx?.setState === 'function') {
+    ctx.setState({ ...state, snapshot: nextSnapshot });
+  } else {
+    state.snapshot = nextSnapshot;
+  }
+  if (typeof ctx?.setStatus === 'function') {
+    ctx.setStatus('Rules updated');
+  }
+  return { snapshot: nextSnapshot, result };
+}
+
 function renderRulesTable(wrapper, rules, clear) {
   clear(wrapper);
 
@@ -150,7 +209,230 @@ function renderRulesTable(wrapper, rules, clear) {
   wrapper.appendChild(table);
 }
 
-function renderRulesTab(ctx) {
+function renderRuleEditor(ctx, vm, tabState, clear) {
+  const editor = ensureEditorContainer(clear);
+  if (!editor) return;
+
+  const state = getState(ctx);
+  const currentMovementId = state.currentMovementId;
+  const DomainService = getDomainService(ctx);
+
+  if (!currentMovementId) {
+    editor.appendChild(hint('Create or select a movement to manage rules.'));
+    return;
+  }
+
+  const lookups = vm?.lookups || {};
+  const rules = vm?.rules || [];
+
+  let selectedRule = rules.find(r => r.id === tabState?.selectedRuleId) || null;
+  if (!selectedRule && rules.length) {
+    selectedRule = rules[0];
+  }
+  if (tabState) tabState.selectedRuleId = selectedRule ? selectedRule.id : null;
+
+  const heading = document.createElement('h3');
+  heading.className = 'section-heading';
+  heading.textContent = 'Manage rules';
+  editor.appendChild(heading);
+
+  const selectorRow = document.createElement('div');
+  selectorRow.className = 'form-row';
+  const selectorLabel = document.createElement('label');
+  selectorLabel.textContent = 'Select rule';
+  const selector = document.createElement('select');
+  selector.id = 'rules-select-rule';
+  selector.appendChild(new Option('Choose a rule', '', true, false));
+  rules.forEach(rule => {
+    const label = rule.shortText || rule.id;
+    selector.appendChild(new Option(label, rule.id, false, rule.id === selectedRule?.id));
+  });
+  selector.addEventListener('change', () => {
+    if (tabState) tabState.selectedRuleId = selector.value || null;
+    renderRulesTab(ctx, tabState);
+  });
+  selectorLabel.appendChild(selector);
+  selectorRow.appendChild(selectorLabel);
+
+  const actions = document.createElement('div');
+  actions.className = 'form-actions';
+  const newBtn = document.createElement('button');
+  newBtn.id = 'rules-btn-new';
+  newBtn.type = 'button';
+  newBtn.textContent = 'New rule';
+  newBtn.addEventListener('click', () => {
+    if (!DomainService) return;
+    const result = updateSnapshot(ctx, snap =>
+      DomainService.addNewItem(snap, 'rules', currentMovementId)
+    );
+    const newRule = result?.result;
+    if (tabState) tabState.selectedRuleId = newRule?.id || null;
+    renderRulesTab(ctx, tabState);
+  });
+  actions.appendChild(newBtn);
+
+  const deleteBtn = document.createElement('button');
+  deleteBtn.id = 'rules-btn-delete';
+  deleteBtn.type = 'button';
+  deleteBtn.textContent = 'Delete rule';
+  deleteBtn.disabled = !selectedRule;
+  deleteBtn.addEventListener('click', () => {
+    if (!selectedRule || !DomainService) return;
+    const ok = window.confirm('Delete this rule? This cannot be undone.');
+    if (!ok) return;
+    updateSnapshot(ctx, snap => DomainService.deleteItem(snap, 'rules', selectedRule.id));
+    if (tabState) tabState.selectedRuleId = null;
+    renderRulesTab(ctx, tabState);
+  });
+  actions.appendChild(deleteBtn);
+
+  selectorRow.appendChild(actions);
+  editor.appendChild(selectorRow);
+
+  if (!selectedRule) {
+    editor.appendChild(hint('No rules yet. Create one to begin.'));
+    return;
+  }
+
+  const form = document.createElement('div');
+  form.className = 'form-grid';
+
+  const addInput = (labelText, inputEl) => {
+    const row = document.createElement('div');
+    row.className = 'form-row';
+    const label = document.createElement('label');
+    label.textContent = labelText;
+    label.appendChild(inputEl);
+    row.appendChild(label);
+    form.appendChild(row);
+  };
+
+  const shortInput = document.createElement('input');
+  shortInput.type = 'text';
+  shortInput.value = selectedRule.shortText || '';
+  addInput('Short text', shortInput);
+
+  const kindSelect = document.createElement('select');
+  ['must_do', 'must_not_do', 'should_do', 'ideal', 'Norm', 'Guideline'].forEach(kind => {
+    const opt = new Option(kind, kind, false, selectedRule.kind === kind);
+    kindSelect.appendChild(opt);
+  });
+  if (selectedRule.kind && !Array.from(kindSelect.options).some(o => o.value === selectedRule.kind)) {
+    kindSelect.appendChild(new Option(selectedRule.kind, selectedRule.kind, false, true));
+  }
+  addInput('Kind', kindSelect);
+
+  const appliesInput = document.createElement('input');
+  appliesInput.type = 'text';
+  appliesInput.value = (selectedRule.appliesTo || []).join(', ');
+  if (lookups.appliesTo && lookups.appliesTo.length) {
+    const list = document.createElement('datalist');
+    list.id = 'rules-applies-to';
+    lookups.appliesTo.forEach(val => list.appendChild(new Option(val, val)));
+    appliesInput.setAttribute('list', list.id);
+    form.appendChild(list);
+  }
+  addInput('Applies to (comma separated)', appliesInput);
+
+  const domainInput = document.createElement('input');
+  domainInput.type = 'text';
+  domainInput.value = (selectedRule.domain || []).join(', ');
+  if (lookups.domains && lookups.domains.length) {
+    const list = document.createElement('datalist');
+    list.id = 'rules-domains';
+    lookups.domains.forEach(val => list.appendChild(new Option(val, val)));
+    domainInput.setAttribute('list', list.id);
+    form.appendChild(list);
+  }
+  addInput('Domain (comma separated)', domainInput);
+
+  const tagsInput = document.createElement('input');
+  tagsInput.type = 'text';
+  tagsInput.value = (selectedRule.tags || []).join(', ');
+  if (lookups.tags && lookups.tags.length) {
+    const list = document.createElement('datalist');
+    list.id = 'rules-tags';
+    lookups.tags.forEach(val => list.appendChild(new Option(val, val)));
+    tagsInput.setAttribute('list', list.id);
+    form.appendChild(list);
+  }
+  addInput('Tags (comma separated)', tagsInput);
+
+  const detailsInput = document.createElement('textarea');
+  detailsInput.value = selectedRule.details || '';
+  addInput('Details', detailsInput);
+
+  const supportingTextsSelect = document.createElement('select');
+  supportingTextsSelect.multiple = true;
+  buildLookupOptions(lookups.texts || [], 'title').forEach(opt =>
+    supportingTextsSelect.appendChild(new Option(opt.label, opt.value))
+  );
+  setMultiSelectValues(supportingTextsSelect, selectedRule.supportingTextIds || []);
+  addInput('Supporting texts', supportingTextsSelect);
+
+  const supportingClaimsSelect = document.createElement('select');
+  supportingClaimsSelect.multiple = true;
+  buildLookupOptions(lookups.claims || [], 'text').forEach(opt =>
+    supportingClaimsSelect.appendChild(new Option(opt.label, opt.value))
+  );
+  setMultiSelectValues(supportingClaimsSelect, selectedRule.supportingClaimIds || []);
+  addInput('Supporting claims', supportingClaimsSelect);
+
+  const practicesSelect = document.createElement('select');
+  practicesSelect.multiple = true;
+  buildLookupOptions(lookups.practices || [], 'name').forEach(opt =>
+    practicesSelect.appendChild(new Option(opt.label, opt.value))
+  );
+  setMultiSelectValues(practicesSelect, selectedRule.relatedPracticeIds || []);
+  addInput('Related practices', practicesSelect);
+
+  const sourceEntitiesSelect = document.createElement('select');
+  sourceEntitiesSelect.multiple = true;
+  buildLookupOptions(lookups.entities || [], 'name').forEach(opt =>
+    sourceEntitiesSelect.appendChild(new Option(opt.label, opt.value))
+  );
+  setMultiSelectValues(sourceEntitiesSelect, selectedRule.sourceEntityIds || []);
+  addInput('Source entities', sourceEntitiesSelect);
+
+  const sourcesOfTruthInput = document.createElement('input');
+  sourcesOfTruthInput.type = 'text';
+  sourcesOfTruthInput.value = (selectedRule.sourcesOfTruth || []).join(', ');
+  addInput('Sources of truth (comma separated)', sourcesOfTruthInput);
+
+  const saveRow = document.createElement('div');
+  saveRow.className = 'form-actions';
+  const saveBtn = document.createElement('button');
+  saveBtn.id = 'rules-btn-save';
+  saveBtn.type = 'button';
+  saveBtn.textContent = 'Save rule';
+  saveBtn.addEventListener('click', () => {
+    if (!DomainService) return;
+    const updated = {
+      ...selectedRule,
+      movementId: currentMovementId,
+      shortText: shortInput.value.trim() || selectedRule.shortText || 'Untitled rule',
+      kind: kindSelect.value || selectedRule.kind || null,
+      details: detailsInput.value || null,
+      appliesTo: parseCsvInput(appliesInput.value),
+      domain: parseCsvInput(domainInput.value),
+      tags: parseCsvInput(tagsInput.value),
+      supportingTextIds: Array.from(supportingTextsSelect.selectedOptions).map(o => o.value),
+      supportingClaimIds: Array.from(supportingClaimsSelect.selectedOptions).map(o => o.value),
+      relatedPracticeIds: Array.from(practicesSelect.selectedOptions).map(o => o.value),
+      sourcesOfTruth: parseCsvInput(sourcesOfTruthInput.value),
+      sourceEntityIds: Array.from(sourceEntitiesSelect.selectedOptions).map(o => o.value)
+    };
+    updateSnapshot(ctx, snap => DomainService.upsertItem(snap, 'rules', updated));
+    if (tabState) tabState.selectedRuleId = updated.id;
+    renderRulesTab(ctx, tabState);
+  });
+  saveRow.appendChild(saveBtn);
+  form.appendChild(saveRow);
+
+  editor.appendChild(form);
+}
+
+function renderRulesTab(ctx, tabState) {
   const clear = getClear(ctx);
   const ensureSelectOptions = getEnsureSelectOptions(ctx);
   const state = getState(ctx);
@@ -209,6 +491,7 @@ function renderRulesTab(ctx) {
   });
 
   renderRulesTable(wrapper, vm?.rules || [], clear);
+  renderRuleEditor(ctx, vm, tabState, clear);
 }
 
 export function registerRulesTab(ctx) {
@@ -232,7 +515,7 @@ export function registerRulesTab(ctx) {
 
       this.__handlers = { kindSelect, domainInput, rerender, unsubscribe };
     },
-    render: renderRulesTab,
+    render: context => renderRulesTab(context, tab),
     unmount() {
       const h = this.__handlers;
       if (!h) return;
