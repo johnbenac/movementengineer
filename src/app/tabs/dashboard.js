@@ -15,7 +15,7 @@ function getState(ctx) {
 }
 
 function getLegacy(ctx) {
-  return ctx?.legacy || movementEngineerGlobal.legacy || {};
+  return ctx?.legacy || movementEngineerGlobal.legacy || movementEngineerGlobal.__legacyRef || {};
 }
 
 function getViewModels(ctx) {

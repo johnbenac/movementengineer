@@ -16,7 +16,8 @@ export function registerGraphTab(ctx) {
       this.__handlers = { unsubscribe, rerender };
     },
     render(context) {
-      const legacy = context?.legacy || movementEngineerGlobal.legacy;
+      const legacy =
+        context?.legacy || movementEngineerGlobal.legacy || movementEngineerGlobal.__legacyRef;
       if (!legacy || typeof legacy.renderGraphWorkbench !== 'function') {
         context?.showFatalImportError?.(
           new Error('Graph tab has been migrated to ES modules. Legacy renderer missing.')
