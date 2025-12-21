@@ -88,7 +88,7 @@ describe('canon tab module', () => {
     renderDom();
   });
 
-  it('renders without legacy dependencies and shows movement hint', async () => {
+  it('renders without external dependencies and shows movement hint', async () => {
     const ctx = createCtx({
       services: {
         ViewModels: {

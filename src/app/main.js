@@ -13,6 +13,7 @@ import { registerGraphTab } from './tabs/graph.js';
 import { registerEntitiesTab } from './tabs/entities.js';
 import { registerCalendarTab } from './tabs/calendar.js';
 import { registerCollectionsTab } from './tabs/collections.js';
+import { registerAuthorityTab } from './tabs/authority.js';
 import { initMovements } from './ui/movements.js';
 import { initShell } from './shell.js';
 import { createActions } from './actions.js';
@@ -20,14 +21,10 @@ import { createActions } from './actions.js';
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.bootstrapOptions = movementEngineerGlobal.bootstrapOptions || {};
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
-movementEngineerGlobal.bootstrapOptions.legacyAutoInit = false;
-movementEngineerGlobal.bootstrapOptions.__mode =
-  typeof movementEngineerGlobal.bootstrapOptions.__mode === 'undefined'
-    ? 'legacy-free'
-    : movementEngineerGlobal.bootstrapOptions.__mode;
+movementEngineerGlobal.bootstrapOptions.moduleMode = 'esm-only';
 movementEngineerGlobal.legacy = null;
-if (!document.documentElement.dataset.meMode && movementEngineerGlobal.bootstrapOptions.__mode) {
-  document.documentElement.dataset.meMode = movementEngineerGlobal.bootstrapOptions.__mode;
+if (!document.documentElement.dataset.meMode) {
+  document.documentElement.dataset.meMode = 'esm-only';
 }
 
 const services = {
@@ -118,6 +115,7 @@ if (shouldEnable('graph')) registerGraphTab(ctx);
 if (shouldEnable('entities')) registerEntitiesTab(ctx);
 if (shouldEnable('calendar')) registerCalendarTab(ctx);
 if (shouldEnable('collections')) registerCollectionsTab(ctx);
+if (shouldEnable('authority')) registerAuthorityTab(ctx);
 
 function onReady(fn) {
   if (document.readyState === 'loading') {
