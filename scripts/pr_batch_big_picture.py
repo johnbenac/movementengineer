@@ -346,6 +346,52 @@ def create_summary_compilation(
     return True
 
 
+def create_touched_files_compilation(
+    files: List[str],
+    base_branch: str,
+    start_pr: int,
+    end_pr: int,
+    output_file: str,
+) -> bool:
+    """Create a compilation of unique files touched across all PRs.
+
+    The file contents are taken from the base branch to ensure a single,
+    consistent snapshot for every path touched by the processed PRs.
+    """
+
+    print("Creating touched files compilation...")
+
+    if not files:
+        print("Warning: No touched files to compile")
+        return False
+
+    with open(output_file, "w", encoding="utf-8") as outf:
+        outf.write(f"# Touched File Compilation: PRs {start_pr}-{end_pr}\n")
+        outf.write(f"# Total files: {len(files)}\n")
+        outf.write(f"# Base branch: {base_branch}\n")
+        outf.write(f"# Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        outf.write("=" * 80 + "\n\n")
+
+        for file_path in sorted(files):
+            try:
+                content = run_command(
+                    f"git show {shlex.quote(f'{base_branch}:{file_path}')}"
+                )
+            except subprocess.CalledProcessError:
+                print(
+                    f"Skipping file not found on {base_branch}: {file_path}"
+                )
+                continue
+
+            outf.write(f"## {file_path}\n\n")
+            outf.write("```text\n")
+            outf.write(content)
+            outf.write("\n```\n\n")
+
+    print(f"✓ Created touched files compilation: {output_file}")
+    return True
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Automate diff generation for ranges of pull requests",
@@ -401,6 +447,7 @@ def main() -> None:
             sys.exit(1)
 
         successful_prs: List[Tuple[Dict[str, str], str]] = []
+        touched_files: set[str] = set()
 
         for pr_info in pr_infos:
             print(f"\n--- Processing PR #{pr_info['number']}: {pr_info['title']} ---")
@@ -435,6 +482,7 @@ def main() -> None:
                 f"Files to process ({len(existing_files)}): "
                 f"{', '.join(existing_files)}"
             )
+            touched_files.update(existing_files)
 
             try:
                 comments = get_pr_comments(pr_info["number"])
@@ -470,10 +518,22 @@ def main() -> None:
                 successful_prs, args.start_pr, args.end_pr, summary_output
             )
 
+            touched_files_output = os.path.join(
+                args.output_dir, f"pr-touched-files-{args.start_pr}-{args.end_pr}.txt"
+            )
+            create_touched_files_compilation(
+                sorted(touched_files),
+                args.base_branch,
+                args.start_pr,
+                args.end_pr,
+                touched_files_output,
+            )
+
             print(f"\n✓ Successfully processed {len(successful_prs)} PR(s)")
             print(f"✓ Individual files: {args.output_dir}/pr-{{num}}-implementation.txt")
             print(f"✓ Master comparison: {master_output}")
             print(f"✓ Summary compilation: {summary_output}")
+            print(f"✓ Touched files compilation: {touched_files_output}")
         else:
             print("\nNo PRs were successfully processed")
 
