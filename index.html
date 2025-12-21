@@ -298,6 +298,57 @@
             </label>
           </div>
           <div id="claims-table-wrapper" class="table-wrapper"></div>
+
+          <div class="section-heading">Manage claims</div>
+          <p id="claims-editor-status" class="hint"></p>
+          <div class="form-row">
+            <label for="claims-select">Existing claim</label>
+            <select id="claims-select"></select>
+          </div>
+          <div class="form-actions">
+            <button id="claims-new-btn">New claim</button>
+            <button id="claims-save-btn">Save changes</button>
+            <button id="claims-delete-btn" class="danger">Delete</button>
+          </div>
+          <div class="form-row">
+            <label for="claims-text-input">Claim text</label>
+            <textarea id="claims-text-input" rows="3" placeholder="What is being claimed?"></textarea>
+          </div>
+          <div class="form-row">
+            <label for="claims-category-input">Category</label>
+            <input id="claims-category-input" type="text" placeholder="doctrine, history, practice" />
+          </div>
+          <div class="form-row">
+            <label for="claims-tags-input">Tags (comma-separated)</label>
+            <input id="claims-tags-input" type="text" placeholder="authority, creed" />
+          </div>
+          <div class="form-row">
+            <label for="claims-about-entities">About entities</label>
+            <select id="claims-about-entities" multiple></select>
+            <p class="hint">Hold Cmd/Ctrl to select multiple related people, places, or organizations.</p>
+          </div>
+          <div class="form-row">
+            <label for="claims-source-texts">Source texts</label>
+            <select id="claims-source-texts" multiple></select>
+            <p class="hint">Choose texts that support the claim for quick cross-linking.</p>
+          </div>
+          <div class="form-row">
+            <label for="claims-source-entities">Authority entities</label>
+            <select id="claims-source-entities" multiple></select>
+            <p class="hint">Identify entities that act as sources of authority for the claim.</p>
+          </div>
+          <div class="form-row">
+            <label for="claims-sources-input">Sources of truth (comma-separated labels)</label>
+            <input id="claims-sources-input" type="text" placeholder="Canon law, Council notes" />
+          </div>
+          <div class="form-row">
+            <label for="claims-notes-input">Notes</label>
+            <textarea
+              id="claims-notes-input"
+              rows="2"
+              placeholder="Add context or provenance for the claim"
+            ></textarea>
+          </div>
         </div>
       </section>
 

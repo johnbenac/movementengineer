@@ -5,6 +5,19 @@ function renderDom() {
     <select id="claims-category-filter"></select>
     <select id="claims-entity-filter"></select>
     <div id="claims-table-wrapper"></div>
+    <p id="claims-editor-status"></p>
+    <select id="claims-select"></select>
+    <button id="claims-new-btn"></button>
+    <button id="claims-save-btn"></button>
+    <button id="claims-delete-btn"></button>
+    <textarea id="claims-text-input"></textarea>
+    <input id="claims-category-input" />
+    <input id="claims-tags-input" />
+    <select id="claims-about-entities" multiple></select>
+    <select id="claims-source-texts" multiple></select>
+    <select id="claims-source-entities" multiple></select>
+    <input id="claims-sources-input" />
+    <textarea id="claims-notes-input"></textarea>
   `;
 }
 
@@ -51,7 +64,10 @@ function createCtx(snapshot, currentMovementId = 'm1') {
   return {
     getState: () => ({ snapshot, currentMovementId }),
     services: { ViewModels },
-    dom: { clearElement, ensureSelectOptions }
+    dom: { clearElement, ensureSelectOptions },
+    setStatus: vi.fn(),
+    actions: { saveSnapshot: vi.fn() },
+    setState: vi.fn()
   };
 }
 
@@ -65,7 +81,8 @@ describe('claims tab module', () => {
     renderDom();
     const snapshot = {
       claims: [{ id: 'c1', movementId: 'm1', category: 'Cat' }],
-      entities: [{ id: 'e1', movementId: 'm1', name: 'Alice' }]
+      entities: [{ id: 'e1', movementId: 'm1', name: 'Alice' }],
+      texts: [{ id: 't1', movementId: 'm1', title: 'Text 1' }]
     };
     const ctx = createCtx(snapshot);
     const { registerClaimsTab } = await import('./claims.js');
@@ -75,6 +92,12 @@ describe('claims tab module', () => {
     tab.render(ctx);
 
     expect(document.querySelectorAll('#claims-table-wrapper table tr')).toHaveLength(2);
+    const claimOptions = Array.from(document.querySelectorAll('#claims-select option')).map(
+      o => o.value
+    );
+    expect(claimOptions).toContain('c1');
+    expect(document.querySelectorAll('#claims-about-entities option')).toHaveLength(1);
+    expect(document.querySelectorAll('#claims-source-texts option')).toHaveLength(1);
 
     const catSelect = document.getElementById('claims-category-filter');
     const entSelect = document.getElementById('claims-entity-filter');
@@ -106,5 +129,7 @@ describe('claims tab module', () => {
     );
     expect(document.getElementById('claims-category-filter').disabled).toBe(true);
     expect(document.getElementById('claims-entity-filter').disabled).toBe(true);
+    expect(document.getElementById('claims-select').disabled).toBe(true);
+    expect(document.getElementById('claims-new-btn').disabled).toBe(true);
   });
 });
