@@ -1194,6 +1194,14 @@ function buildClaimsExplorerViewModel(data, input) {
         name: entity.name,
         kind: entity.kind ?? null
       })),
+    sourceEntities: normaliseArray(claim.sourceEntityIds)
+      .map(id => entityLookup.get(id))
+      .filter(Boolean)
+      .map(entity => ({
+        id: entity.id,
+        name: entity.name,
+        kind: entity.kind ?? null
+      })),
     sourceTexts: normaliseArray(claim.sourceTextIds)
       .map(id => textLookup.get(id))
       .filter(Boolean)
