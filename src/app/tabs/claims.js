@@ -99,6 +99,10 @@ function getSelectedValues(selectEl) {
     .filter(Boolean);
 }
 
+function isInteractiveClick(event) {
+  return !!event?.target?.closest('a, button, input, select, textarea, option');
+}
+
 function getLookups(snapshot, movementId) {
   const claims = (snapshot?.claims || []).filter(c => c.movementId === movementId);
   const categories = Array.from(
@@ -522,6 +526,7 @@ export function registerClaimsTab(ctx) {
       addListener(saveBtn, 'click', () => handleSaveClaim(context));
       addListener(resetBtn, 'click', rerender);
       addListener(tableWrapper, 'click', event => {
+        if (isInteractiveClick(event)) return;
         const row = event.target.closest('tr[data-claim-id]');
         if (!row) return;
         selectedClaimId = row.dataset.claimId;

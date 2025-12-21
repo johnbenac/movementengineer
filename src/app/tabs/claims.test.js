@@ -28,7 +28,7 @@ function renderDom() {
   `;
 }
 
-function createCtx(snapshot, currentMovementId = 'm1') {
+function createCtx(snapshot, currentMovementId = 'm1', overrides = {}) {
   const clearElement = el => {
     if (!el) return;
     while (el.firstChild) el.removeChild(el.firstChild);
@@ -53,22 +53,24 @@ function createCtx(snapshot, currentMovementId = 'm1') {
       el.value = prev;
     }
   };
-  const ViewModels = {
-    buildClaimsExplorerViewModel: vi.fn(() => ({
-      claims: [
-        {
-          id: 'c1',
-          text: 'Claim',
-          category: 'Cat',
-          tags: ['t1'],
-          aboutEntities: [{ id: 'e1', name: 'Alice' }],
-          sourceEntities: [{ id: 'e2', name: 'Bob' }],
-          sourceTexts: [{ id: 't1', title: 'Text 1' }],
-          sourcesOfTruth: ['Source']
-        }
-      ]
-    }))
-  };
+  const ViewModels =
+    overrides.ViewModels ||
+    {
+      buildClaimsExplorerViewModel: vi.fn(() => ({
+        claims: [
+          {
+            id: 'c1',
+            text: 'Claim',
+            category: 'Cat',
+            tags: ['t1'],
+            aboutEntities: [{ id: 'e1', name: 'Alice' }],
+            sourceEntities: [{ id: 'e2', name: 'Bob' }],
+            sourceTexts: [{ id: 't1', title: 'Text 1' }],
+            sourcesOfTruth: ['Source']
+          }
+        ]
+      }))
+    };
   const DomainService = {
     addNewItem: vi.fn((snap, coll, movementId) => {
       const obj = { id: 'new-claim', movementId, text: 'New claim', category: null, tags: [] };
@@ -228,5 +230,41 @@ describe('claims tab module', () => {
       })
     );
     expect(ctx.legacy.markDirty).toHaveBeenCalledWith('item');
+  });
+
+  it('ignores interactive clicks when selecting rows', async () => {
+    renderDom();
+    const snapshot = {
+      claims: [
+        { id: 'c1', movementId: 'm1', category: 'Cat', text: 'One' },
+        { id: 'c2', movementId: 'm1', category: 'Cat', text: 'Two' }
+      ],
+      entities: []
+    };
+    const ViewModels = {
+      buildClaimsExplorerViewModel: vi.fn(() => ({
+        claims: [
+          { id: 'c1', category: 'Cat', text: 'One' },
+          { id: 'c2', category: 'Cat', text: 'Two' }
+        ]
+      }))
+    };
+    const ctx = createCtx(snapshot, 'm1', { ViewModels });
+    const { registerClaimsTab } = await import('./claims.js');
+    const tab = registerClaimsTab(ctx);
+
+    tab.mount(ctx);
+    tab.render(ctx);
+
+    const rows = document.querySelectorAll('#claims-table-wrapper table tr');
+    const secondRow = rows[2];
+    const link = document.createElement('a');
+    link.href = '#';
+    link.textContent = 'Link';
+    secondRow.cells[1].appendChild(link);
+
+    link.click();
+
+    expect(secondRow.classList.contains('selected')).toBe(false);
   });
 });

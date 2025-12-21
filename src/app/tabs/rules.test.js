@@ -341,4 +341,84 @@ describe('rules tab module', () => {
     expect(ctx.update).toHaveBeenCalled();
     expect(document.getElementById('rules-editor-select').value).toBe('r2');
   });
+
+  it('does not change selection when clicking interactive content inside a row', async () => {
+    renderDom();
+    const snapshot = {
+      rules: [
+        { id: 'r1', movementId: 'm1', shortText: 'Existing', kind: 'must_do' },
+        { id: 'r2', movementId: 'm1', shortText: 'Second', kind: 'may_do' }
+      ]
+    };
+    const ViewModels = {
+      buildRuleExplorerViewModel: vi.fn(() => ({
+        rules: [
+          { id: 'r1', kind: 'must_do', shortText: 'Existing', domain: [], tags: [] },
+          { id: 'r2', kind: 'may_do', shortText: 'Second', domain: [], tags: [] }
+        ]
+      })),
+      buildRuleEditorViewModel: vi.fn(() => ({
+        rules: [
+          {
+            id: 'r1',
+            movementId: 'm1',
+            shortText: 'Existing',
+            kind: 'must_do',
+            details: null,
+            appliesTo: [],
+            domain: [],
+            tags: [],
+            supportingTextIds: [],
+            supportingClaimIds: [],
+            relatedPracticeIds: [],
+            sourcesOfTruth: [],
+            sourceEntityIds: []
+          },
+          {
+            id: 'r2',
+            movementId: 'm1',
+            shortText: 'Second',
+            kind: 'may_do',
+            details: null,
+            appliesTo: [],
+            domain: [],
+            tags: [],
+            supportingTextIds: [],
+            supportingClaimIds: [],
+            relatedPracticeIds: [],
+            sourcesOfTruth: [],
+            sourceEntityIds: []
+          }
+        ],
+        options: {
+          ruleKinds: ['must_do', 'may_do'],
+          appliesToValues: [],
+          domainValues: [],
+          tagValues: [],
+          sourcesOfTruth: [],
+          texts: [],
+          claims: [],
+          practices: [],
+          entities: []
+        }
+      }))
+    };
+    const ctx = createCtx(snapshot, 'm1', { ViewModels });
+    const { registerRulesTab } = await import('./rules.js');
+    const tab = registerRulesTab(ctx);
+
+    tab.mount(ctx);
+    tab.render(ctx);
+
+    const rows = document.querySelectorAll('#rules-table-wrapper table tr');
+    const secondRow = rows[2];
+    const link = document.createElement('a');
+    link.href = '#';
+    link.textContent = 'Link';
+    secondRow.cells[1].appendChild(link);
+
+    link.click();
+
+    expect(secondRow.classList.contains('selected')).toBe(false);
+  });
 });
