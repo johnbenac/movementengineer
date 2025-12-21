@@ -343,6 +343,7 @@ describe('rules tab module', () => {
 
     expect(DomainService.addNewItem).toHaveBeenCalledWith(expect.any(Object), 'rules', 'm1');
     expect(ctx.update).toHaveBeenCalled();
+    expect(ctx.store.markDirty).toHaveBeenCalledWith('item');
     expect(document.getElementById('rules-editor-select').value).toBe('r2');
   });
 

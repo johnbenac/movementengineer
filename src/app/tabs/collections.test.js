@@ -148,7 +148,45 @@ describe('collections tab module', () => {
       collectionName: 'entities',
       itemId: 'e1'
     });
-    expect(store.saveSnapshot).toHaveBeenCalled();
+    expect(store.saveSnapshot).toHaveBeenCalledWith({
+      clearItemDirty: true,
+      clearMovementDirty: false
+    });
+  });
+
+  it('marks the editor dirty when the textarea changes', async () => {
+    renderDom();
+    const store = {
+      markDirty: vi.fn(),
+      markSaved: vi.fn(),
+      saveSnapshot: vi.fn(),
+      getState: () => ({}),
+      setState: vi.fn(),
+      update: vi.fn()
+    };
+    const ctx = createCtx(
+      {
+        snapshot: {
+          entities: [{ id: 'e1', movementId: 'm1', name: 'Alpha' }]
+        },
+        currentMovementId: 'm1',
+        currentCollectionName: 'entities',
+        currentItemId: 'e1',
+        navigation: { stack: [], index: -1 },
+        flags: {}
+      },
+      { store }
+    );
+    const { registerCollectionsTab } = await import('./collections.js');
+    const tab = registerCollectionsTab(ctx);
+
+    tab.mount(ctx);
+
+    const editor = document.getElementById('item-editor');
+    editor.value = '{ "id": "e1" }';
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+
+    expect(store.markDirty).toHaveBeenCalledWith('item');
   });
 
   it('jumps to referenced items and activates the collections tab', async () => {
