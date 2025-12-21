@@ -124,7 +124,7 @@ function getStore(ctx) {
 }
 
 function getActions(ctx) {
-  return ctx?.actions || movementEngineerGlobal.actions || {};
+  return ctx?.actions || {};
 }
 
 function applyState(ctx, updater) {
@@ -861,13 +861,18 @@ export function registerCollectionsTab(ctx) {
   if (ctx?.tabs) {
     ctx.tabs.collections = tab;
   }
-  movementEngineerGlobal.actions = movementEngineerGlobal.actions || {};
-  movementEngineerGlobal.actions.setCollectionAndItem = (collectionName, itemId, options) =>
-    tab.setCollectionAndItem(ctx, collectionName, itemId, options);
-  movementEngineerGlobal.actions.jumpToReferencedItem = (collectionName, itemId) =>
-    tab.jumpToReferencedItem(ctx, collectionName, itemId);
-  movementEngineerGlobal.actions.navigateCollectionHistory = direction =>
-    tab.navigateHistory(ctx, direction);
+  if (ctx?.actions) {
+    ctx.actions.setCollectionAndItem =
+      ctx.actions.setCollectionAndItem ||
+      ((collectionName, itemId, options) =>
+        tab.setCollectionAndItem(ctx, collectionName, itemId, options));
+    ctx.actions.jumpToReferencedItem =
+      ctx.actions.jumpToReferencedItem ||
+      ((collectionName, itemId) => tab.jumpToReferencedItem(ctx, collectionName, itemId));
+    ctx.actions.navigateCollectionHistory =
+      ctx.actions.navigateCollectionHistory ||
+      (direction => tab.navigateHistory(ctx, direction));
+  }
 
   return tab;
 }
