@@ -70,8 +70,12 @@ def fetch_remote_branches(remote: str) -> None:
 
 
 def get_pr_info(pr_number: int) -> Dict[str, str]:
-    """Get branch name and title for a specific PR."""
-    pr_info = run_command(f"gh pr view {pr_number} --json headRefName,title,baseRefName")
+    """Get branch name, title, and metadata for a specific PR."""
+    pr_info = run_command(
+        "gh pr view "
+        f"{pr_number} "
+        "--json headRefName,title,baseRefName,body,author,createdAt,url"
+    )
     data = json.loads(pr_info)
 
     return {
@@ -79,6 +83,10 @@ def get_pr_info(pr_number: int) -> Dict[str, str]:
         "branch": data["headRefName"],
         "title": data["title"],
         "base": data["baseRefName"],
+        "body": data.get("body") or "",
+        "author": (data.get("author") or {}).get("login") or "unknown",
+        "createdAt": data.get("createdAt") or "",
+        "url": data.get("url") or "",
     }
 
 
@@ -231,10 +239,16 @@ def run_big_picture(
 
     diff_output = run_command(cmd)
 
+    summary_text = " ".join(pr_info.get("body", "").split()) or "(no summary provided)"
+
     with open(output_file, "w", encoding="utf-8") as diff_file:
         diff_file.write(f"# PR #{pr_info['number']}: {pr_info['title']}\n")
         diff_file.write(f"# Branch: {branch_for_diff}\n")
         diff_file.write(f"# Base: {base_branch}\n")
+        diff_file.write(f"# Author: {pr_info.get('author', 'unknown')}\n")
+        diff_file.write(f"# Created: {pr_info.get('createdAt', '')}\n")
+        diff_file.write(f"# URL: {pr_info.get('url', '')}\n")
+        diff_file.write(f"# Summary: {summary_text}\n")
         diff_file.write(f"# Changed files: {len(files)}\n")
         diff_file.write(f"# Files: {', '.join(files)}\n\n")
         diff_file.write("=" * 80 + "\n")
@@ -295,6 +309,40 @@ def create_master_comparison(
             outf.write("\n\n")
 
     print(f"✓ Created master comparison: {output_file}")
+    return True
+
+
+def create_summary_compilation(
+    pr_files: List[Tuple[Dict[str, str], str]],
+    start_pr: int,
+    end_pr: int,
+    output_file: str,
+) -> bool:
+    """Create a concise summary document for all processed PRs."""
+    print("Creating summary compilation file...")
+
+    if not pr_files:
+        print("Warning: No PRs available to summarize")
+        return False
+
+    with open(output_file, "w", encoding="utf-8") as outf:
+        outf.write(f"# PR Summary Compilation: PRs {start_pr}-{end_pr}\n")
+        outf.write(f"# Total PRs: {len(pr_files)}\n")
+        outf.write(f"# Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        outf.write("=" * 80 + "\n\n")
+
+        for idx, (pr_info, pr_file) in enumerate(pr_files, 1):
+            summary_text = " ".join(pr_info.get("body", "").split()) or "(no summary provided)"
+
+            outf.write(f"## PR {idx}/{len(pr_files)} - #{pr_info['number']}: {pr_info['title']}\n")
+            outf.write(f"- Author: {pr_info.get('author', 'unknown')}\n")
+            outf.write(f"- Created: {pr_info.get('createdAt', '')}\n")
+            outf.write(f"- URL: {pr_info.get('url', '')}\n")
+            outf.write(f"- Summary: {summary_text}\n")
+            outf.write(f"- Detailed file: {pr_file}\n")
+            outf.write("\n")
+
+    print(f"✓ Created summary compilation: {output_file}")
     return True
 
 
@@ -415,9 +463,17 @@ def main() -> None:
                 successful_prs, args.start_pr, args.end_pr, master_output
             )
 
+            summary_output = os.path.join(
+                args.output_dir, f"pr-summaries-{args.start_pr}-{args.end_pr}.txt"
+            )
+            create_summary_compilation(
+                successful_prs, args.start_pr, args.end_pr, summary_output
+            )
+
             print(f"\n✓ Successfully processed {len(successful_prs)} PR(s)")
             print(f"✓ Individual files: {args.output_dir}/pr-{{num}}-implementation.txt")
             print(f"✓ Master comparison: {master_output}")
+            print(f"✓ Summary compilation: {summary_output}")
         else:
             print("\nNo PRs were successfully processed")
 
