@@ -143,12 +143,16 @@
       <!-- Library / Canon -->
       <section id="tab-canon" class="tab-panel">
         <div class="panel-body">
-          <h2>Library</h2>
-          <p class="hint">Shelves → books → table of contents.</p>
-          <div class="library-layout">
-            <div class="library-pane shelves-pane">
-              <div class="pane-header">
-                <div>
+          <h2>Library &amp; Scriptorium</h2>
+          <p class="hint">
+            Wander the stacks, pull a volume from the shelves, and bring it to the desk to read or
+            edit.
+          </p>
+          <div class="library-room">
+            <div class="library-layout">
+              <div class="library-pane shelves-pane">
+                <div class="pane-header">
+                  <div>
                   <div class="section-heading small">Shelves</div>
                   <p class="muted" id="shelf-hint">Choose a shelf to browse its books.</p>
                 </div>
@@ -181,17 +185,20 @@
                 </div>
               </div>
               <div id="book-list" class="book-list"></div>
-              <div class="section-heading small">Table of contents</div>
-              <div id="toc-tree" class="tree-container"></div>
-            </div>
-
-            <div class="library-pane editor-pane">
-              <div class="pane-header">
-                <div class="section-heading small">Editor</div>
-                <div class="breadcrumb" id="library-breadcrumb"></div>
+                <div class="section-heading small">Table of contents</div>
+                <div id="toc-tree" class="tree-container"></div>
               </div>
-              <div class="card" id="shelf-editor"></div>
-              <div class="card" id="text-editor"></div>
+
+              <div class="library-pane editor-pane">
+                <div class="pane-header">
+                  <div class="section-heading small">Editor</div>
+                  <div class="breadcrumb" id="library-breadcrumb"></div>
+                </div>
+                <div class="desk-surface">
+                  <div class="card desk-blotter" id="shelf-editor"></div>
+                  <div class="card desk-blotter" id="text-editor"></div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
