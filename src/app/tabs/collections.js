@@ -119,6 +119,10 @@ function getStorageService(ctx) {
   return ctx?.services?.StorageService || ctx?.StorageService || window.StorageService;
 }
 
+function getStore(ctx) {
+  return ctx?.store || null;
+}
+
 function getActions(ctx) {
   return ctx?.actions || movementEngineerGlobal.actions || {};
 }
@@ -628,11 +632,12 @@ function addNewItem(ctx, tab) {
     ...state,
     snapshot,
     currentItemId: skeleton.id,
-    navigation,
-    flags: { ...(state.flags || {}), snapshotDirty: true, itemEditorDirty: false }
+    navigation
   };
   applyState(ctx, nextState);
-  ctx.legacy?.saveSnapshot?.({ show: false });
+  const store = getStore(ctx);
+  store?.markDirty?.('snapshot');
+  store?.saveSnapshot?.({ show: false, clearMovementDirty: false, clearItemDirty: true });
   ctx.setStatus?.('New item created');
   tab.render?.(ctx);
 }
@@ -687,12 +692,16 @@ function saveCurrentItem(ctx, tab, options = {}) {
     ...state,
     snapshot,
     currentItemId: obj.id,
-    navigation,
-    flags: { ...(state.flags || {}), snapshotDirty: true, itemEditorDirty: false }
+    navigation
   };
   applyState(ctx, nextState);
   if (persist) {
-    ctx.legacy?.saveSnapshot?.({ clearItemDirty: true });
+    const store = getStore(ctx);
+    store?.saveSnapshot?.({ clearItemDirty: true, clearMovementDirty: false });
+  } else {
+    const store = getStore(ctx);
+    store?.markSaved?.({ item: true });
+    store?.markDirty?.('snapshot');
   }
   tab.render?.(ctx);
   return true;
@@ -730,11 +739,12 @@ function deleteCurrentItem(ctx, tab) {
     ...state,
     snapshot,
     currentItemId: null,
-    navigation,
-    flags: { ...(state.flags || {}), snapshotDirty: true, itemEditorDirty: false }
+    navigation
   };
   applyState(ctx, nextState);
-  ctx.legacy?.saveSnapshot?.();
+  const store = getStore(ctx);
+  store?.markDirty?.('snapshot');
+  store?.saveSnapshot?.({ clearItemDirty: true, clearMovementDirty: false });
   tab.render?.(ctx);
 }
 
@@ -784,7 +794,7 @@ export function registerCollectionsTab(ctx) {
       const handleNavForward = () => tab.navigateHistory?.(context, 1);
       const handleEditorInput = () => {
         if (tab.__state.isPopulatingEditor) return;
-        context.legacy?.markDirty?.('item');
+        context.store?.markDirty?.('item');
       };
 
       if (select) select.addEventListener('change', handleSelectChange);

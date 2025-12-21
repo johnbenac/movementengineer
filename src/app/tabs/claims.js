@@ -318,7 +318,7 @@ function handleAddClaim(ctx) {
     selectedClaimId = created.id;
     return { ...prev, snapshot };
   });
-  ctx.legacy?.markDirty?.('item');
+  ctx.store?.markDirty?.('item');
   ctx.setStatus?.('New claim created');
   ctx.tabs?.claims?.render?.(ctx);
 }
@@ -341,7 +341,7 @@ function handleDeleteClaim(ctx) {
     return { ...prev, snapshot };
   });
   selectedClaimId = null;
-  ctx.legacy?.markDirty?.('item');
+  ctx.store?.markDirty?.('item');
   ctx.setStatus?.('Claim deleted');
   ctx.tabs?.claims?.render?.(ctx);
 }
@@ -391,7 +391,7 @@ function handleSaveClaim(ctx) {
     return { ...prev, snapshot };
   });
   selectedClaimId = updated.id;
-  ctx.legacy?.markDirty?.('item');
+  ctx.store?.markDirty?.('item');
   ctx.setStatus?.('Claim saved');
 }
 

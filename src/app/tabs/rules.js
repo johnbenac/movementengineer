@@ -452,7 +452,7 @@ function handleAddRule(ctx, tab) {
   const nextState = { ...state, snapshot };
   pushState(ctx, nextState);
   if (tab?.__state) tab.__state.selectedRuleId = created.id;
-  ctx?.legacy?.markDirty?.('item');
+  ctx?.store?.markDirty?.('item');
   tab?.render?.(ctx);
 }
 
@@ -508,7 +508,7 @@ function handleSaveRule(ctx, tab) {
 
   const nextState = { ...state, snapshot };
   pushState(ctx, nextState);
-  ctx?.legacy?.markDirty?.('item');
+  ctx?.store?.markDirty?.('item');
   tab?.render?.(ctx);
 }
 
@@ -533,7 +533,7 @@ function handleDeleteRule(ctx, tab) {
 
   const nextState = { ...state, snapshot };
   pushState(ctx, nextState);
-  ctx?.legacy?.markDirty?.('item');
+  ctx?.store?.markDirty?.('item');
   tab?.render?.(ctx);
 }
 

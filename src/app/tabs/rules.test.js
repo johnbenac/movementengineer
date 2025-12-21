@@ -136,13 +136,17 @@ function createCtx(snapshot, currentMovementId = 'm1', overrides = {}) {
     state = typeof next === 'function' ? next(state) : next;
     return state;
   });
-  const legacy = { markDirty: vi.fn() };
+  const store = {
+    markDirty: vi.fn(),
+    getState: () => state,
+    update
+  };
   return {
     getState: () => state,
     update,
+    store,
     services: { ViewModels, DomainService },
-    dom: { clearElement, ensureSelectOptions, ensureMultiSelectOptions },
-    legacy
+    dom: { clearElement, ensureSelectOptions, ensureMultiSelectOptions }
   };
 }
 
@@ -282,7 +286,7 @@ describe('rules tab module', () => {
     expect(savedRule.shortText).toBe('Updated rule');
     expect(savedRule.supportingTextIds).toEqual(['t1']);
     expect(ctx.update).toHaveBeenCalled();
-    expect(ctx.legacy.markDirty).toHaveBeenCalledWith('item');
+    expect(ctx.store.markDirty).toHaveBeenCalledWith('item');
   });
 
   it('adds a new rule for the current movement', async () => {

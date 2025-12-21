@@ -89,7 +89,6 @@ function createCtx(snapshot, currentMovementId = 'm1', overrides = {}) {
     generateId: vi.fn(() => 'gen-1'),
     ...overrides.DomainService
   };
-  const legacy = { markDirty: vi.fn() };
   let state = { snapshot, currentMovementId };
   const setState = next => {
     state = typeof next === 'function' ? next(state) : next || state;
@@ -99,13 +98,19 @@ function createCtx(snapshot, currentMovementId = 'm1', overrides = {}) {
     const next = typeof updater === 'function' ? updater(state) : updater;
     return setState(next || state);
   };
+  const store = {
+    markDirty: vi.fn(),
+    getState: () => state,
+    setState,
+    update
+  };
   return {
     getState: () => state,
     setState,
     update,
+    store,
     services: { ViewModels, DomainService },
     dom: { clearElement, ensureSelectOptions },
-    legacy,
     setStatus: vi.fn(),
     tabs: {}
   };
@@ -229,7 +234,7 @@ describe('claims tab module', () => {
         notes: 'New note'
       })
     );
-    expect(ctx.legacy.markDirty).toHaveBeenCalledWith('item');
+    expect(ctx.store.markDirty).toHaveBeenCalledWith('item');
   });
 
   it('keeps claim selection when clicking a link inside a row', async () => {
