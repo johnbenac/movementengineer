@@ -80,6 +80,7 @@ function renderPracticesTab(ctx) {
   if (!currentMovementId) {
     select.disabled = true;
     ensureSelectOptions(select, [], 'Choose practice');
+    select.value = '';
     detailContainer.appendChild(
       hint('Create or select a movement on the left to explore this section.')
     );
@@ -97,8 +98,12 @@ function renderPracticesTab(ctx) {
     .map(p => ({ value: p.id, label: p.name || p.id }));
   ensureSelectOptions(select, options, 'Choose practice');
 
-  const practiceId = select.value || (options.length ? options[0].value : null);
-  if (practiceId) select.value = practiceId;
+  let practiceId = select.value || null;
+  const hasValidSelection = options.some(opt => opt.value === practiceId);
+  if (!hasValidSelection) {
+    practiceId = options.length ? options[0].value : null;
+    select.value = practiceId || '';
+  }
 
   if (!practiceId) {
     detailContainer.appendChild(hint('No practices found for this movement.'));
