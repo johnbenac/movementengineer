@@ -128,6 +128,36 @@ def get_pr_comments(pr_number: int) -> List[Dict[str, str]]:
     return normalized
 
 
+def get_pr_checks(pr_number: int) -> List[Dict[str, str]]:
+    """Get check run information for a PR."""
+    try:
+        checks_json = run_command(
+            "gh pr checks "
+            f"{pr_number} "
+            "--json name,status,conclusion,startedAt,completedAt,detailsUrl,workflowName"
+        )
+        data = json.loads(checks_json)
+    except (subprocess.CalledProcessError, json.JSONDecodeError) as exc:
+        print(f"Failed to retrieve checks for PR #{pr_number}: {exc}")
+        return []
+
+    checks: List[Dict[str, str]] = []
+    for check in data:
+        checks.append(
+            {
+                "name": check.get("name") or "(unknown check)",
+                "workflowName": check.get("workflowName") or "",
+                "status": check.get("status") or "unknown",
+                "conclusion": check.get("conclusion") or "pending",
+                "startedAt": check.get("startedAt") or "",
+                "completedAt": check.get("completedAt") or "",
+                "detailsUrl": check.get("detailsUrl") or "",
+            }
+        )
+
+    return checks
+
+
 def filter_existing_files(files: List[str]) -> Tuple[List[str], List[str]]:
     """Filter list of files to only those that exist on current branch."""
     existing_files: List[str] = []
@@ -222,6 +252,7 @@ def run_big_picture(
     pr_info: Dict[str, str],
     files: List[str],
     comments: List[Dict[str, str]],
+    checks: List[Dict[str, str]],
     output_file: str,
     base_branch: str = "main",
     local_branch: str | None = None,
@@ -274,6 +305,34 @@ def run_big_picture(
                 for line in lines:
                     diff_file.write(f"    {line}\n")
                 diff_file.write("\n")
+
+        diff_file.write("=" * 80 + "\n")
+        diff_file.write(f"Checks ({len(checks)}):\n")
+
+        if not checks:
+            diff_file.write("# No check information available\n")
+        else:
+            for check in checks:
+                name = check.get("name") or "(unknown check)"
+                workflow = check.get("workflowName")
+                status = check.get("status") or "unknown"
+                conclusion = check.get("conclusion") or "pending"
+                started = check.get("startedAt") or ""
+                completed = check.get("completedAt") or ""
+                details_url = check.get("detailsUrl") or ""
+
+                heading_parts = [name]
+                if workflow:
+                    heading_parts.append(f"[{workflow}]")
+                heading_parts.append(f"status={status}")
+                heading_parts.append(f"conclusion={conclusion}")
+                heading_parts.append(f"started={started or 'n/a'}")
+                heading_parts.append(f"completed={completed or 'n/a'}")
+
+                heading = " - ".join(heading_parts)
+                if details_url:
+                    heading += f" [{details_url}]"
+                diff_file.write(heading + "\n")
 
     print(f"✓ Created diff: {output_file}")
     return True
@@ -498,6 +557,8 @@ def main() -> None:
                 print(f"Failed to retrieve comments for PR #{pr_info['number']}: {exc}")
                 comments = []
 
+            checks = get_pr_checks(pr_info["number"])
+
             output_file = os.path.join(
                 args.output_dir, f"pr-{pr_info['number']}-implementation.txt"
             )
@@ -505,6 +566,7 @@ def main() -> None:
                 pr_info,
                 existing_files,
                 comments,
+                checks,
                 output_file,
                 base_branch=args.base_branch,
                 local_branch=local_branch,
