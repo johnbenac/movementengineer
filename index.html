@@ -380,6 +380,15 @@
           <p class="hint">
             Filter rules by kind or domain to understand obligations and ideals.
           </p>
+          <div class="rules-panel-intro">
+            <div>
+              <div class="eyebrow">Workspace</div>
+              <div class="muted small">
+                Use the filters to narrow the list, then click a row to load it into the editor.
+              </div>
+            </div>
+            <div class="muted small">All changes are scoped to the selected movement.</div>
+          </div>
           <div class="subtab-toolbar">
             <label>
               Kind:
@@ -400,87 +409,110 @@
               />
             </label>
           </div>
-          <div class="section-heading">Edit and link rules</div>
-          <div id="rules-editor" class="card">
-            <div class="form-row">
-              <label for="rules-editor-select">Select rule</label>
-              <select id="rules-editor-select"></select>
+          <div class="rules-layout">
+            <div class="rules-column">
+              <div class="card rules-table-card">
+                <div class="card-header">
+                  <div>
+                    <div class="eyebrow">Rule library</div>
+                    <div class="muted small">Click any row to load it into the editor.</div>
+                  </div>
+                </div>
+                <div id="rules-table-wrapper" class="table-wrapper"></div>
+              </div>
             </div>
-            <div class="form-actions">
-              <button id="rules-add-btn" type="button">Add rule</button>
-              <button id="rules-delete-btn" type="button">Delete rule</button>
-            </div>
-            <div class="form-row">
-              <label for="rules-editor-shortText">Short text</label>
-              <input id="rules-editor-shortText" type="text" />
-            </div>
-            <div class="form-row">
-              <label for="rules-editor-kind">Kind</label>
-              <select id="rules-editor-kind"></select>
-            </div>
-            <div class="form-row">
-              <label for="rules-editor-details">Details</label>
-              <textarea id="rules-editor-details" rows="3"></textarea>
-            </div>
-            <div class="form-row">
-              <label for="rules-editor-appliesTo">Applies to (comma-separated)</label>
-              <input
-                id="rules-editor-appliesTo"
-                type="text"
-                list="rules-applies-suggestions"
-                placeholder="everyone, clergy, laity"
-              />
-              <datalist id="rules-applies-suggestions"></datalist>
-            </div>
-            <div class="form-row">
-              <label for="rules-editor-domain">Domain (comma-separated)</label>
-              <input
-                id="rules-editor-domain"
-                type="text"
-                list="rules-domain-suggestions"
-                placeholder="worship, diet, ethics"
-              />
-              <datalist id="rules-domain-suggestions"></datalist>
-            </div>
-            <div class="form-row">
-              <label for="rules-editor-tags">Tags (comma-separated)</label>
-              <input id="rules-editor-tags" type="text" list="rules-tags-suggestions" />
-              <datalist id="rules-tags-suggestions"></datalist>
-            </div>
-            <div class="form-row">
-              <label for="rules-editor-supporting-texts">Supporting texts</label>
-              <select id="rules-editor-supporting-texts" multiple></select>
-            </div>
-            <div class="form-row">
-              <label for="rules-editor-supporting-claims">Supporting claims</label>
-              <select id="rules-editor-supporting-claims" multiple></select>
-            </div>
-            <div class="form-row">
-              <label for="rules-editor-related-practices">Related practices</label>
-              <select id="rules-editor-related-practices" multiple></select>
-            </div>
-            <div class="form-row">
-              <label for="rules-editor-source-entities">Source entities</label>
-              <select id="rules-editor-source-entities" multiple></select>
-            </div>
-            <div class="form-row">
-              <label for="rules-editor-sourcesOfTruth">Sources of truth (comma-separated)</label>
-              <input
-                id="rules-editor-sourcesOfTruth"
-                type="text"
-                list="rules-sources-suggestions"
-                placeholder="scripture, council, tradition"
-              />
-              <datalist id="rules-sources-suggestions"></datalist>
-            </div>
-            <div class="form-actions">
-              <button id="rules-save-btn" type="button">Save rule</button>
-              <span class="hint small" id="rules-editor-helper">
-                Select or add a rule to edit links and details.
-              </span>
+            <div class="rules-column">
+              <div class="card rules-editor-card" id="rules-editor">
+                <div class="card-header">
+                  <div>
+                    <div class="eyebrow">Rule editor</div>
+                    <div class="muted small">
+                      Update the short description, taxonomy, and linked resources.
+                    </div>
+                  </div>
+                </div>
+                <div class="rules-form-grid">
+                  <div class="form-row">
+                    <label for="rules-editor-select">Select rule</label>
+                    <select id="rules-editor-select"></select>
+                  </div>
+                  <div class="form-actions inline-actions">
+                    <button id="rules-add-btn" type="button">Add rule</button>
+                    <button id="rules-delete-btn" type="button">Delete rule</button>
+                  </div>
+                  <div class="form-row">
+                    <label for="rules-editor-shortText">Short text</label>
+                    <input id="rules-editor-shortText" type="text" />
+                  </div>
+                  <div class="form-row">
+                    <label for="rules-editor-kind">Kind</label>
+                    <select id="rules-editor-kind"></select>
+                  </div>
+                  <div class="form-row span-2">
+                    <label for="rules-editor-details">Details</label>
+                    <textarea id="rules-editor-details" rows="3"></textarea>
+                  </div>
+                  <div class="form-row">
+                    <label for="rules-editor-appliesTo">Applies to (comma-separated)</label>
+                    <input
+                      id="rules-editor-appliesTo"
+                      type="text"
+                      list="rules-applies-suggestions"
+                      placeholder="everyone, clergy, laity"
+                    />
+                    <datalist id="rules-applies-suggestions"></datalist>
+                  </div>
+                  <div class="form-row">
+                    <label for="rules-editor-domain">Domain (comma-separated)</label>
+                    <input
+                      id="rules-editor-domain"
+                      type="text"
+                      list="rules-domain-suggestions"
+                      placeholder="worship, diet, ethics"
+                    />
+                    <datalist id="rules-domain-suggestions"></datalist>
+                  </div>
+                  <div class="form-row">
+                    <label for="rules-editor-tags">Tags (comma-separated)</label>
+                    <input id="rules-editor-tags" type="text" list="rules-tags-suggestions" />
+                    <datalist id="rules-tags-suggestions"></datalist>
+                  </div>
+                  <div class="form-row">
+                    <label for="rules-editor-sourcesOfTruth">Sources of truth (comma-separated)</label>
+                    <input
+                      id="rules-editor-sourcesOfTruth"
+                      type="text"
+                      list="rules-sources-suggestions"
+                      placeholder="scripture, council, tradition"
+                    />
+                    <datalist id="rules-sources-suggestions"></datalist>
+                  </div>
+                  <div class="form-row span-2">
+                    <label for="rules-editor-supporting-texts">Supporting texts</label>
+                    <select id="rules-editor-supporting-texts" multiple></select>
+                  </div>
+                  <div class="form-row span-2">
+                    <label for="rules-editor-supporting-claims">Supporting claims</label>
+                    <select id="rules-editor-supporting-claims" multiple></select>
+                  </div>
+                  <div class="form-row span-2">
+                    <label for="rules-editor-related-practices">Related practices</label>
+                    <select id="rules-editor-related-practices" multiple></select>
+                  </div>
+                  <div class="form-row span-2">
+                    <label for="rules-editor-source-entities">Source entities</label>
+                    <select id="rules-editor-source-entities" multiple></select>
+                  </div>
+                </div>
+                <div class="form-actions space-between">
+                  <button id="rules-save-btn" type="button">Save rule</button>
+                  <span class="hint small" id="rules-editor-helper">
+                    Select or add a rule to edit links and details.
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
-          <div id="rules-table-wrapper" class="table-wrapper"></div>
         </div>
       </section>
 

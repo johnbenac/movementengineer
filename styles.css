@@ -308,12 +308,25 @@ button.danger:hover {
   resize: vertical;
 }
 
+.form-row select[multiple] {
+  min-height: 120px;
+}
+
 .form-actions {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
   align-items: center;
   margin-top: 0.5rem;
+}
+
+.form-actions.inline-actions {
+  justify-content: flex-start;
+  padding-top: 0.1rem;
+}
+
+.form-actions.space-between {
+  justify-content: space-between;
 }
 
 .sr-file-input {
@@ -1020,6 +1033,24 @@ button.danger:hover {
   margin-bottom: 0.25rem;
 }
 
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.card-header .muted.small {
+  margin: 0;
+}
+
+.card.elevated {
+  background: #fff;
+  border-color: #e5e7eb;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.08);
+}
+
 /* Generic table */
 
 .table-wrapper {
@@ -1051,6 +1082,68 @@ button.danger:hover {
 
 .table-wrapper tr.selected {
   background: #eef2ff;
+}
+
+/* Rules layout */
+
+.rules-panel-intro {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 0.2rem;
+}
+
+.rules-layout {
+  display: grid;
+  grid-template-columns: minmax(420px, 1.1fr) minmax(380px, 0.9fr);
+  gap: 0.9rem;
+  align-items: start;
+}
+
+.rules-column {
+  min-width: 0;
+}
+
+.rules-table-card,
+.rules-editor-card {
+  background: #fff;
+  border-color: #e5e7eb;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+}
+
+.rules-editor-card .form-row {
+  max-width: none;
+}
+
+.rules-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.65rem 0.75rem;
+  align-items: start;
+}
+
+.rules-form-grid .form-row {
+  margin-bottom: 0;
+}
+
+.rules-form-grid .span-2 {
+  grid-column: span 2;
+}
+
+@media (max-width: 1024px) {
+  .rules-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .rules-panel-intro {
+    align-items: flex-start;
+  }
+
+  .rules-form-grid .span-2 {
+    grid-column: span 1;
+  }
 }
 
 /* Links in tables / detail */
