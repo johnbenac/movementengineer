@@ -394,21 +394,66 @@
         <div class="panel-body">
           <h2>Notes</h2>
           <p class="hint">Browse notes by target type and target within the movement.</p>
-          <div class="subtab-toolbar">
-            <label>
-              Target type:
-              <select id="notes-target-type-filter">
-                <option value="">All</option>
-              </select>
-            </label>
-            <label>
-              Target:
-              <select id="notes-target-id-filter">
-                <option value="">Any</option>
-              </select>
-            </label>
+          <div class="split">
+            <div class="list-pane">
+              <div class="subtab-toolbar">
+                <label>
+                  Target type:
+                  <select id="notes-target-type-filter">
+                    <option value="">All</option>
+                  </select>
+                </label>
+                <label>
+                  Target:
+                  <select id="notes-target-id-filter">
+                    <option value="">Any</option>
+                  </select>
+                </label>
+              </div>
+              <div id="notes-table-wrapper" class="table-wrapper"></div>
+            </div>
+
+            <div class="detail-pane">
+              <div class="card" id="notes-editor">
+                <div class="note-editor-header">
+                  <h3 id="notes-editor-title">Add note</h3>
+                  <button id="notes-new-btn" type="button">New note</button>
+                </div>
+                <div class="form-row">
+                  <label for="notes-editor-target-type">Target type</label>
+                  <select id="notes-editor-target-type"></select>
+                </div>
+                <div class="form-row">
+                  <label for="notes-editor-target-id">Target</label>
+                  <input id="notes-editor-target-id" list="notes-target-id-options" />
+                  <datalist id="notes-target-id-options"></datalist>
+                </div>
+                <div class="form-row">
+                  <label for="notes-editor-author">Author</label>
+                  <input id="notes-editor-author" />
+                </div>
+                <div class="form-row">
+                  <label for="notes-editor-context">Context</label>
+                  <textarea id="notes-editor-context" rows="2"></textarea>
+                </div>
+                <div class="form-row">
+                  <label for="notes-editor-body">Body</label>
+                  <textarea id="notes-editor-body" rows="3"></textarea>
+                </div>
+                <div class="form-row">
+                  <label for="notes-editor-tags">Tags (comma-separated)</label>
+                  <input id="notes-editor-tags" placeholder="tag1, tag2" />
+                </div>
+                <div class="form-actions">
+                  <button id="notes-save-btn" type="button">Save note</button>
+                  <button id="notes-delete-btn" type="button" class="danger" disabled>
+                    Delete
+                  </button>
+                  <button id="notes-cancel-btn" type="button">Cancel</button>
+                </div>
+              </div>
+            </div>
           </div>
-          <div id="notes-table-wrapper" class="table-wrapper"></div>
         </div>
       </section>
       <!-- Generic collection editor -->

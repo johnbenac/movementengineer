@@ -153,3 +153,32 @@ test('shows select-movement hint when there is no selected movement', async ({ p
   await expect(page.locator('#notes-target-type-filter')).toBeDisabled();
   await expect(page.locator('#notes-target-id-filter')).toBeDisabled();
 });
+
+test('supports creating, updating, and deleting notes', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Notes' }).click();
+
+  await page.getByRole('button', { name: 'New note' }).click();
+  await page.selectOption('#notes-editor-target-type', 'Entity');
+  await page.fill('#notes-editor-target-id', 'e1');
+  await page.fill('#notes-editor-author', 'Newbie');
+  await page.fill('#notes-editor-context', 'Context X');
+  await page.fill('#notes-editor-body', 'New note body');
+  await page.fill('#notes-editor-tags', 'alpha, beta');
+  await page.getByRole('button', { name: 'Save note' }).click();
+
+  const rows = page.locator('#notes-table-wrapper table tr');
+  await expect(rows).toHaveCount(4);
+  const newRow = page.locator('#notes-table-wrapper table tr', { hasText: 'New note body' });
+  await expect(newRow).toHaveCount(1);
+
+  await newRow.click();
+  await page.fill('#notes-editor-body', 'Updated note body');
+  await page.getByRole('button', { name: 'Save note' }).click();
+  await expect(page.locator('#notes-table-wrapper')).toContainText('Updated note body');
+
+  page.once('dialog', dialog => dialog.accept());
+  await page.getByRole('button', { name: 'Delete' }).click();
+  await expect(rows).toHaveCount(3);
+  await expect(page.locator('#notes-table-wrapper')).not.toContainText('Updated note body');
+});

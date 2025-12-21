@@ -1012,6 +1012,18 @@ button.danger:hover {
   margin-bottom: 0.25rem;
 }
 
+.note-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.note-editor-header h3 {
+  margin: 0;
+}
+
 /* Generic table */
 
 .table-wrapper {
@@ -1022,6 +1034,14 @@ button.danger:hover {
 .table-wrapper table {
   border-collapse: collapse;
   width: 100%;
+}
+
+.table-wrapper table tr:nth-child(even) {
+  background: #f9fafb;
+}
+
+.table-wrapper table tr.selected {
+  background: #e5f1ff;
 }
 
 .table-wrapper th,
