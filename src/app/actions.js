@@ -3,12 +3,10 @@ export function createActions(ctx) {
 
   actions.markDirty = scope => {
     if (ctx?.store?.markDirty) return ctx.store.markDirty(scope);
-    if (ctx?.legacy?.markDirty) return ctx.legacy.markDirty(scope);
   };
 
   actions.saveSnapshot = opts => {
     if (ctx?.store?.saveSnapshot) return ctx.store.saveSnapshot(opts);
-    if (ctx?.legacy?.saveSnapshot) return ctx.legacy.saveSnapshot(opts);
   };
 
   actions.activateTab = name => {
