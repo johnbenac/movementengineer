@@ -394,21 +394,63 @@
         <div class="panel-body">
           <h2>Notes</h2>
           <p class="hint">Browse notes by target type and target within the movement.</p>
-          <div class="subtab-toolbar">
-            <label>
-              Target type:
-              <select id="notes-target-type-filter">
-                <option value="">All</option>
-              </select>
-            </label>
-            <label>
-              Target:
-              <select id="notes-target-id-filter">
-                <option value="">Any</option>
-              </select>
-            </label>
+          <div class="split">
+            <div class="list-pane">
+              <div class="subtab-toolbar">
+                <label>
+                  Target type:
+                  <select id="notes-target-type-filter">
+                    <option value="">All</option>
+                  </select>
+                </label>
+                <label>
+                  Target:
+                  <select id="notes-target-id-filter">
+                    <option value="">Any</option>
+                  </select>
+                </label>
+              </div>
+              <div id="notes-table-wrapper" class="table-wrapper"></div>
+            </div>
+            <div class="detail-pane">
+              <div class="card">
+                <h3>Note editor</h3>
+                <form id="notes-editor-form" class="form-grid">
+                  <label>
+                    Target type
+                    <select id="notes-form-target-type"></select>
+                  </label>
+                  <label>
+                    Target
+                    <select id="notes-form-target-id"></select>
+                  </label>
+                  <label>
+                    Author
+                    <input id="notes-form-author" type="text" />
+                  </label>
+                  <label>
+                    Context
+                    <input id="notes-form-context" type="text" />
+                  </label>
+                  <label>
+                    Tags (comma-separated)
+                    <input id="notes-form-tags" type="text" />
+                  </label>
+                  <label class="wide">
+                    Body
+                    <textarea id="notes-form-body" rows="4"></textarea>
+                  </label>
+                  <div class="button-row">
+                    <button id="notes-save-btn" type="submit">Save note</button>
+                    <button id="notes-new-btn" type="button" class="secondary">New</button>
+                    <button id="notes-delete-btn" type="button" class="danger" disabled>
+                      Delete
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
           </div>
-          <div id="notes-table-wrapper" class="table-wrapper"></div>
         </div>
       </section>
       <!-- Generic collection editor -->

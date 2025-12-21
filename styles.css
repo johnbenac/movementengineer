@@ -308,6 +308,46 @@ button.danger:hover {
   resize: vertical;
 }
 
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.6rem;
+  align-items: start;
+}
+
+.form-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.82rem;
+  color: #4b5563;
+}
+
+.form-grid label input,
+.form-grid label select,
+.form-grid label textarea {
+  font-size: 0.88rem;
+  padding: 0.35rem 0.45rem;
+  border-radius: 4px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+}
+
+.form-grid label textarea {
+  resize: vertical;
+}
+
+.form-grid label.wide {
+  grid-column: 1 / -1;
+}
+
+.button-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
 .form-actions {
   display: flex;
   gap: 0.5rem;
@@ -1034,6 +1074,10 @@ button.danger:hover {
 .table-wrapper th {
   background: #f3f4f6;
   text-align: left;
+}
+
+.table-wrapper tr.selected {
+  background: #eef2ff;
 }
 
 /* Links in tables / detail */

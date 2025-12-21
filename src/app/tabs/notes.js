@@ -1,6 +1,20 @@
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
 
+const TARGET_TYPE_COLLECTIONS = {
+  Movement: 'movements',
+  TextNode: 'texts',
+  Entity: 'entities',
+  Practice: 'practices',
+  Event: 'events',
+  Rule: 'rules',
+  Claim: 'claims',
+  MediaAsset: 'media'
+};
+
+let selectedNoteId = null;
+let lastMovementId = null;
+
 function fallbackClear(el) {
   if (!el) return;
   while (el.firstChild) el.removeChild(el.firstChild);
@@ -35,6 +49,22 @@ function getEnsureSelectOptions(ctx) {
   return ctx?.dom?.ensureSelectOptions || fallbackEnsureSelectOptions;
 }
 
+function getState(ctx) {
+  return ctx?.getState?.() || ctx?.store?.getState?.() || {};
+}
+
+function getViewModels(ctx) {
+  return ctx?.services?.ViewModels || ctx?.ViewModels || window.ViewModels;
+}
+
+function getDomainService(ctx) {
+  return ctx?.services?.DomainService || window.DomainService;
+}
+
+function getLegacy(ctx) {
+  return ctx?.legacy || movementEngineerGlobal.legacy || {};
+}
+
 function hint(text) {
   const p = document.createElement('p');
   p.className = 'hint';
@@ -42,7 +72,46 @@ function hint(text) {
   return p;
 }
 
-function renderNotesTable(wrapper, notes, clear) {
+function parseTags(value) {
+  return (value || '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+
+function getTargetTypeOptions(snapshot, movementId) {
+  const options = [];
+  Object.entries(TARGET_TYPE_COLLECTIONS).forEach(([type, collName]) => {
+    const coll = snapshot?.[collName];
+    if (!Array.isArray(coll)) return;
+    const items = coll.filter(item =>
+      collName === 'movements' ? item.id === movementId : item.movementId === movementId
+    );
+    if (!items.length) return;
+    options.push({ value: type, label: type });
+  });
+  return options.sort((a, b) => a.label.localeCompare(b.label));
+}
+
+function getTargetsForType(snapshot, movementId, targetType) {
+  const collName = TARGET_TYPE_COLLECTIONS[targetType];
+  if (!collName) return [];
+  const coll = snapshot?.[collName];
+  if (!Array.isArray(coll)) return [];
+
+  const scoped = coll.filter(item =>
+    collName === 'movements' ? item.id === movementId : item.movementId === movementId
+  );
+
+  return scoped
+    .map(item => ({
+      value: item.id,
+      label: item.name || item.title || item.shortText || item.label || item.id
+    }))
+    .sort((a, b) => (a.label || '').localeCompare(b.label || ''));
+}
+
+function renderNotesTable(wrapper, notes, clear, { onSelect, selectedId }) {
   clear(wrapper);
 
   if (!notes || notes.length === 0) {
@@ -62,6 +131,11 @@ function renderNotesTable(wrapper, notes, clear) {
 
   notes.forEach(n => {
     const tr = document.createElement('tr');
+    tr.dataset.noteId = n.id;
+    if (n.id === selectedId) tr.classList.add('selected');
+    tr.addEventListener('click', () => {
+      if (typeof onSelect === 'function') onSelect(n.id);
+    });
 
     const tdType = document.createElement('td');
     tdType.textContent = n.targetType || '';
@@ -93,37 +167,110 @@ function renderNotesTable(wrapper, notes, clear) {
   wrapper.appendChild(table);
 }
 
+function populateNoteForm({
+  controls,
+  note,
+  snapshot,
+  movementId,
+  ensureSelectOptions,
+  typeOptions
+}) {
+  const {
+    targetType,
+    targetId,
+    author,
+    context,
+    tags,
+    body,
+    deleteBtn
+  } = controls;
+
+  ensureSelectOptions(targetType, typeOptions, typeOptions.length ? 'Select type' : '—');
+
+  const selectedType = note?.targetType || targetType.value || typeOptions[0]?.value || '';
+  if (selectedType) targetType.value = selectedType;
+
+  const targetOptions = selectedType
+    ? getTargetsForType(snapshot, movementId, selectedType)
+    : [];
+  ensureSelectOptions(targetId, targetOptions, targetOptions.length ? 'Select target' : '—');
+  if (note?.targetId && targetOptions.some(opt => opt.value === note.targetId)) {
+    targetId.value = note.targetId;
+  }
+
+  author.value = note?.author || '';
+  context.value = note?.context || '';
+  tags.value = (note?.tags || []).join(', ');
+  body.value = note?.body || '';
+
+  const disabled = !movementId;
+  [targetType, targetId, author, context, tags, body].forEach(el => {
+    if (el) el.disabled = disabled;
+  });
+  if (deleteBtn) deleteBtn.disabled = !note || disabled;
+}
+
+function getControls() {
+  return {
+    wrapper: document.getElementById('notes-table-wrapper'),
+    filterType: document.getElementById('notes-target-type-filter'),
+    filterId: document.getElementById('notes-target-id-filter'),
+    form: document.getElementById('notes-editor-form'),
+    targetType: document.getElementById('notes-form-target-type'),
+    targetId: document.getElementById('notes-form-target-id'),
+    author: document.getElementById('notes-form-author'),
+    context: document.getElementById('notes-form-context'),
+    tags: document.getElementById('notes-form-tags'),
+    body: document.getElementById('notes-form-body'),
+    saveBtn: document.getElementById('notes-save-btn'),
+    newBtn: document.getElementById('notes-new-btn'),
+    deleteBtn: document.getElementById('notes-delete-btn')
+  };
+}
+
 function renderNotesTab(ctx) {
   const clear = getClear(ctx);
   const ensureSelectOptions = getEnsureSelectOptions(ctx);
-  const state = ctx?.getState?.() || {};
+  const state = getState(ctx);
   const snapshot = state.snapshot;
   const currentMovementId = state.currentMovementId;
+  const ViewModels = getViewModels(ctx);
+  const controls = getControls();
+  const legacy = getLegacy(ctx);
 
-  const wrapper = document.getElementById('notes-table-wrapper');
-  const typeSelect = document.getElementById('notes-target-type-filter');
-  const idSelect = document.getElementById('notes-target-id-filter');
-  if (!wrapper || !typeSelect || !idSelect) return;
+  if (!controls.wrapper || !controls.filterType || !controls.filterId) return;
+
+  if (currentMovementId !== lastMovementId) {
+    selectedNoteId = null;
+    lastMovementId = currentMovementId || null;
+  }
 
   if (!currentMovementId) {
-    typeSelect.disabled = true;
-    idSelect.disabled = true;
-    clear(wrapper);
-    wrapper.appendChild(
+    controls.filterType.disabled = true;
+    controls.filterId.disabled = true;
+    clear(controls.wrapper);
+    controls.wrapper.appendChild(
       hint('Create or select a movement on the left to explore this section.')
     );
-    ensureSelectOptions(typeSelect, [], 'All');
-    ensureSelectOptions(idSelect, [], 'Any');
+    ensureSelectOptions(controls.filterType, [], 'All');
+    ensureSelectOptions(controls.filterId, [], 'Any');
+    populateNoteForm({
+      controls,
+      note: null,
+      snapshot,
+      movementId: null,
+      ensureSelectOptions,
+      typeOptions: []
+    });
     return;
   }
 
-  typeSelect.disabled = false;
-  idSelect.disabled = false;
+  controls.filterType.disabled = false;
+  controls.filterId.disabled = false;
 
-  const ViewModels = ctx?.ViewModels || window.ViewModels;
   if (!ViewModels || typeof ViewModels.buildNotesViewModel !== 'function') {
-    clear(wrapper);
-    wrapper.appendChild(hint('ViewModels module not loaded.'));
+    clear(controls.wrapper);
+    controls.wrapper.appendChild(hint('ViewModels module not loaded.'));
     return;
   }
 
@@ -134,17 +281,17 @@ function renderNotesTab(ctx) {
   });
 
   const notesAll = baseVm?.notes || [];
-  const targetTypes = Array.from(
+  const targetTypesFromNotes = Array.from(
     new Set(notesAll.map(n => n.targetType).filter(Boolean))
   ).sort((a, b) => String(a).localeCompare(String(b)));
 
   ensureSelectOptions(
-    typeSelect,
-    targetTypes.map(t => ({ value: t, label: t })),
+    controls.filterType,
+    targetTypesFromNotes.map(t => ({ value: t, label: t })),
     'All'
   );
 
-  const selectedType = typeSelect.value || '';
+  const selectedType = controls.filterType.value || '';
 
   const idsForType = notesAll.filter(n => !selectedType || n.targetType === selectedType);
 
@@ -162,9 +309,9 @@ function renderNotesTab(ctx) {
   }));
   idOptions.sort((a, b) => (a.label || '').localeCompare(b.label || ''));
 
-  ensureSelectOptions(idSelect, idOptions, 'Any');
+  ensureSelectOptions(controls.filterId, idOptions, 'Any');
 
-  const selectedId = idSelect.value || '';
+  const selectedId = controls.filterId.value || '';
 
   const vm = ViewModels.buildNotesViewModel(snapshot, {
     movementId: currentMovementId,
@@ -172,38 +319,169 @@ function renderNotesTab(ctx) {
     targetIdFilter: selectedId || null
   });
 
-  renderNotesTable(wrapper, vm?.notes || [], clear);
+  const noteFromSnapshot = Array.isArray(snapshot?.notes)
+    ? snapshot.notes.find(n => n.id === selectedNoteId && n.movementId === currentMovementId)
+    : null;
+  const typeOptions = getTargetTypeOptions(snapshot, currentMovementId);
+
+  populateNoteForm({
+    controls,
+    note: noteFromSnapshot || null,
+    snapshot,
+    movementId: currentMovementId,
+    ensureSelectOptions,
+    typeOptions
+  });
+
+  renderNotesTable(controls.wrapper, vm?.notes || [], clear, {
+    selectedId: selectedNoteId,
+    onSelect(noteId) {
+      selectedNoteId = noteId;
+      tab.render(ctx);
+    }
+  });
+
+  if (!legacy.hasInitialized?.()) {
+    legacy.init?.();
+  }
+}
+
+function collectFormData(controls, movementId, defaultTargetType) {
+  const targetType = controls.targetType?.value || defaultTargetType || '';
+  const targetId = controls.targetId?.value || '';
+  const body = (controls.body?.value || '').trim();
+
+  if (!movementId || !targetType || !targetId || !body) {
+    return null;
+  }
+
+  return {
+    id: selectedNoteId,
+    movementId,
+    targetType,
+    targetId,
+    author: (controls.author?.value || '').trim() || null,
+    context: (controls.context?.value || '').trim() || null,
+    tags: parseTags(controls.tags?.value),
+    body
+  };
 }
 
 export function registerNotesTab(ctx) {
   const tab = {
     __handlers: null,
     mount(context) {
-      const typeSelect = document.getElementById('notes-target-type-filter');
-      const idSelect = document.getElementById('notes-target-id-filter');
-
+      const controls = getControls();
       const rerender = () => tab.render(context);
+
       const handleStateChange = () => {
         const active = document.querySelector('.tab.active');
         if (!active || active.dataset.tab !== 'notes') return;
         rerender();
       };
 
-      if (typeSelect) typeSelect.addEventListener('change', rerender);
-      if (idSelect) idSelect.addEventListener('change', rerender);
+      const handleSubmit = evt => {
+        evt.preventDefault();
+        const state = getState(context);
+        const snapshot = state.snapshot;
+        const movementId = state.currentMovementId;
+        const DomainService = getDomainService(context);
+        const legacy = getLegacy(context);
+        const typeOptions = getTargetTypeOptions(snapshot, movementId);
+        const data = collectFormData(controls, movementId, typeOptions[0]?.value);
+        if (!data) {
+          context?.setStatus?.('Fill in target, body, and movement before saving.');
+          return;
+        }
+        if (!data.id) {
+          data.id = DomainService?.generateId?.('note-') || `note-${Date.now()}`;
+        }
+        try {
+          DomainService?.upsertItem?.(snapshot, 'notes', data);
+          selectedNoteId = data.id;
+          legacy.setState?.({ snapshot, flags: { snapshotDirty: true } });
+          context?.setStatus?.('Note saved');
+          rerender();
+        } catch (err) {
+          console.error(err);
+          context?.setStatus?.('Failed to save note');
+        }
+      };
+
+      const handleNew = () => {
+        selectedNoteId = null;
+        rerender();
+      };
+
+      const handleDelete = () => {
+        if (!selectedNoteId) return;
+        const state = getState(context);
+        const snapshot = state.snapshot;
+        const DomainService = getDomainService(context);
+        const legacy = getLegacy(context);
+        const confirmed = window.confirm('Delete this note? This cannot be undone.');
+        if (!confirmed) return;
+        try {
+          DomainService?.deleteItem?.(snapshot, 'notes', selectedNoteId);
+          selectedNoteId = null;
+          legacy.setState?.({ snapshot, flags: { snapshotDirty: true } });
+          context?.setStatus?.('Note deleted');
+          rerender();
+        } catch (err) {
+          console.error(err);
+          context?.setStatus?.('Failed to delete note');
+        }
+      };
+
+      const handleTypeChange = () => {
+        const state = getState(context);
+        const snapshot = state.snapshot;
+        const movementId = state.currentMovementId;
+        const ensureSelectOptions = getEnsureSelectOptions(context);
+        const typeOptions = getTargetTypeOptions(snapshot, movementId);
+        populateNoteForm({
+          controls,
+          note: null,
+          snapshot,
+          movementId,
+          ensureSelectOptions,
+          typeOptions
+        });
+      };
 
       const unsubscribe = context?.subscribe ? context.subscribe(handleStateChange) : null;
 
-      this.__handlers = { typeSelect, idSelect, rerender, unsubscribe };
+      controls.filterType?.addEventListener('change', rerender);
+      controls.filterId?.addEventListener('change', rerender);
+      controls.form?.addEventListener('submit', handleSubmit);
+      controls.newBtn?.addEventListener('click', handleNew);
+      controls.deleteBtn?.addEventListener('click', handleDelete);
+      controls.targetType?.addEventListener('change', handleTypeChange);
+
+      this.__handlers = {
+        rerender,
+        unsubscribe,
+        controls,
+        handleSubmit,
+        handleNew,
+        handleDelete,
+        handleTypeChange
+      };
     },
     render: renderNotesTab,
     unmount() {
       const h = this.__handlers;
       if (!h) return;
-      if (h.typeSelect) h.typeSelect.removeEventListener('change', h.rerender);
-      if (h.idSelect) h.idSelect.removeEventListener('change', h.rerender);
+      const c = h.controls || {};
+      c.filterType?.removeEventListener('change', h.rerender);
+      c.filterId?.removeEventListener('change', h.rerender);
+      c.form?.removeEventListener('submit', h.handleSubmit);
+      c.newBtn?.removeEventListener('click', h.handleNew);
+      c.deleteBtn?.removeEventListener('click', h.handleDelete);
+      c.targetType?.removeEventListener('change', h.handleTypeChange);
       if (typeof h.unsubscribe === 'function') h.unsubscribe();
       this.__handlers = null;
+      selectedNoteId = null;
     }
   };
 
