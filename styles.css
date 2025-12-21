@@ -1020,6 +1020,82 @@ button.danger:hover {
   margin-bottom: 0.25rem;
 }
 
+.rules-section-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.rules-filter-card {
+  margin: 0.4rem 0 0.8rem;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+}
+
+.rules-filter-card .subtab-toolbar {
+  margin-bottom: 0.35rem;
+}
+
+.rules-workspace {
+  display: grid;
+  gap: 0.85rem;
+  align-items: start;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.rules-list-panel {
+  min-height: 420px;
+}
+
+.rules-list-panel .table-wrapper {
+  max-height: 60vh;
+  overflow: auto;
+}
+
+.rules-editor-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.rules-editor-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  align-items: flex-end;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.rules-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 0.6rem;
+}
+
+.rules-editor-grid .form-row {
+  margin-bottom: 0;
+}
+
+.rules-editor-grid .form-row.full-span {
+  grid-column: 1 / -1;
+}
+
+.subtle-hint {
+  background: #eef2ff;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  color: #4338ca;
+}
+
+.form-actions.compact {
+  gap: 0.35rem;
+}
+
 /* Generic table */
 
 .table-wrapper {
