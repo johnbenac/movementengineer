@@ -6,16 +6,17 @@ test('legacy-free entry loads without the legacy bundle', async ({ page }) => {
 
   const mode = await page.evaluate(() => {
     const g = window.MovementEngineer || {};
+    const bootstrapOptions = g.bootstrapOptions || {};
     return {
-      mode: g.bootstrapOptions?.__mode,
-      legacyAutoInit: g.bootstrapOptions?.legacyAutoInit,
-      legacyExists: Boolean(g.legacy),
-      meModeAttr: document.documentElement.dataset.meMode
+      hasLegacyProp: Object.prototype.hasOwnProperty.call(g, 'legacy'),
+      hasLegacyAutoInit: Object.prototype.hasOwnProperty.call(bootstrapOptions, 'legacyAutoInit'),
+      hasLegacyModeFlag: Object.prototype.hasOwnProperty.call(bootstrapOptions, '__mode'),
+      meModeAttr: document.documentElement.dataset.meMode || null
     };
   });
 
-  expect(mode.mode).toBe('legacy-free');
-  expect(mode.legacyAutoInit).toBe(false);
-  expect(mode.legacyExists).toBe(false);
-  expect(mode.meModeAttr).toBe('legacy-free');
+  expect(mode.hasLegacyProp).toBe(false);
+  expect(mode.hasLegacyAutoInit).toBe(false);
+  expect(mode.hasLegacyModeFlag).toBe(false);
+  expect(mode.meModeAttr).toBeNull();
 });
