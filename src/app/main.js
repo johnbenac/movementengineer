@@ -31,8 +31,9 @@ const services = {
   d3: window.d3
 };
 
-const store = createStore({ legacy });
 const ui = createStatusUi({ legacy });
+services.ui = ui;
+const store = createStore({ services });
 const dom = createDomUtils();
 
 const ctx = {

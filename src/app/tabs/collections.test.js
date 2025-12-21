@@ -53,12 +53,14 @@ function createCtx(initialState, overrides = {}) {
     })
   };
 
+  const store = overrides.store || { markDirty: vi.fn(), saveSnapshot: vi.fn() };
+
   return {
     getState: () => state,
     setState,
     update,
     services: { DomainService },
-    legacy: overrides.legacy || { markDirty: vi.fn(), saveSnapshot: vi.fn() },
+    store,
     setStatus: vi.fn(),
     actions: overrides.actions || {},
     tabs: {}
@@ -101,7 +103,7 @@ describe('collections tab module', () => {
   it('saves editor changes and persists the snapshot', async () => {
     renderDom();
     const snapshot = { entities: [{ id: 'e1', movementId: 'm1', name: 'Alpha' }] };
-    const legacy = { saveSnapshot: vi.fn(), markDirty: vi.fn() };
+    const store = { saveSnapshot: vi.fn(), markDirty: vi.fn() };
     const ctx = createCtx(
       {
         snapshot,
@@ -111,7 +113,7 @@ describe('collections tab module', () => {
         navigation: { stack: [], index: -1 },
         flags: {}
       },
-      { legacy }
+      { store }
     );
     const { registerCollectionsTab } = await import('./collections.js');
     const tab = registerCollectionsTab(ctx);
@@ -130,7 +132,7 @@ describe('collections tab module', () => {
       collectionName: 'entities',
       itemId: 'e1'
     });
-    expect(legacy.saveSnapshot).toHaveBeenCalled();
+    expect(store.saveSnapshot).toHaveBeenCalled();
   });
 
   it('jumps to referenced items and activates the collections tab', async () => {
