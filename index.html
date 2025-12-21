@@ -328,6 +328,78 @@
               />
             </label>
           </div>
+          <div class="card rules-editor">
+            <div class="form-row">
+              <label for="rules-rule-select">Rule</label>
+              <select id="rules-rule-select">
+                <option value="">Choose rule</option>
+              </select>
+              <div class="form-actions">
+                <button type="button" id="rules-add-btn">+ New rule</button>
+                <button type="button" id="rules-save-btn" disabled>Save</button>
+                <button type="button" id="rules-delete-btn" disabled>Delete</button>
+                <span id="rules-editor-hint" class="hint inline-hint">
+                  Use the form to create, update, or delete rules.
+                </span>
+              </div>
+            </div>
+            <div class="rules-form-grid">
+              <div class="form-row">
+                <label for="rule-short-text">Short text</label>
+                <input id="rule-short-text" type="text" placeholder="Summarize the rule" />
+              </div>
+              <div class="form-row">
+                <label for="rule-kind-input">Kind</label>
+                <select id="rule-kind-input">
+                  <option value=""></option>
+                  <option value="must_do">must_do</option>
+                  <option value="must_not_do">must_not_do</option>
+                  <option value="should_do">should_do</option>
+                  <option value="ideal">ideal</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <label for="rule-details-input">Details</label>
+                <textarea id="rule-details-input" rows="3" placeholder="Full description"></textarea>
+              </div>
+              <div class="form-row">
+                <label for="rule-applies-to">Applies to (comma-separated)</label>
+                <input id="rule-applies-to" type="text" placeholder="members, clergy" />
+              </div>
+              <div class="form-row">
+                <label for="rule-domain-input">Domain (comma-separated)</label>
+                <input id="rule-domain-input" type="text" placeholder="worship, diet, penance" />
+              </div>
+              <div class="form-row">
+                <label for="rule-tags-input">Tags (comma-separated)</label>
+                <input id="rule-tags-input" type="text" placeholder="tag1, tag2" />
+              </div>
+              <div class="form-row">
+                <label for="rule-supporting-texts">Supporting texts</label>
+                <select id="rule-supporting-texts" multiple size="4"></select>
+              </div>
+              <div class="form-row">
+                <label for="rule-supporting-claims">Supporting claims</label>
+                <select id="rule-supporting-claims" multiple size="4"></select>
+              </div>
+              <div class="form-row">
+                <label for="rule-related-practices">Related practices</label>
+                <select id="rule-related-practices" multiple size="4"></select>
+              </div>
+              <div class="form-row">
+                <label for="rule-source-entities">Authority entities (sources)</label>
+                <select id="rule-source-entities" multiple size="4"></select>
+              </div>
+              <div class="form-row">
+                <label for="rule-sources-of-truth">Sources of truth (comma-separated)</label>
+                <input
+                  id="rule-sources-of-truth"
+                  type="text"
+                  placeholder="canonical text, oral tradition"
+                />
+              </div>
+            </div>
+          </div>
           <div id="rules-table-wrapper" class="table-wrapper"></div>
         </div>
       </section>

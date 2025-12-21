@@ -308,12 +308,30 @@ button.danger:hover {
   resize: vertical;
 }
 
+.inline-hint {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
 .form-actions {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
   align-items: center;
   margin-top: 0.5rem;
+}
+
+.link-button {
+  background: none;
+  color: #2563eb;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.link-button:hover {
+  text-decoration: underline;
 }
 
 .sr-file-input {
@@ -340,6 +358,24 @@ button.danger:hover {
 
 .github-import-modal input[type='url'] {
   width: 100%;
+}
+
+.rules-editor {
+  margin: 0.75rem 0;
+}
+
+.rules-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.8rem 1rem;
+}
+
+.rules-form-grid .form-row {
+  max-width: none;
+}
+
+.rules-form-grid select[multiple] {
+  min-height: 120px;
 }
 
 .import-status {
