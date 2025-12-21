@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { gotoApp } from '../helpers/gotoApp';
 const comparisonSnapshot = {
   version: '2.3',
   specVersion: '2.3',
@@ -32,7 +33,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('renders comparison tab via module override and responds to toggles', async ({ page }) => {
-  await page.goto('/');
+  await gotoApp(page);
 
   await page.getByRole('button', { name: 'Comparison' }).click();
 

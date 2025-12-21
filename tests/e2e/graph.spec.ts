@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { gotoApp } from '../helpers/gotoApp';
 
 const graphSnapshot = {
   version: '2.3',
@@ -39,7 +40,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('graph tab renders without fatal error', async ({ page }) => {
-  await page.goto('/');
+  await gotoApp(page);
   await page.getByRole('button', { name: 'Graph' }).click();
 
   await expect(page.locator('#fatal-import-error:not(.hidden)')).toHaveCount(0);
@@ -47,7 +48,7 @@ test('graph tab renders without fatal error', async ({ page }) => {
 });
 
 test('creating an entity adds it to the workbench', async ({ page }) => {
-  await page.goto('/');
+  await gotoApp(page);
   await page.getByRole('button', { name: 'Graph' }).click();
 
   await page.fill('#gw-add-entity-name', 'Charlie');
@@ -58,7 +59,7 @@ test('creating an entity adds it to the workbench', async ({ page }) => {
 });
 
 test('selecting a node updates the selected panel', async ({ page }) => {
-  await page.goto('/');
+  await gotoApp(page);
   await page.getByRole('button', { name: 'Graph' }).click();
 
   const firstResult = page.locator('#gw-search-results .graph-search-item').first();
