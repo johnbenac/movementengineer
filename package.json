@@ -2,11 +2,14 @@
   "name": "movementengineer",
   "version": "1.0.0",
   "description": "Movement Engineer is a client-side tool for exploring, authoring, and comparing structured data about social movements using the Markdown v2.3 dataset format.",
-  "main": "app.js",
+  "main": "src/app/main.js",
   "directories": {
     "doc": "docs"
   },
   "scripts": {
+    "check:no-appjs": "node scripts/check-no-appjs.mjs",
+    "pretest": "npm run check:no-appjs",
+    "build": "npm run check:no-appjs",
     "test": "node markdown-dataset-loader.test.js && node view-models.test.js && node comparison-services.test.js && npm run test:unit && npm run test:e2e",
     "postinstall": "playwright install --with-deps",
     "test:unit": "vitest run",

@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { gotoApp } from '../helpers/gotoApp';
 
-test('legacy-free entry loads without app.js legacy', async ({ page }) => {
+test('legacy-free entry loads without legacy bundle', async ({ page }) => {
   await gotoApp(page);
 
   const mode = await page.evaluate(() => {
