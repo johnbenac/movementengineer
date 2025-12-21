@@ -1192,6 +1192,14 @@ function buildClaimsExplorerViewModel(data, input) {
       .map(id => textLookup.get(id))
       .filter(Boolean)
       .map(text => ({ id: text.id, title: text.title, depth: depthById.get(text.id) ?? null })),
+    sourceEntities: normaliseArray(claim.sourceEntityIds)
+      .map(id => entityLookup.get(id))
+      .filter(Boolean)
+      .map(entity => ({
+        id: entity.id,
+        name: entity.name,
+        kind: entity.kind ?? null
+      })),
     sourcesOfTruth: normaliseArray(claim.sourcesOfTruth)
   }));
 

@@ -1012,6 +1012,14 @@ button.danger:hover {
   margin-bottom: 0.25rem;
 }
 
+.claim-editor-card {
+  margin-top: 0.8rem;
+}
+
+.claim-editor-card .form-row {
+  max-width: 640px;
+}
+
 /* Generic table */
 
 .table-wrapper {

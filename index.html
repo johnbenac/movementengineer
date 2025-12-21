@@ -298,6 +298,55 @@
             </label>
           </div>
           <div id="claims-table-wrapper" class="table-wrapper"></div>
+          <div class="card claim-editor-card">
+            <div class="section-heading small">Create or edit claim</div>
+            <p class="muted" id="claim-editor-hint">
+              Select a claim to edit or create a new one for the active movement.
+            </p>
+            <div class="form-row">
+              <label for="claims-editor-claim-select">Claim</label>
+              <select id="claims-editor-claim-select">
+                <option value="">Select a claim</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label for="claims-editor-category">Category</label>
+              <input id="claims-editor-category" type="text" />
+            </div>
+            <div class="form-row">
+              <label for="claims-editor-text">Claim text</label>
+              <textarea id="claims-editor-text" rows="3"></textarea>
+            </div>
+            <div class="form-row">
+              <label for="claims-editor-tags">Tags (comma‑separated)</label>
+              <input id="claims-editor-tags" type="text" />
+            </div>
+            <div class="form-row">
+              <label for="claims-editor-about-entities">About entities</label>
+              <select id="claims-editor-about-entities" multiple size="4"></select>
+            </div>
+            <div class="form-row">
+              <label for="claims-editor-source-texts">Source texts</label>
+              <select id="claims-editor-source-texts" multiple size="4"></select>
+            </div>
+            <div class="form-row">
+              <label for="claims-editor-sources">Sources of truth (comma‑separated)</label>
+              <input id="claims-editor-sources" type="text" />
+            </div>
+            <div class="form-row">
+              <label for="claims-editor-source-entities">Source entities</label>
+              <select id="claims-editor-source-entities" multiple size="4"></select>
+            </div>
+            <div class="form-row">
+              <label for="claims-editor-notes">Notes</label>
+              <textarea id="claims-editor-notes" rows="3"></textarea>
+            </div>
+            <div class="form-actions">
+              <button id="btn-claims-new" type="button">New claim</button>
+              <button id="btn-claims-save" type="button">Save claim</button>
+              <button id="btn-claims-delete" type="button" class="danger">Delete claim</button>
+            </div>
+          </div>
         </div>
       </section>
 
