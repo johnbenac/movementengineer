@@ -1036,6 +1036,24 @@ button.danger:hover {
   text-align: left;
 }
 
+#notes-table-wrapper {
+  flex: 1;
+}
+
+#notes-table-wrapper tr.selected {
+  background: #eef2ff;
+}
+
+#notes-table-wrapper .note-actions {
+  display: flex;
+  gap: 0.3rem;
+}
+
+#notes-table-wrapper .note-actions button {
+  padding: 0.15rem 0.45rem;
+  font-size: 0.75rem;
+}
+
 /* Links in tables / detail */
 
 a.entity-link,
