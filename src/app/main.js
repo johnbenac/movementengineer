@@ -12,6 +12,7 @@ import { registerCanonTab } from './tabs/canon.js';
 import { registerGraphTab } from './tabs/graph.js';
 import { registerEntitiesTab } from './tabs/entities.js';
 import { registerCalendarTab } from './tabs/calendar.js';
+import { registerCollectionsTab } from './tabs/collections.js';
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.bootstrapOptions = movementEngineerGlobal.bootstrapOptions || {};
@@ -66,7 +67,12 @@ if (legacy) {
 }
 
 const enabledTabs = movementEngineerGlobal.bootstrapOptions?.moduleTabs;
-const shouldEnable = name => !Array.isArray(enabledTabs) || enabledTabs.includes(name);
+const shouldEnable = name => {
+  if (!Array.isArray(enabledTabs)) return true;
+  if (enabledTabs.includes(name)) return true;
+  if (name === 'collections' && enabledTabs.includes('data')) return true;
+  return false;
+};
 
 if (shouldEnable('dashboard')) registerDashboardTab(ctx);
 if (shouldEnable('comparison')) registerComparisonTab(ctx);
@@ -79,3 +85,4 @@ if (shouldEnable('canon')) registerCanonTab(ctx);
 if (shouldEnable('graph')) registerGraphTab(ctx);
 if (shouldEnable('entities')) registerEntitiesTab(ctx);
 if (shouldEnable('calendar')) registerCalendarTab(ctx);
+if (shouldEnable('collections')) registerCollectionsTab(ctx);

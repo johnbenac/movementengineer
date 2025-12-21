@@ -318,11 +318,12 @@
     renderActiveTab();
   }
 
-  function focusDataTab() {
-    if (getActiveTabName() !== 'data') activateTab('data');
+  function focusCollectionsTab() {
+    if (getActiveTabName() !== 'collections') activateTab('collections');
   }
 
   function updateNavigationButtons() {
+    if (movementEngineerGlobal?.tabs?.collections) return;
     const backBtn = document.getElementById('btn-preview-back');
     const fwdBtn = document.getElementById('btn-preview-forward');
     if (!backBtn || !fwdBtn) return;
@@ -582,9 +583,10 @@
           new Error('Media tab has been migrated to ES modules. Legacy renderer removed.')
         );
         break;
-      case 'data':
-        renderCollectionList();
-        renderItemDetail();
+      case 'collections':
+        showFatalImportError(
+          new Error('Collections tab has been migrated to ES modules. Legacy renderer removed.')
+        );
         break;
       case 'comparison':
         showFatalImportError(
@@ -3933,6 +3935,7 @@
     const previousItemId = currentItemId;
     const previousNavIndex = navigationIndex;
     const previousNavLength = navigationStack.length;
+    const hasCollectionsModule = !!movementEngineerGlobal?.tabs?.collections;
 
     if (!COLLECTION_NAMES.includes(collectionName)) {
       setStatus('Unknown collection: ' + collectionName);
@@ -3961,17 +3964,19 @@
 
     currentItemId = foundItem ? foundItem.id : null;
 
-    focusDataTab();
+    focusCollectionsTab();
 
-    renderCollectionList();
-    renderItemDetail();
+    if (!hasCollectionsModule) {
+      renderCollectionList();
+      renderItemDetail();
+    }
 
     let navigationChanged = false;
     if (addToHistory && currentItemId && !fromHistory) {
       navigationChanged = pushNavigationState(collectionName, currentItemId, {
         notify: false
       });
-    } else {
+    } else if (!hasCollectionsModule) {
       updateNavigationButtons();
     }
 
@@ -4884,34 +4889,8 @@
         renderActiveTab();
       });
     });
-    // Collections tab
-      addListenerById('collection-select', 'change', e => {
-        setCollectionAndItem(e.target.value, null, { addToHistory: false });
-      });
 
-      addListenerById('collection-filter-by-movement', 'change', () => {
-        renderCollectionList();
-        renderItemDetail();
-      });
-
-      addListenerById('btn-add-item', 'click', addNewItem);
-      addListenerById('btn-delete-item', 'click', deleteCurrentItem);
-      addListenerById('btn-save-item', 'click', saveItemFromEditor);
-
-    const navBack = document.getElementById('btn-preview-back');
-    const navForward = document.getElementById('btn-preview-forward');
-    if (navBack) navBack.addEventListener('click', () => navigateHistory(-1));
-    if (navForward) navForward.addEventListener('click', () => navigateHistory(1));
-
-      addListenerById('btn-save-banner', 'click', () => persistDirtyChanges());
-
-    const itemEditor = document.getElementById('item-editor');
-    if (itemEditor) {
-      itemEditor.addEventListener('input', () => {
-        if (isPopulatingEditor) return;
-        markDirty('item');
-      });
-    }
+    addListenerById('btn-save-banner', 'click', () => persistDirtyChanges());
 
     // Initial render
     renderMovementList();
@@ -4974,7 +4953,11 @@
       jumpToText,
       jumpToReferencedItem,
       setCollectionAndItem,
-      saveSnapshot
+      saveSnapshot,
+      addCollectionItem: addNewItem,
+      deleteCollectionItem: deleteCurrentItem,
+      saveCollectionItem: saveItemFromEditor,
+      navigateCollectionHistory: navigateHistory
     }
   );
 })();
