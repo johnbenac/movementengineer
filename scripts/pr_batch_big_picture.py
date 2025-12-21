@@ -346,6 +346,55 @@ def create_summary_compilation(
     return True
 
 
+def create_touched_files_compilation(
+    files: List[str],
+    base_branch: str,
+    start_pr: int,
+    end_pr: int,
+    output_file: str,
+) -> bool:
+    """Create a single document containing original contents of all touched files."""
+    unique_files = sorted(set(files))
+
+    print("Creating touched files compilation from base branch...")
+
+    if not unique_files:
+        print("Warning: No touched files to include in the compilation")
+        return False
+
+    with open(output_file, "w", encoding="utf-8") as outf:
+        outf.write(f"# Base Branch Files: PRs {start_pr}-{end_pr}\n")
+        outf.write(f"# Total unique files: {len(unique_files)}\n")
+        outf.write(f"# Source branch: {base_branch}\n")
+        outf.write(f"# Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        outf.write("=" * 80 + "\n\n")
+
+        missing_files: List[str] = []
+
+        for idx, file_path in enumerate(unique_files, 1):
+            outf.write("\n" + "=" * 80 + "\n")
+            outf.write(f"# File {idx}/{len(unique_files)}: {file_path}\n")
+            outf.write("=" * 80 + "\n\n")
+
+            try:
+                content = run_command(
+                    f"git show {shlex.quote(f'{base_branch}:{file_path}')}"
+                )
+                outf.write(content + "\n")
+            except subprocess.CalledProcessError:
+                missing_files.append(file_path)
+                outf.write(
+                    f"# Note: File not found on {base_branch}; skipping content\n\n"
+                )
+
+        if missing_files:
+            outf.write("=" * 80 + "\n")
+            outf.write(f"# Files not found on {base_branch}: {', '.join(missing_files)}\n")
+
+    print(f"✓ Created touched files compilation: {output_file}")
+    return True
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Automate diff generation for ranges of pull requests",
@@ -401,6 +450,7 @@ def main() -> None:
             sys.exit(1)
 
         successful_prs: List[Tuple[Dict[str, str], str]] = []
+        touched_files: List[str] = []
 
         for pr_info in pr_infos:
             print(f"\n--- Processing PR #{pr_info['number']}: {pr_info['title']} ---")
@@ -454,6 +504,7 @@ def main() -> None:
                 local_branch=local_branch,
             ):
                 successful_prs.append((pr_info, output_file))
+                touched_files.extend(all_files)
 
         if successful_prs:
             master_output = os.path.join(
@@ -470,10 +521,22 @@ def main() -> None:
                 successful_prs, args.start_pr, args.end_pr, summary_output
             )
 
+            touched_files_output = os.path.join(
+                args.output_dir, f"pr-touched-files-{args.start_pr}-{args.end_pr}.txt"
+            )
+            create_touched_files_compilation(
+                touched_files,
+                args.base_branch,
+                args.start_pr,
+                args.end_pr,
+                touched_files_output,
+            )
+
             print(f"\n✓ Successfully processed {len(successful_prs)} PR(s)")
             print(f"✓ Individual files: {args.output_dir}/pr-{{num}}-implementation.txt")
             print(f"✓ Master comparison: {master_output}")
             print(f"✓ Summary compilation: {summary_output}")
+            print(f"✓ Touched files compilation: {touched_files_output}")
         else:
             print("\nNo PRs were successfully processed")
 
