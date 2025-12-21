@@ -108,7 +108,6 @@ async function testMovementScopedExport() {
   });
 
   const excluded = [
-    'app.js',
     'docs/readme.md',
     'movements/upside/movement.md',
     'movements/upside/entities/ent-hero.md'
