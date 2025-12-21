@@ -341,4 +341,110 @@ describe('rules tab module', () => {
     expect(ctx.update).toHaveBeenCalled();
     expect(document.getElementById('rules-editor-select').value).toBe('r2');
   });
+
+  it('keeps current rule selection when clicking a link inside a row', async () => {
+    renderDom();
+    const snapshot = {
+      rules: [
+        { id: 'r1', movementId: 'm1', shortText: 'First', kind: 'must_do' },
+        { id: 'r2', movementId: 'm1', shortText: 'Second', kind: 'must_do' }
+      ]
+    };
+    const ViewModels = {
+      buildRuleExplorerViewModel: vi.fn(() => ({
+        rules: [
+          {
+            id: 'r1',
+            kind: 'must_do',
+            shortText: 'First',
+            domain: [],
+            appliesTo: [],
+            tags: [],
+            supportingTexts: [],
+            supportingClaims: [],
+            relatedPractices: [],
+            sourcesOfTruth: []
+          },
+          {
+            id: 'r2',
+            kind: 'must_do',
+            shortText: 'Second',
+            domain: [],
+            appliesTo: [],
+            tags: [],
+            supportingTexts: [],
+            supportingClaims: [],
+            relatedPractices: [],
+            sourcesOfTruth: []
+          }
+        ]
+      })),
+      buildRuleEditorViewModel: vi.fn(() => ({
+        rules: [
+          {
+            id: 'r1',
+            movementId: 'm1',
+            shortText: 'First',
+            kind: 'must_do',
+            details: null,
+            appliesTo: [],
+            domain: [],
+            tags: [],
+            supportingTextIds: [],
+            supportingClaimIds: [],
+            relatedPracticeIds: [],
+            sourcesOfTruth: [],
+            sourceEntityIds: []
+          },
+          {
+            id: 'r2',
+            movementId: 'm1',
+            shortText: 'Second',
+            kind: 'must_do',
+            details: null,
+            appliesTo: [],
+            domain: [],
+            tags: [],
+            supportingTextIds: [],
+            supportingClaimIds: [],
+            relatedPracticeIds: [],
+            sourcesOfTruth: [],
+            sourceEntityIds: []
+          }
+        ],
+        options: {
+          ruleKinds: ['must_do'],
+          appliesToValues: [],
+          domainValues: [],
+          tagValues: [],
+          sourcesOfTruth: [],
+          texts: [],
+          claims: [],
+          practices: [],
+          entities: []
+        }
+      }))
+    };
+    const ctx = createCtx(snapshot, 'm1', { ViewModels });
+    const { registerRulesTab } = await import('./rules.js');
+    const tab = registerRulesTab(ctx);
+
+    tab.mount(ctx);
+    tab.render(ctx);
+
+    const dataRows = Array.from(
+      document.querySelectorAll('#rules-table-wrapper table tr')
+    ).slice(1);
+    const secondRow = dataRows[1];
+    const firstCell = secondRow?.querySelector('td');
+    const link = document.createElement('a');
+    link.href = '#r2';
+    link.textContent = 'Open';
+    firstCell?.appendChild(link);
+
+    link.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    const selectedRow = document.querySelector('#rules-table-wrapper tr.selected');
+    expect(selectedRow?.textContent).toContain('First');
+  });
 });

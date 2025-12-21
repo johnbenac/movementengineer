@@ -92,6 +92,15 @@ function joinCsvList(list) {
   return Array.isArray(list) ? list.filter(Boolean).join(', ') : '';
 }
 
+function isInteractiveTarget(target) {
+  if (!target || typeof target.closest !== 'function') return false;
+  return Boolean(
+    target.closest(
+      'a[href], button, input, select, textarea, option, label, [role="button"], [data-row-select="ignore"]'
+    )
+  );
+}
+
 function getSelectedValues(selectEl) {
   if (!selectEl) return [];
   return Array.from(selectEl.selectedOptions || [])
@@ -522,6 +531,7 @@ export function registerClaimsTab(ctx) {
       addListener(saveBtn, 'click', () => handleSaveClaim(context));
       addListener(resetBtn, 'click', rerender);
       addListener(tableWrapper, 'click', event => {
+        if (isInteractiveTarget(event.target)) return;
         const row = event.target.closest('tr[data-claim-id]');
         if (!row) return;
         selectedClaimId = row.dataset.claimId;
