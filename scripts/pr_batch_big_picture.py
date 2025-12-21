@@ -15,7 +15,7 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Set, Tuple
 
 
 def parse_pr_number(value: str) -> int:
@@ -41,6 +41,22 @@ def run_command(cmd: str, check: bool = True, capture_output: bool = True) -> st
         text=True,
     )
     return result.stdout.strip() if capture_output else ""
+
+
+def get_file_content_from_branch(file_path: str, branch: str) -> str | None:
+    """Read the contents of a file from the specified git branch."""
+    result = subprocess.run(
+        f"git show {shlex.quote(branch)}:{shlex.quote(file_path)}",
+        shell=True,
+        capture_output=True,
+        text=True,
+    )
+
+    if result.returncode != 0:
+        print(f"Warning: Skipping {file_path} (not present on {branch})")
+        return None
+
+    return result.stdout
 
 
 def check_current_branch(expected_branch: str) -> None:
@@ -312,6 +328,65 @@ def create_master_comparison(
     return True
 
 
+def create_touched_files_compilation(
+    touched_files: Set[str],
+    base_branch: str,
+    master_comparison_file: str,
+    start_pr: int,
+    end_pr: int,
+    output_file: str,
+) -> bool:
+    """Create a compilation of unique touched files and the master comparison."""
+    print("Creating touched files compilation...")
+
+    if not touched_files:
+        print("Warning: No touched files found to compile")
+        return False
+
+    sorted_files = sorted(touched_files)
+    skipped_files = 0
+
+    with open(output_file, "w", encoding="utf-8") as outf:
+        outf.write(
+            f"# Touched Files Compilation (Base: {base_branch}) for PRs {start_pr}-{end_pr}\n"
+        )
+        outf.write(f"# Total unique files: {len(sorted_files)}\n")
+        outf.write(f"# Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        outf.write("=" * 80 + "\n\n")
+
+        for file_path in sorted_files:
+            content = get_file_content_from_branch(file_path, base_branch)
+            if content is None:
+                skipped_files += 1
+                continue
+
+            outf.write(f"## File: {file_path} (from {base_branch})\n")
+            outf.write("-" * 80 + "\n")
+            outf.write(content)
+            if not content.endswith("\n"):
+                outf.write("\n")
+            outf.write("\n" + "-" * 80 + "\n\n")
+
+        outf.write("=" * 80 + "\n")
+        outf.write("# End of touched files from base branch\n\n")
+
+        if skipped_files:
+            outf.write(f"# Skipped files not present on {base_branch}: {skipped_files}\n\n")
+
+        if os.path.exists(master_comparison_file):
+            outf.write("=" * 80 + "\n")
+            outf.write(f"# Master comparison follows: {master_comparison_file}\n\n")
+            with open(master_comparison_file, "r", encoding="utf-8") as inf:
+                outf.write(inf.read())
+        else:
+            outf.write(
+                "# Master comparison file not found; only touched files are included.\n"
+            )
+
+    print(f"✓ Created touched files compilation: {output_file}")
+    return True
+
+
 def create_summary_compilation(
     pr_files: List[Tuple[Dict[str, str], str]],
     start_pr: int,
@@ -401,6 +476,7 @@ def main() -> None:
             sys.exit(1)
 
         successful_prs: List[Tuple[Dict[str, str], str]] = []
+        touched_files: Set[str] = set()
 
         for pr_info in pr_infos:
             print(f"\n--- Processing PR #{pr_info['number']}: {pr_info['title']} ---")
@@ -435,6 +511,7 @@ def main() -> None:
                 f"Files to process ({len(existing_files)}): "
                 f"{', '.join(existing_files)}"
             )
+            touched_files.update(existing_files)
 
             try:
                 comments = get_pr_comments(pr_info["number"])
@@ -470,10 +547,23 @@ def main() -> None:
                 successful_prs, args.start_pr, args.end_pr, summary_output
             )
 
+            touched_output = os.path.join(
+                args.output_dir, f"pr-touched-files-{args.start_pr}-{args.end_pr}.txt"
+            )
+            create_touched_files_compilation(
+                touched_files,
+                args.base_branch,
+                master_output,
+                args.start_pr,
+                args.end_pr,
+                touched_output,
+            )
+
             print(f"\n✓ Successfully processed {len(successful_prs)} PR(s)")
             print(f"✓ Individual files: {args.output_dir}/pr-{{num}}-implementation.txt")
             print(f"✓ Master comparison: {master_output}")
             print(f"✓ Summary compilation: {summary_output}")
+            print(f"✓ Touched files compilation: {touched_output}")
         else:
             print("\nNo PRs were successfully processed")
 
