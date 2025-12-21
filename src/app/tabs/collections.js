@@ -628,11 +628,11 @@ function addNewItem(ctx, tab) {
     ...state,
     snapshot,
     currentItemId: skeleton.id,
-    navigation,
-    flags: { ...(state.flags || {}), snapshotDirty: true, itemEditorDirty: false }
+    navigation
   };
   applyState(ctx, nextState);
-  ctx.legacy?.saveSnapshot?.({ show: false });
+  ctx.store?.markDirty?.('snapshot');
+  ctx.store?.saveSnapshot?.({ show: false });
   ctx.setStatus?.('New item created');
   tab.render?.(ctx);
 }
@@ -687,12 +687,14 @@ function saveCurrentItem(ctx, tab, options = {}) {
     ...state,
     snapshot,
     currentItemId: obj.id,
-    navigation,
-    flags: { ...(state.flags || {}), snapshotDirty: true, itemEditorDirty: false }
+    navigation
   };
   applyState(ctx, nextState);
   if (persist) {
-    ctx.legacy?.saveSnapshot?.({ clearItemDirty: true });
+    ctx.store?.markDirty?.('snapshot');
+    ctx.store?.saveSnapshot?.({ clearItemDirty: true });
+  } else {
+    ctx.store?.markDirty?.('snapshot');
   }
   tab.render?.(ctx);
   return true;
@@ -730,11 +732,11 @@ function deleteCurrentItem(ctx, tab) {
     ...state,
     snapshot,
     currentItemId: null,
-    navigation,
-    flags: { ...(state.flags || {}), snapshotDirty: true, itemEditorDirty: false }
+    navigation
   };
   applyState(ctx, nextState);
-  ctx.legacy?.saveSnapshot?.();
+  ctx.store?.markDirty?.('snapshot');
+  ctx.store?.saveSnapshot?.();
   tab.render?.(ctx);
 }
 
@@ -784,7 +786,7 @@ export function registerCollectionsTab(ctx) {
       const handleNavForward = () => tab.navigateHistory?.(context, 1);
       const handleEditorInput = () => {
         if (tab.__state.isPopulatingEditor) return;
-        context.legacy?.markDirty?.('item');
+        context.store?.markDirty?.('item');
       };
 
       if (select) select.addEventListener('change', handleSelectChange);
