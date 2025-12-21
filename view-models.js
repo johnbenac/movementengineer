@@ -43,6 +43,12 @@ function histogram(items, keyAccessor) {
   }, {});
 }
 
+function uniqueSorted(values) {
+  return Array.from(new Set(normaliseArray(values).filter(Boolean))).sort((a, b) =>
+    String(a).localeCompare(String(b))
+  );
+}
+
 function buildTextHierarchy(texts) {
   const childrenByParent = new Map();
   const textById = new Map();
@@ -1253,6 +1259,102 @@ function buildRuleExplorerViewModel(data, input) {
   return { rules: ruleRows };
 }
 
+function buildRuleEditorViewModel(data, input) {
+  const { movementId } = input;
+  const rules = filterByMovement(data.rules, movementId);
+  const texts = filterByMovement(data.texts, movementId);
+  const claims = filterByMovement(data.claims, movementId);
+  const practices = filterByMovement(data.practices, movementId);
+  const entities = filterByMovement(data.entities, movementId);
+  const { depthById } = buildTextHierarchy(texts);
+
+  const ruleRows = rules
+    .slice()
+    .sort((a, b) => (a.shortText || '').localeCompare(b.shortText || ''))
+    .map(rule => ({
+      id: rule.id,
+      movementId: rule.movementId,
+      shortText: rule.shortText,
+      kind: rule.kind ?? null,
+      details: rule.details ?? null,
+      appliesTo: normaliseArray(rule.appliesTo),
+      domain: normaliseArray(rule.domain),
+      tags: normaliseArray(rule.tags),
+      supportingTextIds: normaliseArray(rule.supportingTextIds),
+      supportingClaimIds: normaliseArray(rule.supportingClaimIds),
+      relatedPracticeIds: normaliseArray(rule.relatedPracticeIds),
+      sourcesOfTruth: normaliseArray(rule.sourcesOfTruth),
+      sourceEntityIds: normaliseArray(rule.sourceEntityIds)
+    }));
+
+  const buildOption = (value, label, extra = {}) => ({ value, label, ...extra });
+
+  const textOptions = texts
+    .map(text =>
+      buildOption(text.id, text.title || text.id, {
+        depth: depthById.get(text.id) ?? null
+      })
+    )
+    .sort((a, b) => (a.label || '').localeCompare(b.label || ''));
+
+  const claimOptions = claims
+    .map(claim =>
+      buildOption(
+        claim.id,
+        `${claim.category ? '[' + claim.category + '] ' : ''}${claim.text || claim.id}`
+      )
+    )
+    .sort((a, b) => (a.label || '').localeCompare(b.label || ''));
+
+  const practiceOptions = practices
+    .map(practice =>
+      buildOption(practice.id, practice.name || practice.id, {
+        kind: practice.kind ?? null
+      })
+    )
+    .sort((a, b) => (a.label || '').localeCompare(b.label || ''));
+
+  const entityOptions = entities
+    .map(entity =>
+      buildOption(entity.id, entity.name || entity.id, {
+        kind: entity.kind ?? null
+      })
+    )
+    .sort((a, b) => (a.label || '').localeCompare(b.label || ''));
+
+  const gatherValues = (collection, field) =>
+    normaliseArray(collection).flatMap(item => normaliseArray(item?.[field]));
+
+  const sourcesOfTruth = uniqueSorted(
+    []
+      .concat(gatherValues(rules, 'sourcesOfTruth'))
+      .concat(gatherValues(practices, 'sourcesOfTruth'))
+      .concat(gatherValues(claims, 'sourcesOfTruth'))
+      .concat(gatherValues(entities, 'sourcesOfTruth'))
+  );
+
+  const ruleKinds = uniqueSorted(
+    []
+      .concat(['must_do', 'must_not_do', 'should_do', 'ideal'])
+      .concat(rules.map(rule => rule.kind))
+  );
+
+  return {
+    rules: ruleRows,
+    options: {
+      ruleKinds,
+      appliesToValues: uniqueSorted(gatherValues(rules, 'appliesTo')),
+      domainValues: uniqueSorted(gatherValues(rules, 'domain')),
+      tagValues: uniqueSorted(gatherValues(rules, 'tags')),
+      sourcesOfTruth,
+      texts: textOptions,
+      claims: claimOptions,
+      practices: practiceOptions,
+      entities: entityOptions
+    }
+  };
+}
+
 function buildAuthorityViewModel(data, input) {
   const { movementId } = input;
   const claims = filterByMovement(data.claims, movementId);
@@ -1496,6 +1598,7 @@ const ViewModels = {
   buildCalendarViewModel,
   buildClaimsExplorerViewModel,
   buildRuleExplorerViewModel,
+  buildRuleEditorViewModel,
   buildAuthorityViewModel,
   buildMediaGalleryViewModel,
   buildComparisonViewModel,
