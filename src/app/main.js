@@ -10,6 +10,7 @@ import { registerRulesTab } from './tabs/rules.js';
 import { registerMediaTab } from './tabs/media.js';
 import { registerCanonTab } from './tabs/canon.js';
 import { registerGraphTab } from './tabs/graph.js';
+import { registerEntitiesTab } from './tabs/entities.js';
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.bootstrapOptions = movementEngineerGlobal.bootstrapOptions || {};
@@ -75,3 +76,4 @@ if (shouldEnable('rules')) registerRulesTab(ctx);
 if (shouldEnable('media')) registerMediaTab(ctx);
 if (shouldEnable('canon')) registerCanonTab(ctx);
 if (shouldEnable('graph')) registerGraphTab(ctx);
+if (shouldEnable('entities')) registerEntitiesTab(ctx);
