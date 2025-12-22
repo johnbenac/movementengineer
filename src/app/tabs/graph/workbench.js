@@ -1,4 +1,5 @@
 import { DEFAULT_GRAPH_WORKBENCH_STATE } from '../../store.js';
+import { HINT_TEXT, createHint, guardNoMovement, renderHint } from '../../ui/hints.js';
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
 
@@ -1080,10 +1081,10 @@ function renderSelected(ctx, dom, visibleEntities, entityById, baseGraph, snapsh
     edgeCard.appendChild(subtitle);
 
     if (edge.source) {
-      const info = document.createElement('p');
-      info.className = 'hint';
       const fieldLabel = edge.source.field ? `.${edge.source.field}` : '';
-      info.textContent = `Edge derived from ${edge.source.collection || 'record'}${fieldLabel} on ${edge.source.id || 'unknown'}.`;
+      const info = createHint(
+        `Edge derived from ${edge.source.collection || 'record'}${fieldLabel} on ${edge.source.id || 'unknown'}.`
+      );
       edgeCard.appendChild(info);
 
       if (edge.source.collection && edge.source.id) {
@@ -1262,9 +1263,7 @@ function renderSelected(ctx, dom, visibleEntities, entityById, baseGraph, snapsh
     subtitle.className = 'graph-selected-subtitle';
     subtitle.textContent = `${labelForNodeType(node.type)} · ${node.id}`;
 
-    const hint = document.createElement('p');
-    hint.className = 'hint';
-    hint.textContent = 'Editing is not available for this node type yet.';
+    const hint = createHint('Editing is not available for this node type yet.');
 
     card.appendChild(title);
     card.appendChild(subtitle);
@@ -1274,9 +1273,7 @@ function renderSelected(ctx, dom, visibleEntities, entityById, baseGraph, snapsh
     return;
   }
 
-  const p = document.createElement('p');
-  p.className = 'muted';
-  p.textContent = 'Selected item not found in this graph.';
+  const p = createHint('Selected item not found in this graph.', { className: 'muted' });
   dom.selectedBody.appendChild(p);
 }
 
@@ -1289,12 +1286,14 @@ export function renderGraphWorkbench(ctx) {
   const currentMovementId = state.currentMovementId;
   const workbenchState = getWorkbenchState(ctx);
 
-  if (!currentMovementId) {
-    clearElement(ctx, root);
-    const p = document.createElement('p');
-    p.className = 'hint';
-    p.textContent = 'Create or select a movement on the left to use the graph editor.';
-    root.appendChild(p);
+  if (
+    guardNoMovement({
+      movementId: currentMovementId,
+      wrappers: [root],
+      dom: ctx.dom,
+      message: HINT_TEXT.MOVEMENT_REQUIRED
+    })
+  ) {
     return;
   }
 
@@ -1311,10 +1310,7 @@ export function renderGraphWorkbench(ctx) {
     typeof ViewModels.filterGraphModel !== 'function'
   ) {
     clearElement(ctx, dom.root);
-    const p = document.createElement('p');
-    p.className = 'muted';
-    p.textContent = 'Graph view is unavailable. ViewModels module not loaded.';
-    dom.root.appendChild(p);
+    renderHint(dom.root, HINT_TEXT.VIEWMODELS_MISSING, { className: 'muted' });
     return;
   }
 

@@ -1,12 +1,7 @@
+import { guardMissingViewModels, guardNoMovement, renderHint, setDisabled } from '../ui/hints.js';
+
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
-
-function hint(text) {
-  const p = document.createElement('p');
-  p.className = 'hint';
-  p.textContent = text;
-  return p;
-}
 
 function getState(ctx) {
   return ctx.store.getState() || {};
@@ -68,17 +63,11 @@ function setSelectedValues(selectEl, values = []) {
   });
 }
 
-function disableElements(elements = [], disabled = false) {
-  elements.forEach(el => {
-    if (el) el.disabled = disabled;
-  });
-}
-
 function renderRulesTable(wrapper, rules, clear, selectedRuleId, onSelect) {
   clear(wrapper);
 
   if (!rules || rules.length === 0) {
-    wrapper.appendChild(hint('No rules match this filter.'));
+    renderHint(wrapper, 'No rules match this filter.');
     return;
   }
 
@@ -216,49 +205,30 @@ function renderRuleEditor(ctx, tabState, helpers, editorVm, statusMessage = null
   const els = getRuleEditorEls();
   if (!els.container || !els.select) return;
 
+  const formControls = [
+    els.select,
+    els.shortText,
+    els.kind,
+    els.details,
+    els.appliesTo,
+    els.domain,
+    els.tags,
+    els.supportingTexts,
+    els.supportingClaims,
+    els.relatedPractices,
+    els.sourceEntities,
+    els.sourcesOfTruth,
+    els.saveBtn,
+    els.deleteBtn
+  ];
+
   const disableForm = message => {
-    disableElements(
-      [
-        els.select,
-        els.shortText,
-        els.kind,
-        els.details,
-        els.appliesTo,
-        els.domain,
-        els.tags,
-        els.supportingTexts,
-        els.supportingClaims,
-        els.relatedPractices,
-        els.sourceEntities,
-        els.sourcesOfTruth,
-        els.saveBtn,
-        els.deleteBtn
-      ],
-      true
-    );
+    setDisabled(formControls, true);
     if (els.helper) els.helper.textContent = message || '';
   };
 
   const enableForm = () => {
-    disableElements(
-      [
-        els.select,
-        els.shortText,
-        els.kind,
-        els.details,
-        els.appliesTo,
-        els.domain,
-        els.tags,
-        els.supportingTexts,
-        els.supportingClaims,
-        els.relatedPractices,
-        els.sourceEntities,
-        els.sourcesOfTruth,
-        els.saveBtn,
-        els.deleteBtn
-      ],
-      false
-    );
+    setDisabled(formControls, false);
     if (els.helper) {
       els.helper.textContent = 'Select or add a rule to edit links and details.';
     }
@@ -322,7 +292,7 @@ function renderRuleEditor(ctx, tabState, helpers, editorVm, statusMessage = null
   const selectedRule = (editorVm.rules || []).find(r => r.id === tabState.selectedRuleId) || null;
   els.select.value = selectedRule?.id || '';
 
-  disableElements([els.addBtn], !getState(ctx).currentMovementId);
+  setDisabled([els.addBtn], !getState(ctx).currentMovementId);
 
   if (!selectedRule) {
     disableForm('Add a rule to start editing.');
@@ -489,31 +459,41 @@ function renderRulesTab(ctx) {
   const domainInput = document.getElementById('rules-domain-filter');
   if (!wrapper || !kindSelect || !domainInput) return;
 
+  const wrappers = [wrapper];
+  const controls = [kindSelect, domainInput];
+
   const editorHelpers = { ensureSelectOptions, ensureMultiSelectOptions, ensureDatalistOptions };
 
-  if (!currentMovementId) {
-    kindSelect.disabled = true;
-    domainInput.disabled = true;
-    clear(wrapper);
-    wrapper.appendChild(
-      hint('Create or select a movement on the left to explore this section.')
-    );
+  clear(wrapper);
+
+  if (
+    guardNoMovement({
+      movementId: currentMovementId,
+      wrappers,
+      controls,
+      dom: ctx.dom
+    })
+  ) {
     ensureSelectOptions(kindSelect, [], 'All');
     domainInput.value = '';
     renderRuleEditor(ctx, tabState, editorHelpers, null, 'Select a movement to add rules.');
     return;
   }
 
-  kindSelect.disabled = false;
-  domainInput.disabled = false;
-
   const ViewModels = getViewModels(ctx);
-  if (!ViewModels || typeof ViewModels.buildRuleExplorerViewModel !== 'function') {
-    clear(wrapper);
-    wrapper.appendChild(hint('ViewModels module not loaded.'));
+  if (
+    guardMissingViewModels({
+      ok: ViewModels && typeof ViewModels.buildRuleExplorerViewModel === 'function',
+      wrappers,
+      controls,
+      dom: ctx.dom
+    })
+  ) {
     renderRuleEditor(ctx, tabState, editorHelpers, null, 'ViewModels module not loaded.');
     return;
   }
+
+  setDisabled(controls, false);
 
   const rulesForMovement = (snapshot?.rules || []).filter(r => r.movementId === currentMovementId);
   const kinds = Array.from(new Set(rulesForMovement.map(r => r.kind).filter(Boolean))).sort((a, b) =>
