@@ -10,6 +10,7 @@ all comments made on the pull requests.
 import argparse
 import json
 import os
+import re
 import shlex
 import subprocess
 import sys
@@ -41,6 +42,19 @@ def run_command(cmd: str, check: bool = True, capture_output: bool = True) -> st
         text=True,
     )
     return result.stdout.strip() if capture_output else ""
+
+
+def is_failure_conclusion(conclusion: str | None) -> bool:
+    """Return True when a check conclusion represents a failure state."""
+    failure_conclusions = {
+        "failure",
+        "failed",
+        "timed_out",
+        "cancelled",
+        "action_required",
+        "stale",
+    }
+    return (conclusion or "").lower() in failure_conclusions
 
 
 def check_current_branch(expected_branch: str) -> None:
@@ -136,7 +150,12 @@ def get_pr_checks(pr_number: int) -> List[Dict[str, str]]:
     data = json.loads(checks_json)
 
     checks: List[Dict[str, str]] = []
+
     for check in data.get("statusCheckRollup") or []:
+        details_url = check.get("detailsUrl") or check.get("targetUrl") or ""
+        conclusion = check.get("conclusion") or check.get("state") or "unknown"
+        logs = fetch_check_logs(details_url) if is_failure_conclusion(conclusion) else None
+
         checks.append(
             {
                 "name": check.get("name")
@@ -146,18 +165,36 @@ def get_pr_checks(pr_number: int) -> List[Dict[str, str]]:
                 "status": check.get("status")
                 or check.get("state")
                 or "unknown",
-                "conclusion": check.get("conclusion")
-                or check.get("state")
-                or "unknown",
-                "detailsUrl": check.get("detailsUrl")
-                or check.get("targetUrl")
-                or "",
+                "conclusion": conclusion,
+                "detailsUrl": details_url,
                 "title": check.get("title") or "",
                 "summary": check.get("summary") or check.get("text") or "",
+                "logs": logs,
             }
         )
 
     return checks
+
+
+def extract_action_run_id(details_url: str) -> str | None:
+    """Extract the GitHub Actions run ID from a details URL."""
+    match = re.search(r"/runs/(\d+)", details_url or "")
+    if match:
+        return match.group(1)
+    return None
+
+
+def fetch_check_logs(details_url: str) -> str:
+    """Fetch raw logs for a failed GitHub Actions check when possible."""
+    run_id = extract_action_run_id(details_url)
+    if not run_id:
+        return "No GitHub Actions run ID found in details URL; unable to fetch logs."
+
+    try:
+        logs = run_command(f"gh run view {shlex.quote(run_id)} --log")
+        return logs or "(log output empty)"
+    except subprocess.CalledProcessError as exc:
+        return f"Failed to fetch logs for run {run_id}: {exc}"
 
 
 def filter_existing_files(files: List[str]) -> Tuple[List[str], List[str]]:
@@ -307,6 +344,12 @@ def run_big_picture(
                 if summary_text:
                     for line in summary_text.splitlines():
                         diff_file.write(f"    {line}\n")
+
+                logs_text = check.get("logs") or ""
+                if logs_text:
+                    diff_file.write("    Logs:\n")
+                    for line in logs_text.splitlines() or ["(log output empty)"]:
+                        diff_file.write(f"        {line}\n")
 
         diff_file.write("\n")
         diff_file.write("=" * 80 + "\n")
