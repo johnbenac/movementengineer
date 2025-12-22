@@ -484,7 +484,8 @@ button.danger:hover {
 }
 
 .preview-pane,
-.editor-pane {
+.editor-pane,
+.markdown-pane {
   border: 1px solid #e5e7eb;
   border-radius: 6px;
   background: #fff;
@@ -616,6 +617,61 @@ button.danger:hover {
 .rules-editor-grid .form-row {
   margin-bottom: 0;
   max-width: none;
+}
+
+.schema-guide {
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  border-radius: 6px;
+  padding: 0.65rem 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.issue-strip {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: flex-end;
+  align-items: center;
+  max-width: 320px;
+}
+
+.issue-badge {
+  font-size: 0.72rem;
+  padding: 0.18rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  color: #374151;
+  white-space: nowrap;
+}
+
+.issue-badge.warn {
+  background: #fffbeb;
+  border-color: #fcd34d;
+  color: #92400e;
+}
+
+.issue-badge.error {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
+.markdown-raw-details {
+  margin-top: 0.6rem;
+}
+
+.markdown-raw {
+  margin: 0.45rem 0 0;
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  font-size: 0.8rem;
+  white-space: pre-wrap;
 }
 
 .rules-editor-grid .form-row.wide {

@@ -683,6 +683,7 @@
               <ul id="collection-items" class="item-list"></ul>
             </div>
             <div class="detail-pane">
+              <div id="collections-schema-guide" class="schema-guide"></div>
               <div class="item-detail-grid">
                 <section class="preview-pane">
                   <div class="preview-header">
@@ -711,12 +712,39 @@
                   <div id="item-preview-body" class="preview-body"></div>
                 </section>
 
+                <section class="markdown-pane">
+                  <div class="preview-header">
+                    <div>
+                      <div class="eyebrow">Markdown + front matter</div>
+                      <h3>Export view</h3>
+                      <div class="muted">Obsidian-friendly representation</div>
+                    </div>
+
+                    <div class="preview-meta">
+                      <div id="collections-markdown-issues" class="issue-strip"></div>
+                      <button id="btn-copy-item-markdown" type="button" title="Copy markdown">
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+
+                  <div id="collections-markdown-preview" class="markdown-preview-panel empty"></div>
+
+                  <details class="markdown-raw-details">
+                    <summary>Raw markdown</summary>
+                    <pre id="collections-markdown-raw" class="markdown-raw"></pre>
+                  </details>
+                </section>
+
                 <section class="editor-pane">
                   <div class="preview-header">
                     <div>
                       <div class="eyebrow">Raw JSON</div>
                       <h3>Machine view</h3>
                       <div class="muted">Edit and save changes</div>
+                    </div>
+                    <div class="preview-meta">
+                      <div id="collections-json-issues" class="issue-strip"></div>
                     </div>
                   </div>
                   <textarea
