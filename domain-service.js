@@ -7,7 +7,8 @@
 (function () {
   'use strict';
 
-  const { COLLECTION_NAMES, COLLECTIONS_WITH_MOVEMENT_ID } = StorageService;
+  const globalScope = typeof globalThis !== 'undefined' ? globalThis : window;
+  const { COLLECTION_NAMES, COLLECTIONS_WITH_MOVEMENT_ID } = globalScope.StorageService;
 
   function generateId(prefix) {
     const base = prefix || 'id-';
@@ -217,7 +218,7 @@
     return before !== snapshot[collectionName].length;
   }
 
-  window.DomainService = {
+  globalScope.DomainService = {
     COLLECTION_NAMES,
     COLLECTIONS_WITH_MOVEMENT_ID,
     generateId,

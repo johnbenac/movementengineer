@@ -53,11 +53,10 @@
     return hashToColor(type);
   }
 
-  if (typeof window !== 'undefined') {
-    window.EntityGraphColors = {
-      palette: GRAPH_COLOR_PALETTE.slice(),
-      hashToColor,
-      colorForNodeType
-    };
-  }
+  const globalScope = typeof globalThis !== 'undefined' ? globalThis : window;
+  globalScope.EntityGraphColors = {
+    palette: GRAPH_COLOR_PALETTE.slice(),
+    hashToColor,
+    colorForNodeType
+  };
 })();

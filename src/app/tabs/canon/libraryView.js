@@ -5,17 +5,8 @@ import { deleteTextCollection, persistCanonItem } from './actions.js';
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
 
-function fallbackClear(el) {
-  if (!el) return;
-  while (el.firstChild) el.removeChild(el.firstChild);
-}
-
-function getClear(ctx) {
-  return ctx?.dom?.clearElement || fallbackClear;
-}
-
 function getState(ctx) {
-  return ctx?.getState?.() || ctx?.store?.getState?.() || {};
+  return ctx.store.getState() || {};
 }
 
 function applyState(ctx, updater) {
@@ -34,15 +25,15 @@ function applyState(ctx, updater) {
 }
 
 function getDomainService(ctx) {
-  return ctx?.services?.DomainService || ctx?.DomainService || window.DomainService;
+  return ctx.services.DomainService;
 }
 
 function getViewModels(ctx) {
-  return ctx?.services?.ViewModels || ctx?.ViewModels || window.ViewModels;
+  return ctx.services.ViewModels;
 }
 
 function getActions(ctx) {
-  return ctx?.actions || movementEngineerGlobal.actions || {};
+  return ctx.actions;
 }
 
 function setStatus(ctx, text) {
@@ -74,7 +65,7 @@ function renderEmptyHint(text) {
 }
 
 export function renderLibraryView(ctx) {
-  const clear = getClear(ctx);
+  const clear = ctx.dom.clearElement;
   const state = getState(ctx);
   const snapshot = state.snapshot || {};
   const selection = {
@@ -187,7 +178,7 @@ function renderLibrarySearchResults(ctx, vm, selection) {
   if (!resultsEl || !searchInput) return;
 
   const query = (searchInput.value || '').trim();
-  const clear = getClear(ctx);
+  const clear = ctx.dom.clearElement;
   clear(resultsEl);
   resultsEl.classList.remove('visible');
 
@@ -246,7 +237,7 @@ function renderLibrarySearchResults(ctx, vm, selection) {
 }
 
 function renderShelfPane(ctx, vm, selection) {
-  const clear = getClear(ctx);
+  const clear = ctx.dom.clearElement;
   const shelfList = document.getElementById('shelf-list');
   const unshelvedList = document.getElementById('unshelved-list');
   const shelfHint = document.getElementById('shelf-hint');
@@ -311,7 +302,7 @@ function renderShelfPane(ctx, vm, selection) {
 }
 
 function renderBooksPane(ctx, vm, selection) {
-  const clear = getClear(ctx);
+  const clear = ctx.dom.clearElement;
   const bookList = document.getElementById('book-list');
   const titleEl = document.getElementById('books-pane-title');
   const hintEl = document.getElementById('books-pane-hint');
@@ -385,7 +376,7 @@ function renderBooksPane(ctx, vm, selection) {
 }
 
 function renderTocPane(ctx, vm, selection) {
-  const clear = getClear(ctx);
+  const clear = ctx.dom.clearElement;
   const tocTree = document.getElementById('toc-tree');
   clear(tocTree);
   const rootId = vm.tocRootId;
@@ -451,7 +442,7 @@ function scrollTocNodeIntoView(nodeId) {
 }
 
 function renderNodeEditor(ctx, vm, selection) {
-  const clear = getClear(ctx);
+  const clear = ctx.dom.clearElement;
   const shelfEditor = document.getElementById('shelf-editor');
   const textEditor = document.getElementById('text-editor');
   const breadcrumb = document.getElementById('library-breadcrumb');

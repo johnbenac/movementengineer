@@ -53,7 +53,7 @@ function computeCurrentMovementId(snapshot) {
 
 export function createStore(options = {}) {
   const services = options.services || {};
-  const StorageService = services.StorageService || window.StorageService;
+  const StorageService = services.StorageService;
   const initialSnapshot = StorageService?.loadSnapshot
     ? StorageService.loadSnapshot()
     : {};

@@ -6,13 +6,6 @@ const raf =
     ? window.requestAnimationFrame.bind(window)
     : cb => setTimeout(cb, 16);
 
-function fallbackClear(el) {
-  if (!el) return;
-  while (el.firstChild) {
-    el.removeChild(el.firstChild);
-  }
-}
-
 function ensureSidebarMount() {
   let rootEl = document.getElementById('movement-sidebar');
   let listEl = document.getElementById('movement-list');
@@ -183,8 +176,7 @@ export function initMovements(ctx, options = {}) {
     return movementEngineerGlobal[MOVEMENTS_UI_KEY];
   }
 
-  const dom = ctx?.dom || {};
-  const clearElement = dom.clearElement || fallbackClear;
+  const { clearElement } = ctx.dom;
   const { rootEl, listEl } = ensureSidebarMount();
   const inputs = ensureFormMount();
 
@@ -194,7 +186,7 @@ export function initMovements(ctx, options = {}) {
   let isPopulatingForm = false;
 
   function getState() {
-    return ctx?.getState?.() || ctx?.store?.getState?.() || {};
+    return ctx.store.getState() || {};
   }
 
   function markDirty() {
@@ -363,7 +355,7 @@ export function initMovements(ctx, options = {}) {
   }
 
   function addMovement(overrides = {}) {
-    const DomainService = ctx?.services?.DomainService || window.DomainService;
+    const { DomainService } = ctx.services;
     const state = getState();
     const snapshot = state?.snapshot || {};
     const movements = Array.isArray(snapshot.movements) ? snapshot.movements : [];
@@ -411,7 +403,7 @@ export function initMovements(ctx, options = {}) {
 
   function deleteMovement(movementId) {
     if (!movementId) return;
-    const DomainService = ctx?.services?.DomainService || window.DomainService;
+    const { DomainService } = ctx.services;
     const state = getState();
     const snapshot = state?.snapshot || {};
     const movements = Array.isArray(snapshot.movements) ? snapshot.movements : [];

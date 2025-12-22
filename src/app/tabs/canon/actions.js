@@ -1,7 +1,7 @@
 import { normaliseArray } from '../../utils/values.js';
 
 function getState(ctx) {
-  return ctx?.getState?.() || ctx?.store?.getState?.() || {};
+  return ctx.store.getState() || {};
 }
 
 function applyState(ctx, updater) {
@@ -20,11 +20,11 @@ function applyState(ctx, updater) {
 }
 
 function getDomainService(ctx) {
-  return ctx?.services?.DomainService || ctx?.DomainService || window.DomainService;
+  return ctx.services.DomainService;
 }
 
 function getStore(ctx) {
-  return ctx?.store || null;
+  return ctx.store || null;
 }
 
 export function persistCanonItem(ctx, { show = false } = {}) {

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createDomUtils } from '../../../../src/app/ui/dom.js';
 
 function renderDom() {
   document.body.innerHTML = `
@@ -63,13 +64,22 @@ function createCtx(initialState, overrides = {}) {
       setState,
       update
     };
+  store.getState = () => state;
+  const StorageService =
+    overrides.StorageService ||
+    {
+      ensureAllCollections: snap => snap,
+      saveSnapshot: vi.fn()
+    };
+  const dom = createDomUtils();
 
   return {
     getState: () => state,
     setState,
     update,
     store,
-    services: { DomainService },
+    services: { DomainService, StorageService },
+    dom,
     setStatus: vi.fn(),
     actions: overrides.actions || {},
     tabs: {}

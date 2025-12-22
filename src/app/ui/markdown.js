@@ -1,6 +1,3 @@
-const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
-movementEngineerGlobal.ui = movementEngineerGlobal.ui || {};
-
 export function renderMarkdownPreview(targetEl, content, { enabled = true } = {}) {
   if (!targetEl) return;
 
@@ -113,11 +110,3 @@ export function openMarkdownModal({
   });
   cancelBtn.addEventListener('click', () => closeModal());
 }
-
-movementEngineerGlobal.ui.markdown = Object.assign(
-  movementEngineerGlobal.ui.markdown || {},
-  {
-    renderMarkdownPreview,
-    openMarkdownModal
-  }
-);

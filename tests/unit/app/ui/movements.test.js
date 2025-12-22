@@ -1,5 +1,30 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createDomUtils } from '../../../../src/app/ui/dom.js';
 import { initMovements } from '../../../../src/app/ui/movements.js';
+
+function createDomainServiceStub() {
+  return {
+    addMovement: vi.fn((snapshot, overrides = {}) => {
+      const id = overrides.id || `mov-${Math.random().toString(36).slice(2, 8)}`;
+      const movement = {
+        id,
+        movementId: id,
+        name: 'New Movement',
+        shortName: 'New',
+        summary: '',
+        tags: [],
+        ...overrides
+      };
+      snapshot.movements = Array.isArray(snapshot.movements) ? snapshot.movements : [];
+      snapshot.movements.push(movement);
+      return movement;
+    }),
+    deleteMovement: vi.fn((snapshot, movementId) => {
+      snapshot.movements = (snapshot.movements || []).filter(m => m.id !== movementId);
+      return snapshot.movements[0]?.id || null;
+    })
+  };
+}
 
 function renderDom() {
   document.body.innerHTML = `
@@ -101,7 +126,8 @@ describe('movements UI module', () => {
       getState: store.getState,
       subscribe: store.subscribe,
       actions: { selectMovement: vi.fn() },
-      services: { DomainService: window.DomainService }
+      services: { DomainService: createDomainServiceStub() },
+      dom: createDomUtils()
     };
 
     initMovements(ctx);
@@ -131,7 +157,8 @@ describe('movements UI module', () => {
       getState: store.getState,
       subscribe: store.subscribe,
       actions: { selectMovement: vi.fn() },
-      services: { DomainService: window.DomainService }
+      services: { DomainService: createDomainServiceStub() },
+      dom: createDomUtils()
     };
 
     initMovements(ctx);
@@ -177,7 +204,8 @@ describe('movements UI module', () => {
       getState: store.getState,
       subscribe: store.subscribe,
       actions: { selectMovement },
-      services: { DomainService: domainMock }
+      services: { DomainService: domainMock },
+      dom: createDomUtils()
     };
 
     initMovements(ctx);

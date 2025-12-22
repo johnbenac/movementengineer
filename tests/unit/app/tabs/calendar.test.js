@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createDomUtils } from '../../../../src/app/ui/dom.js';
 
 function renderDom() {
   document.body.innerHTML = `
@@ -16,9 +17,14 @@ function createCtx(vm, currentMovementId = 'm1') {
   const ViewModels = {
     buildCalendarViewModel: vi.fn(() => vm)
   };
+  const store = {
+    getState: () => ({ snapshot: {}, currentMovementId })
+  };
   return {
-    getState: () => ({ snapshot: {}, currentMovementId }),
+    store,
+    getState: store.getState,
     services: { ViewModels },
+    dom: createDomUtils(),
     actions: {
       jumpToPractice: vi.fn(),
       jumpToEntity: vi.fn(),

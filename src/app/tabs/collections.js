@@ -98,33 +98,24 @@ const PREVIEW_FIELDS = {
   ]
 };
 
-function fallbackClear(el) {
-  if (!el) return;
-  while (el.firstChild) el.removeChild(el.firstChild);
-}
-
-function getClear(ctx) {
-  return ctx?.dom?.clearElement || fallbackClear;
-}
-
 function getState(ctx) {
-  return ctx?.getState?.() || ctx?.store?.getState?.() || {};
+  return ctx.store.getState() || {};
 }
 
 function getDomainService(ctx) {
-  return ctx?.services?.DomainService || ctx?.DomainService || window.DomainService;
+  return ctx.services.DomainService;
 }
 
 function getStorageService(ctx) {
-  return ctx?.services?.StorageService || ctx?.StorageService || window.StorageService;
+  return ctx.services.StorageService;
 }
 
 function getStore(ctx) {
-  return ctx?.store || null;
+  return ctx.store || null;
 }
 
 function getActions(ctx) {
-  return ctx?.actions || {};
+  return ctx.actions;
 }
 
 function applyState(ctx, updater) {
@@ -348,7 +339,7 @@ function renderCollectionList(ctx, tab, state) {
   const list = document.getElementById('collection-items');
   const deleteBtn = document.getElementById('btn-delete-item');
   if (!list) return;
-  const clear = getClear(ctx);
+  const clear = ctx.dom.clearElement;
   clear(list);
 
   const snapshot = state.snapshot || {};
@@ -404,7 +395,7 @@ function renderItemPreview(ctx, state) {
   if (!titleEl || !subtitleEl || !body || !badge) return;
 
   const snapshot = state.snapshot || {};
-  const clear = getClear(ctx);
+  const clear = ctx.dom.clearElement;
   clear(body);
   badge.textContent = state.currentCollectionName || '—';
 

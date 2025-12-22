@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createDomUtils } from '../../../../src/app/ui/dom.js';
 
 function renderDom() {
   document.body.innerHTML = `
@@ -32,44 +33,7 @@ function renderDom() {
 
 function createCtx(snapshot, currentMovementId = 'm1', overrides = {}) {
   let state = { snapshot, currentMovementId };
-  const clearElement = el => {
-    if (!el) return;
-    while (el.firstChild) el.removeChild(el.firstChild);
-  };
-  const ensureSelectOptions = (el, options = [], includeEmptyLabel) => {
-    if (!el) return;
-    const prev = el.value;
-    clearElement(el);
-    if (includeEmptyLabel) {
-      const opt = document.createElement('option');
-      opt.value = '';
-      opt.textContent = includeEmptyLabel;
-      el.appendChild(opt);
-    }
-    options.forEach(optData => {
-      const opt = document.createElement('option');
-      opt.value = optData.value;
-      opt.textContent = optData.label;
-      el.appendChild(opt);
-    });
-    if (prev && options.some(o => o.value === prev)) {
-      el.value = prev;
-    }
-  };
-  const ensureMultiSelectOptions = (el, options = []) => {
-    if (!el) return;
-    const prev = new Set(Array.from(el.selectedOptions || []).map(opt => opt.value));
-    clearElement(el);
-    options.forEach(optData => {
-      const opt = document.createElement('option');
-      opt.value = optData.value;
-      opt.textContent = optData.label;
-      el.appendChild(opt);
-    });
-    Array.from(el.options || []).forEach(opt => {
-      opt.selected = prev.has(opt.value);
-    });
-  };
+  const dom = createDomUtils();
   const ViewModels =
     overrides.ViewModels ||
     {
@@ -146,7 +110,7 @@ function createCtx(snapshot, currentMovementId = 'm1', overrides = {}) {
     update,
     store,
     services: { ViewModels, DomainService },
-    dom: { clearElement, ensureSelectOptions, ensureMultiSelectOptions }
+    dom
   };
 }
 

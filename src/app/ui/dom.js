@@ -27,8 +27,50 @@ export function createDomUtils() {
     }
   }
 
+  function ensureMultiSelectOptions(selectEl, options = [], selectedValues = null) {
+    if (!selectEl) return;
+    const prev =
+      selectedValues && Array.isArray(selectedValues)
+        ? new Set(selectedValues.filter(Boolean))
+        : new Set(Array.from(selectEl.selectedOptions || []).map(o => o.value));
+
+    clearElement(selectEl);
+    options.forEach(option => {
+      const opt = document.createElement('option');
+      opt.value = option.value;
+      opt.textContent = option.label || option.value;
+      if (option.kind) opt.dataset.kind = option.kind;
+      if (option.depth !== undefined && option.depth !== null) opt.dataset.depth = option.depth;
+      selectEl.appendChild(opt);
+    });
+
+    Array.from(selectEl.options || []).forEach(opt => {
+      opt.selected = prev.has(opt.value);
+    });
+  }
+
+  function ensureDatalistOptions(datalistEl, values = []) {
+    if (!datalistEl) return;
+    clearElement(datalistEl);
+    values.forEach(value => {
+      const opt = document.createElement('option');
+      opt.value = value;
+      datalistEl.appendChild(opt);
+    });
+  }
+
+  function addListenerById(id, eventName, handler, options) {
+    const el = typeof id === 'string' ? document.getElementById(id) : id;
+    if (!el || !eventName || !handler) return () => {};
+    el.addEventListener(eventName, handler, options);
+    return () => el.removeEventListener(eventName, handler, options);
+  }
+
   return {
     clearElement,
-    ensureSelectOptions
+    ensureSelectOptions,
+    ensureMultiSelectOptions,
+    ensureDatalistOptions,
+    addListenerById
   };
 }

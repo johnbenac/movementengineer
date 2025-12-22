@@ -17,33 +17,80 @@ import { registerAuthorityTab } from './tabs/authority.js';
 import { initMovements } from './ui/movements.js';
 import { initShell } from './shell.js';
 import { createActions } from './actions.js';
+import { renderMarkdownPreview, openMarkdownModal } from './ui/markdown.js';
+import {
+  collectDescendants,
+  normaliseArray,
+  parseCsvInput,
+  uniqueSorted
+} from './utils/values.js';
 
-const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
+function assertCtx(ctx) {
+  if (!ctx?.store?.getState) throw new Error('ctx.store.getState missing');
+  if (!ctx?.services?.DomainService) throw new Error('ctx.services.DomainService missing');
+  if (!ctx?.services?.ViewModels) throw new Error('ctx.services.ViewModels missing');
+  if (!ctx?.dom?.clearElement) throw new Error('ctx.dom.clearElement missing');
+  if (!ctx?.dom?.ensureSelectOptions) throw new Error('ctx.dom.ensureSelectOptions missing');
+  if (!ctx?.dom?.ensureMultiSelectOptions)
+    throw new Error('ctx.dom.ensureMultiSelectOptions missing');
+  if (!ctx?.ui?.setStatus) throw new Error('ctx.ui.setStatus missing');
+  if (!ctx?.ui?.markdown?.renderMarkdownPreview)
+    throw new Error('ctx.ui.markdown.renderMarkdownPreview missing');
+  if (!ctx?.ui?.markdown?.openMarkdownModal)
+    throw new Error('ctx.ui.markdown.openMarkdownModal missing');
+}
+
+const movementEngineerGlobal = (globalThis.MovementEngineer ||= {});
 movementEngineerGlobal.bootstrapOptions = movementEngineerGlobal.bootstrapOptions || {};
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
-movementEngineerGlobal.actions = movementEngineerGlobal.actions || {};
-movementEngineerGlobal.components = movementEngineerGlobal.components || {};
+
+const {
+  DomainService,
+  StorageService,
+  ViewModels,
+  EntityGraphView,
+  EntityGraphColors,
+  MarkdownDatasetLoader,
+  d3
+} = globalThis;
 
 const services = {
-  DomainService: window.DomainService,
-  StorageService: window.StorageService,
-  ViewModels: window.ViewModels,
-  EntityGraphView: window.EntityGraphView,
-  MarkdownDatasetLoader: window.MarkdownDatasetLoader,
-  d3: window.d3,
-  ui: null
+  DomainService,
+  StorageService,
+  ViewModels,
+  EntityGraphView,
+  EntityGraphColors,
+  MarkdownDatasetLoader,
+  d3
 };
 
-const ui = createStatusUi();
+const statusUi = createStatusUi();
+const ui = {
+  ...statusUi,
+  markdown: {
+    renderMarkdownPreview,
+    openMarkdownModal
+  }
+};
 services.ui = ui;
-const store = createStore({ services });
+
 const dom = createDomUtils();
+const utils = {
+  values: {
+    parseCsvInput,
+    normaliseArray,
+    uniqueSorted,
+    collectDescendants
+  }
+};
+const store = createStore({ services });
 
 const ctx = {
   store,
   services,
   ui,
   dom,
+  utils,
   getState: () => store.getState(),
   setState: next => store.setState(next),
   update: updater => store.update(updater),
@@ -51,26 +98,15 @@ const ctx = {
   setStatus: (...args) => ui.setStatus?.(...args),
   showFatalImportError: (...args) => ui.showFatalImportError?.(...args),
   clearFatalImportError: (...args) => ui.clearFatalImportError?.(...args),
-  get ViewModels() {
-    return services.ViewModels;
-  },
   tabs: movementEngineerGlobal.tabs || {},
-  actions: movementEngineerGlobal.actions || {},
-  components: movementEngineerGlobal.components || {}
+  actions: {}
 };
 
-const existingActions = movementEngineerGlobal.actions || {};
 ctx.actions = {
-  ...existingActions,
   ...createActions(ctx)
 };
 
-movementEngineerGlobal.ctx = ctx;
-movementEngineerGlobal.store = store;
-movementEngineerGlobal.ui = ui;
-movementEngineerGlobal.dom = dom;
-movementEngineerGlobal.services = services;
-movementEngineerGlobal.actions = ctx.actions;
+assertCtx(ctx);
 
 const enabledTabs = movementEngineerGlobal.bootstrapOptions?.moduleTabs;
 const shouldEnable = name =>

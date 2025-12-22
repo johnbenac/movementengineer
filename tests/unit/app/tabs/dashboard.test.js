@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createDomUtils } from '../../../../src/app/ui/dom.js';
 
 function renderDom(withTab = false) {
   document.body.innerHTML = `
@@ -14,10 +15,15 @@ function createCtx(state, vm) {
       }
     : null;
   const subscribers = new Set();
+  const store = {
+    getState: () => state
+  };
   return {
-    getState: () => state,
+    store,
+    getState: store.getState,
     ViewModels,
     services: ViewModels ? { ViewModels } : {},
+    dom: createDomUtils(),
     subscribe: fn => {
       subscribers.add(fn);
       return () => subscribers.delete(fn);
