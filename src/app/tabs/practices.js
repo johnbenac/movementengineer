@@ -1,5 +1,4 @@
-const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
-movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
+import { createTab } from './_tabKit.js';
 
 function hint(text) {
   const p = document.createElement('p');
@@ -199,37 +198,12 @@ function renderPracticesTab(ctx) {
 }
 
 export function registerPracticesTab(ctx) {
-  const tab = {
-    __handlers: null,
-    mount(context) {
-      const select = document.getElementById('practice-select');
-
-      const rerender = () => tab.render(context);
-      const handleStateChange = () => {
-        const active = document.querySelector('.tab.active');
-        if (!active || active.dataset.tab !== 'practices') return;
-        rerender();
-      };
-
-      if (select) select.addEventListener('change', rerender);
-
-      const unsubscribe = context?.subscribe ? context.subscribe(handleStateChange) : null;
-
-      this.__handlers = { select, rerender, unsubscribe };
-    },
+  return createTab(ctx, {
+    name: 'practices',
     render: renderPracticesTab,
-    unmount() {
-      const h = this.__handlers;
-      if (!h) return;
-      if (h.select) h.select.removeEventListener('change', h.rerender);
-      if (typeof h.unsubscribe === 'function') h.unsubscribe();
-      this.__handlers = null;
+    setup({ bucket, rerender }) {
+      const select = document.getElementById('practice-select');
+      if (select) bucket.on(select, 'change', () => rerender());
     }
-  };
-
-  movementEngineerGlobal.tabs.practices = tab;
-  if (ctx?.tabs) {
-    ctx.tabs.practices = tab;
-  }
-  return tab;
+  });
 }
