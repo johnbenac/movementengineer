@@ -13,6 +13,7 @@ import { registerGraphTab } from './tabs/graph.js';
 import { registerEntitiesTab } from './tabs/entities.js';
 import { registerCalendarTab } from './tabs/calendar.js';
 import { registerCollectionsTab } from './tabs/collections.js';
+import { registerAuthorityTab } from './tabs/authority.js';
 import { initMovements } from './ui/movements.js';
 import { initShell } from './shell.js';
 import { createActions } from './actions.js';
@@ -106,6 +107,7 @@ ctx.actions.selectMovement = function selectMovement(movementId) {
   ctx.shell?.renderActiveTab?.();
 };
 
+if (shouldEnable('authority')) registerAuthorityTab(ctx);
 if (shouldEnable('dashboard')) registerDashboardTab(ctx);
 if (shouldEnable('comparison')) registerComparisonTab(ctx);
 if (shouldEnable('notes')) registerNotesTab(ctx);
