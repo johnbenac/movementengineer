@@ -10,6 +10,7 @@ all comments made on the pull requests.
 import argparse
 import json
 import os
+import re
 import shlex
 import subprocess
 import sys
@@ -160,6 +161,35 @@ def get_pr_checks(pr_number: int) -> List[Dict[str, str]]:
     return checks
 
 
+def extract_actions_run_id(details_url: str | None) -> str | None:
+    """Extract the GitHub Actions run ID from a details URL."""
+    if not details_url:
+        return None
+    match = re.search(r"/actions/runs/(\d+)", details_url)
+    return match.group(1) if match else None
+
+
+def get_failed_check_logs(check: Dict[str, str]) -> str | None:
+    """Retrieve raw logs for failed GitHub Actions checks."""
+    conclusion = (check.get("conclusion") or "").lower()
+    if conclusion in {"success", "neutral", "skipped"}:
+        return None
+
+    run_id = extract_actions_run_id(check.get("detailsUrl") or "")
+    if not run_id:
+        return None
+
+    try:
+        print(
+            f"Fetching logs for failed check '{check.get('name', 'unknown check')}' "
+            f"(run {run_id})"
+        )
+        return run_command(f"gh run view {shlex.quote(run_id)} --log")
+    except subprocess.CalledProcessError as exc:
+        print(f"Warning: Failed to fetch logs for run {run_id}: {exc}")
+        return None
+
+
 def filter_existing_files(files: List[str]) -> Tuple[List[str], List[str]]:
     """Filter list of files to only those that exist on current branch."""
     existing_files: List[str] = []
@@ -258,6 +288,7 @@ def run_big_picture(
     output_file: str,
     base_branch: str = "main",
     local_branch: str | None = None,
+    include_logs: bool = True,
 ) -> bool:
     """Generate a git diff for the PR instead of full files."""
     branch_for_diff = local_branch or pr_info["branch"]
@@ -298,6 +329,9 @@ def run_big_picture(
                 status = check.get("status") or "unknown"
                 conclusion = check.get("conclusion") or "unknown"
                 details_url = check.get("detailsUrl") or ""
+                log_output = check.get("logOutput") or ""
+                if not include_logs:
+                    log_output = ""
                 heading = f"- {name}: status={status}, conclusion={conclusion}"
                 if details_url:
                     heading += f" [{details_url}]"
@@ -306,6 +340,10 @@ def run_big_picture(
                 summary_text = check.get("summary") or check.get("title") or ""
                 if summary_text:
                     for line in summary_text.splitlines():
+                        diff_file.write(f"    {line}\n")
+                if log_output:
+                    diff_file.write("    Logs:\n")
+                    for line in log_output.splitlines():
                         diff_file.write(f"    {line}\n")
 
         diff_file.write("\n")
@@ -510,7 +548,8 @@ def main() -> None:
             print("Error: No valid PRs found in the specified range")
             sys.exit(1)
 
-        successful_prs: List[Tuple[Dict[str, str], str]] = []
+        successful_prs_with_logs: List[Tuple[Dict[str, str], str]] = []
+        successful_prs_without_logs: List[Tuple[Dict[str, str], str]] = []
 
         for pr_info in pr_infos:
             print(f"\n--- Processing PR #{pr_info['number']}: {pr_info['title']} ---")
@@ -558,10 +597,19 @@ def main() -> None:
             except (subprocess.CalledProcessError, json.JSONDecodeError, KeyError) as exc:
                 print(f"Failed to retrieve checks for PR #{pr_info['number']}: {exc}")
                 checks = []
+            else:
+                for check in checks:
+                    logs = get_failed_check_logs(check)
+                    if logs:
+                        check["logOutput"] = logs
 
             output_file = os.path.join(
                 args.output_dir, f"pr-{pr_info['number']}-implementation.txt"
             )
+            output_file_with_logs = os.path.join(
+                args.output_dir, f"pr-{pr_info['number']}-implementation-with-logs.txt"
+            )
+
             if run_big_picture(
                 pr_info,
                 existing_files,
@@ -570,41 +618,105 @@ def main() -> None:
                 output_file,
                 base_branch=args.base_branch,
                 local_branch=local_branch,
+                include_logs=False,
             ):
-                successful_prs.append((pr_info, output_file))
+                successful_prs_without_logs.append((pr_info, output_file))
 
-        if successful_prs:
+            if run_big_picture(
+                pr_info,
+                existing_files,
+                comments,
+                checks,
+                output_file_with_logs,
+                base_branch=args.base_branch,
+                local_branch=local_branch,
+                include_logs=True,
+            ):
+                successful_prs_with_logs.append((pr_info, output_file_with_logs))
+
+        if successful_prs_without_logs or successful_prs_with_logs:
             master_output = os.path.join(
                 args.output_dir, f"pr-comparison-{args.start_pr}-{args.end_pr}.txt"
             )
-            create_master_comparison(
-                successful_prs, args.start_pr, args.end_pr, master_output
+            master_output_with_logs = os.path.join(
+                args.output_dir,
+                f"pr-comparison-{args.start_pr}-{args.end_pr}-with-logs.txt",
             )
+
+            if successful_prs_without_logs:
+                create_master_comparison(
+                    successful_prs_without_logs, args.start_pr, args.end_pr, master_output
+                )
+            if successful_prs_with_logs:
+                create_master_comparison(
+                    successful_prs_with_logs,
+                    args.start_pr,
+                    args.end_pr,
+                    master_output_with_logs,
+                )
 
             summary_output = os.path.join(
                 args.output_dir, f"pr-summaries-{args.start_pr}-{args.end_pr}.txt"
             )
-            create_summary_compilation(
-                successful_prs, args.start_pr, args.end_pr, summary_output
+            summary_output_with_logs = os.path.join(
+                args.output_dir,
+                f"pr-summaries-{args.start_pr}-{args.end_pr}-with-logs.txt",
             )
+
+            if successful_prs_without_logs:
+                create_summary_compilation(
+                    successful_prs_without_logs, args.start_pr, args.end_pr, summary_output
+                )
+            if successful_prs_with_logs:
+                create_summary_compilation(
+                    successful_prs_with_logs,
+                    args.start_pr,
+                    args.end_pr,
+                    summary_output_with_logs,
+                )
 
             touched_output = os.path.join(
                 args.output_dir, f"pr-touched-files-{args.start_pr}-{args.end_pr}.txt"
             )
-            create_touched_files_compilation(
-                touched_files,
-                args.base_branch,
-                args.start_pr,
-                args.end_pr,
-                touched_output,
-                master_output,
+            touched_output_with_logs = os.path.join(
+                args.output_dir,
+                f"pr-touched-files-{args.start_pr}-{args.end_pr}-with-logs.txt",
             )
 
-            print(f"\n✓ Successfully processed {len(successful_prs)} PR(s)")
-            print(f"✓ Individual files: {args.output_dir}/pr-{{num}}-implementation.txt")
+            if successful_prs_without_logs:
+                create_touched_files_compilation(
+                    touched_files,
+                    args.base_branch,
+                    args.start_pr,
+                    args.end_pr,
+                    touched_output,
+                    master_output,
+                )
+            if successful_prs_with_logs:
+                create_touched_files_compilation(
+                    touched_files,
+                    args.base_branch,
+                    args.start_pr,
+                    args.end_pr,
+                    touched_output_with_logs,
+                    master_output_with_logs,
+                )
+
+            print(
+                f"\n✓ Successfully processed {len(successful_prs_with_logs) + len(successful_prs_without_logs)} PR(s)"
+            )
+            print(
+                f"✓ Individual files without logs: {args.output_dir}/pr-{{num}}-implementation.txt"
+            )
+            print(
+                f"✓ Individual files with logs: {args.output_dir}/pr-{{num}}-implementation-with-logs.txt"
+            )
             print(f"✓ Master comparison: {master_output}")
+            print(f"✓ Master comparison with logs: {master_output_with_logs}")
             print(f"✓ Summary compilation: {summary_output}")
+            print(f"✓ Summary compilation with logs: {summary_output_with_logs}")
             print(f"✓ Touched files compilation: {touched_output}")
+            print(f"✓ Touched files compilation with logs: {touched_output_with_logs}")
         else:
             print("\nNo PRs were successfully processed")
 
