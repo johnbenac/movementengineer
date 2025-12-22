@@ -1,21 +1,12 @@
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
 
-function fallbackClear(el) {
-  if (!el) return;
-  while (el.firstChild) el.removeChild(el.firstChild);
-}
-
-function getClear(ctx) {
-  return ctx?.dom?.clearElement || fallbackClear;
-}
-
 function getState(ctx) {
-  return ctx?.getState?.() || ctx?.store?.getState?.() || {};
+  return ctx.store.getState() || {};
 }
 
 function getViewModels(ctx) {
-  return ctx?.services?.ViewModels || ctx?.ViewModels || window.ViewModels;
+  return ctx.services.ViewModels;
 }
 
 function appendParagraph(container, text) {
@@ -60,7 +51,7 @@ function appendExampleRow(container, label, items, key) {
 }
 
 function renderDashboardTab(ctx) {
-  const clear = getClear(ctx);
+  const clear = ctx.dom.clearElement;
   const container = document.getElementById('dashboard-content');
   if (!container) return;
 

@@ -1,6 +1,3 @@
-const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
-movementEngineerGlobal.utils = movementEngineerGlobal.utils || {};
-
 export function parseCsvInput(value) {
   return (value || '')
     .split(',')
@@ -34,13 +31,3 @@ export function collectDescendants(textId, nodesById, acc = new Set()) {
   (node.childIds || []).forEach(childId => collectDescendants(childId, nodesById, acc));
   return acc;
 }
-
-movementEngineerGlobal.utils.values = Object.assign(
-  movementEngineerGlobal.utils.values || {},
-  {
-    parseCsvInput,
-    normaliseArray,
-    uniqueSorted,
-    collectDescendants
-  }
-);

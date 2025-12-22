@@ -1,11 +1,6 @@
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
 
-function clear(el) {
-  if (!el) return;
-  while (el.firstChild) el.removeChild(el.firstChild);
-}
-
 function hint(text) {
   const p = document.createElement('p');
   p.className = 'hint';
@@ -14,7 +9,8 @@ function hint(text) {
 }
 
 function renderAuthorityTab(ctx) {
-  const state = ctx?.getState?.() || {};
+  const { clearElement } = ctx.dom;
+  const state = ctx.store.getState() || {};
   const snapshot = state.snapshot || {};
   const { currentMovementId } = state;
 
@@ -22,8 +18,8 @@ function renderAuthorityTab(ctx) {
   const entWrapper = document.getElementById('authority-entities');
   if (!srcWrapper || !entWrapper) return;
 
-  clear(srcWrapper);
-  clear(entWrapper);
+  clearElement(srcWrapper);
+  clearElement(entWrapper);
 
   if (!currentMovementId) {
     const message = hint('Create or select a movement on the left to explore this section.');
@@ -32,7 +28,7 @@ function renderAuthorityTab(ctx) {
     return;
   }
 
-  const ViewModels = ctx?.services?.ViewModels || ctx?.ViewModels || window.ViewModels;
+  const ViewModels = ctx.services.ViewModels;
   if (!ViewModels || typeof ViewModels.buildAuthorityViewModel !== 'function') {
     srcWrapper.appendChild(hint('ViewModels module not loaded.'));
     return;

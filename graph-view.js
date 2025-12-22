@@ -1,13 +1,14 @@
 (function () {
   'use strict';
 
+  const globalScope = typeof globalThis !== 'undefined' ? globalThis : window;
   const DEFAULT_WIDTH = 920;
   const DEFAULT_HEIGHT = 460;
   const NODE_RADIUS = 18;
   const ARROW_ID = 'graph-shared-arrow';
 
   const colorForNodeType =
-    (typeof window !== 'undefined' && window.EntityGraphColors?.colorForNodeType) ||
+    (globalScope && globalScope.EntityGraphColors?.colorForNodeType) ||
     (() => '#1f2937');
 
   function clearElement(el) {
@@ -547,5 +548,5 @@
     }
   }
 
-  window.EntityGraphView = EntityGraphView;
+  globalScope.EntityGraphView = EntityGraphView;
 })();

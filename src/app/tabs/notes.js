@@ -42,51 +42,12 @@ function idsMatch(a, b) {
   return String(a) === String(b);
 }
 
-function fallbackClear(el) {
-  if (!el) return;
-  while (el.firstChild) el.removeChild(el.firstChild);
-}
-
-function fallbackEnsureSelectOptions(selectEl, options = [], includeEmptyLabel) {
-  if (!selectEl) return;
-  const previous = selectEl.value;
-  fallbackClear(selectEl);
-  if (includeEmptyLabel) {
-    const opt = document.createElement('option');
-    opt.value = '';
-    opt.textContent = includeEmptyLabel;
-    selectEl.appendChild(opt);
-  }
-  options.forEach(option => {
-    const opt = document.createElement('option');
-    opt.value = option.value;
-    opt.textContent = option.label;
-    selectEl.appendChild(opt);
-  });
-  if (previous && options.some(option => option.value === previous)) {
-    selectEl.value = previous;
-  }
-}
-
-function getClear(ctx) {
-  return ctx?.dom?.clearElement || fallbackClear;
-}
-
-function getEnsureSelectOptions(ctx) {
-  return ctx?.dom?.ensureSelectOptions || fallbackEnsureSelectOptions;
-}
-
 function getState(ctx) {
-  return ctx?.getState?.() || ctx?.store?.getState?.() || {};
+  return ctx.store.getState() || {};
 }
 
 function getServices(ctx) {
-  const services = ctx?.services || {};
-  return {
-    DomainService: services.DomainService || window.DomainService,
-    StorageService: services.StorageService || window.StorageService,
-    ViewModels: services.ViewModels || ctx?.ViewModels || window.ViewModels
-  };
+  return ctx.services;
 }
 
 function getViewModels(ctx) {
@@ -150,10 +111,7 @@ function buildTargetIdOptions(snapshot, movementId, targetType, domainService) {
   if (!collectionName) return [];
 
   const items = Array.isArray(snapshot?.[collectionName]) ? snapshot[collectionName] : [];
-  const scopedCollections =
-    domainService?.COLLECTIONS_WITH_MOVEMENT_ID ||
-    window.DomainService?.COLLECTIONS_WITH_MOVEMENT_ID ||
-    new Set();
+  const scopedCollections = domainService?.COLLECTIONS_WITH_MOVEMENT_ID || new Set();
 
   let filtered = items;
   if (targetType === 'Movement') {
@@ -170,13 +128,13 @@ function buildTargetIdOptions(snapshot, movementId, targetType, domainService) {
     }));
 }
 
-function populateTargetIdOptions(datalistEl, options) {
+function populateTargetIdOptions(dom, datalistEl, options) {
   if (!datalistEl) return;
-  fallbackClear(datalistEl);
+  dom.clearElement(datalistEl);
   options.forEach(opt => {
     const el = document.createElement('option');
     el.value = opt.value;
-    el.textContent = opt.label;
+    el.textContent = opt.label || opt.value;
     datalistEl.appendChild(el);
   });
 }
@@ -414,8 +372,8 @@ function handleDeleteNote(ctx, noteId) {
 }
 
 function renderNotesTab(ctx) {
-  const clear = getClear(ctx);
-  const ensureSelectOptions = getEnsureSelectOptions(ctx);
+  const dom = ctx.dom;
+  const { clearElement: clear, ensureSelectOptions } = dom;
   const state = getState(ctx);
   const snapshot = state.snapshot;
   const currentMovementId = state.currentMovementId;
@@ -438,7 +396,7 @@ function renderNotesTab(ctx) {
     setNoteFormEnabled(formDom, false, false);
     clearNoteForm(formDom);
     if (formDom.formTitle) formDom.formTitle.textContent = 'Create note';
-    if (formDom.targetIdDatalist) fallbackClear(formDom.targetIdDatalist);
+    if (formDom.targetIdDatalist) dom.clearElement(formDom.targetIdDatalist);
     clear(wrapper);
     wrapper.appendChild(
       hint('Create or select a movement on the left to explore this section.')
@@ -543,7 +501,7 @@ function renderNotesTab(ctx) {
     desiredTargetType,
     services.DomainService
   );
-  populateTargetIdOptions(formDom.targetIdDatalist, targetIdOptions);
+  populateTargetIdOptions(dom, formDom.targetIdDatalist, targetIdOptions);
 
   formDom.targetId.value =
     selectedNote?.targetId || selectedId || formDom.targetId.value || '';

@@ -1,28 +1,16 @@
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
 
-function fallbackClear(el) {
-  if (!el) return;
-  while (el.firstChild) {
-    el.removeChild(el.firstChild);
-  }
-}
-
-function getClear(ctx) {
-  return ctx?.dom?.clearElement || fallbackClear;
-}
-
 function getState(ctx) {
-  return ctx?.getState?.() || ctx?.store?.getState?.() || {};
+  return ctx.store.getState() || {};
 }
 
 function getViewModels(ctx) {
-  const services = ctx?.services || {};
-  return services.ViewModels || ctx?.ViewModels || window.ViewModels;
+  return ctx.services.ViewModels;
 }
 
 function getActions(ctx) {
-  return ctx?.actions || movementEngineerGlobal.actions || {};
+  return ctx.actions;
 }
 
 function hint(text) {
@@ -33,7 +21,7 @@ function hint(text) {
 }
 
 function renderCalendarTab(ctx) {
-  const clear = getClear(ctx);
+  const clear = ctx.dom.clearElement;
   const state = getState(ctx);
   const snapshot = state.snapshot;
   const currentMovementId = state.currentMovementId;

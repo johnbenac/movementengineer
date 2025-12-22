@@ -1613,8 +1613,11 @@ const ViewModels = {
   buildNotesViewModel
 };
 
+const globalScope =
+  typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : undefined;
+
 if (typeof module !== 'undefined') {
   module.exports = ViewModels;
-} else if (typeof window !== 'undefined') {
-  window.ViewModels = ViewModels;
+} else if (globalScope) {
+  globalScope.ViewModels = ViewModels;
 }

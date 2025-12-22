@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createDomUtils } from '../../../../src/app/ui/dom.js';
 
 function renderDom() {
   document.body.innerHTML = `
@@ -8,30 +9,11 @@ function renderDom() {
 }
 
 function createCtx(snapshot, vm, currentMovementId = 'm1', options = {}) {
-  const clearElement = el => {
-    if (!el) return;
-    while (el.firstChild) el.removeChild(el.firstChild);
+  const state = { snapshot, currentMovementId };
+  const store = {
+    getState: () => state
   };
-  const ensureSelectOptions = (el, options = [], includeEmptyLabel) => {
-    if (!el) return;
-    const prev = el.value;
-    clearElement(el);
-    if (includeEmptyLabel) {
-      const opt = document.createElement('option');
-      opt.value = '';
-      opt.textContent = includeEmptyLabel;
-      el.appendChild(opt);
-    }
-    options.forEach(optData => {
-      const opt = document.createElement('option');
-      opt.value = optData.value;
-      opt.textContent = optData.label;
-      el.appendChild(opt);
-    });
-    if (prev && options.some(o => o.value === prev)) {
-      el.value = prev;
-    }
-  };
+  const dom = createDomUtils();
   const buildPracticeDetailViewModel =
     options.vmBuilder || (() => vm);
   const subscriptions = [];
@@ -45,9 +27,10 @@ function createCtx(snapshot, vm, currentMovementId = 'm1', options = {}) {
     buildPracticeDetailViewModel: vi.fn((...args) => buildPracticeDetailViewModel(...args))
   };
   return {
-    getState: () => ({ snapshot, currentMovementId }),
+    store,
+    getState: store.getState,
     services: { ViewModels },
-    dom: { clearElement, ensureSelectOptions },
+    dom,
     actions: {
       jumpToEntity: vi.fn(),
       jumpToText: vi.fn(),

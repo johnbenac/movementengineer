@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createDomUtils } from '../../../../src/app/ui/dom.js';
 
 function renderDom() {
   document.body.innerHTML = `
@@ -11,30 +12,10 @@ function renderDom() {
 }
 
 function createCtx(snapshot, currentMovementId = 'm1') {
-  const clearElement = el => {
-    if (!el) return;
-    while (el.firstChild) el.removeChild(el.firstChild);
+  const store = {
+    getState: () => ({ snapshot, currentMovementId })
   };
-  const ensureSelectOptions = (el, options = [], includeEmptyLabel) => {
-    if (!el) return;
-    const prev = el.value;
-    clearElement(el);
-    if (includeEmptyLabel) {
-      const opt = document.createElement('option');
-      opt.value = '';
-      opt.textContent = includeEmptyLabel;
-      el.appendChild(opt);
-    }
-    options.forEach(optData => {
-      const opt = document.createElement('option');
-      opt.value = optData.value;
-      opt.textContent = optData.label;
-      el.appendChild(opt);
-    });
-    if (prev && options.some(o => o.value === prev)) {
-      el.value = prev;
-    }
-  };
+  const dom = createDomUtils();
   const ViewModels = {
     buildMediaGalleryViewModel: vi.fn(() => ({
       items: [
@@ -54,9 +35,10 @@ function createCtx(snapshot, currentMovementId = 'm1') {
     }))
   };
   return {
-    getState: () => ({ snapshot, currentMovementId }),
+    store,
+    getState: store.getState,
     services: { ViewModels },
-    dom: { clearElement, ensureSelectOptions }
+    dom
   };
 }
 

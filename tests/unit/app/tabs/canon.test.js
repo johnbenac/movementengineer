@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { addTextCollection } from '../../../../src/app/tabs/canon/actions.js';
+import { createDomUtils } from '../../../../src/app/ui/dom.js';
 
 const baseSnapshot = () => ({
   movements: [],
@@ -69,9 +70,18 @@ function createCtx({ state: stateOverrides = {}, services: servicesOverride = {}
     },
     store,
     services: {
-      DomainService: servicesOverride.DomainService,
+      DomainService:
+        servicesOverride.DomainService ||
+        (() => ({
+          addNewItem: vi.fn(),
+          upsertItem: vi.fn(),
+          deleteItem: vi.fn(),
+          COLLECTIONS_WITH_MOVEMENT_ID: new Set(),
+          COLLECTION_NAMES: []
+        }))(),
       ViewModels: servicesOverride.ViewModels
     },
+    dom: createDomUtils(),
     setStatus: vi.fn(),
     showFatalImportError: vi.fn(),
     actions: {},

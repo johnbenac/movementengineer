@@ -3,17 +3,6 @@ movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
 
 let selectedMovementIds = null;
 
-function fallbackClearElement(el) {
-  if (!el) return;
-  while (el.firstChild) {
-    el.removeChild(el.firstChild);
-  }
-}
-
-function getClearElement(ctx) {
-  return ctx?.dom?.clearElement || fallbackClearElement;
-}
-
 function getMovementIds(snapshot) {
   if (!snapshot || !Array.isArray(snapshot.movements)) return [];
   return snapshot.movements.map(movement => movement.id).filter(Boolean);
@@ -131,7 +120,7 @@ function renderComparisonTable({ wrapper, snapshot, viewModels, movementIds, cle
 }
 
 function renderComparisonTab(ctx) {
-  const clear = getClearElement(ctx);
+  const clear = ctx.dom.clearElement;
   const selector = document.getElementById('comparison-selector');
   const wrapper = document.getElementById('comparison-table-wrapper');
   if (!selector || !wrapper) return;
@@ -139,7 +128,7 @@ function renderComparisonTab(ctx) {
   clear(selector);
   clear(wrapper);
 
-  const state = ctx?.store?.getState ? ctx.store.getState() : {};
+  const state = ctx.store.getState();
   const snapshot = state?.snapshot;
   const movements = Array.isArray(snapshot?.movements) ? snapshot.movements : [];
   if (!movements.length) {
@@ -168,7 +157,7 @@ function renderComparisonTab(ctx) {
   renderComparisonTable({
     wrapper,
     snapshot,
-    viewModels: ctx?.services?.ViewModels,
+    viewModels: ctx.services.ViewModels,
     movementIds,
     clear
   });

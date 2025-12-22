@@ -4,63 +4,6 @@ movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
 let selectedClaimId = null;
 let lastMovementId = null;
 
-function fallbackClear(el) {
-  if (!el) return;
-  while (el.firstChild) el.removeChild(el.firstChild);
-}
-
-function fallbackEnsureSelectOptions(selectEl, options = [], includeEmptyLabel) {
-  if (!selectEl) return;
-  const previous = selectEl.value;
-  fallbackClear(selectEl);
-  if (includeEmptyLabel) {
-    const opt = document.createElement('option');
-    opt.value = '';
-    opt.textContent = includeEmptyLabel;
-    selectEl.appendChild(opt);
-  }
-  options.forEach(option => {
-    const opt = document.createElement('option');
-    opt.value = option.value;
-    opt.textContent = option.label;
-    selectEl.appendChild(opt);
-  });
-  if (previous && options.some(option => option.value === previous)) {
-    selectEl.value = previous;
-  }
-}
-
-function ensureMultiSelectOptions(selectEl, options = [], selectedValues = []) {
-  if (!selectEl) return;
-  const selected = new Set(selectedValues || []);
-  fallbackClear(selectEl);
-  options.forEach(option => {
-    const opt = document.createElement('option');
-    opt.value = option.value;
-    opt.textContent = option.label;
-    opt.selected = selected.has(option.value);
-    selectEl.appendChild(opt);
-  });
-}
-
-function ensureDatalistOptions(datalistEl, values = []) {
-  if (!datalistEl) return;
-  fallbackClear(datalistEl);
-  Array.from(new Set(values.filter(Boolean))).forEach(value => {
-    const opt = document.createElement('option');
-    opt.value = value;
-    datalistEl.appendChild(opt);
-  });
-}
-
-function getClear(ctx) {
-  return ctx?.dom?.clearElement || fallbackClear;
-}
-
-function getEnsureSelectOptions(ctx) {
-  return ctx?.dom?.ensureSelectOptions || fallbackEnsureSelectOptions;
-}
-
 function hint(text) {
   const p = document.createElement('p');
   p.className = 'hint';
@@ -69,15 +12,15 @@ function hint(text) {
 }
 
 function getState(ctx) {
-  return ctx?.getState?.() || ctx?.store?.getState?.() || {};
+  return ctx.store.getState() || {};
 }
 
 function getViewModels(ctx) {
-  return ctx?.services?.ViewModels || ctx?.ViewModels || window.ViewModels;
+  return ctx.services.ViewModels;
 }
 
 function getDomainService(ctx) {
-  return ctx?.services?.DomainService || ctx?.DomainService || window.DomainService;
+  return ctx.services.DomainService;
 }
 
 function parseCsvList(value) {
@@ -289,7 +232,7 @@ function setFormDisabled(form, disabled) {
   });
 }
 
-function populateClaimForm(form, lookups, claim) {
+function populateClaimForm(form, lookups, claim, dom) {
   if (!form.textInput || !form.categoryInput) return;
 
   form.idInput.value = claim?.id || '';
@@ -299,13 +242,13 @@ function populateClaimForm(form, lookups, claim) {
   form.sourcesOfTruthInput.value = joinCsvList(claim?.sourcesOfTruth);
   form.notesInput.value = claim?.notes || '';
 
-  ensureMultiSelectOptions(form.aboutEntities, lookups.entityOptions, claim?.aboutEntityIds);
-  ensureMultiSelectOptions(form.sourceEntities, lookups.entityOptions, claim?.sourceEntityIds);
-  ensureMultiSelectOptions(form.sourceTexts, lookups.textOptions, claim?.sourceTextIds);
+  dom.ensureMultiSelectOptions(form.aboutEntities, lookups.entityOptions, claim?.aboutEntityIds);
+  dom.ensureMultiSelectOptions(form.sourceEntities, lookups.entityOptions, claim?.sourceEntityIds);
+  dom.ensureMultiSelectOptions(form.sourceTexts, lookups.textOptions, claim?.sourceTextIds);
 
-  ensureDatalistOptions(form.categoryDatalist, lookups.categories);
-  ensureDatalistOptions(form.tagDatalist, lookups.tags);
-  ensureDatalistOptions(form.sourceOfTruthDatalist, lookups.sourcesOfTruth);
+  dom.ensureDatalistOptions(form.categoryDatalist, lookups.categories);
+  dom.ensureDatalistOptions(form.tagDatalist, lookups.tags);
+  dom.ensureDatalistOptions(form.sourceOfTruthDatalist, lookups.sourcesOfTruth);
 }
 
 function handleAddClaim(ctx) {
@@ -396,8 +339,8 @@ function handleSaveClaim(ctx) {
 }
 
 function renderClaimsTab(ctx) {
-  const clear = getClear(ctx);
-  const ensureSelectOptions = getEnsureSelectOptions(ctx);
+  const dom = ctx.dom;
+  const { clearElement: clear, ensureSelectOptions } = dom;
   const state = getState(ctx);
   const snapshot = state.snapshot;
   const currentMovementId = state.currentMovementId;
@@ -443,7 +386,8 @@ function renderClaimsTab(ctx) {
     populateClaimForm(
       form,
       { entityOptions: [], textOptions: [], categories: [], tags: [], sourcesOfTruth: [] },
-      null
+      null,
+      dom
     );
     return;
   }
@@ -492,7 +436,7 @@ function renderClaimsTab(ctx) {
   renderClaimsTable(wrapper, visibleClaims, clear, selectedClaimId);
 
   const selectedClaim = claimsForMovement.find(c => c.id === selectedClaimId) || null;
-  populateClaimForm(form, lookups, selectedClaim);
+  populateClaimForm(form, lookups, selectedClaim, dom);
 
   if (deleteBtn) deleteBtn.disabled = !selectedClaimId;
   if (saveBtn) saveBtn.disabled = !selectedClaimId;

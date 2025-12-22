@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createDomUtils } from '../../../../src/app/ui/dom.js';
 
 function renderDom() {
   document.body.innerHTML = `
@@ -54,17 +55,23 @@ function createViewModels() {
   };
 }
 
-function createCtx({ snapshot, DomainService, StorageService }) {
-  const state = { snapshot, currentMovementId: 'm1' };
-  return {
+function createCtx({ snapshot, DomainService, StorageService, currentMovementId = 'm1' }) {
+  const state = { snapshot, currentMovementId };
+  const store = {
     getState: () => state,
-    setState: next => Object.assign(state, next),
+    setState: next => Object.assign(state, typeof next === 'function' ? next(state) : next)
+  };
+  return {
+    store,
+    getState: store.getState,
+    setState: store.setState,
     subscribe: () => () => {},
     services: {
       DomainService,
       StorageService,
       ViewModels: createViewModels()
     },
+    dom: createDomUtils(),
     setStatus: vi.fn()
   };
 }
@@ -113,14 +120,17 @@ describe('notes tab module', () => {
 
   it('disables filters and form when no movement is selected', async () => {
     const snapshot = createSnapshot();
-    const state = { snapshot, currentMovementId: null };
-    const ctx = {
-      getState: () => state,
-      setState: next => Object.assign(state, next),
-      subscribe: () => () => {},
-      services: { ViewModels: createViewModels() },
-      setStatus: vi.fn()
-    };
+    const ctx = createCtx({
+      snapshot,
+      DomainService: (() => ({
+        COLLECTIONS_WITH_MOVEMENT_ID: new Set(),
+        addNewItem: vi.fn(),
+        upsertItem: vi.fn(),
+        deleteItem: vi.fn()
+      }))(),
+      StorageService: { saveSnapshot: vi.fn() },
+      currentMovementId: null
+    });
 
     window.MovementEngineer = { tabs: {}, bootstrapOptions: {} };
     const { registerNotesTab } = await import('../../../../src/app/tabs/notes.js');
