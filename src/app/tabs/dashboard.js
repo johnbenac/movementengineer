@@ -1,4 +1,5 @@
 import { createTab } from './_tabKit.js';
+import { HINT_TEXT, renderHint } from '../ui/hints.js';
 
 function getState(ctx) {
   return ctx.store.getState() || {};
@@ -9,9 +10,7 @@ function getViewModels(ctx) {
 }
 
 function appendParagraph(container, text) {
-  const p = document.createElement('p');
-  p.textContent = text;
-  container.appendChild(p);
+  renderHint(container, text);
 }
 
 function createStatCard(titleText) {
@@ -61,13 +60,13 @@ function renderDashboardTab(ctx) {
   const currentMovementId = state.currentMovementId;
 
   if (!currentMovementId) {
-    appendParagraph(container, 'Create a movement on the left to see a dashboard.');
+    appendParagraph(container, HINT_TEXT.MOVEMENT_REQUIRED);
     return;
   }
 
   const ViewModels = getViewModels(ctx);
   if (!ViewModels || typeof ViewModels.buildMovementDashboardViewModel !== 'function') {
-    appendParagraph(container, 'ViewModels module not loaded.');
+    appendParagraph(container, HINT_TEXT.VIEWMODELS_MISSING);
     return;
   }
 

@@ -1,11 +1,5 @@
 import { createTab } from './_tabKit.js';
-
-function hint(text) {
-  const p = document.createElement('p');
-  p.className = 'hint';
-  p.textContent = text;
-  return p;
-}
+import { guardMissingViewModels, guardNoMovement, renderHint } from '../ui/hints.js';
 
 function renderAuthorityTab(ctx) {
   const { clearElement } = ctx.dom;
@@ -20,27 +14,34 @@ function renderAuthorityTab(ctx) {
   clearElement(srcWrapper);
   clearElement(entWrapper);
 
-  if (!currentMovementId) {
-    const message = hint('Create or select a movement on the left to explore this section.');
-    srcWrapper.appendChild(message.cloneNode(true));
-    entWrapper.appendChild(message.cloneNode(true));
+  if (
+    guardNoMovement({
+      movementId: currentMovementId,
+      wrappers: [srcWrapper, entWrapper],
+      dom: ctx.dom
+    })
+  ) {
     return;
   }
 
   const ViewModels = ctx.services.ViewModels;
-  if (!ViewModels || typeof ViewModels.buildAuthorityViewModel !== 'function') {
-    srcWrapper.appendChild(hint('ViewModels module not loaded.'));
+  if (
+    guardMissingViewModels({
+      ok: ViewModels && typeof ViewModels.buildAuthorityViewModel === 'function',
+      wrappers: [srcWrapper],
+      dom: ctx.dom
+    })
+  )
     return;
-  }
 
   const vm = ViewModels.buildAuthorityViewModel(snapshot, {
     movementId: currentMovementId
   });
 
   if (!vm.sourcesByLabel || vm.sourcesByLabel.length === 0) {
-    srcWrapper.appendChild(hint('No sources of truth recorded yet.'));
+    renderHint(srcWrapper, 'No sources of truth recorded yet.');
   } else {
-    vm.sourcesByLabel.forEach(s => {
+    vm.sourcesByLabel.forEach((s) => {
       const card = document.createElement('div');
       card.className = 'card';
 
@@ -63,9 +64,9 @@ function renderAuthorityTab(ctx) {
   }
 
   if (!vm.authorityEntities || vm.authorityEntities.length === 0) {
-    entWrapper.appendChild(hint('No authority entities recorded yet.'));
+    renderHint(entWrapper, 'No authority entities recorded yet.');
   } else {
-    vm.authorityEntities.forEach(e => {
+    vm.authorityEntities.forEach((e) => {
       const card = document.createElement('div');
       card.className = 'card';
 

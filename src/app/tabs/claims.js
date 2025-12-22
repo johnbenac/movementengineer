@@ -4,12 +4,12 @@ movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
 let selectedClaimId = null;
 let lastMovementId = null;
 
-function hint(text) {
-  const p = document.createElement('p');
-  p.className = 'hint';
-  p.textContent = text;
-  return p;
-}
+import {
+  guardMissingViewModels,
+  guardNoMovement,
+  renderHint,
+  setDisabled
+} from '../ui/hints.js';
 
 function getState(ctx) {
   return ctx.store.getState() || {};
@@ -114,7 +114,7 @@ function renderClaimsTable(wrapper, claims, clear, selectedId) {
   clear(wrapper);
 
   if (!claims || claims.length === 0) {
-    wrapper.appendChild(hint('No claims match this filter.'));
+    renderHint(wrapper, 'No claims match this filter.');
     return;
   }
 
@@ -356,33 +356,27 @@ function renderClaimsTab(ctx) {
   const resetBtn = document.getElementById('claims-reset-btn');
   const form = getClaimFormElements();
   if (!wrapper || !catSelect || !entSelect || !form.textInput) return;
-
-  const disableAll = () => {
-    catSelect.disabled = true;
-    entSelect.disabled = true;
-    if (addBtn) addBtn.disabled = true;
-    if (deleteBtn) deleteBtn.disabled = true;
-    if (saveBtn) saveBtn.disabled = true;
-    if (resetBtn) resetBtn.disabled = true;
-    setFormDisabled(form, true);
-  };
-
-  const enableAll = () => {
-    catSelect.disabled = false;
-    entSelect.disabled = false;
-    if (addBtn) addBtn.disabled = false;
-    if (resetBtn) resetBtn.disabled = false;
-    setFormDisabled(form, false);
-  };
+  clear(wrapper);
+  const controls = [
+    catSelect,
+    entSelect,
+    addBtn,
+    deleteBtn,
+    saveBtn,
+    resetBtn,
+    ...Object.values(form)
+  ];
 
   if (!currentMovementId) {
     selectedClaimId = null;
     lastMovementId = null;
-    disableAll();
-    clear(wrapper);
-    wrapper.appendChild(
-      hint('Create or select a movement on the left to explore this section.')
-    );
+    guardNoMovement({
+      movementId: currentMovementId,
+      wrappers: [wrapper],
+      controls,
+      dom
+    });
+    setFormDisabled(form, true);
     ensureSelectOptions(catSelect, [], 'All');
     ensureSelectOptions(entSelect, [], 'Any');
     populateClaimForm(
@@ -399,14 +393,21 @@ function renderClaimsTab(ctx) {
     lastMovementId = currentMovementId;
   }
 
-  enableAll();
-
   const ViewModels = getViewModels(ctx);
-  if (!ViewModels || typeof ViewModels.buildClaimsExplorerViewModel !== 'function') {
-    clear(wrapper);
-    wrapper.appendChild(hint('ViewModels module not loaded.'));
+  if (
+    guardMissingViewModels({
+      ok: ViewModels && typeof ViewModels.buildClaimsExplorerViewModel === 'function',
+      wrappers: [wrapper],
+      controls,
+      dom
+    })
+  ) {
+    setFormDisabled(form, true);
     return;
   }
+
+  setDisabled(controls, false);
+  setFormDisabled(form, false);
 
   const claimsForMovement = (snapshot?.claims || []).filter(
     c => c.movementId === currentMovementId

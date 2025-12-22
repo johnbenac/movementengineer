@@ -1,12 +1,12 @@
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
 
-function hint(text) {
-  const p = document.createElement('p');
-  p.className = 'hint';
-  p.textContent = text;
-  return p;
-}
+import {
+  guardMissingViewModels,
+  guardNoMovement,
+  renderHint,
+  setDisabled
+} from '../ui/hints.js';
 
 function getState(ctx) {
   return ctx.store.getState() || {};
@@ -16,7 +16,7 @@ function renderMediaCards(wrapper, items, clear) {
   clear(wrapper);
 
   if (!items || items.length === 0) {
-    wrapper.appendChild(hint('No media match this filter.'));
+    renderHint(wrapper, 'No media match this filter.');
     return;
   }
 
@@ -138,15 +138,17 @@ function renderMediaTab(ctx) {
 
   const allFilters = [entitySelect, practiceSelect, eventSelect, textSelect];
 
-  if (!currentMovementId) {
+  if (
+    guardNoMovement({
+      movementId: currentMovementId,
+      wrappers: [wrapper],
+      controls: allFilters,
+      dom: ctx.dom
+    })
+  ) {
     allFilters.forEach(f => {
-      f.disabled = true;
       f.value = '';
     });
-    clear(wrapper);
-    wrapper.appendChild(
-      hint('Create or select a movement on the left to explore this section.')
-    );
     ensureSelectOptions(entitySelect, [], 'Any');
     ensureSelectOptions(practiceSelect, [], 'Any');
     ensureSelectOptions(eventSelect, [], 'Any');
@@ -154,16 +156,18 @@ function renderMediaTab(ctx) {
     return;
   }
 
-  allFilters.forEach(f => {
-    f.disabled = false;
-  });
+  setDisabled(allFilters, false);
 
   const ViewModels = ctx.services.ViewModels;
-  if (!ViewModels || typeof ViewModels.buildMediaGalleryViewModel !== 'function') {
-    clear(wrapper);
-    wrapper.appendChild(hint('ViewModels module not loaded.'));
+  if (
+    guardMissingViewModels({
+      ok: ViewModels && typeof ViewModels.buildMediaGalleryViewModel === 'function',
+      wrappers: [wrapper],
+      controls: allFilters,
+      dom: ctx.dom
+    })
+  )
     return;
-  }
 
   const entities = (snapshot?.entities || []).filter(e => e.movementId === currentMovementId);
   const practices = (snapshot?.practices || []).filter(p => p.movementId === currentMovementId);
