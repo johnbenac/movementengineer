@@ -310,6 +310,50 @@ describe('rules tab module', () => {
     expect(document.getElementById('rules-editor-select').value).toBe('r2');
   });
 
+  it('re-renders with the tab instance as this when handling rule actions', async () => {
+    renderDom();
+    const snapshot = {
+      rules: [{ id: 'r1', movementId: 'm1', shortText: 'Existing', kind: 'must_do' }]
+    };
+    const DomainService = {
+      addNewItem: vi.fn((snap, _collection, movementId) => {
+        const created = { id: 'r2', movementId, shortText: 'New rule', kind: 'must_do' };
+        snap.rules.push(created);
+        return created;
+      }),
+      upsertItem: vi.fn((snap, _collection, item) => {
+        const idx = snap.rules.findIndex(r => r.id === item.id);
+        if (idx >= 0) snap.rules[idx] = item;
+        else snap.rules.push(item);
+        return item;
+      }),
+      deleteItem: vi.fn((snap, _collection, id) => {
+        snap.rules = (snap.rules || []).filter(r => r.id !== id);
+      })
+    };
+    const ctx = createCtx(snapshot, 'm1', { DomainService });
+    const { registerRulesTab } = await import('../../../../src/app/tabs/rules.js');
+    const tab = registerRulesTab(ctx);
+
+    tab.mount(ctx);
+    const originalRender = tab.render;
+    tab.render = vi.fn(function (...args) {
+      return originalRender.apply(this, args);
+    });
+
+    tab.render(ctx);
+    tab.render.mockClear();
+
+    document.getElementById('rules-add-btn').dispatchEvent(new Event('click', { bubbles: true }));
+    document.getElementById('rules-save-btn').dispatchEvent(new Event('click', { bubbles: true }));
+    document.getElementById('rules-delete-btn').dispatchEvent(new Event('click', { bubbles: true }));
+
+    expect(tab.render).toHaveBeenCalled();
+    tab.render.mock.instances.forEach(instance => {
+      expect(instance).toBe(tab);
+    });
+  });
+
   it('keeps current rule selection when clicking a link inside a row', async () => {
     renderDom();
     const snapshot = {
