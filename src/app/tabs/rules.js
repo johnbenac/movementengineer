@@ -5,6 +5,8 @@ import {
   renderHint,
   setDisabled
 } from '../ui/hints.js';
+import { renderTable, createTextList } from '../ui/table.js';
+import { createChipRow } from '../ui/chips.js';
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
@@ -52,131 +54,12 @@ function getSelectedValues(selectEl) {
     .filter(Boolean);
 }
 
-function isInteractiveTarget(target) {
-  if (!target || typeof target.closest !== 'function') return false;
-  return Boolean(
-    target.closest(
-      'a[href], button, input, select, textarea, option, label, [role="button"], [data-row-select="ignore"]'
-    )
-  );
-}
-
 function setSelectedValues(selectEl, values = []) {
   if (!selectEl) return;
   const set = new Set(values);
   Array.from(selectEl.options || []).forEach(opt => {
     opt.selected = set.has(opt.value);
   });
-}
-
-function renderRulesTable(wrapper, rules, clear, selectedRuleId, onSelect) {
-  clear(wrapper);
-
-  if (!rules || rules.length === 0) {
-    renderHint(wrapper, 'No rules match this filter.');
-    return;
-  }
-
-  const table = document.createElement('table');
-  const headerRow = document.createElement('tr');
-  [
-    'Kind',
-    'Short text',
-    'Domain',
-    'Applies to',
-    'Tags',
-    'Supporting texts',
-    'Supporting claims',
-    'Related practices',
-    'Sources of truth'
-  ].forEach(h => {
-    const th = document.createElement('th');
-    th.textContent = h;
-    headerRow.appendChild(th);
-  });
-  table.appendChild(headerRow);
-
-  rules.forEach(r => {
-    const tr = document.createElement('tr');
-    tr.classList.add('clickable-row');
-    if (selectedRuleId && r.id === selectedRuleId) {
-      tr.classList.add('selected');
-    }
-    tr.addEventListener('click', event => {
-      if (isInteractiveTarget(event.target)) return;
-      if (typeof onSelect === 'function') onSelect(r.id);
-      Array.from(table.querySelectorAll('tr')).forEach(row => row.classList.remove('selected'));
-      tr.classList.add('selected');
-    });
-
-    const tdKind = document.createElement('td');
-    tdKind.textContent = r.kind || '';
-    tr.appendChild(tdKind);
-
-    const tdShort = document.createElement('td');
-    tdShort.textContent = r.shortText;
-    tr.appendChild(tdShort);
-
-    const tdDomain = document.createElement('td');
-    tdDomain.textContent = (r.domain || []).join(', ');
-    tr.appendChild(tdDomain);
-
-    const tdApplies = document.createElement('td');
-    tdApplies.textContent = (r.appliesTo || []).join(', ');
-    tr.appendChild(tdApplies);
-
-    const tdTags = document.createElement('td');
-    tdTags.textContent = (r.tags || []).join(', ');
-    tr.appendChild(tdTags);
-
-    const tdTexts = document.createElement('td');
-    if (r.supportingTexts && r.supportingTexts.length) {
-      const row = document.createElement('div');
-      row.className = 'chip-row';
-      r.supportingTexts.forEach(t => {
-        const chip = document.createElement('span');
-        chip.className = 'chip';
-        chip.textContent = t.title || t.id;
-        row.appendChild(chip);
-      });
-      tdTexts.appendChild(row);
-    }
-    tr.appendChild(tdTexts);
-
-    const tdClaims = document.createElement('td');
-    if (r.supportingClaims && r.supportingClaims.length) {
-      const ul = document.createElement('ul');
-      r.supportingClaims.forEach(c => {
-        const li = document.createElement('li');
-        li.textContent = (c.category ? '[' + c.category + '] ' : '') + c.text;
-        ul.appendChild(li);
-      });
-      tdClaims.appendChild(ul);
-    }
-    tr.appendChild(tdClaims);
-
-    const tdPractices = document.createElement('td');
-    if (r.relatedPractices && r.relatedPractices.length) {
-      const row = document.createElement('div');
-      row.className = 'chip-row';
-      r.relatedPractices.forEach(p => {
-        const chip = document.createElement('span');
-        chip.className = 'chip';
-        chip.textContent = p.name || p.id;
-        row.appendChild(chip);
-      });
-      tdPractices.appendChild(row);
-    }
-    tr.appendChild(tdPractices);
-
-    const tdSources = document.createElement('td');
-    tdSources.textContent = (r.sourcesOfTruth || []).join(', ');
-    tr.appendChild(tdSources);
-
-    table.appendChild(tr);
-  });
-
-  wrapper.appendChild(table);
 }
 
 function getRuleEditorEls() {
@@ -552,9 +435,48 @@ function renderRulesTab(ctx) {
 
   renderRuleEditor(ctx, tabState, editorHelpers, editorVm);
 
-  renderRulesTable(wrapper, explorerVm?.rules || [], clear, tabState.selectedRuleId, ruleId => {
-    tabState.selectedRuleId = ruleId;
-    renderRuleEditor(ctx, tabState, editorHelpers, editorVm);
+  renderTable(wrapper, {
+    clear,
+    rows: explorerVm?.rules || [],
+    getRowId: r => r.id,
+    selectedId: tabState.selectedRuleId,
+    renderEmpty: w => renderHint(w, 'No rules match this filter.'),
+    onRowSelect: id => {
+      tabState.selectedRuleId = id;
+      // Update editor without full rerender (same behavior as before)
+      renderRuleEditor(ctx, tabState, editorHelpers, editorVm);
+    },
+    columns: [
+      { header: 'Kind', render: r => r.kind || '' },
+      { header: 'Short text', render: r => r.shortText || '' },
+      { header: 'Domain', render: r => (r.domain || []).join(', ') },
+      { header: 'Applies to', render: r => (r.appliesTo || []).join(', ') },
+      { header: 'Tags', render: r => (r.tags || []).join(', ') },
+      {
+        header: 'Supporting texts',
+        render: r =>
+          r.supportingTexts?.length
+            ? createChipRow(r.supportingTexts, { getLabel: t => t.title || t.id })
+            : ''
+      },
+      {
+        header: 'Supporting claims',
+        render: r =>
+          r.supportingClaims?.length
+            ? createTextList(r.supportingClaims, c =>
+                (c.category ? `[${c.category}] ` : '') + c.text
+              )
+            : ''
+      },
+      {
+        header: 'Related practices',
+        render: r =>
+          r.relatedPractices?.length
+            ? createChipRow(r.relatedPractices, { getLabel: p => p.name || p.id })
+            : ''
+      },
+      { header: 'Sources of truth', render: r => (r.sourcesOfTruth || []).join(', ') }
+    ]
   });
 }
 

@@ -1,4 +1,5 @@
 import { renderMarkdownPreview } from '../ui/markdown.js';
+import { createChip, createChipRow } from '../ui/chips.js';
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
@@ -510,49 +511,33 @@ function renderPreviewValue(ctx, container, snapshot, value, type, refCollection
     case 'chips': {
       const arr = Array.isArray(value) ? value.filter(Boolean) : [];
       if (!arr.length) return placeholder();
-      const row = document.createElement('div');
-      row.className = 'chip-row';
-      arr.forEach(v => {
-        const chip = document.createElement('span');
-        chip.className = 'chip';
-        chip.textContent = v;
-        row.appendChild(chip);
-      });
-      container.appendChild(row);
+      container.appendChild(createChipRow(arr));
       return;
     }
     case 'id': {
       if (!value) return placeholder();
-      const chip = document.createElement('span');
-      chip.className = 'chip clickable';
-      chip.textContent = mapIdToLabel(snapshot, refCollection, value);
-      chip.title = 'Open ' + value;
-      if (refCollection) {
-        chip.addEventListener('click', () =>
-          actions.jumpToReferencedItem?.(refCollection, value)
-        );
-      }
+      const chip = createChip(value, {
+        className: 'clickable',
+        label: mapIdToLabel(snapshot, refCollection, value),
+        onClick: () => {
+          if (refCollection) actions.jumpToReferencedItem?.(refCollection, value);
+        }
+      });
       container.appendChild(chip);
       return;
     }
     case 'idList': {
       const ids = Array.isArray(value) ? value.filter(Boolean) : [];
       if (!ids.length) return placeholder();
-      const row = document.createElement('div');
-      row.className = 'chip-row';
-      ids.forEach(id => {
-        const chip = document.createElement('span');
-        chip.className = 'chip clickable';
-        chip.textContent = mapIdToLabel(snapshot, refCollection, id);
-        chip.title = 'Open ' + id;
-        if (refCollection) {
-          chip.addEventListener('click', () =>
-            actions.jumpToReferencedItem?.(refCollection, id)
-          );
-        }
-        row.appendChild(chip);
-      });
-      container.appendChild(row);
+      container.appendChild(
+        createChipRow(ids, {
+          className: '',
+          getLabel: id => mapIdToLabel(snapshot, refCollection, id),
+          onClick: id => {
+            if (refCollection) actions.jumpToReferencedItem?.(refCollection, id);
+          }
+        })
+      );
       return;
     }
     case 'paragraph': {
