@@ -2,7 +2,7 @@ import { execSync } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { runNoLegacyScriptCheck } from './check-no-appjs.mjs';
+import { runNoLegacyScriptCheck } from './check-no-legacy.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIST_DIR = path.join(ROOT, 'dist');
