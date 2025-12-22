@@ -73,7 +73,7 @@ async function setup(options = {}) {
   vi.resetModules();
   renderDom();
   window.MovementEngineer = { tabs: {}, bootstrapOptions: {} };
-  const { registerNotesTab } = await import('./notes.js');
+  const { registerNotesTab } = await import('../../../../src/app/tabs/notes.js');
   const snapshot = options.snapshot || createSnapshot();
   const DomainService =
     options.DomainService ||
@@ -123,7 +123,7 @@ describe('notes tab module', () => {
     };
 
     window.MovementEngineer = { tabs: {}, bootstrapOptions: {} };
-    const { registerNotesTab } = await import('./notes.js');
+    const { registerNotesTab } = await import('../../../../src/app/tabs/notes.js');
     renderDom();
     const tab = registerNotesTab(ctx);
 

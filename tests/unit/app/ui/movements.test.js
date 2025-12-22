@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { initMovements } from './movements.js';
+import { initMovements } from '../../../../src/app/ui/movements.js';
 
 function renderDom() {
   document.body.innerHTML = `
