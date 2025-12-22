@@ -15,7 +15,7 @@ function getState(ctx) {
 }
 
 function getViewModels(ctx) {
-  return ctx?.services?.ViewModels || ctx?.ViewModels || window.ViewModels;
+  return ctx.services.ViewModels;
 }
 
 function appendParagraph(container, text) {

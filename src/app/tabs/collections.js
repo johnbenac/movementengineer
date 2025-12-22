@@ -112,7 +112,7 @@ function getState(ctx) {
 }
 
 function getDomainService(ctx) {
-  return ctx?.services?.DomainService || ctx?.DomainService || window.DomainService;
+  return ctx.services.DomainService;
 }
 
 function getStorageService(ctx) {

@@ -1,7 +1,7 @@
 import { normaliseArray } from '../../utils/values.js';
 
 function getState(ctx) {
-  return ctx?.getState?.() || ctx?.store?.getState?.() || {};
+  return ctx.store.getState();
 }
 
 function applyState(ctx, updater) {
@@ -19,12 +19,8 @@ function applyState(ctx, updater) {
   return null;
 }
 
-function getDomainService(ctx) {
-  return ctx?.services?.DomainService || ctx?.DomainService || window.DomainService;
-}
-
 function getStore(ctx) {
-  return ctx?.store || null;
+  return ctx.store || null;
 }
 
 export function persistCanonItem(ctx, { show = false } = {}) {
@@ -48,7 +44,7 @@ export function addTextCollection(ctx) {
     return null;
   }
 
-  const DomainService = getDomainService(ctx);
+  const DomainService = ctx.services.DomainService;
   if (!DomainService?.addNewItem) return null;
 
   try {
@@ -76,7 +72,7 @@ export function saveTextCollection(ctx) {
   const shelfId = state.currentShelfId;
   if (!shelfId) return null;
 
-  const DomainService = getDomainService(ctx);
+  const DomainService = ctx.services.DomainService;
   if (!DomainService?.upsertItem) return null;
 
   const shelf = (snapshot.textCollections || []).find(tc => tc.id === shelfId);
@@ -114,7 +110,7 @@ export function deleteTextCollection(ctx, shelfId = null) {
     );
   if (!ok) return false;
 
-  const DomainService = getDomainService(ctx);
+  const DomainService = ctx.services.DomainService;
   if (!DomainService?.deleteItem) return false;
 
   DomainService.deleteItem(snapshot, 'textCollections', targetId);
@@ -145,7 +141,7 @@ export function addNewBookToShelf(ctx) {
     return null;
   }
 
-  const DomainService = getDomainService(ctx);
+  const DomainService = ctx.services.DomainService;
   if (!DomainService?.addNewItem) return null;
 
   const shelf = (snapshot.textCollections || []).find(tc => tc.id === currentShelfId);
@@ -175,7 +171,7 @@ export function addExistingBookToShelf(ctx) {
   const currentShelfId = state.currentShelfId;
   if (!currentMovementId || !currentShelfId) return null;
 
-  const DomainService = getDomainService(ctx);
+  const DomainService = ctx.services.DomainService;
   if (!DomainService?.upsertItem) return null;
 
   const shelf = (snapshot.textCollections || []).find(tc => tc.id === currentShelfId);

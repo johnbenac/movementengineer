@@ -18,11 +18,11 @@ function getState(ctx) {
 
 function getViewModels(ctx) {
   const services = ctx?.services || {};
-  return services.ViewModels || ctx?.ViewModels || window.ViewModels;
+  return services.ViewModels;
 }
 
 function getActions(ctx) {
-  return ctx?.actions || movementEngineerGlobal.actions || {};
+  return ctx.actions;
 }
 
 function hint(text) {

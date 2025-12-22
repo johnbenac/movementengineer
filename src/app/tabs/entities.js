@@ -40,15 +40,15 @@ function getState(ctx) {
 }
 
 function getViewModels(ctx) {
-  return ctx?.services?.ViewModels || ctx?.ViewModels || window.ViewModels;
+  return ctx.services.ViewModels;
 }
 
 function getEntityGraphView(ctx) {
-  return ctx?.services?.EntityGraphView || window.EntityGraphView;
+  return ctx.services.EntityGraphView;
 }
 
 function getActions(ctx) {
-  return ctx?.actions || movementEngineerGlobal.actions || {};
+  return ctx.actions;
 }
 
 function hint(text) {

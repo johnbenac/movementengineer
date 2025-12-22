@@ -363,7 +363,7 @@ export function initMovements(ctx, options = {}) {
   }
 
   function addMovement(overrides = {}) {
-    const DomainService = ctx?.services?.DomainService || window.DomainService;
+    const DomainService = ctx.services.DomainService;
     const state = getState();
     const snapshot = state?.snapshot || {};
     const movements = Array.isArray(snapshot.movements) ? snapshot.movements : [];
@@ -411,7 +411,7 @@ export function initMovements(ctx, options = {}) {
 
   function deleteMovement(movementId) {
     if (!movementId) return;
-    const DomainService = ctx?.services?.DomainService || window.DomainService;
+    const DomainService = ctx.services.DomainService;
     const state = getState();
     const snapshot = state?.snapshot || {};
     const movements = Array.isArray(snapshot.movements) ? snapshot.movements : [];

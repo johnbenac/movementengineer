@@ -1,73 +1,6 @@
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
 
-function fallbackClear(el) {
-  if (!el) return;
-  while (el.firstChild) el.removeChild(el.firstChild);
-}
-
-function fallbackEnsureSelectOptions(selectEl, options = [], includeEmptyLabel) {
-  if (!selectEl) return;
-  const previous = selectEl.value;
-  fallbackClear(selectEl);
-  if (includeEmptyLabel) {
-    const opt = document.createElement('option');
-    opt.value = '';
-    opt.textContent = includeEmptyLabel;
-    selectEl.appendChild(opt);
-  }
-  options.forEach(option => {
-    const opt = document.createElement('option');
-    opt.value = option.value;
-    opt.textContent = option.label;
-    selectEl.appendChild(opt);
-  });
-  if (previous && options.some(option => option.value === previous)) {
-    selectEl.value = previous;
-  }
-}
-
-function fallbackEnsureMultiSelectOptions(selectEl, options = []) {
-  if (!selectEl) return;
-  const prev = new Set(Array.from(selectEl.selectedOptions || []).map(opt => opt.value));
-  fallbackClear(selectEl);
-  options.forEach(option => {
-    const opt = document.createElement('option');
-    opt.value = option.value;
-    opt.textContent = option.label || option.value;
-    if (option.kind) opt.dataset.kind = option.kind;
-    if (option.depth !== undefined && option.depth !== null) {
-      opt.dataset.depth = option.depth;
-    }
-    selectEl.appendChild(opt);
-  });
-  Array.from(selectEl.options || []).forEach(opt => {
-    opt.selected = prev.has(opt.value);
-  });
-}
-
-function renderDatalistOptions(datalistEl, values = []) {
-  if (!datalistEl) return;
-  fallbackClear(datalistEl);
-  values.forEach(val => {
-    const opt = document.createElement('option');
-    opt.value = val;
-    datalistEl.appendChild(opt);
-  });
-}
-
-function getClear(ctx) {
-  return ctx?.dom?.clearElement || fallbackClear;
-}
-
-function getEnsureSelectOptions(ctx) {
-  return ctx?.dom?.ensureSelectOptions || fallbackEnsureSelectOptions;
-}
-
-function getEnsureMultiSelectOptions(ctx) {
-  return ctx?.dom?.ensureMultiSelectOptions || fallbackEnsureMultiSelectOptions;
-}
-
 function hint(text) {
   const p = document.createElement('p');
   p.className = 'hint';
@@ -76,19 +9,7 @@ function hint(text) {
 }
 
 function getState(ctx) {
-  return ctx?.getState?.() || ctx?.store?.getState?.() || {};
-}
-
-function getViewModels(ctx) {
-  return ctx?.services?.ViewModels || ctx?.ViewModels || window.ViewModels;
-}
-
-function getDomainService(ctx) {
-  return ctx?.services?.DomainService || ctx?.DomainService || window.DomainService;
-}
-
-function getStorageService(ctx) {
-  return ctx?.services?.StorageService || ctx?.StorageService || window.StorageService;
+  return ctx.store.getState();
 }
 
 function cloneSnapshot(snapshot, storageService) {
@@ -331,7 +252,7 @@ function renderRuleEditor(ctx, tabState, helpers, editorVm, statusMessage = null
     }
   };
 
-  const { ensureSelectOptions, ensureMultiSelectOptions } = helpers;
+  const { ensureSelectOptions, ensureMultiSelectOptions, ensureDatalistOptions } = helpers;
   const ruleOptions =
     editorVm?.rules?.map(rule => ({
       value: rule.id,
@@ -376,10 +297,10 @@ function renderRuleEditor(ctx, tabState, helpers, editorVm, statusMessage = null
     }))
   );
 
-  renderDatalistOptions(els.datalists.appliesTo, options.appliesToValues || []);
-  renderDatalistOptions(els.datalists.domain, options.domainValues || []);
-  renderDatalistOptions(els.datalists.tags, options.tagValues || []);
-  renderDatalistOptions(els.datalists.sources, options.sourcesOfTruth || []);
+  ensureDatalistOptions(els.datalists.appliesTo, options.appliesToValues || []);
+  ensureDatalistOptions(els.datalists.domain, options.domainValues || []);
+  ensureDatalistOptions(els.datalists.tags, options.tagValues || []);
+  ensureDatalistOptions(els.datalists.sources, options.sourcesOfTruth || []);
 
   const availableRuleIds = ruleOptions.map(opt => opt.value);
   if (!tabState.selectedRuleId || !availableRuleIds.includes(tabState.selectedRuleId)) {
@@ -432,8 +353,8 @@ function handleAddRule(ctx, tab) {
   const state = getState(ctx);
   const movementId = state.currentMovementId;
   if (!movementId) return;
-  const DomainService = getDomainService(ctx);
-  const StorageService = getStorageService(ctx);
+  const DomainService = ctx.services.DomainService;
+  const StorageService = ctx.services.StorageService;
   const snapshot = cloneSnapshot(state.snapshot, StorageService);
   let created =
     DomainService && typeof DomainService.addNewItem === 'function'
@@ -460,8 +381,8 @@ function handleSaveRule(ctx, tab) {
   const state = getState(ctx);
   const selectedRuleId = tab?.__state?.selectedRuleId;
   if (!selectedRuleId) return;
-  const DomainService = getDomainService(ctx);
-  const StorageService = getStorageService(ctx);
+  const DomainService = ctx.services.DomainService;
+  const StorageService = ctx.services.StorageService;
   const snapshot = cloneSnapshot(state.snapshot, StorageService);
   snapshot.rules = snapshot.rules || [];
 
@@ -517,8 +438,8 @@ function handleDeleteRule(ctx, tab) {
   const selectedRuleId = tab?.__state?.selectedRuleId;
   if (!selectedRuleId) return;
 
-  const DomainService = getDomainService(ctx);
-  const StorageService = getStorageService(ctx);
+  const DomainService = ctx.services.DomainService;
+  const StorageService = ctx.services.StorageService;
   const snapshot = cloneSnapshot(state.snapshot, StorageService);
   snapshot.rules = snapshot.rules || [];
 
@@ -540,9 +461,10 @@ function handleDeleteRule(ctx, tab) {
 function renderRulesTab(ctx) {
   const tab = this;
   const tabState = tab?.__state || {};
-  const clear = getClear(ctx);
-  const ensureSelectOptions = getEnsureSelectOptions(ctx);
-  const ensureMultiSelectOptions = getEnsureMultiSelectOptions(ctx);
+  const clear = ctx.dom.clearElement;
+  const ensureSelectOptions = ctx.dom.ensureSelectOptions;
+  const ensureMultiSelectOptions = ctx.dom.ensureMultiSelectOptions;
+  const ensureDatalistOptions = ctx.dom.ensureDatalistOptions;
   const state = getState(ctx);
   const snapshot = state.snapshot;
   const currentMovementId = state.currentMovementId;
@@ -552,7 +474,7 @@ function renderRulesTab(ctx) {
   const domainInput = document.getElementById('rules-domain-filter');
   if (!wrapper || !kindSelect || !domainInput) return;
 
-  const editorHelpers = { ensureSelectOptions, ensureMultiSelectOptions };
+  const editorHelpers = { ensureSelectOptions, ensureMultiSelectOptions, ensureDatalistOptions };
 
   if (!currentMovementId) {
     kindSelect.disabled = true;
@@ -570,7 +492,7 @@ function renderRulesTab(ctx) {
   kindSelect.disabled = false;
   domainInput.disabled = false;
 
-  const ViewModels = getViewModels(ctx);
+  const ViewModels = ctx.services.ViewModels;
   if (!ViewModels || typeof ViewModels.buildRuleExplorerViewModel !== 'function') {
     clear(wrapper);
     wrapper.appendChild(hint('ViewModels module not loaded.'));

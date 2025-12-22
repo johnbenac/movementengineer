@@ -2,22 +2,6 @@ import { collectDescendants, normaliseArray, parseCsvInput } from '../../utils/v
 import { renderMarkdownPreview, openMarkdownModal } from '../../ui/markdown.js';
 import { deleteTextCollection, persistCanonItem } from './actions.js';
 
-const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
-movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
-
-function fallbackClear(el) {
-  if (!el) return;
-  while (el.firstChild) el.removeChild(el.firstChild);
-}
-
-function getClear(ctx) {
-  return ctx?.dom?.clearElement || fallbackClear;
-}
-
-function getState(ctx) {
-  return ctx?.getState?.() || ctx?.store?.getState?.() || {};
-}
-
 function applyState(ctx, updater) {
   if (typeof ctx?.update === 'function') {
     return ctx.update(prev => {
@@ -33,21 +17,9 @@ function applyState(ctx, updater) {
   return null;
 }
 
-function getDomainService(ctx) {
-  return ctx?.services?.DomainService || ctx?.DomainService || window.DomainService;
-}
-
-function getViewModels(ctx) {
-  return ctx?.services?.ViewModels || ctx?.ViewModels || window.ViewModels;
-}
-
-function getActions(ctx) {
-  return ctx?.actions || movementEngineerGlobal.actions || {};
-}
-
 function setStatus(ctx, text) {
+  if (typeof ctx?.ui?.setStatus === 'function') return ctx.ui.setStatus(text);
   if (typeof ctx?.setStatus === 'function') return ctx.setStatus(text);
-  if (typeof ctx?.store?.setStatus === 'function') return ctx.store.setStatus(text);
   return null;
 }
 
@@ -74,8 +46,8 @@ function renderEmptyHint(text) {
 }
 
 export function renderLibraryView(ctx) {
-  const clear = getClear(ctx);
-  const state = getState(ctx);
+  const clear = ctx.dom.clearElement;
+  const state = ctx.store.getState();
   const snapshot = state.snapshot || {};
   const selection = {
     currentMovementId: state.currentMovementId || null,
@@ -113,7 +85,7 @@ export function renderLibraryView(ctx) {
     return;
   }
 
-  const ViewModels = getViewModels(ctx);
+  const ViewModels = ctx.services.ViewModels;
   if (!ViewModels || typeof ViewModels.buildLibraryEditorViewModel !== 'function') {
     shelfList.appendChild(renderEmptyHint('ViewModels module not loaded.'));
     bookList.appendChild(renderEmptyHint('ViewModels module not loaded.'));
@@ -187,7 +159,7 @@ function renderLibrarySearchResults(ctx, vm, selection) {
   if (!resultsEl || !searchInput) return;
 
   const query = (searchInput.value || '').trim();
-  const clear = getClear(ctx);
+  const clear = ctx.dom.clearElement;
   clear(resultsEl);
   resultsEl.classList.remove('visible');
 
@@ -246,7 +218,7 @@ function renderLibrarySearchResults(ctx, vm, selection) {
 }
 
 function renderShelfPane(ctx, vm, selection) {
-  const clear = getClear(ctx);
+  const clear = ctx.dom.clearElement;
   const shelfList = document.getElementById('shelf-list');
   const unshelvedList = document.getElementById('unshelved-list');
   const shelfHint = document.getElementById('shelf-hint');
@@ -311,7 +283,7 @@ function renderShelfPane(ctx, vm, selection) {
 }
 
 function renderBooksPane(ctx, vm, selection) {
-  const clear = getClear(ctx);
+  const clear = ctx.dom.clearElement;
   const bookList = document.getElementById('book-list');
   const titleEl = document.getElementById('books-pane-title');
   const hintEl = document.getElementById('books-pane-hint');
@@ -385,7 +357,7 @@ function renderBooksPane(ctx, vm, selection) {
 }
 
 function renderTocPane(ctx, vm, selection) {
-  const clear = getClear(ctx);
+  const clear = ctx.dom.clearElement;
   const tocTree = document.getElementById('toc-tree');
   clear(tocTree);
   const rootId = vm.tocRootId;
@@ -451,7 +423,7 @@ function scrollTocNodeIntoView(nodeId) {
 }
 
 function renderNodeEditor(ctx, vm, selection) {
-  const clear = getClear(ctx);
+  const clear = ctx.dom.clearElement;
   const shelfEditor = document.getElementById('shelf-editor');
   const textEditor = document.getElementById('text-editor');
   const breadcrumb = document.getElementById('library-breadcrumb');
@@ -459,12 +431,12 @@ function renderNodeEditor(ctx, vm, selection) {
   clear(textEditor);
   if (breadcrumb) clear(breadcrumb);
 
-  const state = getState(ctx);
+  const state = ctx.store.getState();
   const snapshot = state.snapshot || {};
   const currentMovementId = state.currentMovementId || selection.currentMovementId;
-  const actions = getActions(ctx);
-  const DomainService = getDomainService(ctx);
-  const ViewModels = getViewModels(ctx);
+  const actions = ctx.actions;
+  const DomainService = ctx.services.DomainService;
+  const ViewModels = ctx.services.ViewModels;
   const activeShelf = selection.currentShelfId ? vm.shelvesById[selection.currentShelfId] : null;
   const activeNode = selection.currentTextId ? vm.nodesById[selection.currentTextId] : null;
 
@@ -761,9 +733,9 @@ function renderNodeEditor(ctx, vm, selection) {
 }
 
 function toggleBookMembership(ctx, shelfId, bookId, shouldExist) {
-  const state = getState(ctx);
+  const state = ctx.store.getState();
   const snapshot = state.snapshot || {};
-  const DomainService = getDomainService(ctx);
+  const DomainService = ctx.services.DomainService;
   const shelf = (snapshot.textCollections || []).find(tc => tc.id === shelfId);
   if (!shelf) return;
   const roots = new Set(normaliseArray(shelf.rootTextIds));
@@ -783,9 +755,9 @@ function toggleBookMembership(ctx, shelfId, bookId, shouldExist) {
 }
 
 function removeBookFromShelf(ctx, shelfId, bookId) {
-  const state = getState(ctx);
+  const state = ctx.store.getState();
   const snapshot = state.snapshot || {};
-  const DomainService = getDomainService(ctx);
+  const DomainService = ctx.services.DomainService;
   const shelf = (snapshot.textCollections || []).find(tc => tc.id === shelfId);
   if (!shelf) return;
   shelf.rootTextIds = normaliseArray(shelf.rootTextIds).filter(id => id !== bookId);
@@ -805,10 +777,10 @@ function removeBookFromShelf(ctx, shelfId, bookId) {
 }
 
 function deleteBookAndDescendants(ctx, bookId) {
-  const state = getState(ctx);
+  const state = ctx.store.getState();
   const snapshot = state.snapshot || {};
-  const ViewModels = getViewModels(ctx);
-  const DomainService = getDomainService(ctx);
+  const ViewModels = ctx.services.ViewModels;
+  const DomainService = ctx.services.DomainService;
   if (!ViewModels?.buildLibraryEditorViewModel || !DomainService?.deleteItem) return;
   const vm = ViewModels.buildLibraryEditorViewModel(snapshot, {
     movementId: state.currentMovementId

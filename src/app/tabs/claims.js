@@ -73,11 +73,11 @@ function getState(ctx) {
 }
 
 function getViewModels(ctx) {
-  return ctx?.services?.ViewModels || ctx?.ViewModels || window.ViewModels;
+  return ctx.services.ViewModels;
 }
 
 function getDomainService(ctx) {
-  return ctx?.services?.DomainService || ctx?.DomainService || window.DomainService;
+  return ctx.services.DomainService;
 }
 
 function parseCsvList(value) {

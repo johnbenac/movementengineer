@@ -32,7 +32,7 @@ function renderAuthorityTab(ctx) {
     return;
   }
 
-  const ViewModels = ctx?.services?.ViewModels || ctx?.ViewModels || window.ViewModels;
+  const ViewModels = ctx.services.ViewModels;
   if (!ViewModels || typeof ViewModels.buildAuthorityViewModel !== 'function') {
     srcWrapper.appendChild(hint('ViewModels module not loaded.'));
     return;

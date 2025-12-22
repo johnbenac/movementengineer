@@ -69,24 +69,19 @@ function fallbackEnsureSelectOptions(selectEl, options = [], includeEmptyLabel) 
 }
 
 function getClear(ctx) {
-  return ctx?.dom?.clearElement || fallbackClear;
+  return ctx.dom.clearElement;
 }
 
 function getEnsureSelectOptions(ctx) {
-  return ctx?.dom?.ensureSelectOptions || fallbackEnsureSelectOptions;
+  return ctx.dom.ensureSelectOptions;
 }
 
 function getState(ctx) {
-  return ctx?.getState?.() || ctx?.store?.getState?.() || {};
+  return ctx.store.getState();
 }
 
 function getServices(ctx) {
-  const services = ctx?.services || {};
-  return {
-    DomainService: services.DomainService || window.DomainService,
-    StorageService: services.StorageService || window.StorageService,
-    ViewModels: services.ViewModels || ctx?.ViewModels || window.ViewModels
-  };
+  return ctx.services;
 }
 
 function getViewModels(ctx) {
@@ -151,9 +146,7 @@ function buildTargetIdOptions(snapshot, movementId, targetType, domainService) {
 
   const items = Array.isArray(snapshot?.[collectionName]) ? snapshot[collectionName] : [];
   const scopedCollections =
-    domainService?.COLLECTIONS_WITH_MOVEMENT_ID ||
-    window.DomainService?.COLLECTIONS_WITH_MOVEMENT_ID ||
-    new Set();
+    domainService?.COLLECTIONS_WITH_MOVEMENT_ID || new Set();
 
   let filtered = items;
   if (targetType === 'Movement') {

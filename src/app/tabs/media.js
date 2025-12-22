@@ -1,40 +1,6 @@
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
 
-function fallbackClear(el) {
-  if (!el) return;
-  while (el.firstChild) el.removeChild(el.firstChild);
-}
-
-function fallbackEnsureSelectOptions(selectEl, options = [], includeEmptyLabel) {
-  if (!selectEl) return;
-  const previous = selectEl.value;
-  fallbackClear(selectEl);
-  if (includeEmptyLabel) {
-    const opt = document.createElement('option');
-    opt.value = '';
-    opt.textContent = includeEmptyLabel;
-    selectEl.appendChild(opt);
-  }
-  options.forEach(option => {
-    const opt = document.createElement('option');
-    opt.value = option.value;
-    opt.textContent = option.label;
-    selectEl.appendChild(opt);
-  });
-  if (previous && options.some(option => option.value === previous)) {
-    selectEl.value = previous;
-  }
-}
-
-function getClear(ctx) {
-  return ctx?.dom?.clearElement || fallbackClear;
-}
-
-function getEnsureSelectOptions(ctx) {
-  return ctx?.dom?.ensureSelectOptions || fallbackEnsureSelectOptions;
-}
-
 function hint(text) {
   const p = document.createElement('p');
   p.className = 'hint';
@@ -43,11 +9,7 @@ function hint(text) {
 }
 
 function getState(ctx) {
-  return ctx?.getState?.() || ctx?.store?.getState?.() || {};
-}
-
-function getViewModels(ctx) {
-  return ctx?.services?.ViewModels || ctx?.ViewModels || window.ViewModels;
+  return ctx.store.getState();
 }
 
 function renderMediaCards(wrapper, items, clear) {
@@ -162,8 +124,8 @@ function renderMediaCards(wrapper, items, clear) {
 }
 
 function renderMediaTab(ctx) {
-  const clear = getClear(ctx);
-  const ensureSelectOptions = getEnsureSelectOptions(ctx);
+  const clear = ctx.dom.clearElement;
+  const ensureSelectOptions = ctx.dom.ensureSelectOptions;
   const state = getState(ctx);
   const snapshot = state.snapshot;
   const currentMovementId = state.currentMovementId;
@@ -197,7 +159,7 @@ function renderMediaTab(ctx) {
     f.disabled = false;
   });
 
-  const ViewModels = getViewModels(ctx);
+  const ViewModels = ctx.services.ViewModels;
   if (!ViewModels || typeof ViewModels.buildMediaGalleryViewModel !== 'function') {
     clear(wrapper);
     wrapper.appendChild(hint('ViewModels module not loaded.'));
