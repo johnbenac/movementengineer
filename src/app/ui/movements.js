@@ -109,6 +109,14 @@ function ensureFormMount() {
 
     const formActions = document.createElement('div');
     formActions.className = 'form-actions';
+    const importBtn = document.createElement('button');
+    importBtn.id = 'btn-import-from-github';
+    importBtn.type = 'button';
+    importBtn.textContent = 'Load markdown repo';
+    const exportBtn = document.createElement('button');
+    exportBtn.id = 'btn-export-repo';
+    exportBtn.type = 'button';
+    exportBtn.textContent = 'Export markdown zip';
     const saveBtn = document.createElement('button');
     saveBtn.id = 'btn-save-movement';
     saveBtn.type = 'button';
@@ -118,6 +126,8 @@ function ensureFormMount() {
     deleteBtn.type = 'button';
     deleteBtn.className = 'danger';
     deleteBtn.textContent = 'Delete movement & related data';
+    formActions.appendChild(importBtn);
+    formActions.appendChild(exportBtn);
     formActions.appendChild(saveBtn);
     formActions.appendChild(deleteBtn);
 
@@ -138,8 +148,34 @@ function ensureFormMount() {
   elements.tagsInput = formCard.querySelector('#movement-tags');
   elements.saveButton = formCard.querySelector('#btn-save-movement');
   elements.deleteButton = formCard.querySelector('#btn-delete-movement');
+  elements.importButton = formCard.querySelector('#btn-import-from-github');
+  elements.exportButton = formCard.querySelector('#btn-export-repo');
   elements.addButton = document.getElementById('btn-add-movement');
   elements.form = formCard;
+
+  const formActions = formCard.querySelector('.form-actions');
+  if (formActions) {
+    if (!elements.importButton) {
+      const importBtn = document.createElement('button');
+      importBtn.id = 'btn-import-from-github';
+      importBtn.type = 'button';
+      importBtn.textContent = 'Load markdown repo';
+      formActions.insertBefore(importBtn, formActions.firstChild || null);
+      elements.importButton = importBtn;
+    }
+    if (!elements.exportButton) {
+      const exportBtn = document.createElement('button');
+      exportBtn.id = 'btn-export-repo';
+      exportBtn.type = 'button';
+      exportBtn.textContent = 'Export markdown zip';
+      if (elements.importButton && elements.importButton.nextSibling) {
+        formActions.insertBefore(exportBtn, elements.importButton.nextSibling);
+      } else {
+        formActions.appendChild(exportBtn);
+      }
+      elements.exportButton = exportBtn;
+    }
+  }
   return elements;
 }
 
@@ -187,6 +223,15 @@ export function initMovements(ctx, options = {}) {
 
   function getState() {
     return ctx.store.getState() || {};
+  }
+
+  function getCurrentMovementId() {
+    const state = getState();
+    return state?.currentMovementId || null;
+  }
+
+  function getSnapshot() {
+    return getState()?.snapshot || {};
   }
 
   function markDirty() {
@@ -260,7 +305,9 @@ export function initMovements(ctx, options = {}) {
       inputs.summaryInput,
       inputs.tagsInput,
       inputs.deleteButton,
-      inputs.saveButton
+      inputs.saveButton,
+      inputs.exportButton,
+      inputs.importButton
     ].forEach(el => {
       if (el) el.disabled = !!isDisabled;
     });
@@ -286,10 +333,14 @@ export function initMovements(ctx, options = {}) {
     if (!movement) {
       populateForm(null);
       setFormDisabled(true);
+      if (inputs.importButton) inputs.importButton.disabled = false;
+      if (inputs.exportButton) inputs.exportButton.disabled = true;
       return;
     }
 
     setFormDisabled(false);
+    if (inputs.exportButton) inputs.exportButton.disabled = false;
+    if (inputs.importButton) inputs.importButton.disabled = false;
     populateForm(movement);
   }
 
@@ -346,6 +397,108 @@ export function initMovements(ctx, options = {}) {
     applyFormToSnapshot();
     markDirty();
     scheduleRender();
+  }
+
+  async function handleImportRepoClick() {
+    const loader = ctx?.services?.MarkdownDatasetLoader;
+    if (!loader?.importMovementRepo) {
+      window.alert?.('MarkdownDatasetLoader.importMovementRepo is not available.');
+      return;
+    }
+
+    const repoUrl = window.prompt?.(
+      'GitHub repo URL to load (e.g. https://github.com/owner/repo):',
+      ''
+    );
+    if (!repoUrl) return;
+
+    try {
+      ctx.ui?.setStatus?.('Importing markdown repo…');
+      const importedSnapshot = (await loader.importMovementRepo(repoUrl)) || {};
+      const movements = Array.isArray(importedSnapshot.movements) ? importedSnapshot.movements : [];
+      const firstId =
+        movements[0]?.id || movements[0]?.movementId || getCurrentMovementId() || null;
+
+      ctx.store.setState(prev => ({
+        ...prev,
+        snapshot: importedSnapshot,
+        currentMovementId: firstId,
+        currentItemId: null,
+        currentTextId: null,
+        currentShelfId: null,
+        currentBookId: null,
+        navigation: { stack: [], index: -1 }
+      }));
+
+      ctx.store?.markSaved?.({ movement: true, item: true });
+
+      if (ctx.actions?.selectMovement && firstId) {
+        ctx.actions.selectMovement(firstId);
+      } else {
+        ctx.shell?.renderActiveTab?.();
+      }
+
+      ctx.ui?.setStatus?.('Repo imported ✓');
+      scheduleRender();
+    } catch (err) {
+      console.error(err);
+      window.alert?.(err?.message || String(err));
+      ctx.ui?.setStatus?.('Import failed');
+    }
+  }
+
+  async function handleExportZipClick() {
+    const loader = ctx?.services?.MarkdownDatasetLoader;
+    if (!loader?.exportMovementToZip || !loader?.buildBaselineByMovement) {
+      window.alert?.('MarkdownDatasetLoader export helpers are not available.');
+      return;
+    }
+
+    const state = getState();
+    const movementId = state?.currentMovementId || null;
+    if (!movementId) {
+      window.alert?.('Select a movement first.');
+      return;
+    }
+
+    let snapshot = state?.snapshot || {};
+    try {
+      ctx.ui?.setStatus?.('Building export…');
+      if (!snapshot.__repoBaselineByMovement) {
+        const baseline = loader.buildBaselineByMovement(snapshot);
+        snapshot = {
+          ...snapshot,
+          __repoBaselineByMovement: baseline,
+          __repoFileIndex: snapshot.__repoFileIndex || {},
+          __repoRawMarkdownByPath: snapshot.__repoRawMarkdownByPath || {}
+        };
+        ctx.store?.setState(prev => ({ ...prev, snapshot }));
+      }
+
+      const result = await loader.exportMovementToZip(snapshot, movementId, { outputType: 'blob' });
+      const blob = result?.archive;
+      if (!blob) {
+        throw new Error('Export did not produce a file.');
+      }
+
+      const filename = `movement-${movementId}.zip`;
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+
+      const fileCount =
+        typeof result?.fileCount === 'number' ? result.fileCount : 'unknown number of';
+      ctx.ui?.setStatus?.(`Exported ${fileCount} file(s) ✓`);
+    } catch (err) {
+      console.error(err);
+      window.alert?.(err?.message || String(err));
+      ctx.ui?.setStatus?.('Export failed');
+    }
   }
 
   function selectMovement(movementId) {
@@ -486,6 +639,8 @@ export function initMovements(ctx, options = {}) {
     saveSnapshot();
     scheduleRender();
   });
+  addListener(inputs.importButton, 'click', () => handleImportRepoClick());
+  addListener(inputs.exportButton, 'click', () => handleExportZipClick());
 
   [inputs.nameInput, inputs.shortInput, inputs.summaryInput, inputs.tagsInput].forEach(input => {
     addListener(input, 'input', handleInputChange);
