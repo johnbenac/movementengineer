@@ -113,12 +113,22 @@ function ensureFormMount() {
     saveBtn.id = 'btn-save-movement';
     saveBtn.type = 'button';
     saveBtn.textContent = 'Save movement';
+    const importBtn = document.createElement('button');
+    importBtn.id = 'btn-import-from-github';
+    importBtn.type = 'button';
+    importBtn.textContent = 'Load markdown repo';
+    const exportBtn = document.createElement('button');
+    exportBtn.id = 'btn-export-repo';
+    exportBtn.type = 'button';
+    exportBtn.textContent = 'Export markdown zip';
     const deleteBtn = document.createElement('button');
     deleteBtn.id = 'btn-delete-movement';
     deleteBtn.type = 'button';
     deleteBtn.className = 'danger';
     deleteBtn.textContent = 'Delete movement & related data';
     formActions.appendChild(saveBtn);
+    formActions.appendChild(importBtn);
+    formActions.appendChild(exportBtn);
     formActions.appendChild(deleteBtn);
 
     formCard.appendChild(formActions);
@@ -137,6 +147,8 @@ function ensureFormMount() {
   elements.summaryInput = formCard.querySelector('#movement-summary');
   elements.tagsInput = formCard.querySelector('#movement-tags');
   elements.saveButton = formCard.querySelector('#btn-save-movement');
+  elements.importButton = formCard.querySelector('#btn-import-from-github');
+  elements.exportButton = formCard.querySelector('#btn-export-repo');
   elements.deleteButton = formCard.querySelector('#btn-delete-movement');
   elements.addButton = document.getElementById('btn-add-movement');
   elements.form = formCard;
@@ -187,6 +199,15 @@ export function initMovements(ctx, options = {}) {
 
   function getState() {
     return ctx.store.getState() || {};
+  }
+
+  function getCurrentMovementId() {
+    const state = getState();
+    return state?.currentMovementId || null;
+  }
+
+  function getSnapshot() {
+    return getState()?.snapshot || {};
   }
 
   function markDirty() {
@@ -259,6 +280,8 @@ export function initMovements(ctx, options = {}) {
       inputs.shortInput,
       inputs.summaryInput,
       inputs.tagsInput,
+      inputs.importButton,
+      inputs.exportButton,
       inputs.deleteButton,
       inputs.saveButton
     ].forEach(el => {
@@ -286,10 +309,13 @@ export function initMovements(ctx, options = {}) {
     if (!movement) {
       populateForm(null);
       setFormDisabled(true);
+      if (inputs.importButton) inputs.importButton.disabled = false;
+      if (inputs.exportButton) inputs.exportButton.disabled = true;
       return;
     }
 
     setFormDisabled(false);
+    if (inputs.exportButton) inputs.exportButton.disabled = false;
     populateForm(movement);
   }
 
@@ -444,6 +470,98 @@ export function initMovements(ctx, options = {}) {
     scheduleRender();
   }
 
+  async function handleImportRepoClick() {
+    const loader = ctx.services?.MarkdownDatasetLoader;
+    if (!loader?.importMovementRepo) {
+      window.alert?.('MarkdownDatasetLoader.importMovementRepo is not available.');
+      return;
+    }
+
+    const repoUrl = window.prompt?.(
+      'GitHub repo URL to load (e.g. https://github.com/owner/repo):',
+      ''
+    );
+    if (!repoUrl) return;
+
+    try {
+      ctx.ui?.setStatus?.('Importing markdown repo…');
+      const importedSnapshot = await loader.importMovementRepo(repoUrl);
+      const movements = Array.isArray(importedSnapshot?.movements) ? importedSnapshot.movements : [];
+      const firstId = movements[0]?.id || movements[0]?.movementId || null;
+
+      ctx.store.setState(prev => ({
+        ...prev,
+        snapshot: importedSnapshot,
+        currentMovementId: firstId,
+        currentItemId: null,
+        currentTextId: null,
+        currentShelfId: null,
+        currentBookId: null,
+        navigation: { stack: [], index: -1 }
+      }));
+
+      ctx.store?.markSaved?.({ movement: true, item: true });
+
+      if (ctx.actions?.selectMovement && firstId) {
+        ctx.actions.selectMovement(firstId);
+      } else {
+        ctx.shell?.renderActiveTab?.();
+      }
+
+      ctx.ui?.setStatus?.('Repo imported ✓');
+      scheduleRender();
+    } catch (err) {
+      console.error(err);
+      window.alert?.(err?.message || String(err));
+      ctx.ui?.setStatus?.('Import failed');
+    }
+  }
+
+  async function handleExportZipClick() {
+    const loader = ctx.services?.MarkdownDatasetLoader;
+    if (!loader?.exportMovementToZip || !loader?.buildBaselineByMovement) {
+      window.alert?.('MarkdownDatasetLoader export helpers are not available.');
+      return;
+    }
+
+    const snapshot = getSnapshot();
+    const movementId = getCurrentMovementId();
+    if (!movementId) {
+      window.alert?.('Select a movement first.');
+      return;
+    }
+
+    try {
+      ctx.ui?.setStatus?.('Building export…');
+      if (!snapshot.__repoBaselineByMovement) {
+        snapshot.__repoBaselineByMovement = loader.buildBaselineByMovement(snapshot);
+        snapshot.__repoFileIndex = snapshot.__repoFileIndex || {};
+        snapshot.__repoRawMarkdownByPath = snapshot.__repoRawMarkdownByPath || {};
+      }
+
+      const result = await loader.exportMovementToZip(snapshot, movementId, {
+        outputType: 'blob'
+      });
+
+      const blob = result.archive;
+      const filename = `movement-${movementId}.zip`;
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+
+      ctx.ui?.setStatus?.(`Exported ${result.fileCount} file(s) ✓`);
+    } catch (err) {
+      console.error(err);
+      window.alert?.(err?.message || String(err));
+      ctx.ui?.setStatus?.('Export failed');
+    }
+  }
+
   function destroy() {
     if (rafId) {
       if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(rafId);
@@ -486,6 +604,8 @@ export function initMovements(ctx, options = {}) {
     saveSnapshot();
     scheduleRender();
   });
+  addListener(inputs.importButton, 'click', () => handleImportRepoClick());
+  addListener(inputs.exportButton, 'click', () => handleExportZipClick());
 
   [inputs.nameInput, inputs.shortInput, inputs.summaryInput, inputs.tagsInput].forEach(input => {
     addListener(input, 'input', handleInputChange);
