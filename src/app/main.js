@@ -21,15 +21,8 @@ import { createActions } from './actions.js';
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.bootstrapOptions = movementEngineerGlobal.bootstrapOptions || {};
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
-movementEngineerGlobal.bootstrapOptions.legacyAutoInit = false;
-movementEngineerGlobal.bootstrapOptions.__mode =
-  typeof movementEngineerGlobal.bootstrapOptions.__mode === 'undefined'
-    ? 'legacy-free'
-    : movementEngineerGlobal.bootstrapOptions.__mode;
-movementEngineerGlobal.legacy = null;
-if (!document.documentElement.dataset.meMode && movementEngineerGlobal.bootstrapOptions.__mode) {
-  document.documentElement.dataset.meMode = movementEngineerGlobal.bootstrapOptions.__mode;
-}
+movementEngineerGlobal.actions = movementEngineerGlobal.actions || {};
+movementEngineerGlobal.components = movementEngineerGlobal.components || {};
 
 const services = {
   DomainService: window.DomainService,
