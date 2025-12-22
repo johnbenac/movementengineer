@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { HINT_TEXT } from '../../../../src/app/ui/hints.js';
 import { createDomUtils } from '../../../../src/app/ui/dom.js';
 
 function renderDom(withTab = false) {
@@ -79,7 +80,7 @@ describe('dashboard tab module', () => {
     tab.render(ctx);
 
     expect(document.getElementById('dashboard-content').textContent).toContain(
-      'Create a movement on the left'
+      HINT_TEXT.MOVEMENT_REQUIRED
     );
   });
 
@@ -93,7 +94,7 @@ describe('dashboard tab module', () => {
     tab.render(ctx);
 
     expect(document.getElementById('dashboard-content').textContent).toContain(
-      'ViewModels module not loaded'
+      HINT_TEXT.VIEWMODELS_MISSING
     );
   });
 

@@ -1,12 +1,7 @@
+import { guardMissingViewModels, guardNoMovement, renderHint, setDisabled } from '../ui/hints.js';
+
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
-
-function hint(text) {
-  const p = document.createElement('p');
-  p.className = 'hint';
-  p.textContent = text;
-  return p;
-}
 
 function getState(ctx) {
   return ctx.store.getState() || {};
@@ -42,17 +37,20 @@ function renderPracticesTab(ctx) {
   if (!select || !detailContainer) return;
   clear(detailContainer);
 
-  if (!currentMovementId) {
-    select.disabled = true;
+  if (
+    guardNoMovement({
+      movementId: currentMovementId,
+      wrappers: [detailContainer],
+      controls: [select],
+      dom: ctx.dom
+    })
+  ) {
     ensureSelectOptions(select, [], 'Choose practice');
     select.value = '';
-    detailContainer.appendChild(
-      hint('Create or select a movement on the left to explore this section.')
-    );
     return;
   }
 
-  select.disabled = false;
+  setDisabled([select], false);
 
   const practices = (snapshot?.practices || []).filter(
     p => p.movementId === currentMovementId
@@ -71,22 +69,27 @@ function renderPracticesTab(ctx) {
   }
 
   if (!practiceId) {
-    detailContainer.appendChild(hint('No practices found for this movement.'));
+    renderHint(detailContainer, 'No practices found for this movement.');
     return;
   }
 
   const ViewModels = getViewModels(ctx);
-  if (!ViewModels || typeof ViewModels.buildPracticeDetailViewModel !== 'function') {
-    detailContainer.appendChild(hint('ViewModels module not loaded.'));
+  if (
+    guardMissingViewModels({
+      ok: ViewModels && typeof ViewModels.buildPracticeDetailViewModel === 'function',
+      wrappers: [detailContainer],
+      controls: [select],
+      dom: ctx.dom
+    })
+  )
     return;
-  }
 
   const vm = ViewModels.buildPracticeDetailViewModel(snapshot, {
     practiceId
   });
 
   if (!vm?.practice) {
-    detailContainer.appendChild(hint('Practice not found.'));
+    renderHint(detailContainer, 'Practice not found.');
     return;
   }
 

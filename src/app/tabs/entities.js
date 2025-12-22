@@ -1,3 +1,11 @@
+import {
+  createHint,
+  guardMissingViewModels,
+  guardNoMovement,
+  renderHint,
+  setDisabled
+} from '../ui/hints.js';
+
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
 
@@ -15,13 +23,6 @@ function getEntityGraphView(ctx) {
 
 function getActions(ctx) {
   return ctx.actions;
-}
-
-function hint(text) {
-  const p = document.createElement('p');
-  p.className = 'hint';
-  p.textContent = text;
-  return p;
 }
 
 function mkSection(container, label, contentBuilder) {
@@ -67,20 +68,21 @@ function renderEntitiesTab(ctx) {
   clear(detailContainer);
   clear(graphContainer);
 
-  if (!currentMovementId) {
-    select.disabled = true;
-    graphDepthSelect.disabled = true;
-    if (relTypeInput) relTypeInput.disabled = true;
+  const controls = [select, graphDepthSelect, relTypeInput];
+
+  if (
+    guardNoMovement({
+      movementId: currentMovementId,
+      wrappers: [detailContainer],
+      controls,
+      dom: ctx.dom
+    })
+  ) {
     ensureSelectOptions(select, [], 'Choose entity');
-    detailContainer.appendChild(
-      hint('Create or select a movement on the left to explore this section.')
-    );
     return;
   }
 
-  select.disabled = false;
-  graphDepthSelect.disabled = false;
-  if (relTypeInput) relTypeInput.disabled = false;
+  setDisabled(controls, false);
 
   const entities = (snapshot?.entities || []).filter(e => e.movementId === currentMovementId);
   const options = entities
@@ -93,24 +95,28 @@ function renderEntitiesTab(ctx) {
   if (entityId) select.value = entityId;
 
   if (!entityId) {
-    detailContainer.appendChild(hint('No entities found for this movement.'));
+    renderHint(detailContainer, 'No entities found for this movement.');
     return;
   }
 
   const ViewModels = getViewModels(ctx);
   if (
-    !ViewModels ||
-    typeof ViewModels.buildEntityDetailViewModel !== 'function' ||
-    typeof ViewModels.buildEntityGraphViewModel !== 'function'
-  ) {
-    detailContainer.appendChild(hint('ViewModels module not loaded.'));
+    guardMissingViewModels({
+      ok:
+        ViewModels &&
+        typeof ViewModels.buildEntityDetailViewModel === 'function' &&
+        typeof ViewModels.buildEntityGraphViewModel === 'function',
+      wrappers: [detailContainer],
+      controls,
+      dom: ctx.dom
+    })
+  )
     return;
-  }
 
   const vm = ViewModels.buildEntityDetailViewModel(snapshot, { entityId });
 
   if (!vm?.entity) {
-    detailContainer.appendChild(hint('Entity not found.'));
+    renderHint(detailContainer, 'Entity not found.');
     return;
   }
 
@@ -234,10 +240,11 @@ function renderEntitiesTab(ctx) {
         });
 
         if (conn.source) {
-          const reason = document.createElement('div');
-          reason.className = 'hint';
           const fieldLabel = conn.source.field ? `.${conn.source.field}` : '';
-          reason.textContent = `Edge derived from ${conn.source.collection || 'record'} ${conn.source.id || ''}${fieldLabel}`.trim();
+          const reason = createHint(
+            `Edge derived from ${conn.source.collection || 'record'} ${conn.source.id || ''}${fieldLabel}`.trim(),
+            { tag: 'div' }
+          );
           li.appendChild(reason);
         }
 
@@ -263,7 +270,7 @@ function renderEntitiesTab(ctx) {
 
   const EntityGraphView = getEntityGraphView(ctx);
   if (!EntityGraphView) {
-    graphContainer.appendChild(hint('EntityGraphView module not available.'));
+    renderHint(graphContainer, 'EntityGraphView module not available.');
     return;
   }
 

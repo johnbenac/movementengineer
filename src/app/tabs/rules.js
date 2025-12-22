@@ -1,12 +1,13 @@
+import {
+  HINT_TEXT,
+  guardMissingViewModels,
+  guardNoMovement,
+  renderHint,
+  setDisabled
+} from '../ui/hints.js';
+
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
-
-function hint(text) {
-  const p = document.createElement('p');
-  p.className = 'hint';
-  p.textContent = text;
-  return p;
-}
 
 function getState(ctx) {
   return ctx.store.getState() || {};
@@ -68,17 +69,11 @@ function setSelectedValues(selectEl, values = []) {
   });
 }
 
-function disableElements(elements = [], disabled = false) {
-  elements.forEach(el => {
-    if (el) el.disabled = disabled;
-  });
-}
-
 function renderRulesTable(wrapper, rules, clear, selectedRuleId, onSelect) {
   clear(wrapper);
 
   if (!rules || rules.length === 0) {
-    wrapper.appendChild(hint('No rules match this filter.'));
+    renderHint(wrapper, 'No rules match this filter.');
     return;
   }
 
@@ -217,7 +212,7 @@ function renderRuleEditor(ctx, tabState, helpers, editorVm, statusMessage = null
   if (!els.container || !els.select) return;
 
   const disableForm = message => {
-    disableElements(
+    setDisabled(
       [
         els.select,
         els.shortText,
@@ -240,7 +235,7 @@ function renderRuleEditor(ctx, tabState, helpers, editorVm, statusMessage = null
   };
 
   const enableForm = () => {
-    disableElements(
+    setDisabled(
       [
         els.select,
         els.shortText,
@@ -322,7 +317,7 @@ function renderRuleEditor(ctx, tabState, helpers, editorVm, statusMessage = null
   const selectedRule = (editorVm.rules || []).find(r => r.id === tabState.selectedRuleId) || null;
   els.select.value = selectedRule?.id || '';
 
-  disableElements([els.addBtn], !getState(ctx).currentMovementId);
+  setDisabled([els.addBtn], !getState(ctx).currentMovementId);
 
   if (!selectedRule) {
     disableForm('Add a rule to start editing.');
@@ -490,28 +485,37 @@ function renderRulesTab(ctx) {
   if (!wrapper || !kindSelect || !domainInput) return;
 
   const editorHelpers = { ensureSelectOptions, ensureMultiSelectOptions, ensureDatalistOptions };
+  const controls = [kindSelect, domainInput];
 
-  if (!currentMovementId) {
-    kindSelect.disabled = true;
-    domainInput.disabled = true;
-    clear(wrapper);
-    wrapper.appendChild(
-      hint('Create or select a movement on the left to explore this section.')
-    );
+  if (
+    guardNoMovement({
+      movementId: currentMovementId,
+      wrappers: [wrapper],
+      controls,
+      dom: ctx.dom
+    })
+  ) {
     ensureSelectOptions(kindSelect, [], 'All');
     domainInput.value = '';
-    renderRuleEditor(ctx, tabState, editorHelpers, null, 'Select a movement to add rules.');
+    renderRuleEditor(ctx, tabState, editorHelpers, null, HINT_TEXT.MOVEMENT_REQUIRED);
     return;
   }
 
-  kindSelect.disabled = false;
-  domainInput.disabled = false;
+  setDisabled(controls, false);
 
   const ViewModels = getViewModels(ctx);
-  if (!ViewModels || typeof ViewModels.buildRuleExplorerViewModel !== 'function') {
-    clear(wrapper);
-    wrapper.appendChild(hint('ViewModels module not loaded.'));
-    renderRuleEditor(ctx, tabState, editorHelpers, null, 'ViewModels module not loaded.');
+  if (
+    guardMissingViewModels({
+      ok:
+        ViewModels &&
+        typeof ViewModels.buildRuleExplorerViewModel === 'function' &&
+        typeof ViewModels.buildRuleEditorViewModel === 'function',
+      wrappers: [wrapper],
+      controls,
+      dom: ctx.dom
+    })
+  ) {
+    renderRuleEditor(ctx, tabState, editorHelpers, null, HINT_TEXT.VIEWMODELS_MISSING);
     return;
   }
 

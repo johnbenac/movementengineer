@@ -1,3 +1,4 @@
+import { HINT_TEXT, renderHint, renderHintMany } from '../../ui/hints.js';
 import { collectDescendants, normaliseArray, parseCsvInput } from '../../utils/values.js';
 import { renderMarkdownPreview, openMarkdownModal } from '../../ui/markdown.js';
 import { deleteTextCollection, persistCanonItem } from './actions.js';
@@ -57,12 +58,7 @@ function normalizeVm(vm) {
   };
 }
 
-function renderEmptyHint(text) {
-  const p = document.createElement('p');
-  p.className = 'library-empty';
-  p.textContent = text;
-  return p;
-}
+const EMPTY_HINT_OPTIONS = { extraClasses: ['library-empty'] };
 
 export function renderLibraryView(ctx) {
   const clear = ctx.dom.clearElement;
@@ -97,19 +93,13 @@ export function renderLibraryView(ctx) {
   }
 
   if (!selection.currentMovementId) {
-    shelfList.appendChild(renderEmptyHint('Create or select a movement first.'));
-    bookList.appendChild(renderEmptyHint('Choose a movement to see books.'));
-    tocTree.appendChild(renderEmptyHint('No table of contents to show.'));
-    textEditor.appendChild(renderEmptyHint('Select a movement to edit texts.'));
+    renderHintMany([shelfList, bookList, tocTree, textEditor], HINT_TEXT.MOVEMENT_REQUIRED, EMPTY_HINT_OPTIONS);
     return;
   }
 
   const ViewModels = getViewModels(ctx);
   if (!ViewModels || typeof ViewModels.buildLibraryEditorViewModel !== 'function') {
-    shelfList.appendChild(renderEmptyHint('ViewModels module not loaded.'));
-    bookList.appendChild(renderEmptyHint('ViewModels module not loaded.'));
-    tocTree.appendChild(renderEmptyHint('ViewModels module not loaded.'));
-    textEditor.appendChild(renderEmptyHint('ViewModels module not loaded.'));
+    renderHintMany([shelfList, bookList, tocTree, textEditor], HINT_TEXT.VIEWMODELS_MISSING, EMPTY_HINT_OPTIONS);
     return;
   }
 
@@ -250,7 +240,7 @@ function renderShelfPane(ctx, vm, selection) {
   }
 
   if (!vm.shelves.length) {
-    shelfList.appendChild(renderEmptyHint('No shelves yet.'));
+    renderHint(shelfList, 'No shelves yet.', EMPTY_HINT_OPTIONS);
   }
 
   vm.shelves.forEach(shelf => {
@@ -279,7 +269,7 @@ function renderShelfPane(ctx, vm, selection) {
 
   if (unshelvedList) {
     if (vm.unshelvedBookIds.length === 0) {
-      unshelvedList.appendChild(renderEmptyHint('All books are on shelves.'));
+      renderHint(unshelvedList, 'All books are on shelves.', EMPTY_HINT_OPTIONS);
     } else {
       vm.unshelvedBookIds.forEach(id => {
         const node = vm.nodesById[id];
@@ -316,14 +306,14 @@ function renderBooksPane(ctx, vm, selection) {
   }
 
   if (!activeShelf) {
-    bookList.appendChild(renderEmptyHint('No shelf selected.'));
+    renderHint(bookList, 'No shelf selected.', EMPTY_HINT_OPTIONS);
     return;
   }
 
   const activeShelfBookIds = Array.isArray(activeShelf.bookIds) ? activeShelf.bookIds : [];
 
   if (!activeShelfBookIds.length) {
-    bookList.appendChild(renderEmptyHint('No books on this shelf yet.'));
+    renderHint(bookList, 'No books on this shelf yet.', EMPTY_HINT_OPTIONS);
   }
 
   activeShelfBookIds.forEach(id => {
@@ -381,7 +371,7 @@ function renderTocPane(ctx, vm, selection) {
   clear(tocTree);
   const rootId = vm.tocRootId;
   if (!rootId) {
-    tocTree.appendChild(renderEmptyHint('Select a book to see its chapters.'));
+    renderHint(tocTree, 'Select a book to see its chapters.', EMPTY_HINT_OPTIONS);
     return;
   }
 
@@ -504,11 +494,11 @@ function renderNodeEditor(ctx, vm, selection) {
     row.appendChild(del);
     shelfEditor.appendChild(row);
   } else {
-    shelfEditor.appendChild(renderEmptyHint('Select a shelf to edit metadata.'));
+    renderHint(shelfEditor, 'Select a shelf to edit metadata.', EMPTY_HINT_OPTIONS);
   }
 
   if (!activeNode) {
-    textEditor.appendChild(renderEmptyHint('Select a book or chapter to edit.'));
+    renderHint(textEditor, 'Select a book or chapter to edit.', EMPTY_HINT_OPTIONS);
     return;
   }
 

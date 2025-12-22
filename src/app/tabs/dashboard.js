@@ -1,3 +1,4 @@
+import { guardMissingViewModels, guardNoMovement, renderHint } from '../ui/hints.js';
 import { createTab } from './_tabKit.js';
 
 function getState(ctx) {
@@ -6,12 +7,6 @@ function getState(ctx) {
 
 function getViewModels(ctx) {
   return ctx.services.ViewModels;
-}
-
-function appendParagraph(container, text) {
-  const p = document.createElement('p');
-  p.textContent = text;
-  container.appendChild(p);
 }
 
 function createStatCard(titleText) {
@@ -60,23 +55,27 @@ function renderDashboardTab(ctx) {
   const snapshot = state.snapshot;
   const currentMovementId = state.currentMovementId;
 
-  if (!currentMovementId) {
-    appendParagraph(container, 'Create a movement on the left to see a dashboard.');
+  if (
+    guardNoMovement({ movementId: currentMovementId, wrappers: [container], dom: ctx.dom })
+  )
     return;
-  }
 
   const ViewModels = getViewModels(ctx);
-  if (!ViewModels || typeof ViewModels.buildMovementDashboardViewModel !== 'function') {
-    appendParagraph(container, 'ViewModels module not loaded.');
+  if (
+    guardMissingViewModels({
+      ok: ViewModels && typeof ViewModels.buildMovementDashboardViewModel === 'function',
+      wrappers: [container],
+      dom: ctx.dom
+    })
+  )
     return;
-  }
 
   const vm = ViewModels.buildMovementDashboardViewModel(snapshot, {
     movementId: currentMovementId
   });
 
   if (!vm?.movement) {
-    appendParagraph(container, 'Selected movement not found in dataset.');
+    renderHint(container, 'Selected movement not found in dataset.');
     return;
   }
 
