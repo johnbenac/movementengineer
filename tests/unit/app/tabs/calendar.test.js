@@ -62,7 +62,7 @@ describe('calendar tab module', () => {
     const select = document.getElementById('calendar-recurrence-filter');
     select.value = 'weekly';
 
-    const { registerCalendarTab } = await import('./calendar.js');
+    const { registerCalendarTab } = await import('../../../../src/app/tabs/calendar.js');
     const tab = registerCalendarTab(ctx);
 
     tab.mount(ctx);
@@ -93,7 +93,7 @@ describe('calendar tab module', () => {
   it('disables controls and shows hint when no movement is selected', async () => {
     const vm = { events: [] };
     const ctx = createCtx(vm, null);
-    const { registerCalendarTab } = await import('./calendar.js');
+    const { registerCalendarTab } = await import('../../../../src/app/tabs/calendar.js');
     const tab = registerCalendarTab(ctx);
 
     tab.render(ctx);
@@ -107,7 +107,7 @@ describe('calendar tab module', () => {
   it('shows empty state when no events match', async () => {
     const vm = { events: [] };
     const ctx = createCtx(vm);
-    const { registerCalendarTab } = await import('./calendar.js');
+    const { registerCalendarTab } = await import('../../../../src/app/tabs/calendar.js');
     const tab = registerCalendarTab(ctx);
 
     tab.render(ctx);
@@ -120,7 +120,7 @@ describe('calendar tab module', () => {
   it('rerenders on state change when active', async () => {
     const vm = { events: [] };
     const ctx = createCtx(vm);
-    const { registerCalendarTab } = await import('./calendar.js');
+    const { registerCalendarTab } = await import('../../../../src/app/tabs/calendar.js');
     const tab = registerCalendarTab(ctx);
 
     tab.mount(ctx);

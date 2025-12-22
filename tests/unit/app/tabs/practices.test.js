@@ -86,7 +86,7 @@ describe('practices tab module', () => {
       media: [{ id: 'm1', title: 'Media', kind: 'photo', uri: 'http://example.com' }]
     };
     const ctx = createCtx(snapshot, vm);
-    const { registerPracticesTab } = await import('./practices.js');
+    const { registerPracticesTab } = await import('../../../../src/app/tabs/practices.js');
     const tab = registerPracticesTab(ctx);
 
     tab.mount(ctx);
@@ -112,7 +112,7 @@ describe('practices tab module', () => {
     const snapshot = { practices: [] };
     const vm = { practice: null };
     const ctx = createCtx(snapshot, vm, null);
-    const { registerPracticesTab } = await import('./practices.js');
+    const { registerPracticesTab } = await import('../../../../src/app/tabs/practices.js');
     const tab = registerPracticesTab(ctx);
 
     tab.render(ctx);
@@ -128,7 +128,7 @@ describe('practices tab module', () => {
     const snapshot = { practices: [] };
     const vm = { practice: null };
     const ctx = createCtx(snapshot, vm);
-    const { registerPracticesTab } = await import('./practices.js');
+    const { registerPracticesTab } = await import('../../../../src/app/tabs/practices.js');
     const tab = registerPracticesTab(ctx);
 
     tab.render(ctx);
@@ -152,7 +152,7 @@ describe('practices tab module', () => {
       practice: { id: practiceId, name: practiceId }
     }));
     const ctx = createCtx(snapshot, null, 'm1', { vmBuilder });
-    const { registerPracticesTab } = await import('./practices.js');
+    const { registerPracticesTab } = await import('../../../../src/app/tabs/practices.js');
     const tab = registerPracticesTab(ctx);
 
     tab.render(ctx);
@@ -172,7 +172,7 @@ describe('practices tab module', () => {
     };
     const vm = { practice: { id: 'p1', name: 'Practice One' } };
     const ctx = createCtx(snapshot, vm, 'm1');
-    const { registerPracticesTab } = await import('./practices.js');
+    const { registerPracticesTab } = await import('../../../../src/app/tabs/practices.js');
     const tab = registerPracticesTab(ctx);
 
     const renderSpy = vi.spyOn(tab, 'render');

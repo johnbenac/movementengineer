@@ -98,7 +98,7 @@ describe('entities tab module', () => {
     };
     const graphVm = { centerEntityId: 'e1', nodes: [], links: [] };
     const ctx = createCtx(snapshot, detailVm, graphVm);
-    const { registerEntitiesTab } = await import('./entities.js');
+    const { registerEntitiesTab } = await import('../../../../src/app/tabs/entities.js');
     const tab = registerEntitiesTab(ctx);
 
     tab.mount(ctx);
@@ -132,7 +132,7 @@ describe('entities tab module', () => {
     const detailVm = { entity: null };
     const graphVm = { centerEntityId: null };
     const ctx = createCtx(snapshot, detailVm, graphVm, null);
-    const { registerEntitiesTab } = await import('./entities.js');
+    const { registerEntitiesTab } = await import('../../../../src/app/tabs/entities.js');
     const tab = registerEntitiesTab(ctx);
 
     tab.render(ctx);

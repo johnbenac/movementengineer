@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { initShell } from './shell.js';
+import { initShell } from '../../../src/app/shell.js';
 
 function buildDom(active = 'collections') {
   document.body.innerHTML = `

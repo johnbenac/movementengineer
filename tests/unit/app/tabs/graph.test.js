@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('./graph/workbench.js', () => ({
+vi.mock('../../../../src/app/tabs/graph/workbench.js', () => ({
   mountGraphWorkbench: vi.fn(),
   renderGraphWorkbench: vi.fn(),
   unmountGraphWorkbench: vi.fn()
@@ -10,7 +10,7 @@ import {
   mountGraphWorkbench,
   renderGraphWorkbench,
   unmountGraphWorkbench
-} from './graph/workbench.js';
+} from '../../../../src/app/tabs/graph/workbench.js';
 
 function renderDom() {
   document.body.innerHTML = `
@@ -51,7 +51,7 @@ describe('graph tab module', () => {
 
   it('renders the module graph workbench when asked to render', async () => {
     const ctx = createCtx();
-    const { registerGraphTab } = await import('./graph.js');
+    const { registerGraphTab } = await import('../../../../src/app/tabs/graph.js');
     const tab = registerGraphTab(ctx);
 
     tab.render(ctx);
@@ -61,7 +61,7 @@ describe('graph tab module', () => {
 
   it('rerenders when subscribed state changes while active', async () => {
     const ctx = createCtx();
-    const { registerGraphTab } = await import('./graph.js');
+    const { registerGraphTab } = await import('../../../../src/app/tabs/graph.js');
     const tab = registerGraphTab(ctx);
 
     tab.mount(ctx);
@@ -72,7 +72,7 @@ describe('graph tab module', () => {
 
   it('mounts and unmounts the graph workbench lifecycle', async () => {
     const ctx = createCtx();
-    const { registerGraphTab } = await import('./graph.js');
+    const { registerGraphTab } = await import('../../../../src/app/tabs/graph.js');
     const tab = registerGraphTab(ctx);
 
     tab.mount(ctx);

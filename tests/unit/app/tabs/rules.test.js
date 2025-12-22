@@ -162,7 +162,7 @@ describe('rules tab module', () => {
       rules: [{ id: 'r1', movementId: 'm1', kind: 'Kind', domain: ['D1'] }]
     };
     const ctx = createCtx(snapshot);
-    const { registerRulesTab } = await import('./rules.js');
+    const { registerRulesTab } = await import('../../../../src/app/tabs/rules.js');
     const tab = registerRulesTab(ctx);
 
     tab.mount(ctx);
@@ -190,7 +190,7 @@ describe('rules tab module', () => {
     renderDom();
     const snapshot = { rules: [] };
     const ctx = createCtx(snapshot, null);
-    const { registerRulesTab } = await import('./rules.js');
+    const { registerRulesTab } = await import('../../../../src/app/tabs/rules.js');
     const tab = registerRulesTab(ctx);
 
     tab.render(ctx);
@@ -264,7 +264,7 @@ describe('rules tab module', () => {
       }))
     };
     const ctx = createCtx(snapshot, 'm1', { DomainService, ViewModels });
-    const { registerRulesTab } = await import('./rules.js');
+    const { registerRulesTab } = await import('../../../../src/app/tabs/rules.js');
     const tab = registerRulesTab(ctx);
 
     tab.mount(ctx);
@@ -333,7 +333,7 @@ describe('rules tab module', () => {
       }))
     };
     const ctx = createCtx(snapshot, 'm1', { DomainService, ViewModels });
-    const { registerRulesTab } = await import('./rules.js');
+    const { registerRulesTab } = await import('../../../../src/app/tabs/rules.js');
     const tab = registerRulesTab(ctx);
 
     tab.mount(ctx);
@@ -430,7 +430,7 @@ describe('rules tab module', () => {
       }))
     };
     const ctx = createCtx(snapshot, 'm1', { ViewModels });
-    const { registerRulesTab } = await import('./rules.js');
+    const { registerRulesTab } = await import('../../../../src/app/tabs/rules.js');
     const tab = registerRulesTab(ctx);
 
     tab.mount(ctx);
