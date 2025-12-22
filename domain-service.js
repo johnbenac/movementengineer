@@ -217,7 +217,7 @@
     return before !== snapshot[collectionName].length;
   }
 
-  window.DomainService = {
+  globalThis.DomainService = {
     COLLECTION_NAMES,
     COLLECTIONS_WITH_MOVEMENT_ID,
     generateId,

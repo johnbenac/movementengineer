@@ -1,5 +1,5 @@
-const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 const SHELL_KEY = '__moduleShell';
+let shellInstance = null;
 
 function normaliseName(name) {
   if (!name) return null;
@@ -43,7 +43,7 @@ function getPanelNameFromEl(panelEl) {
 }
 
 export function initShell(ctx, options = {}) {
-  if (movementEngineerGlobal[SHELL_KEY]) return movementEngineerGlobal[SHELL_KEY];
+  if (shellInstance) return shellInstance;
 
   const tabSelector = options.tabSelector || '.tab';
   const panelSelector = options.panelSelector || '.tab-panel';
@@ -165,7 +165,7 @@ export function initShell(ctx, options = {}) {
   function destroy() {
     document.removeEventListener('click', onClick, true);
     window.removeEventListener('hashchange', onHashChange);
-    movementEngineerGlobal[SHELL_KEY] = null;
+    shellInstance = null;
     if (ctx && 'shell' in ctx) {
       ctx.shell = null;
     }
@@ -173,7 +173,7 @@ export function initShell(ctx, options = {}) {
 
   const api = { getActiveTabName, activateTab, renderActiveTab, destroy, initialRender };
 
-  movementEngineerGlobal[SHELL_KEY] = api;
+  shellInstance = api;
   if (ctx) ctx.shell = api;
 
   return api;

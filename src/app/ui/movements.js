@@ -1,5 +1,5 @@
-const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 const MOVEMENTS_UI_KEY = '__movementsUI';
+let movementsUiInstance = null;
 
 const raf =
   typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function'
@@ -179,8 +179,8 @@ function movementsEqual(a, b) {
 }
 
 export function initMovements(ctx, options = {}) {
-  if (movementEngineerGlobal[MOVEMENTS_UI_KEY]) {
-    return movementEngineerGlobal[MOVEMENTS_UI_KEY];
+  if (movementsUiInstance) {
+    return movementsUiInstance;
   }
 
   const dom = ctx?.dom || {};
@@ -363,7 +363,7 @@ export function initMovements(ctx, options = {}) {
   }
 
   function addMovement(overrides = {}) {
-    const DomainService = ctx?.services?.DomainService || window.DomainService;
+    const DomainService = ctx.services.DomainService;
     const state = getState();
     const snapshot = state?.snapshot || {};
     const movements = Array.isArray(snapshot.movements) ? snapshot.movements : [];
@@ -411,7 +411,7 @@ export function initMovements(ctx, options = {}) {
 
   function deleteMovement(movementId) {
     if (!movementId) return;
-    const DomainService = ctx?.services?.DomainService || window.DomainService;
+    const DomainService = ctx.services.DomainService;
     const state = getState();
     const snapshot = state?.snapshot || {};
     const movements = Array.isArray(snapshot.movements) ? snapshot.movements : [];
@@ -463,7 +463,7 @@ export function initMovements(ctx, options = {}) {
     listeners.forEach(({ el, type, handler }) => {
       if (el) el.removeEventListener(type, handler);
     });
-    movementEngineerGlobal[MOVEMENTS_UI_KEY] = null;
+    movementsUiInstance = null;
   }
 
   const listeners = [];
@@ -504,7 +504,7 @@ export function initMovements(ctx, options = {}) {
   render(getState());
 
   const api = { render, destroy, selectMovement, addMovement, deleteMovement };
-  movementEngineerGlobal[MOVEMENTS_UI_KEY] = api;
+  movementsUiInstance = api;
   if (ctx) {
     ctx.movementsUI = api;
   }

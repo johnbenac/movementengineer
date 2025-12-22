@@ -70,6 +70,15 @@ function createCtx(snapshot, currentMovementId = 'm1', overrides = {}) {
       opt.selected = prev.has(opt.value);
     });
   };
+  const ensureDatalistOptions = (el, values = []) => {
+    if (!el) return;
+    clearElement(el);
+    values.forEach(value => {
+      const opt = document.createElement('option');
+      opt.value = value;
+      el.appendChild(opt);
+    });
+  };
   const ViewModels =
     overrides.ViewModels ||
     {
@@ -146,7 +155,7 @@ function createCtx(snapshot, currentMovementId = 'm1', overrides = {}) {
     update,
     store,
     services: { ViewModels, DomainService },
-    dom: { clearElement, ensureSelectOptions, ensureMultiSelectOptions }
+    dom: { clearElement, ensureSelectOptions, ensureMultiSelectOptions, ensureDatalistOptions }
   };
 }
 

@@ -1,34 +1,18 @@
 import { normaliseArray } from '../../utils/values.js';
 
 function getState(ctx) {
-  return ctx?.getState?.() || ctx?.store?.getState?.() || {};
+  return ctx.store.getState();
 }
 
 function applyState(ctx, updater) {
-  if (typeof ctx?.update === 'function') {
-    return ctx.update(prev => {
-      const next = typeof updater === 'function' ? updater(prev) : updater;
-      return next || prev;
-    });
-  }
-  if (typeof ctx?.setState === 'function') {
-    const prev = typeof ctx?.getState === 'function' ? ctx.getState() : {};
+  return ctx.store.setState(prev => {
     const next = typeof updater === 'function' ? updater(prev) : updater;
-    return ctx.setState(next || prev);
-  }
-  return null;
-}
-
-function getDomainService(ctx) {
-  return ctx?.services?.DomainService || ctx?.DomainService || window.DomainService;
-}
-
-function getStore(ctx) {
-  return ctx?.store || null;
+    return next || prev;
+  });
 }
 
 export function persistCanonItem(ctx, { show = false } = {}) {
-  const store = getStore(ctx);
+  const { store } = ctx;
   store?.markDirty?.('item');
   store?.saveSnapshot?.({
     show,
@@ -48,7 +32,7 @@ export function addTextCollection(ctx) {
     return null;
   }
 
-  const DomainService = getDomainService(ctx);
+  const DomainService = ctx.services.DomainService;
   if (!DomainService?.addNewItem) return null;
 
   try {
@@ -76,7 +60,7 @@ export function saveTextCollection(ctx) {
   const shelfId = state.currentShelfId;
   if (!shelfId) return null;
 
-  const DomainService = getDomainService(ctx);
+  const DomainService = ctx.services.DomainService;
   if (!DomainService?.upsertItem) return null;
 
   const shelf = (snapshot.textCollections || []).find(tc => tc.id === shelfId);
@@ -114,7 +98,7 @@ export function deleteTextCollection(ctx, shelfId = null) {
     );
   if (!ok) return false;
 
-  const DomainService = getDomainService(ctx);
+  const DomainService = ctx.services.DomainService;
   if (!DomainService?.deleteItem) return false;
 
   DomainService.deleteItem(snapshot, 'textCollections', targetId);
@@ -145,7 +129,7 @@ export function addNewBookToShelf(ctx) {
     return null;
   }
 
-  const DomainService = getDomainService(ctx);
+  const DomainService = ctx.services.DomainService;
   if (!DomainService?.addNewItem) return null;
 
   const shelf = (snapshot.textCollections || []).find(tc => tc.id === currentShelfId);
@@ -175,7 +159,7 @@ export function addExistingBookToShelf(ctx) {
   const currentShelfId = state.currentShelfId;
   if (!currentMovementId || !currentShelfId) return null;
 
-  const DomainService = getDomainService(ctx);
+  const DomainService = ctx.services.DomainService;
   if (!DomainService?.upsertItem) return null;
 
   const shelf = (snapshot.textCollections || []).find(tc => tc.id === currentShelfId);

@@ -101,7 +101,7 @@ describe('movements UI module', () => {
       getState: store.getState,
       subscribe: store.subscribe,
       actions: { selectMovement: vi.fn() },
-      services: { DomainService: window.DomainService }
+      services: { DomainService: globalThis.DomainService }
     };
 
     initMovements(ctx);
@@ -131,7 +131,7 @@ describe('movements UI module', () => {
       getState: store.getState,
       subscribe: store.subscribe,
       actions: { selectMovement: vi.fn() },
-      services: { DomainService: window.DomainService }
+      services: { DomainService: globalThis.DomainService }
     };
 
     initMovements(ctx);

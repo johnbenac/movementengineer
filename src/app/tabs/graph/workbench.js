@@ -1,11 +1,4 @@
 import { DEFAULT_GRAPH_WORKBENCH_STATE } from '../../store.js';
-import {
-  renderMarkdownPreview as renderMarkdownPreviewFallback,
-  openMarkdownModal as openMarkdownModalFallback
-} from '../../ui/markdown.js';
-
-const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
-movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
 
 const MIN_LEFT_WIDTH = 240;
 const MIN_RIGHT_WIDTH = 260;
@@ -160,7 +153,7 @@ let workbenchGraphView = null;
 let graphWorkbenchDom = null;
 
 function getStore(ctx) {
-  return ctx?.store || movementEngineerGlobal.store;
+  return ctx.store;
 }
 
 function getState(ctx) {
@@ -169,30 +162,30 @@ function getState(ctx) {
 }
 
 function getServices(ctx) {
-  return ctx?.services || movementEngineerGlobal.services || {};
+  return ctx.services;
 }
 
 function getDomainService(ctx) {
   const services = getServices(ctx);
-  return services.DomainService || window.DomainService;
+  return services.DomainService;
 }
 
 function getViewModels(ctx) {
   const services = getServices(ctx);
-  return services.ViewModels || window.ViewModels;
+  return services.ViewModels;
 }
 
 function getEntityGraphView(ctx) {
   const services = getServices(ctx);
-  return services.EntityGraphView || window.EntityGraphView;
+  return services.EntityGraphView;
 }
 
 function getUi(ctx) {
-  return ctx?.ui || getServices(ctx).ui || movementEngineerGlobal.ui || {};
+  return ctx.ui || getServices(ctx).ui || {};
 }
 
 function getActions(ctx) {
-  return ctx?.actions || movementEngineerGlobal.actions || {};
+  return ctx.actions;
 }
 
 function setStatus(ctx, text) {
@@ -210,7 +203,7 @@ function setStatus(ctx, text) {
 
 function clearElement(ctx, el) {
   if (!el) return;
-  const helper = ctx?.dom?.clearElement || movementEngineerGlobal?.dom?.clearElement;
+  const helper = ctx?.dom?.clearElement;
   if (typeof helper === 'function') {
     helper(el);
     return;
@@ -221,7 +214,7 @@ function clearElement(ctx, el) {
 }
 
 function getValueUtils(ctx) {
-  return (ctx?.utils && ctx.utils.values) || movementEngineerGlobal?.utils?.values || {};
+  return ctx.utils.values;
 }
 
 function normaliseArray(ctx, value) {
@@ -261,7 +254,7 @@ const labelForNodeType = type => GRAPH_NODE_TYPE_LABELS[type] || type || 'Unknow
 
 function colorForNodeType(ctx, type) {
   const services = getServices(ctx);
-  const colors = services.EntityGraphColors || window.EntityGraphColors;
+  const colors = services.EntityGraphColors;
   if (colors?.colorForNodeType) {
     return colors.colorForNodeType(type);
   }
@@ -824,9 +817,9 @@ function renderGenericNodeEditor(ctx, dom, node, config, snapshot, workbenchStat
     dom.selectedBody.textContent = 'Domain service unavailable.';
     return;
   }
-  const { renderMarkdownPreview, openMarkdownModal } = getUi(ctx).markdown || {};
-  const markdownPreview = renderMarkdownPreview || renderMarkdownPreviewFallback;
-  const openModal = openMarkdownModal || openMarkdownModalFallback;
+  const { renderMarkdownPreview, openMarkdownModal } = getUi(ctx).markdown;
+  const markdownPreview = renderMarkdownPreview;
+  const openModal = openMarkdownModal;
 
   const item = (snapshot[config.collection] || []).find(it => it && it.id === node.id);
 

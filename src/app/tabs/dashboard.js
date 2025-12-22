@@ -7,15 +7,15 @@ function fallbackClear(el) {
 }
 
 function getClear(ctx) {
-  return ctx?.dom?.clearElement || fallbackClear;
+  return ctx.dom.clearElement;
 }
 
 function getState(ctx) {
-  return ctx?.getState?.() || ctx?.store?.getState?.() || {};
+  return ctx.store.getState();
 }
 
 function getViewModels(ctx) {
-  return ctx?.services?.ViewModels || ctx?.ViewModels || window.ViewModels;
+  return ctx.services.ViewModels;
 }
 
 function appendParagraph(container, text) {

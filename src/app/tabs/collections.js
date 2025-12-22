@@ -98,48 +98,31 @@ const PREVIEW_FIELDS = {
   ]
 };
 
-function fallbackClear(el) {
-  if (!el) return;
-  while (el.firstChild) el.removeChild(el.firstChild);
-}
-
-function getClear(ctx) {
-  return ctx?.dom?.clearElement || fallbackClear;
-}
-
 function getState(ctx) {
-  return ctx?.getState?.() || ctx?.store?.getState?.() || {};
+  return ctx.store.getState();
 }
 
 function getDomainService(ctx) {
-  return ctx?.services?.DomainService || ctx?.DomainService || window.DomainService;
+  return ctx.services.DomainService;
 }
 
 function getStorageService(ctx) {
-  return ctx?.services?.StorageService || ctx?.StorageService || window.StorageService;
+  return ctx.services.StorageService;
 }
 
 function getStore(ctx) {
-  return ctx?.store || null;
+  return ctx.store;
 }
 
 function getActions(ctx) {
-  return ctx?.actions || {};
+  return ctx.actions;
 }
 
 function applyState(ctx, updater) {
-  if (typeof ctx?.update === 'function') {
-    return ctx.update(prev => {
-      const next = typeof updater === 'function' ? updater(prev) : updater;
-      return next || prev;
-    });
-  }
-  if (typeof ctx?.setState === 'function') {
-    const prev = typeof ctx?.getState === 'function' ? ctx.getState() : {};
+  return ctx.store.setState(prev => {
     const next = typeof updater === 'function' ? updater(prev) : updater;
-    return ctx.setState(next || prev);
-  }
-  return null;
+    return next || prev;
+  });
 }
 
 function getCollectionNames(ctx) {
@@ -348,8 +331,8 @@ function renderCollectionList(ctx, tab, state) {
   const list = document.getElementById('collection-items');
   const deleteBtn = document.getElementById('btn-delete-item');
   if (!list) return;
-  const clear = getClear(ctx);
-  clear(list);
+  const { clearElement } = ctx.dom;
+  clearElement(list);
 
   const snapshot = state.snapshot || {};
   const collName = state.currentCollectionName;
@@ -404,8 +387,8 @@ function renderItemPreview(ctx, state) {
   if (!titleEl || !subtitleEl || !body || !badge) return;
 
   const snapshot = state.snapshot || {};
-  const clear = getClear(ctx);
-  clear(body);
+  const { clearElement } = ctx.dom;
+  clearElement(body);
   badge.textContent = state.currentCollectionName || '—';
 
   if (!state.currentItemId) {

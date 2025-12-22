@@ -9,20 +9,20 @@ function fallbackClear(el) {
 }
 
 function getClear(ctx) {
-  return ctx?.dom?.clearElement || fallbackClear;
+  return ctx.dom.clearElement;
 }
 
 function getState(ctx) {
-  return ctx?.getState?.() || ctx?.store?.getState?.() || {};
+  return ctx.store.getState();
 }
 
 function getViewModels(ctx) {
   const services = ctx?.services || {};
-  return services.ViewModels || ctx?.ViewModels || window.ViewModels;
+  return services.ViewModels || ctx?.ViewModels;
 }
 
 function getActions(ctx) {
-  return ctx?.actions || movementEngineerGlobal.actions || {};
+  return ctx.actions;
 }
 
 function hint(text) {

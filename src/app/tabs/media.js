@@ -1,53 +1,11 @@
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
 
-function fallbackClear(el) {
-  if (!el) return;
-  while (el.firstChild) el.removeChild(el.firstChild);
-}
-
-function fallbackEnsureSelectOptions(selectEl, options = [], includeEmptyLabel) {
-  if (!selectEl) return;
-  const previous = selectEl.value;
-  fallbackClear(selectEl);
-  if (includeEmptyLabel) {
-    const opt = document.createElement('option');
-    opt.value = '';
-    opt.textContent = includeEmptyLabel;
-    selectEl.appendChild(opt);
-  }
-  options.forEach(option => {
-    const opt = document.createElement('option');
-    opt.value = option.value;
-    opt.textContent = option.label;
-    selectEl.appendChild(opt);
-  });
-  if (previous && options.some(option => option.value === previous)) {
-    selectEl.value = previous;
-  }
-}
-
-function getClear(ctx) {
-  return ctx?.dom?.clearElement || fallbackClear;
-}
-
-function getEnsureSelectOptions(ctx) {
-  return ctx?.dom?.ensureSelectOptions || fallbackEnsureSelectOptions;
-}
-
 function hint(text) {
   const p = document.createElement('p');
   p.className = 'hint';
   p.textContent = text;
   return p;
-}
-
-function getState(ctx) {
-  return ctx?.getState?.() || ctx?.store?.getState?.() || {};
-}
-
-function getViewModels(ctx) {
-  return ctx?.services?.ViewModels || ctx?.ViewModels || window.ViewModels;
 }
 
 function renderMediaCards(wrapper, items, clear) {
@@ -162,9 +120,8 @@ function renderMediaCards(wrapper, items, clear) {
 }
 
 function renderMediaTab(ctx) {
-  const clear = getClear(ctx);
-  const ensureSelectOptions = getEnsureSelectOptions(ctx);
-  const state = getState(ctx);
+  const { clearElement, ensureSelectOptions } = ctx.dom;
+  const state = ctx.store.getState();
   const snapshot = state.snapshot;
   const currentMovementId = state.currentMovementId;
 
@@ -182,7 +139,7 @@ function renderMediaTab(ctx) {
       f.disabled = true;
       f.value = '';
     });
-    clear(wrapper);
+    clearElement(wrapper);
     wrapper.appendChild(
       hint('Create or select a movement on the left to explore this section.')
     );
@@ -197,12 +154,7 @@ function renderMediaTab(ctx) {
     f.disabled = false;
   });
 
-  const ViewModels = getViewModels(ctx);
-  if (!ViewModels || typeof ViewModels.buildMediaGalleryViewModel !== 'function') {
-    clear(wrapper);
-    wrapper.appendChild(hint('ViewModels module not loaded.'));
-    return;
-  }
+  const ViewModels = ctx.services.ViewModels;
 
   const entities = (snapshot?.entities || []).filter(e => e.movementId === currentMovementId);
   const practices = (snapshot?.practices || []).filter(p => p.movementId === currentMovementId);
@@ -255,7 +207,7 @@ function renderMediaTab(ctx) {
     textIdFilter: textIdFilter || null
   });
 
-  renderMediaCards(wrapper, vm?.items || [], clear);
+  renderMediaCards(wrapper, vm?.items || [], clearElement);
 }
 
 export function registerMediaTab(ctx) {

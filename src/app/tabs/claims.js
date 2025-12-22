@@ -4,63 +4,6 @@ movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
 let selectedClaimId = null;
 let lastMovementId = null;
 
-function fallbackClear(el) {
-  if (!el) return;
-  while (el.firstChild) el.removeChild(el.firstChild);
-}
-
-function fallbackEnsureSelectOptions(selectEl, options = [], includeEmptyLabel) {
-  if (!selectEl) return;
-  const previous = selectEl.value;
-  fallbackClear(selectEl);
-  if (includeEmptyLabel) {
-    const opt = document.createElement('option');
-    opt.value = '';
-    opt.textContent = includeEmptyLabel;
-    selectEl.appendChild(opt);
-  }
-  options.forEach(option => {
-    const opt = document.createElement('option');
-    opt.value = option.value;
-    opt.textContent = option.label;
-    selectEl.appendChild(opt);
-  });
-  if (previous && options.some(option => option.value === previous)) {
-    selectEl.value = previous;
-  }
-}
-
-function ensureMultiSelectOptions(selectEl, options = [], selectedValues = []) {
-  if (!selectEl) return;
-  const selected = new Set(selectedValues || []);
-  fallbackClear(selectEl);
-  options.forEach(option => {
-    const opt = document.createElement('option');
-    opt.value = option.value;
-    opt.textContent = option.label;
-    opt.selected = selected.has(option.value);
-    selectEl.appendChild(opt);
-  });
-}
-
-function ensureDatalistOptions(datalistEl, values = []) {
-  if (!datalistEl) return;
-  fallbackClear(datalistEl);
-  Array.from(new Set(values.filter(Boolean))).forEach(value => {
-    const opt = document.createElement('option');
-    opt.value = value;
-    datalistEl.appendChild(opt);
-  });
-}
-
-function getClear(ctx) {
-  return ctx?.dom?.clearElement || fallbackClear;
-}
-
-function getEnsureSelectOptions(ctx) {
-  return ctx?.dom?.ensureSelectOptions || fallbackEnsureSelectOptions;
-}
-
 function hint(text) {
   const p = document.createElement('p');
   p.className = 'hint';
@@ -69,15 +12,7 @@ function hint(text) {
 }
 
 function getState(ctx) {
-  return ctx?.getState?.() || ctx?.store?.getState?.() || {};
-}
-
-function getViewModels(ctx) {
-  return ctx?.services?.ViewModels || ctx?.ViewModels || window.ViewModels;
-}
-
-function getDomainService(ctx) {
-  return ctx?.services?.DomainService || ctx?.DomainService || window.DomainService;
+  return ctx.store.getState();
 }
 
 function parseCsvList(value) {
@@ -106,6 +41,14 @@ function getSelectedValues(selectEl) {
   return Array.from(selectEl.selectedOptions || [])
     .map(opt => opt.value)
     .filter(Boolean);
+}
+
+function setSelectedValues(selectEl, values = []) {
+  if (!selectEl) return;
+  const set = new Set(values.filter(Boolean));
+  Array.from(selectEl.options || []).forEach(opt => {
+    opt.selected = set.has(opt.value);
+  });
 }
 
 function getLookups(snapshot, movementId) {
@@ -289,8 +232,10 @@ function setFormDisabled(form, disabled) {
   });
 }
 
-function populateClaimForm(form, lookups, claim) {
+function populateClaimForm(ctx, form, lookups, claim) {
   if (!form.textInput || !form.categoryInput) return;
+
+  const { ensureMultiSelectOptions, ensureDatalistOptions } = ctx.dom;
 
   form.idInput.value = claim?.id || '';
   form.categoryInput.value = claim?.category || '';
@@ -299,9 +244,12 @@ function populateClaimForm(form, lookups, claim) {
   form.sourcesOfTruthInput.value = joinCsvList(claim?.sourcesOfTruth);
   form.notesInput.value = claim?.notes || '';
 
-  ensureMultiSelectOptions(form.aboutEntities, lookups.entityOptions, claim?.aboutEntityIds);
-  ensureMultiSelectOptions(form.sourceEntities, lookups.entityOptions, claim?.sourceEntityIds);
-  ensureMultiSelectOptions(form.sourceTexts, lookups.textOptions, claim?.sourceTextIds);
+  ensureMultiSelectOptions(form.aboutEntities, lookups.entityOptions);
+  ensureMultiSelectOptions(form.sourceEntities, lookups.entityOptions);
+  ensureMultiSelectOptions(form.sourceTexts, lookups.textOptions);
+  setSelectedValues(form.aboutEntities, claim?.aboutEntityIds);
+  setSelectedValues(form.sourceEntities, claim?.sourceEntityIds);
+  setSelectedValues(form.sourceTexts, claim?.sourceTextIds);
 
   ensureDatalistOptions(form.categoryDatalist, lookups.categories);
   ensureDatalistOptions(form.tagDatalist, lookups.tags);
@@ -309,7 +257,7 @@ function populateClaimForm(form, lookups, claim) {
 }
 
 function handleAddClaim(ctx) {
-  const ds = getDomainService(ctx);
+  const ds = ctx.services.DomainService;
   const state = getState(ctx);
   if (!ds || !state.currentMovementId) return;
   ctx.update(prev => {
@@ -324,7 +272,7 @@ function handleAddClaim(ctx) {
 }
 
 function handleDeleteClaim(ctx) {
-  const ds = getDomainService(ctx);
+  const ds = ctx.services.DomainService;
   const state = getState(ctx);
   if (!ds || !state.currentMovementId || !selectedClaimId) return;
   const claims = state.snapshot?.claims || [];
@@ -347,7 +295,7 @@ function handleDeleteClaim(ctx) {
 }
 
 function handleSaveClaim(ctx) {
-  const ds = getDomainService(ctx);
+  const ds = ctx.services.DomainService;
   const state = getState(ctx);
   if (!ds || !state.currentMovementId) return;
   const form = getClaimFormElements();
@@ -396,8 +344,7 @@ function handleSaveClaim(ctx) {
 }
 
 function renderClaimsTab(ctx) {
-  const clear = getClear(ctx);
-  const ensureSelectOptions = getEnsureSelectOptions(ctx);
+  const { clearElement, ensureSelectOptions } = ctx.dom;
   const state = getState(ctx);
   const snapshot = state.snapshot;
   const currentMovementId = state.currentMovementId;
@@ -434,13 +381,14 @@ function renderClaimsTab(ctx) {
     selectedClaimId = null;
     lastMovementId = null;
     disableAll();
-    clear(wrapper);
+    clearElement(wrapper);
     wrapper.appendChild(
       hint('Create or select a movement on the left to explore this section.')
     );
     ensureSelectOptions(catSelect, [], 'All');
     ensureSelectOptions(entSelect, [], 'Any');
     populateClaimForm(
+      ctx,
       form,
       { entityOptions: [], textOptions: [], categories: [], tags: [], sourcesOfTruth: [] },
       null
@@ -455,12 +403,7 @@ function renderClaimsTab(ctx) {
 
   enableAll();
 
-  const ViewModels = getViewModels(ctx);
-  if (!ViewModels || typeof ViewModels.buildClaimsExplorerViewModel !== 'function') {
-    clear(wrapper);
-    wrapper.appendChild(hint('ViewModels module not loaded.'));
-    return;
-  }
+  const ViewModels = ctx.services.ViewModels;
 
   const claimsForMovement = (snapshot?.claims || []).filter(
     c => c.movementId === currentMovementId
@@ -489,10 +432,10 @@ function renderClaimsTab(ctx) {
     selectedClaimId = visibleClaims[0]?.id || null;
   }
 
-  renderClaimsTable(wrapper, visibleClaims, clear, selectedClaimId);
+  renderClaimsTable(wrapper, visibleClaims, clearElement, selectedClaimId);
 
   const selectedClaim = claimsForMovement.find(c => c.id === selectedClaimId) || null;
-  populateClaimForm(form, lookups, selectedClaim);
+  populateClaimForm(ctx, form, lookups, selectedClaim);
 
   if (deleteBtn) deleteBtn.disabled = !selectedClaimId;
   if (saveBtn) saveBtn.disabled = !selectedClaimId;

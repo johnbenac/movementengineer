@@ -69,23 +69,23 @@ function fallbackEnsureSelectOptions(selectEl, options = [], includeEmptyLabel) 
 }
 
 function getClear(ctx) {
-  return ctx?.dom?.clearElement || fallbackClear;
+  return ctx.dom.clearElement;
 }
 
 function getEnsureSelectOptions(ctx) {
-  return ctx?.dom?.ensureSelectOptions || fallbackEnsureSelectOptions;
+  return ctx.dom.ensureSelectOptions;
 }
 
 function getState(ctx) {
-  return ctx?.getState?.() || ctx?.store?.getState?.() || {};
+  return ctx.store.getState();
 }
 
 function getServices(ctx) {
   const services = ctx?.services || {};
   return {
-    DomainService: services.DomainService || window.DomainService,
-    StorageService: services.StorageService || window.StorageService,
-    ViewModels: services.ViewModels || ctx?.ViewModels || window.ViewModels
+    DomainService: services.DomainService,
+    StorageService: services.StorageService,
+    ViewModels: services.ViewModels
   };
 }
 
@@ -150,10 +150,7 @@ function buildTargetIdOptions(snapshot, movementId, targetType, domainService) {
   if (!collectionName) return [];
 
   const items = Array.isArray(snapshot?.[collectionName]) ? snapshot[collectionName] : [];
-  const scopedCollections =
-    domainService?.COLLECTIONS_WITH_MOVEMENT_ID ||
-    window.DomainService?.COLLECTIONS_WITH_MOVEMENT_ID ||
-    new Set();
+  const scopedCollections = domainService?.COLLECTIONS_WITH_MOVEMENT_ID || new Set();
 
   let filtered = items;
   if (targetType === 'Movement') {
@@ -170,15 +167,13 @@ function buildTargetIdOptions(snapshot, movementId, targetType, domainService) {
     }));
 }
 
-function populateTargetIdOptions(datalistEl, options) {
+function populateTargetIdOptions(ctx, datalistEl, options) {
   if (!datalistEl) return;
-  fallbackClear(datalistEl);
-  options.forEach(opt => {
-    const el = document.createElement('option');
-    el.value = opt.value;
-    el.textContent = opt.label;
-    datalistEl.appendChild(el);
-  });
+  const { ensureDatalistOptions } = ctx.dom;
+  ensureDatalistOptions(
+    datalistEl,
+    options.map(opt => opt.value)
+  );
 }
 
 function getFormDom() {
@@ -414,8 +409,7 @@ function handleDeleteNote(ctx, noteId) {
 }
 
 function renderNotesTab(ctx) {
-  const clear = getClear(ctx);
-  const ensureSelectOptions = getEnsureSelectOptions(ctx);
+  const { clearElement, ensureSelectOptions, ensureDatalistOptions } = ctx.dom;
   const state = getState(ctx);
   const snapshot = state.snapshot;
   const currentMovementId = state.currentMovementId;
@@ -438,8 +432,8 @@ function renderNotesTab(ctx) {
     setNoteFormEnabled(formDom, false, false);
     clearNoteForm(formDom);
     if (formDom.formTitle) formDom.formTitle.textContent = 'Create note';
-    if (formDom.targetIdDatalist) fallbackClear(formDom.targetIdDatalist);
-    clear(wrapper);
+    if (formDom.targetIdDatalist) ensureDatalistOptions(formDom.targetIdDatalist, []);
+    clearElement(wrapper);
     wrapper.appendChild(
       hint('Create or select a movement on the left to explore this section.')
     );
@@ -453,12 +447,6 @@ function renderNotesTab(ctx) {
   setNoteFormEnabled(formDom, true, Boolean(selectedNoteId));
 
   const ViewModels = getViewModels(ctx);
-  if (!ViewModels || typeof ViewModels.buildNotesViewModel !== 'function') {
-    clear(wrapper);
-    wrapper.appendChild(hint('ViewModels module not loaded.'));
-    setNoteFormEnabled(formDom, false, false);
-    return;
-  }
 
   const baseVm = ViewModels.buildNotesViewModel(snapshot, {
     movementId: currentMovementId,
@@ -505,7 +493,7 @@ function renderNotesTab(ctx) {
     targetIdFilter: selectedId || null
   });
 
-  renderNotesTable(wrapper, vm?.notes || [], clear, selectedNoteId);
+  renderNotesTable(wrapper, vm?.notes || [], clearElement, selectedNoteId);
 
   const notesForMovement = Array.isArray(snapshot?.notes)
     ? snapshot.notes.filter(note => note.movementId === currentMovementId)
@@ -543,7 +531,7 @@ function renderNotesTab(ctx) {
     desiredTargetType,
     services.DomainService
   );
-  populateTargetIdOptions(formDom.targetIdDatalist, targetIdOptions);
+  populateTargetIdOptions(ctx, formDom.targetIdDatalist, targetIdOptions);
 
   formDom.targetId.value =
     selectedNote?.targetId || selectedId || formDom.targetId.value || '';
