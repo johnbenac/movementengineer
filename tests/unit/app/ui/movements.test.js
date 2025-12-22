@@ -62,6 +62,8 @@ function renderDom() {
               </div>
               <div class="form-actions">
                 <button id="btn-save-movement" type="button">Save movement</button>
+                <button id="btn-import-from-github" type="button">Load markdown repo</button>
+                <button id="btn-export-repo" type="button">Export markdown zip</button>
                 <button id="btn-delete-movement" type="button" class="danger">
                   Delete movement & related data
                 </button>
@@ -89,9 +91,12 @@ function createStore(initialState) {
       return () => subscribers.delete(fn);
     },
     markDirty: vi.fn(),
+    markSaved: vi.fn(),
     saveSnapshot: vi.fn()
   };
 }
+
+const flushAsync = () => new Promise(resolve => setTimeout(resolve, 0));
 
 describe('movements UI module', () => {
   beforeEach(() => {
@@ -223,5 +228,99 @@ describe('movements UI module', () => {
       clearItemDirty: false,
       show: true
     });
+  });
+
+  it('imports a markdown repo and replaces snapshot', async () => {
+    const state = { snapshot: { movements: [] }, currentMovementId: null, flags: {} };
+    const store = createStore(state);
+    const importedSnapshot = {
+      movements: [{ id: 'm-import', name: 'Imported', shortName: 'Imp' }]
+    };
+    const ctx = {
+      store,
+      getState: store.getState,
+      subscribe: store.subscribe,
+      actions: { selectMovement: vi.fn() },
+      services: {
+        DomainService: createDomainServiceStub(),
+        MarkdownDatasetLoader: {
+          importMovementRepo: vi.fn().mockResolvedValue(importedSnapshot)
+        }
+      },
+      dom: createDomUtils(),
+      ui: { setStatus: vi.fn() }
+    };
+
+    vi.spyOn(window, 'prompt').mockReturnValue('https://github.com/example/repo');
+
+    initMovements(ctx);
+
+    document.getElementById('btn-import-from-github').click();
+    await flushAsync();
+
+    expect(ctx.services.MarkdownDatasetLoader.importMovementRepo).toHaveBeenCalledWith(
+      'https://github.com/example/repo'
+    );
+    expect(store.getState().snapshot).toEqual(importedSnapshot);
+    expect(store.getState().currentMovementId).toBe('m-import');
+    expect(ctx.actions.selectMovement).toHaveBeenCalledWith('m-import');
+    expect(store.markSaved).toHaveBeenCalledWith({ movement: true, item: true });
+    expect(ctx.ui.setStatus).toHaveBeenLastCalledWith('Repo imported ✓');
+  });
+
+  it('exports selected movement to a markdown zip', async () => {
+    const state = {
+      snapshot: { movements: [{ id: 'm1', name: 'One', shortName: 'O', summary: '', tags: [] }] },
+      currentMovementId: 'm1',
+      flags: {}
+    };
+    const store = createStore(state);
+    const exportBlob = new Blob(['data']);
+    const originalURL = global.URL;
+    const ctx = {
+      store,
+      getState: store.getState,
+      subscribe: store.subscribe,
+      actions: { selectMovement: vi.fn() },
+      services: {
+        DomainService: createDomainServiceStub(),
+        MarkdownDatasetLoader: {
+          exportMovementToZip: vi.fn().mockResolvedValue({ archive: exportBlob, fileCount: 1 }),
+          buildBaselineByMovement: vi.fn().mockReturnValue({})
+        }
+      },
+      dom: createDomUtils(),
+      ui: { setStatus: vi.fn() }
+    };
+
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal('URL', {
+      ...originalURL,
+      createObjectURL: vi.fn().mockReturnValue('blob:export'),
+      revokeObjectURL
+    });
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => {});
+
+    initMovements(ctx);
+
+    document.getElementById('btn-export-repo').click();
+    await flushAsync();
+
+    try {
+      expect(ctx.services.MarkdownDatasetLoader.buildBaselineByMovement).toHaveBeenCalled();
+      expect(ctx.services.MarkdownDatasetLoader.exportMovementToZip).toHaveBeenCalledWith(
+        expect.objectContaining({ __repoBaselineByMovement: expect.any(Object) }),
+        'm1',
+        { outputType: 'blob' }
+      );
+      expect(clickSpy).toHaveBeenCalled();
+      expect(revokeObjectURL).toHaveBeenCalledWith('blob:export');
+      expect(ctx.ui.setStatus).toHaveBeenLastCalledWith('Exported 1 file(s) ✓');
+    } finally {
+      global.URL = originalURL;
+      clickSpy.mockRestore();
+    }
   });
 });
