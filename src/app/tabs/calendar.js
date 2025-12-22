@@ -1,5 +1,4 @@
-const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
-movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
+import { createTab } from './_tabKit.js';
 
 function getState(ctx) {
   return ctx.store.getState() || {};
@@ -165,45 +164,14 @@ function renderCalendarTab(ctx) {
 }
 
 export function registerCalendarTab(ctx) {
-  const tab = {
-    __handlers: null,
-    mount(context) {
-      const listeners = [];
-      const rerender = () => tab.render(context);
-      const handleStateChange = () => {
-        const active = document.querySelector('.tab.active');
-        if (!active || active.dataset.tab !== 'calendar') return;
-        rerender();
-      };
-
+  return createTab(ctx, {
+    name: 'calendar',
+    render: renderCalendarTab,
+    setup({ bucket, rerender }) {
       const select = document.getElementById('calendar-recurrence-filter');
       if (select) {
-        select.addEventListener('change', rerender);
-        listeners.push({ el: select, event: 'change', handler: rerender });
+        bucket.on(select, 'change', () => rerender());
       }
-
-      const unsubscribe = context?.subscribe ? context.subscribe(handleStateChange) : null;
-      this.__handlers = { listeners, unsubscribe, rerender };
-    },
-    render(context) {
-      renderCalendarTab(context);
-    },
-    unmount() {
-      const h = this.__handlers;
-      if (!h) return;
-      (h.listeners || []).forEach(({ el, event, handler }) => {
-        if (el?.removeEventListener) {
-          el.removeEventListener(event, handler);
-        }
-      });
-      if (typeof h.unsubscribe === 'function') h.unsubscribe();
-      this.__handlers = null;
     }
-  };
-
-  movementEngineerGlobal.tabs.calendar = tab;
-  if (ctx?.tabs) {
-    ctx.tabs.calendar = tab;
-  }
-  return tab;
+  });
 }
