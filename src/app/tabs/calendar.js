@@ -1,4 +1,11 @@
 import { createTab } from './_tabKit.js';
+import {
+  HINT_TEXT,
+  guardMissingViewModels,
+  guardNoMovement,
+  renderHint,
+  setDisabled
+} from '../ui/hints.js';
 
 function getState(ctx) {
   return ctx.store.getState() || {};
@@ -10,13 +17,6 @@ function getViewModels(ctx) {
 
 function getActions(ctx) {
   return ctx.actions;
-}
-
-function hint(text) {
-  const p = document.createElement('p');
-  p.className = 'hint';
-  p.textContent = text;
-  return p;
 }
 
 function renderCalendarTab(ctx) {
@@ -32,19 +32,28 @@ function renderCalendarTab(ctx) {
   if (!wrapper || !select) return;
 
   clear(wrapper);
+  setDisabled([select], false);
 
-  if (!currentMovementId) {
-    select.disabled = true;
-    wrapper.appendChild(hint('Create or select a movement on the left to explore this section.'));
+  if (
+    guardNoMovement({
+      movementId: currentMovementId,
+      wrappers: [wrapper],
+      controls: [select],
+      dom: ctx.dom,
+      message: HINT_TEXT.MOVEMENT_REQUIRED
+    })
+  )
     return;
-  }
 
-  select.disabled = false;
-
-  if (!ViewModels || typeof ViewModels.buildCalendarViewModel !== 'function') {
-    wrapper.appendChild(hint('ViewModels module not loaded.'));
+  if (
+    guardMissingViewModels({
+      ok: ViewModels && typeof ViewModels.buildCalendarViewModel === 'function',
+      wrappers: [wrapper],
+      controls: [select],
+      dom: ctx.dom
+    })
+  )
     return;
-  }
 
   const val = select.value;
   const recurrenceFilter = val ? [val] : [];
@@ -55,7 +64,7 @@ function renderCalendarTab(ctx) {
   });
 
   if (!vm?.events?.length) {
-    wrapper.appendChild(hint('No events in the calendar for this filter.'));
+    renderHint(wrapper, 'No events in the calendar for this filter.');
     return;
   }
 

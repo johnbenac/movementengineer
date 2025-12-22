@@ -1,15 +1,16 @@
+import {
+  HINT_TEXT,
+  guardMissingViewModels,
+  guardNoMovement,
+  renderHint,
+  setDisabled
+} from '../ui/hints.js';
+
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
 
 let selectedClaimId = null;
 let lastMovementId = null;
-
-function hint(text) {
-  const p = document.createElement('p');
-  p.className = 'hint';
-  p.textContent = text;
-  return p;
-}
 
 function getState(ctx) {
   return ctx.store.getState() || {};
@@ -114,7 +115,7 @@ function renderClaimsTable(wrapper, claims, clear, selectedId) {
   clear(wrapper);
 
   if (!claims || claims.length === 0) {
-    wrapper.appendChild(hint('No claims match this filter.'));
+    renderHint(wrapper, 'No claims match this filter.');
     return;
   }
 
@@ -357,32 +358,28 @@ function renderClaimsTab(ctx) {
   const form = getClaimFormElements();
   if (!wrapper || !catSelect || !entSelect || !form.textInput) return;
 
-  const disableAll = () => {
-    catSelect.disabled = true;
-    entSelect.disabled = true;
-    if (addBtn) addBtn.disabled = true;
-    if (deleteBtn) deleteBtn.disabled = true;
-    if (saveBtn) saveBtn.disabled = true;
-    if (resetBtn) resetBtn.disabled = true;
-    setFormDisabled(form, true);
-  };
+  const controls = [catSelect, entSelect, addBtn, deleteBtn, saveBtn, resetBtn];
 
   const enableAll = () => {
-    catSelect.disabled = false;
-    entSelect.disabled = false;
-    if (addBtn) addBtn.disabled = false;
-    if (resetBtn) resetBtn.disabled = false;
+    setDisabled([catSelect, entSelect, addBtn, resetBtn], false);
     setFormDisabled(form, false);
   };
 
-  if (!currentMovementId) {
+  setDisabled(controls, false);
+  clear(wrapper);
+
+  if (
+    guardNoMovement({
+      movementId: currentMovementId,
+      wrappers: [wrapper],
+      controls,
+      dom,
+      message: HINT_TEXT.MOVEMENT_REQUIRED
+    })
+  ) {
     selectedClaimId = null;
     lastMovementId = null;
-    disableAll();
-    clear(wrapper);
-    wrapper.appendChild(
-      hint('Create or select a movement on the left to explore this section.')
-    );
+    setFormDisabled(form, true);
     ensureSelectOptions(catSelect, [], 'All');
     ensureSelectOptions(entSelect, [], 'Any');
     populateClaimForm(
@@ -399,14 +396,20 @@ function renderClaimsTab(ctx) {
     lastMovementId = currentMovementId;
   }
 
-  enableAll();
-
   const ViewModels = getViewModels(ctx);
-  if (!ViewModels || typeof ViewModels.buildClaimsExplorerViewModel !== 'function') {
-    clear(wrapper);
-    wrapper.appendChild(hint('ViewModels module not loaded.'));
+  if (
+    guardMissingViewModels({
+      ok: ViewModels && typeof ViewModels.buildClaimsExplorerViewModel === 'function',
+      wrappers: [wrapper],
+      controls,
+      dom
+    })
+  ) {
+    setFormDisabled(form, true);
     return;
   }
+
+  enableAll();
 
   const claimsForMovement = (snapshot?.claims || []).filter(
     c => c.movementId === currentMovementId
@@ -440,8 +443,7 @@ function renderClaimsTab(ctx) {
   const selectedClaim = claimsForMovement.find(c => c.id === selectedClaimId) || null;
   populateClaimForm(form, lookups, selectedClaim, dom);
 
-  if (deleteBtn) deleteBtn.disabled = !selectedClaimId;
-  if (saveBtn) saveBtn.disabled = !selectedClaimId;
+  setDisabled([deleteBtn, saveBtn], !selectedClaimId);
 }
 
 export function registerClaimsTab(ctx) {

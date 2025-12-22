@@ -1,3 +1,11 @@
+import {
+  HINT_TEXT,
+  guardMissingViewModels,
+  guardNoMovement,
+  renderHint,
+  setDisabled
+} from '../ui/hints.js';
+
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
 
@@ -53,13 +61,6 @@ function getServices(ctx) {
 function getViewModels(ctx) {
   const services = getServices(ctx);
   return services.ViewModels;
-}
-
-function hint(text) {
-  const p = document.createElement('p');
-  p.className = 'hint';
-  p.textContent = text;
-  return p;
 }
 
 function parseCsvInput(raw) {
@@ -187,7 +188,7 @@ function renderNotesTable(wrapper, notes, clear, selectedId) {
   clear(wrapper);
 
   if (!notes || notes.length === 0) {
-    wrapper.appendChild(hint('No notes match this filter.'));
+    renderHint(wrapper, 'No notes match this filter.');
     return;
   }
 
@@ -384,36 +385,44 @@ function renderNotesTab(ctx) {
   const idSelect = document.getElementById('notes-target-id-filter');
   const formDom = getFormDom();
   if (!wrapper || !typeSelect || !idSelect || !formDom) return;
+  const controls = [typeSelect, idSelect];
 
   if (lastMovementId !== currentMovementId) {
     selectedNoteId = null;
     lastMovementId = currentMovementId || null;
   }
 
-  if (!currentMovementId) {
-    typeSelect.disabled = true;
-    idSelect.disabled = true;
+  clear(wrapper);
+  if (
+    guardNoMovement({
+      movementId: currentMovementId,
+      wrappers: [wrapper],
+      controls,
+      dom,
+      message: HINT_TEXT.MOVEMENT_REQUIRED
+    })
+  ) {
     setNoteFormEnabled(formDom, false, false);
     clearNoteForm(formDom);
     if (formDom.formTitle) formDom.formTitle.textContent = 'Create note';
     if (formDom.targetIdDatalist) dom.clearElement(formDom.targetIdDatalist);
-    clear(wrapper);
-    wrapper.appendChild(
-      hint('Create or select a movement on the left to explore this section.')
-    );
     ensureSelectOptions(typeSelect, [], 'All');
     ensureSelectOptions(idSelect, [], 'Any');
     return;
   }
 
-  typeSelect.disabled = false;
-  idSelect.disabled = false;
+  setDisabled(controls, false);
   setNoteFormEnabled(formDom, true, Boolean(selectedNoteId));
 
   const ViewModels = getViewModels(ctx);
-  if (!ViewModels || typeof ViewModels.buildNotesViewModel !== 'function') {
-    clear(wrapper);
-    wrapper.appendChild(hint('ViewModels module not loaded.'));
+  if (
+    guardMissingViewModels({
+      ok: ViewModels && typeof ViewModels.buildNotesViewModel === 'function',
+      wrappers: [wrapper],
+      controls,
+      dom
+    })
+  ) {
     setNoteFormEnabled(formDom, false, false);
     return;
   }
