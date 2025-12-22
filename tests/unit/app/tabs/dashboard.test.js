@@ -52,7 +52,7 @@ describe('dashboard tab module', () => {
     };
     const ctx = createCtx(state, vm);
 
-    const { registerDashboardTab } = await import('./dashboard.js');
+    const { registerDashboardTab } = await import('../../../../src/app/tabs/dashboard.js');
     const tab = registerDashboardTab(ctx);
     tab.render(ctx);
 
@@ -67,7 +67,7 @@ describe('dashboard tab module', () => {
   it('shows empty state when no movement is selected', async () => {
     renderDom();
     const ctx = createCtx({ snapshot: {}, currentMovementId: null }, null);
-    const { registerDashboardTab } = await import('./dashboard.js');
+    const { registerDashboardTab } = await import('../../../../src/app/tabs/dashboard.js');
     const tab = registerDashboardTab(ctx);
 
     tab.render(ctx);
@@ -81,7 +81,7 @@ describe('dashboard tab module', () => {
     renderDom();
     const state = { snapshot: {}, currentMovementId: 'm1' };
     const ctx = createCtx(state, null);
-    const { registerDashboardTab } = await import('./dashboard.js');
+    const { registerDashboardTab } = await import('../../../../src/app/tabs/dashboard.js');
     const tab = registerDashboardTab(ctx);
 
     tab.render(ctx);
@@ -96,7 +96,7 @@ describe('dashboard tab module', () => {
     const state = { snapshot: {}, currentMovementId: 'm2' };
     const vm = { movement: null };
     const ctx = createCtx(state, vm);
-    const { registerDashboardTab } = await import('./dashboard.js');
+    const { registerDashboardTab } = await import('../../../../src/app/tabs/dashboard.js');
     const tab = registerDashboardTab(ctx);
 
     tab.render(ctx);
@@ -121,7 +121,7 @@ describe('dashboard tab module', () => {
       exampleNodes: {}
     };
     const ctx = createCtx(state, vm);
-    const { registerDashboardTab } = await import('./dashboard.js');
+    const { registerDashboardTab } = await import('../../../../src/app/tabs/dashboard.js');
     const tab = registerDashboardTab(ctx);
     const renderSpy = vi.spyOn(tab, 'render');
 

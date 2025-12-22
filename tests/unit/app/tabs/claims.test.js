@@ -129,7 +129,7 @@ describe('claims tab module', () => {
       entities: [{ id: 'e1', movementId: 'm1', name: 'Alice' }]
     };
     const ctx = createCtx(snapshot);
-    const { registerClaimsTab } = await import('./claims.js');
+    const { registerClaimsTab } = await import('../../../../src/app/tabs/claims.js');
     const tab = registerClaimsTab(ctx);
 
     tab.mount(ctx);
@@ -157,7 +157,7 @@ describe('claims tab module', () => {
     renderDom();
     const snapshot = { claims: [], entities: [] };
     const ctx = createCtx(snapshot, null);
-    const { registerClaimsTab } = await import('./claims.js');
+    const { registerClaimsTab } = await import('../../../../src/app/tabs/claims.js');
     const tab = registerClaimsTab(ctx);
 
     tab.render(ctx);
@@ -193,7 +193,7 @@ describe('claims tab module', () => {
       texts: [{ id: 't1', movementId: 'm1', title: 'Text 1' }]
     };
     const ctx = createCtx(snapshot);
-    const { registerClaimsTab } = await import('./claims.js');
+    const { registerClaimsTab } = await import('../../../../src/app/tabs/claims.js');
     const tab = registerClaimsTab(ctx);
 
     tab.mount(ctx);
@@ -274,7 +274,7 @@ describe('claims tab module', () => {
       }))
     };
     const ctx = createCtx(snapshot, 'm1', { ViewModels });
-    const { registerClaimsTab } = await import('./claims.js');
+    const { registerClaimsTab } = await import('../../../../src/app/tabs/claims.js');
     const tab = registerClaimsTab(ctx);
 
     tab.mount(ctx);

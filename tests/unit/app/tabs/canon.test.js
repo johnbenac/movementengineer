@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { addTextCollection } from './canon/actions.js';
+import { addTextCollection } from '../../../../src/app/tabs/canon/actions.js';
 
 const baseSnapshot = () => ({
   movements: [],
@@ -106,7 +106,7 @@ describe('canon tab module', () => {
         }
       }
     });
-    const { registerCanonTab } = await import('./canon.js');
+    const { registerCanonTab } = await import('../../../../src/app/tabs/canon.js');
     const tab = registerCanonTab(ctx);
 
     tab.render(ctx);
@@ -118,9 +118,12 @@ describe('canon tab module', () => {
   });
 
   it('responds to state changes when canon tab is active', async () => {
-    const renderSpy = vi.spyOn(await import('./canon/libraryView.js'), 'renderLibraryView');
+    const renderSpy = vi.spyOn(
+      await import('../../../../src/app/tabs/canon/libraryView.js'),
+      'renderLibraryView'
+    );
     const ctx = createCtx();
-    const { registerCanonTab } = await import('./canon.js');
+    const { registerCanonTab } = await import('../../../../src/app/tabs/canon.js');
     const tab = registerCanonTab(ctx);
     tab.mount(ctx);
 

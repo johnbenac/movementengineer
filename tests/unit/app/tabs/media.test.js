@@ -76,7 +76,7 @@ describe('media tab module', () => {
       media: []
     };
     const ctx = createCtx(snapshot);
-    const { registerMediaTab } = await import('./media.js');
+    const { registerMediaTab } = await import('../../../../src/app/tabs/media.js');
     const tab = registerMediaTab(ctx);
 
     tab.mount(ctx);
@@ -113,7 +113,7 @@ describe('media tab module', () => {
     renderDom();
     const snapshot = { media: [], entities: [], practices: [], events: [], texts: [] };
     const ctx = createCtx(snapshot, null);
-    const { registerMediaTab } = await import('./media.js');
+    const { registerMediaTab } = await import('../../../../src/app/tabs/media.js');
     const tab = registerMediaTab(ctx);
 
     tab.render(ctx);

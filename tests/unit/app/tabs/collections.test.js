@@ -100,7 +100,7 @@ describe('collections tab module', () => {
       flags: {}
     };
     const ctx = createCtx(state);
-    const { registerCollectionsTab } = await import('./collections.js');
+    const { registerCollectionsTab } = await import('../../../../src/app/tabs/collections.js');
     const tab = registerCollectionsTab(ctx);
 
     tab.render(ctx);
@@ -131,7 +131,7 @@ describe('collections tab module', () => {
       },
       { store }
     );
-    const { registerCollectionsTab } = await import('./collections.js');
+    const { registerCollectionsTab } = await import('../../../../src/app/tabs/collections.js');
     const tab = registerCollectionsTab(ctx);
 
     document.getElementById('item-editor').value = JSON.stringify(
@@ -169,7 +169,7 @@ describe('collections tab module', () => {
       },
       { actions }
     );
-    const { registerCollectionsTab } = await import('./collections.js');
+    const { registerCollectionsTab } = await import('../../../../src/app/tabs/collections.js');
     const tab = registerCollectionsTab(ctx);
 
     tab.jumpToReferencedItem(ctx, 'entities', 'e1');
@@ -200,7 +200,7 @@ describe('collections tab module', () => {
       },
       { store }
     );
-    const { registerCollectionsTab } = await import('./collections.js');
+    const { registerCollectionsTab } = await import('../../../../src/app/tabs/collections.js');
     const tab = registerCollectionsTab(ctx);
 
     tab.mount(ctx);

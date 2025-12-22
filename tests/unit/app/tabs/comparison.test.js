@@ -48,7 +48,7 @@ async function setup() {
   vi.resetModules();
   renderDom();
   window.MovementEngineer = { tabs: {}, bootstrapOptions: {} };
-  const { registerComparisonTab } = await import('./comparison.js');
+  const { registerComparisonTab } = await import('../../../../src/app/tabs/comparison.js');
   const snapshot = createSnapshot();
   const ctx = createCtx(snapshot);
   const tab = registerComparisonTab(ctx);
