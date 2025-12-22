@@ -113,12 +113,22 @@ function ensureFormMount() {
     saveBtn.id = 'btn-save-movement';
     saveBtn.type = 'button';
     saveBtn.textContent = 'Save movement';
+    const importBtn = document.createElement('button');
+    importBtn.id = 'btn-import-from-github';
+    importBtn.type = 'button';
+    importBtn.textContent = 'Load markdown repo';
+    const exportBtn = document.createElement('button');
+    exportBtn.id = 'btn-export-repo';
+    exportBtn.type = 'button';
+    exportBtn.textContent = 'Export markdown zip';
     const deleteBtn = document.createElement('button');
     deleteBtn.id = 'btn-delete-movement';
     deleteBtn.type = 'button';
     deleteBtn.className = 'danger';
     deleteBtn.textContent = 'Delete movement & related data';
     formActions.appendChild(saveBtn);
+    formActions.appendChild(importBtn);
+    formActions.appendChild(exportBtn);
     formActions.appendChild(deleteBtn);
 
     formCard.appendChild(formActions);
@@ -137,6 +147,8 @@ function ensureFormMount() {
   elements.summaryInput = formCard.querySelector('#movement-summary');
   elements.tagsInput = formCard.querySelector('#movement-tags');
   elements.saveButton = formCard.querySelector('#btn-save-movement');
+  elements.importButton = formCard.querySelector('#btn-import-from-github');
+  elements.exportButton = formCard.querySelector('#btn-export-repo');
   elements.deleteButton = formCard.querySelector('#btn-delete-movement');
   elements.addButton = document.getElementById('btn-add-movement');
   elements.form = formCard;
@@ -187,6 +199,31 @@ export function initMovements(ctx, options = {}) {
 
   function getState() {
     return ctx.store.getState() || {};
+  }
+
+  function getCurrentMovementId() {
+    return getState()?.currentMovementId || null;
+  }
+
+  function getSnapshot() {
+    return getState()?.snapshot || {};
+  }
+
+  function getLastRepoUrl() {
+    try {
+      return localStorage?.getItem?.('me:lastRepoUrl') || '';
+    } catch (err) {
+      console.warn('Unable to read last repo URL', err);
+      return '';
+    }
+  }
+
+  function setLastRepoUrl(url) {
+    try {
+      localStorage?.setItem?.('me:lastRepoUrl', url);
+    } catch (err) {
+      console.warn('Unable to persist last repo URL', err);
+    }
   }
 
   function markDirty() {
@@ -260,7 +297,9 @@ export function initMovements(ctx, options = {}) {
       inputs.summaryInput,
       inputs.tagsInput,
       inputs.deleteButton,
-      inputs.saveButton
+      inputs.saveButton,
+      inputs.importButton,
+      inputs.exportButton
     ].forEach(el => {
       if (el) el.disabled = !!isDisabled;
     });
@@ -286,10 +325,13 @@ export function initMovements(ctx, options = {}) {
     if (!movement) {
       populateForm(null);
       setFormDisabled(true);
+      if (inputs.importButton) inputs.importButton.disabled = false;
+      if (inputs.exportButton) inputs.exportButton.disabled = true;
       return;
     }
 
     setFormDisabled(false);
+    if (inputs.importButton) inputs.importButton.disabled = false;
     populateForm(movement);
   }
 
@@ -356,8 +398,7 @@ export function initMovements(ctx, options = {}) {
 
   function addMovement(overrides = {}) {
     const { DomainService } = ctx.services;
-    const state = getState();
-    const snapshot = state?.snapshot || {};
+    const snapshot = getSnapshot();
     const movements = Array.isArray(snapshot.movements) ? snapshot.movements : [];
     const nextSnapshot = { ...snapshot, movements: [...movements] };
     let movement = null;
@@ -404,8 +445,7 @@ export function initMovements(ctx, options = {}) {
   function deleteMovement(movementId) {
     if (!movementId) return;
     const { DomainService } = ctx.services;
-    const state = getState();
-    const snapshot = state?.snapshot || {};
+    const snapshot = getSnapshot();
     const movements = Array.isArray(snapshot.movements) ? snapshot.movements : [];
     const target = movements.find(m => m?.id === movementId || m?.movementId === movementId);
     if (!target) return;
@@ -444,6 +484,115 @@ export function initMovements(ctx, options = {}) {
     scheduleRender();
   }
 
+  async function handleImportRepoClick() {
+    const loader = ctx?.services?.MarkdownDatasetLoader;
+    if (!loader?.importMovementRepo) {
+      window.alert?.('MarkdownDatasetLoader.importMovementRepo is not available.');
+      return;
+    }
+
+    const repoUrl = window.prompt?.(
+      'GitHub repo URL to load (e.g. https://github.com/owner/repo):',
+      getLastRepoUrl()
+    );
+    if (!repoUrl) return;
+
+    setLastRepoUrl(repoUrl);
+
+    try {
+      ctx.ui?.setStatus?.('Importing markdown repo…');
+      const importedSnapshot = await loader.importMovementRepo(repoUrl);
+      const movements = Array.isArray(importedSnapshot?.movements)
+        ? importedSnapshot.movements
+        : [];
+      const currentId = getCurrentMovementId();
+      const nextMovement =
+        movements.find(m => m?.id === currentId || m?.movementId === currentId) ||
+        movements[0] ||
+        null;
+      const nextMovementId = nextMovement?.id || nextMovement?.movementId || null;
+
+      ctx.store.setState(prev => ({
+        ...prev,
+        snapshot: importedSnapshot,
+        currentMovementId: nextMovementId,
+        currentItemId: null,
+        currentTextId: null,
+        currentShelfId: null,
+        currentBookId: null,
+        navigation: { stack: [], index: -1 }
+      }));
+
+      ctx.store?.markSaved?.({ movement: true, item: true });
+
+      if (ctx.actions?.selectMovement && nextMovementId) {
+        ctx.actions.selectMovement(nextMovementId);
+      } else {
+        ctx.shell?.renderActiveTab?.();
+      }
+
+      ctx.ui?.setStatus?.('Repo imported ✓');
+      scheduleRender();
+    } catch (err) {
+      console.error(err);
+      window.alert?.(err?.message || String(err));
+      ctx.ui?.setStatus?.('Import failed');
+    }
+  }
+
+  function ensureExportableSnapshot(snapshot) {
+    const loader = ctx?.services?.MarkdownDatasetLoader;
+    if (!loader?.buildBaselineByMovement) return snapshot;
+    const nextSnapshot = { ...snapshot };
+    if (!nextSnapshot.__repoBaselineByMovement) {
+      nextSnapshot.__repoBaselineByMovement = loader.buildBaselineByMovement(snapshot);
+      nextSnapshot.__repoFileIndex = nextSnapshot.__repoFileIndex || {};
+      nextSnapshot.__repoRawMarkdownByPath = nextSnapshot.__repoRawMarkdownByPath || {};
+      ctx.store?.setState?.(prev => ({ ...prev, snapshot: nextSnapshot }));
+    }
+    return nextSnapshot;
+  }
+
+  async function handleExportZipClick() {
+    const loader = ctx?.services?.MarkdownDatasetLoader;
+    if (!loader?.exportMovementToZip || !loader?.buildBaselineByMovement) {
+      window.alert?.('MarkdownDatasetLoader export helpers are not available.');
+      return;
+    }
+
+    const movementId = getCurrentMovementId();
+    if (!movementId) {
+      window.alert?.('Select a movement first.');
+      return;
+    }
+
+    try {
+      ctx.ui?.setStatus?.('Building export…');
+      const snapshot = ensureExportableSnapshot(getSnapshot());
+      const result = await loader.exportMovementToZip(snapshot, movementId, {
+        outputType: 'blob'
+      });
+      const blob = result?.archive || result;
+      const filename = `movement-${movementId}.zip`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+
+      const fileCount = typeof result?.fileCount === 'number' ? result.fileCount : null;
+      const status = fileCount != null ? `Exported ${fileCount} file(s) ✓` : 'Exported ✓';
+      ctx.ui?.setStatus?.(status);
+    } catch (err) {
+      console.error(err);
+      window.alert?.(err?.message || String(err));
+      ctx.ui?.setStatus?.('Export failed');
+    }
+  }
+
   function destroy() {
     if (rafId) {
       if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(rafId);
@@ -478,8 +627,10 @@ export function initMovements(ctx, options = {}) {
   addListener(listEl, 'click', handleListClick);
   addListener(inputs.addButton, 'click', () => addMovement());
   addListener(inputs.deleteButton, 'click', () =>
-    deleteMovement(getState()?.currentMovementId || null)
+    deleteMovement(getCurrentMovementId())
   );
+  addListener(inputs.importButton, 'click', () => handleImportRepoClick());
+  addListener(inputs.exportButton, 'click', () => handleExportZipClick());
   addListener(inputs.saveButton, 'click', () => {
     applyFormToSnapshot();
     markDirty();
