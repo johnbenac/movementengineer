@@ -415,4 +415,39 @@ describe('rules tab module', () => {
     const selectedRow = document.querySelector('#rules-table-wrapper tr.selected');
     expect(selectedRow?.textContent).toContain('First');
   });
+
+  it('renders with tab as receiver after add/save/delete handlers', async () => {
+    renderDom();
+    const snapshot = {
+      rules: [{ id: 'r1', movementId: 'm1', shortText: 'Existing', kind: 'must_do' }]
+    };
+    const ctx = createCtx(snapshot, 'm1');
+    const { registerRulesTab } = await import('../../../../src/app/tabs/rules.js');
+    const tab = registerRulesTab(ctx);
+
+    tab.mount(ctx);
+
+    const originalRender = tab.render;
+    const renderSpy = vi.spyOn(tab, 'render');
+    renderSpy.mockImplementation(function (...args) {
+      expect(this).toBe(tab);
+      return originalRender.apply(this, args);
+    });
+
+    tab.render(ctx);
+    renderSpy.mockClear();
+
+    document.getElementById('rules-add-btn').dispatchEvent(new Event('click', { bubbles: true }));
+    expect(renderSpy).toHaveBeenCalled();
+
+    renderSpy.mockClear();
+    document.getElementById('rules-save-btn').dispatchEvent(new Event('click', { bubbles: true }));
+    expect(renderSpy).toHaveBeenCalled();
+
+    renderSpy.mockClear();
+    document
+      .getElementById('rules-delete-btn')
+      .dispatchEvent(new Event('click', { bubbles: true }));
+    expect(renderSpy).toHaveBeenCalled();
+  });
 });

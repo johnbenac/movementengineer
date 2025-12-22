@@ -361,6 +361,11 @@ function pushState(ctx, nextState) {
   return nextState;
 }
 
+function renderTab(tab, ctx) {
+  if (!tab || typeof tab.render !== 'function') return;
+  tab.render.call(tab, ctx);
+}
+
 function handleAddRule(ctx, tab) {
   const state = getState(ctx);
   const movementId = state.currentMovementId;
@@ -386,7 +391,7 @@ function handleAddRule(ctx, tab) {
   pushState(ctx, nextState);
   if (tab?.__state) tab.__state.selectedRuleId = created.id;
   ctx?.store?.markDirty?.('item');
-  tab?.render?.(ctx);
+  renderTab(tab, ctx);
 }
 
 function handleSaveRule(ctx, tab) {
@@ -442,7 +447,7 @@ function handleSaveRule(ctx, tab) {
   const nextState = { ...state, snapshot };
   pushState(ctx, nextState);
   ctx?.store?.markDirty?.('item');
-  tab?.render?.(ctx);
+  renderTab(tab, ctx);
 }
 
 function handleDeleteRule(ctx, tab) {
@@ -467,7 +472,7 @@ function handleDeleteRule(ctx, tab) {
   const nextState = { ...state, snapshot };
   pushState(ctx, nextState);
   ctx?.store?.markDirty?.('item');
-  tab?.render?.(ctx);
+  renderTab(tab, ctx);
 }
 
 function renderRulesTab(ctx) {

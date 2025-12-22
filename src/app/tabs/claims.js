@@ -263,7 +263,8 @@ function handleAddClaim(ctx) {
   });
   ctx.store?.markDirty?.('item');
   ctx.setStatus?.('New claim created');
-  ctx.tabs?.claims?.render?.(ctx);
+  const tab = ctx.tabs?.claims;
+  tab?.render?.call(tab, ctx);
 }
 
 function handleDeleteClaim(ctx) {
@@ -286,7 +287,8 @@ function handleDeleteClaim(ctx) {
   selectedClaimId = null;
   ctx.store?.markDirty?.('item');
   ctx.setStatus?.('Claim deleted');
-  ctx.tabs?.claims?.render?.(ctx);
+  const tab = ctx.tabs?.claims;
+  tab?.render?.call(tab, ctx);
 }
 
 function handleSaveClaim(ctx) {
