@@ -62,6 +62,10 @@ function renderDom() {
               </div>
               <div class="form-actions">
                 <button id="btn-save-movement" type="button">Save movement</button>
+                <button id="btn-import-from-github" type="button">
+                  Load markdown repo
+                </button>
+                <button id="btn-export-repo" type="button">Export markdown zip</button>
                 <button id="btn-delete-movement" type="button" class="danger">
                   Delete movement & related data
                 </button>
@@ -89,6 +93,7 @@ function createStore(initialState) {
       return () => subscribers.delete(fn);
     },
     markDirty: vi.fn(),
+    markSaved: vi.fn(),
     saveSnapshot: vi.fn()
   };
 }
@@ -223,5 +228,109 @@ describe('movements UI module', () => {
       clearItemDirty: false,
       show: true
     });
+  });
+
+  it('imports a markdown repo and replaces snapshot', async () => {
+    const repoUrl = 'https://github.com/example/repo';
+    vi.spyOn(window, 'prompt').mockReturnValue(repoUrl);
+    const importedSnapshot = {
+      movements: [{ id: 'imp1', name: 'Imported movement' }],
+      __repoBaselineByMovement: {}
+    };
+    const importMovementRepo = vi.fn().mockResolvedValue(importedSnapshot);
+    const state = {
+      snapshot: {
+        movements: [{ id: 'm1', name: 'One', shortName: 'O', summary: '', tags: [] }]
+      },
+      currentMovementId: 'm1',
+      flags: {}
+    };
+    const store = createStore(state);
+    const selectMovement = vi.fn();
+    const ctx = {
+      store,
+      getState: store.getState,
+      subscribe: store.subscribe,
+      actions: { selectMovement },
+      services: {
+        DomainService: createDomainServiceStub(),
+        MarkdownDatasetLoader: { importMovementRepo }
+      },
+      dom: createDomUtils(),
+      ui: { setStatus: vi.fn() },
+      shell: { renderActiveTab: vi.fn() }
+    };
+
+    initMovements(ctx);
+
+    document.getElementById('btn-import-from-github').click();
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(importMovementRepo).toHaveBeenCalledWith(repoUrl);
+    expect(store.getState().snapshot).toEqual(importedSnapshot);
+    expect(selectMovement).toHaveBeenCalledWith('imp1');
+    expect(ctx.ui.setStatus).toHaveBeenCalledWith('Repo imported ✓');
+    expect(store.markSaved).toHaveBeenCalledWith({ movement: true, item: true });
+  });
+
+  it('exports a movement to a zip and triggers download', async () => {
+    const exportMovementToZip = vi.fn().mockResolvedValue({
+      archive: new Blob(['zip']),
+      fileCount: 1
+    });
+    const buildBaselineByMovement = vi.fn().mockReturnValue({ m1: {} });
+    if (!URL.createObjectURL) {
+      URL.createObjectURL = () => 'blob:mock';
+    }
+    if (!URL.revokeObjectURL) {
+      URL.revokeObjectURL = () => undefined;
+    }
+    const createObjectURL = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mock');
+    const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => undefined);
+
+    const state = {
+      snapshot: {
+        movements: [{ id: 'm1', name: 'One', shortName: 'O', summary: '', tags: [] }]
+      },
+      currentMovementId: 'm1',
+      flags: {}
+    };
+    const store = createStore(state);
+    const ctx = {
+      store,
+      getState: store.getState,
+      subscribe: store.subscribe,
+      actions: { selectMovement: vi.fn() },
+      services: {
+        DomainService: createDomainServiceStub(),
+        MarkdownDatasetLoader: { exportMovementToZip, buildBaselineByMovement }
+      },
+      dom: createDomUtils(),
+      ui: { setStatus: vi.fn() }
+    };
+
+    initMovements(ctx);
+
+    document.getElementById('btn-export-repo').click();
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(buildBaselineByMovement).toHaveBeenCalled();
+    expect(exportMovementToZip).toHaveBeenCalledWith(
+      expect.objectContaining({
+        movements: expect.any(Array),
+        __repoBaselineByMovement: expect.any(Object),
+        __repoFileIndex: expect.any(Object),
+        __repoRawMarkdownByPath: expect.any(Object)
+      }),
+      'm1',
+      { outputType: 'blob' }
+    );
+    expect(clickSpy).toHaveBeenCalled();
+    expect(createObjectURL).toHaveBeenCalled();
+    expect(revokeObjectURL).toHaveBeenCalled();
+    expect(ctx.ui.setStatus).toHaveBeenCalledWith('Exported 1 file(s) ✓');
   });
 });
