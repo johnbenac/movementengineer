@@ -310,6 +310,98 @@ describe('rules tab module', () => {
     expect(document.getElementById('rules-editor-select').value).toBe('r2');
   });
 
+  it('binds the tab as "this" when re-rendering after actions', async () => {
+    renderDom();
+    const snapshot = {
+      rules: [{ id: 'r1', movementId: 'm1', shortText: 'Existing', kind: 'must_do' }]
+    };
+    const DomainService = {
+      addNewItem: vi.fn((snap, _collection, movementId) => {
+        const created = {
+          id: 'r2',
+          movementId,
+          shortText: 'Added rule',
+          kind: 'must_do',
+          appliesTo: [],
+          domain: [],
+          tags: []
+        };
+        snap.rules.push(created);
+        return created;
+      }),
+      upsertItem: vi.fn((snap, _collection, item) => {
+        const idx = snap.rules.findIndex(r => r.id === item.id);
+        if (idx >= 0) snap.rules[idx] = item;
+        else snap.rules.push(item);
+        return item;
+      }),
+      deleteItem: vi.fn((snap, _collection, id) => {
+        snap.rules = (snap.rules || []).filter(r => r.id !== id);
+      })
+    };
+    const ViewModels = {
+      buildRuleExplorerViewModel: vi.fn((snap, input) => ({
+        rules: (snap.rules || []).filter(r => r.movementId === input.movementId)
+      })),
+      buildRuleEditorViewModel: vi.fn((snap, input) => ({
+        rules: (snap.rules || [])
+          .filter(r => r.movementId === input.movementId)
+          .map(r => ({
+            ...r,
+            supportingTextIds: r.supportingTextIds || [],
+            supportingClaimIds: r.supportingClaimIds || [],
+            relatedPracticeIds: r.relatedPracticeIds || [],
+            sourcesOfTruth: r.sourcesOfTruth || [],
+            sourceEntityIds: r.sourceEntityIds || [],
+            appliesTo: r.appliesTo || [],
+            domain: r.domain || [],
+            tags: r.tags || []
+          })),
+        options: {
+          ruleKinds: ['must_do'],
+          appliesToValues: [],
+          domainValues: [],
+          tagValues: [],
+          sourcesOfTruth: [],
+          texts: [],
+          claims: [],
+          practices: [],
+          entities: []
+        }
+      }))
+    };
+    const ctx = createCtx(snapshot, 'm1', { DomainService, ViewModels });
+    const { registerRulesTab } = await import('../../../../src/app/tabs/rules.js');
+    const tab = registerRulesTab(ctx);
+    tab.__state.selectedRuleId = 'r1';
+
+    const originalRender = tab.render;
+    const observedThis = [];
+    tab.render = vi.fn(function (...args) {
+      observedThis.push(this);
+      return originalRender.apply(this, args);
+    });
+
+    tab.mount(ctx);
+    tab.render(ctx);
+    observedThis.length = 0;
+
+    const assertRenderedWithTab = () => {
+      expect(observedThis.length).toBeGreaterThan(0);
+      observedThis.forEach(instance => expect(instance).toBe(tab));
+      observedThis.length = 0;
+    };
+
+    document.getElementById('rules-add-btn').dispatchEvent(new Event('click', { bubbles: true }));
+    assertRenderedWithTab();
+
+    document.getElementById('rules-save-btn').dispatchEvent(new Event('click', { bubbles: true }));
+    assertRenderedWithTab();
+
+    document.getElementById('rules-delete-btn').dispatchEvent(new Event('click', { bubbles: true }));
+    assertRenderedWithTab();
+  });
+
   it('keeps current rule selection when clicking a link inside a row', async () => {
     renderDom();
     const snapshot = {

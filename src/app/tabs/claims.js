@@ -23,6 +23,15 @@ function getDomainService(ctx) {
   return ctx.services.DomainService;
 }
 
+function renderTab(tab, ctx) {
+  if (!tab || typeof tab.render !== 'function') return;
+  tab.render.call(tab, ctx);
+}
+
+function renderClaimsTabForContext(ctx) {
+  renderTab(ctx?.tabs?.claims, ctx);
+}
+
 function parseCsvList(value) {
   if (!value) return [];
   return value
@@ -263,7 +272,7 @@ function handleAddClaim(ctx) {
   });
   ctx.store?.markDirty?.('item');
   ctx.setStatus?.('New claim created');
-  ctx.tabs?.claims?.render?.(ctx);
+  renderClaimsTabForContext(ctx);
 }
 
 function handleDeleteClaim(ctx) {
@@ -286,7 +295,7 @@ function handleDeleteClaim(ctx) {
   selectedClaimId = null;
   ctx.store?.markDirty?.('item');
   ctx.setStatus?.('Claim deleted');
-  ctx.tabs?.claims?.render?.(ctx);
+  renderClaimsTabForContext(ctx);
 }
 
 function handleSaveClaim(ctx) {
