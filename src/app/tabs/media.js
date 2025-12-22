@@ -5,6 +5,7 @@ import {
   renderHint,
   setDisabled
 } from '../ui/hints.js';
+import { appendChipRow, appendInlineLabel } from '../ui/chips.js';
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
@@ -41,83 +42,30 @@ function renderMediaCards(wrapper, items, clear) {
     }
 
     if (m.tags && m.tags.length) {
-      const row = document.createElement('div');
-      row.className = 'chip-row';
-      m.tags.forEach(tag => {
-        const chip = document.createElement('span');
-        chip.className = 'chip chip-tag';
-        chip.textContent = tag;
-        row.appendChild(chip);
-      });
-      card.appendChild(row);
+      appendChipRow(card, m.tags, { variant: 'tag' });
     }
 
     if (m.entities && m.entities.length) {
-      const heading = document.createElement('div');
-      heading.style.fontSize = '0.75rem';
-      heading.textContent = 'Entities:';
-      card.appendChild(heading);
-
-      const row = document.createElement('div');
-      row.className = 'chip-row';
-      m.entities.forEach(e => {
-        const chip = document.createElement('span');
-        chip.className = 'chip chip-entity';
-        chip.textContent = e.name || e.id;
-        row.appendChild(chip);
+      appendInlineLabel(card, 'Entities:');
+      appendChipRow(card, m.entities, {
+        variant: 'entity',
+        getLabel: e => e.name || e.id
       });
-      card.appendChild(row);
     }
 
     if (m.practices && m.practices.length) {
-      const heading = document.createElement('div');
-      heading.style.fontSize = '0.75rem';
-      heading.textContent = 'Practices:';
-      card.appendChild(heading);
-
-      const row = document.createElement('div');
-      row.className = 'chip-row';
-      m.practices.forEach(p => {
-        const chip = document.createElement('span');
-        chip.className = 'chip';
-        chip.textContent = p.name || p.id;
-        row.appendChild(chip);
-      });
-      card.appendChild(row);
+      appendInlineLabel(card, 'Practices:');
+      appendChipRow(card, m.practices, { getLabel: p => p.name || p.id });
     }
 
     if (m.events && m.events.length) {
-      const heading = document.createElement('div');
-      heading.style.fontSize = '0.75rem';
-      heading.textContent = 'Events:';
-      card.appendChild(heading);
-
-      const row = document.createElement('div');
-      row.className = 'chip-row';
-      m.events.forEach(e => {
-        const chip = document.createElement('span');
-        chip.className = 'chip';
-        chip.textContent = e.name || e.id;
-        row.appendChild(chip);
-      });
-      card.appendChild(row);
+      appendInlineLabel(card, 'Events:');
+      appendChipRow(card, m.events, { getLabel: e => e.name || e.id });
     }
 
     if (m.texts && m.texts.length) {
-      const heading = document.createElement('div');
-      heading.style.fontSize = '0.75rem';
-      heading.textContent = 'Texts:';
-      card.appendChild(heading);
-
-      const row = document.createElement('div');
-      row.className = 'chip-row';
-      m.texts.forEach(t => {
-        const chip = document.createElement('span');
-        chip.className = 'chip';
-        chip.textContent = t.title || t.id;
-        row.appendChild(chip);
-      });
-      card.appendChild(row);
+      appendInlineLabel(card, 'Texts:');
+      appendChipRow(card, m.texts, { getLabel: t => t.title || t.id });
     }
 
     wrapper.appendChild(card);

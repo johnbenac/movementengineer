@@ -7,6 +7,7 @@ import {
 import { collectDescendants, normaliseArray, parseCsvInput } from '../../utils/values.js';
 import { renderMarkdownPreview, openMarkdownModal } from '../../ui/markdown.js';
 import { deleteTextCollection, persistCanonItem } from './actions.js';
+import { appendChipRow } from '../../ui/chips.js';
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
@@ -722,40 +723,23 @@ function renderNodeEditor(ctx, vm, selection) {
   textEditor.appendChild(actionsRow);
 
   if (activeNode.mentionsEntities?.length) {
-    const row = document.createElement('div');
-    row.className = 'chip-row';
-    activeNode.mentionsEntities.forEach(ent => {
-      const chip = document.createElement('span');
-      chip.className = 'chip chip-entity clickable';
-      chip.textContent = ent.name || ent.id;
-      chip.addEventListener('click', () => actions.jumpToEntity?.(ent.id));
-      row.appendChild(chip);
+    appendChipRow(textEditor, activeNode.mentionsEntities, {
+      variant: 'entity',
+      getLabel: ent => ent.name || ent.id,
+      onClick: ent => actions.jumpToEntity?.(ent.id)
     });
-    textEditor.appendChild(row);
   }
 
   if (activeNode.referencedByClaims?.length) {
-    const row = document.createElement('div');
-    row.className = 'chip-row';
-    activeNode.referencedByClaims.forEach(claim => {
-      const chip = document.createElement('span');
-      chip.className = 'chip';
-      chip.textContent = claim.text || claim.id;
-      row.appendChild(chip);
+    appendChipRow(textEditor, activeNode.referencedByClaims, {
+      getLabel: claim => claim.text || claim.id
     });
-    textEditor.appendChild(row);
   }
 
   if (activeNode.usedInEvents?.length) {
-    const row = document.createElement('div');
-    row.className = 'chip-row';
-    activeNode.usedInEvents.forEach(evt => {
-      const chip = document.createElement('span');
-      chip.className = 'chip';
-      chip.textContent = evt.name || evt.id;
-      row.appendChild(chip);
+    appendChipRow(textEditor, activeNode.usedInEvents, {
+      getLabel: evt => evt.name || evt.id
     });
-    textEditor.appendChild(row);
   }
 }
 
