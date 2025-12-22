@@ -5,6 +5,8 @@ import {
   renderHint,
   setDisabled
 } from '../ui/hints.js';
+import { appendSection } from '../ui/sections.js';
+import { appendChipRow } from '../ui/chips.js';
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
@@ -19,17 +21,6 @@ function getViewModels(ctx) {
 
 function getActions(ctx) {
   return ctx.actions;
-}
-
-function mkSection(container, label, contentBuilder) {
-  const heading = document.createElement('div');
-  heading.className = 'section-heading small';
-  heading.textContent = label;
-  container.appendChild(heading);
-  const section = document.createElement('div');
-  section.style.fontSize = '0.8rem';
-  contentBuilder(section);
-  container.appendChild(section);
 }
 
 function renderPracticesTab(ctx) {
@@ -123,39 +114,28 @@ function renderPracticesTab(ctx) {
   }
 
   if (vm.entities && vm.entities.length) {
-    mkSection(detailContainer, 'Involves entities', section => {
-      const row = document.createElement('div');
-      row.className = 'chip-row';
-      vm.entities.forEach(e => {
-        const chip = document.createElement('span');
-        chip.className = 'chip chip-entity clickable';
-        chip.textContent = e.name || e.id;
-        chip.title = e.kind || '';
-        chip.addEventListener('click', () => actions.jumpToEntity?.(e.id));
-        row.appendChild(chip);
+    appendSection(detailContainer, 'Involves entities', section => {
+      appendChipRow(section, vm.entities, {
+        variant: 'entity',
+        getLabel: e => e.name || e.id,
+        getTitle: e => e.kind || '',
+        onClick: e => actions.jumpToEntity?.(e.id)
       });
-      section.appendChild(row);
     });
   }
 
   if (vm.instructionsTexts && vm.instructionsTexts.length) {
-    mkSection(detailContainer, 'Instruction texts', section => {
-      const row = document.createElement('div');
-      row.className = 'chip-row';
-      vm.instructionsTexts.forEach(t => {
-        const chip = document.createElement('span');
-        chip.className = 'chip clickable';
-        chip.textContent = t.title || t.id;
-        chip.title = Number.isFinite(t.depth) ? `Depth ${t.depth}` : '';
-        chip.addEventListener('click', () => actions.jumpToText?.(t.id));
-        row.appendChild(chip);
+    appendSection(detailContainer, 'Instruction texts', section => {
+      appendChipRow(section, vm.instructionsTexts, {
+        getLabel: t => t.title || t.id,
+        getTitle: t => (Number.isFinite(t.depth) ? `Depth ${t.depth}` : ''),
+        onClick: t => actions.jumpToText?.(t.id)
       });
-      section.appendChild(row);
     });
   }
 
   if (vm.supportingClaims && vm.supportingClaims.length) {
-    mkSection(detailContainer, 'Supporting claims', section => {
+    appendSection(detailContainer, 'Supporting claims', section => {
       const ul = document.createElement('ul');
       vm.supportingClaims.forEach(c => {
         const li = document.createElement('li');
@@ -167,7 +147,7 @@ function renderPracticesTab(ctx) {
   }
 
   if (vm.attachedRules && vm.attachedRules.length) {
-    mkSection(detailContainer, 'Related rules', section => {
+    appendSection(detailContainer, 'Related rules', section => {
       const ul = document.createElement('ul');
       vm.attachedRules.forEach(r => {
         const li = document.createElement('li');
@@ -179,21 +159,15 @@ function renderPracticesTab(ctx) {
   }
 
   if (vm.attachedEvents && vm.attachedEvents.length) {
-    mkSection(detailContainer, 'Scheduled in events', section => {
-      const row = document.createElement('div');
-      row.className = 'chip-row';
-      vm.attachedEvents.forEach(ev => {
-        const chip = document.createElement('span');
-        chip.className = 'chip';
-        chip.textContent = `${ev.name} (${ev.recurrence})`;
-        row.appendChild(chip);
+    appendSection(detailContainer, 'Scheduled in events', section => {
+      appendChipRow(section, vm.attachedEvents, {
+        getLabel: ev => `${ev.name} (${ev.recurrence})`
       });
-      section.appendChild(row);
     });
   }
 
   if (vm.media && vm.media.length) {
-    mkSection(detailContainer, 'Media', section => {
+    appendSection(detailContainer, 'Media', section => {
       const ul = document.createElement('ul');
       vm.media.forEach(m => {
         const li = document.createElement('li');

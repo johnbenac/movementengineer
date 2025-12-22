@@ -6,6 +6,7 @@ import {
   renderHint,
   setDisabled
 } from '../ui/hints.js';
+import { appendChipRow, appendInlineLabel } from '../ui/chips.js';
 
 function getState(ctx) {
   return ctx.store.getState() || {};
@@ -88,69 +89,32 @@ function renderCalendarTab(ctx) {
     }
 
     if (e.tags?.length) {
-      const row = document.createElement('div');
-      row.className = 'chip-row';
-      e.tags.forEach(tag => {
-        const chip = document.createElement('span');
-        chip.className = 'chip chip-tag';
-        chip.textContent = tag;
-        row.appendChild(chip);
-      });
-      card.appendChild(row);
+      appendChipRow(card, e.tags, { variant: 'tag' });
     }
 
     if (e.mainPractices?.length) {
-      const heading = document.createElement('div');
-      heading.style.fontSize = '0.75rem';
-      heading.textContent = 'Practices:';
-      card.appendChild(heading);
-
-      const row = document.createElement('div');
-      row.className = 'chip-row';
-      e.mainPractices.forEach(p => {
-        const chip = document.createElement('span');
-        chip.className = 'chip clickable';
-        chip.textContent = p.name || p.id;
-        chip.addEventListener('click', () => actions.jumpToPractice?.(p.id));
-        row.appendChild(chip);
+      appendInlineLabel(card, 'Practices:');
+      appendChipRow(card, e.mainPractices, {
+        getLabel: p => p.name || p.id,
+        onClick: p => actions.jumpToPractice?.(p.id)
       });
-      card.appendChild(row);
     }
 
     if (e.mainEntities?.length) {
-      const heading = document.createElement('div');
-      heading.style.fontSize = '0.75rem';
-      heading.textContent = 'Entities:';
-      card.appendChild(heading);
-
-      const row = document.createElement('div');
-      row.className = 'chip-row';
-      e.mainEntities.forEach(ent => {
-        const chip = document.createElement('span');
-        chip.className = 'chip chip-entity clickable';
-        chip.textContent = ent.name || ent.id;
-        chip.addEventListener('click', () => actions.jumpToEntity?.(ent.id));
-        row.appendChild(chip);
+      appendInlineLabel(card, 'Entities:');
+      appendChipRow(card, e.mainEntities, {
+        variant: 'entity',
+        getLabel: ent => ent.name || ent.id,
+        onClick: ent => actions.jumpToEntity?.(ent.id)
       });
-      card.appendChild(row);
     }
 
     if (e.readings?.length) {
-      const heading = document.createElement('div');
-      heading.style.fontSize = '0.75rem';
-      heading.textContent = 'Readings:';
-      card.appendChild(heading);
-
-      const row = document.createElement('div');
-      row.className = 'chip-row';
-      e.readings.forEach(t => {
-        const chip = document.createElement('span');
-        chip.className = 'chip clickable';
-        chip.textContent = t.title || t.id;
-        chip.addEventListener('click', () => actions.jumpToText?.(t.id));
-        row.appendChild(chip);
+      appendInlineLabel(card, 'Readings:');
+      appendChipRow(card, e.readings, {
+        getLabel: t => t.title || t.id,
+        onClick: t => actions.jumpToText?.(t.id)
       });
-      card.appendChild(row);
     }
 
     if (e.supportingClaims?.length) {

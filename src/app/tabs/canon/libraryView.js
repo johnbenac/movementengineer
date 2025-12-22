@@ -6,6 +6,7 @@ import {
 } from '../../ui/hints.js';
 import { collectDescendants, normaliseArray, parseCsvInput } from '../../utils/values.js';
 import { renderMarkdownPreview, openMarkdownModal } from '../../ui/markdown.js';
+import { appendChipRow } from '../../ui/chips.js';
 import { deleteTextCollection, persistCanonItem } from './actions.js';
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
