@@ -5,6 +5,8 @@ import {
   renderHint,
   setDisabled
 } from '../ui/hints.js';
+import { renderTable } from '../ui/table.js';
+import { createChipRow } from '../ui/chips.js';
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
@@ -34,15 +36,6 @@ function parseCsvList(value) {
 
 function joinCsvList(list) {
   return Array.isArray(list) ? list.filter(Boolean).join(', ') : '';
-}
-
-function isInteractiveTarget(target) {
-  if (!target || typeof target.closest !== 'function') return false;
-  return Boolean(
-    target.closest(
-      'a[href], button, input, select, textarea, option, label, [role="button"], [data-row-select="ignore"]'
-    )
-  );
 }
 
 function getSelectedValues(selectEl) {
@@ -109,104 +102,6 @@ function getLookups(snapshot, movementId) {
     textOptions,
     sourcesOfTruth
   };
-}
-
-function renderClaimsTable(wrapper, claims, clear, selectedId) {
-  clear(wrapper);
-
-  if (!claims || claims.length === 0) {
-    renderHint(wrapper, 'No claims match this filter.');
-    return;
-  }
-
-  const table = document.createElement('table');
-
-  const headerRow = document.createElement('tr');
-  [
-    'Category',
-    'Text',
-    'Tags',
-    'About entities',
-    'Source entities',
-    'Source texts',
-    'Sources of truth'
-  ].forEach(h => {
-    const th = document.createElement('th');
-    th.textContent = h;
-    headerRow.appendChild(th);
-  });
-  table.appendChild(headerRow);
-
-  claims.forEach(c => {
-    const tr = document.createElement('tr');
-    tr.dataset.claimId = c.id;
-    tr.className = 'clickable-row';
-    if (selectedId && selectedId === c.id) {
-      tr.classList.add('selected');
-    }
-
-    const tdCat = document.createElement('td');
-    tdCat.textContent = c.category || '';
-    tr.appendChild(tdCat);
-
-    const tdText = document.createElement('td');
-    tdText.textContent = c.text;
-    tr.appendChild(tdText);
-
-    const tdTags = document.createElement('td');
-    tdTags.textContent = (c.tags || []).join(', ');
-    tr.appendChild(tdTags);
-
-    const tdEnts = document.createElement('td');
-    if (c.aboutEntities && c.aboutEntities.length) {
-      const row = document.createElement('div');
-      row.className = 'chip-row';
-      c.aboutEntities.forEach(e => {
-        const chip = document.createElement('span');
-        chip.className = 'chip chip-entity';
-        chip.textContent = e.name || e.id;
-        row.appendChild(chip);
-      });
-      tdEnts.appendChild(row);
-    }
-    tr.appendChild(tdEnts);
-
-    const tdSourceEnts = document.createElement('td');
-    if (c.sourceEntities && c.sourceEntities.length) {
-      const row = document.createElement('div');
-      row.className = 'chip-row';
-      c.sourceEntities.forEach(e => {
-        const chip = document.createElement('span');
-        chip.className = 'chip chip-entity';
-        chip.textContent = e.name || e.id;
-        row.appendChild(chip);
-      });
-      tdSourceEnts.appendChild(row);
-    }
-    tr.appendChild(tdSourceEnts);
-
-    const tdTexts = document.createElement('td');
-    if (c.sourceTexts && c.sourceTexts.length) {
-      const row = document.createElement('div');
-      row.className = 'chip-row';
-      c.sourceTexts.forEach(t => {
-        const chip = document.createElement('span');
-        chip.className = 'chip';
-        chip.textContent = t.title || t.id;
-        row.appendChild(chip);
-      });
-      tdTexts.appendChild(row);
-    }
-    tr.appendChild(tdTexts);
-
-    const tdSources = document.createElement('td');
-    tdSources.textContent = (c.sourcesOfTruth || []).join(', ');
-    tr.appendChild(tdSources);
-
-    table.appendChild(tr);
-  });
-
-  wrapper.appendChild(table);
 }
 
 function getClaimFormElements() {
@@ -438,7 +333,56 @@ function renderClaimsTab(ctx) {
     selectedClaimId = visibleClaims[0]?.id || null;
   }
 
-  renderClaimsTable(wrapper, visibleClaims, clear, selectedClaimId);
+  renderTable(wrapper, {
+    clear,
+    rows: visibleClaims,
+    getRowId: c => c.id,
+    selectedId: selectedClaimId,
+    rowIdDataKey: 'claimId',
+    renderEmpty: w => renderHint(w, 'No claims match this filter.'),
+    onRowSelect: id => {
+      selectedClaimId = id;
+      renderClaimsTab(ctx);
+    },
+    columns: [
+      { header: 'Category', render: c => c.category || '' },
+      { header: 'Text', render: c => c.text || '' },
+      { header: 'Tags', render: c => (c.tags || []).join(', ') },
+      {
+        header: 'About entities',
+        render: c =>
+          c.aboutEntities?.length
+            ? createChipRow(c.aboutEntities, {
+                variant: 'entity',
+                getLabel: e => e.name || e.id
+              })
+            : ''
+      },
+      {
+        header: 'Source entities',
+        render: c =>
+          c.sourceEntities?.length
+            ? createChipRow(c.sourceEntities, {
+                variant: 'entity',
+                getLabel: e => e.name || e.id
+              })
+            : ''
+      },
+      {
+        header: 'Source texts',
+        render: c =>
+          c.sourceTexts?.length
+            ? createChipRow(c.sourceTexts, {
+                getLabel: t => t.title || t.id
+              })
+            : ''
+      },
+      {
+        header: 'Sources of truth',
+        render: c => (c.sourcesOfTruth || []).join(', ')
+      }
+    ]
+  });
 
   const selectedClaim = claimsForMovement.find(c => c.id === selectedClaimId) || null;
   populateClaimForm(form, lookups, selectedClaim, dom);
@@ -456,8 +400,6 @@ export function registerClaimsTab(ctx) {
       const deleteBtn = document.getElementById('claims-delete-btn');
       const saveBtn = document.getElementById('claims-save-btn');
       const resetBtn = document.getElementById('claims-reset-btn');
-      const tableWrapper = document.getElementById('claims-table-wrapper');
-
       const listeners = [];
       const addListener = (el, event, handler) => {
         if (!el || typeof el.addEventListener !== 'function') return;
@@ -478,13 +420,6 @@ export function registerClaimsTab(ctx) {
       addListener(deleteBtn, 'click', () => handleDeleteClaim(context));
       addListener(saveBtn, 'click', () => handleSaveClaim(context));
       addListener(resetBtn, 'click', rerender);
-      addListener(tableWrapper, 'click', event => {
-        if (isInteractiveTarget(event.target)) return;
-        const row = event.target.closest('tr[data-claim-id]');
-        if (!row) return;
-        selectedClaimId = row.dataset.claimId;
-        rerender();
-      });
 
       const unsubscribe = context?.subscribe ? context.subscribe(handleStateChange) : null;
 

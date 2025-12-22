@@ -6,6 +6,8 @@ import {
   renderHint,
   setDisabled
 } from '../ui/hints.js';
+import { appendSection } from '../ui/sections.js';
+import { appendChipRow } from '../ui/chips.js';
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
@@ -24,17 +26,6 @@ function getEntityGraphView(ctx) {
 
 function getActions(ctx) {
   return ctx.actions;
-}
-
-function mkSection(container, label, contentBuilder) {
-  const heading = document.createElement('div');
-  heading.className = 'section-heading small';
-  heading.textContent = label;
-  container.appendChild(heading);
-  const section = document.createElement('div');
-  section.style.fontSize = '0.8rem';
-  contentBuilder(section);
-  container.appendChild(section);
 }
 
 const GRAPH_NODE_TYPE_LABELS = {
@@ -136,7 +127,7 @@ function renderEntitiesTab(ctx) {
   }
 
   if (vm.claims && vm.claims.length) {
-    mkSection(detailContainer, 'Claims about this entity', section => {
+    appendSection(detailContainer, 'Claims about this entity', section => {
       const ul = document.createElement('ul');
       vm.claims.forEach(c => {
         const li = document.createElement('li');
@@ -149,53 +140,33 @@ function renderEntitiesTab(ctx) {
   }
 
   if (vm.practices && vm.practices.length) {
-    mkSection(detailContainer, 'Involved in practices', section => {
-      const row = document.createElement('div');
-      row.className = 'chip-row';
-      vm.practices.forEach(p => {
-        const chip = document.createElement('span');
-        chip.className = 'chip clickable';
-        chip.textContent = p.name || p.id;
-        chip.title = p.kind || '';
-        chip.addEventListener('click', () => actions.jumpToPractice?.(p.id));
-        row.appendChild(chip);
+    appendSection(detailContainer, 'Involved in practices', section => {
+      appendChipRow(section, vm.practices, {
+        getLabel: p => p.name || p.id,
+        getTitle: p => p.kind || '',
+        onClick: p => actions.jumpToPractice?.(p.id)
       });
-      section.appendChild(row);
     });
   }
 
   if (vm.events && vm.events.length) {
-    mkSection(detailContainer, 'Appears in events', section => {
-      const row = document.createElement('div');
-      row.className = 'chip-row';
-      vm.events.forEach(ev => {
-        const chip = document.createElement('span');
-        chip.className = 'chip';
-        chip.textContent = ev.name || ev.id;
-        row.appendChild(chip);
-      });
-      section.appendChild(row);
+    appendSection(detailContainer, 'Appears in events', section => {
+      appendChipRow(section, vm.events, { getLabel: ev => ev.name || ev.id });
     });
   }
 
   if (vm.mentioningTexts && vm.mentioningTexts.length) {
-    mkSection(detailContainer, 'Mentioned in texts', section => {
-      const row = document.createElement('div');
-      row.className = 'chip-row';
-      vm.mentioningTexts.forEach(t => {
-        const chip = document.createElement('span');
-        chip.className = 'chip clickable';
-        chip.textContent = t.title || t.id;
-        chip.title = Number.isFinite(t.depth) ? `Depth ${t.depth}` : '';
-        chip.addEventListener('click', () => actions.jumpToText?.(t.id));
-        row.appendChild(chip);
+    appendSection(detailContainer, 'Mentioned in texts', section => {
+      appendChipRow(section, vm.mentioningTexts, {
+        getLabel: t => t.title || t.id,
+        getTitle: t => (Number.isFinite(t.depth) ? `Depth ${t.depth}` : ''),
+        onClick: t => actions.jumpToText?.(t.id)
       });
-      section.appendChild(row);
     });
   }
 
   if (vm.media && vm.media.length) {
-    mkSection(detailContainer, 'Linked media', section => {
+    appendSection(detailContainer, 'Linked media', section => {
       const ul = document.createElement('ul');
       vm.media.forEach(m => {
         const li = document.createElement('li');
@@ -212,7 +183,7 @@ function renderEntitiesTab(ctx) {
   }
 
   if (vm.connections && vm.connections.length) {
-    mkSection(detailContainer, 'Connections (derived)', section => {
+    appendSection(detailContainer, 'Connections (derived)', section => {
       const ul = document.createElement('ul');
       const typeToCollection = {
         Movement: 'movements',

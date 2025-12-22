@@ -5,6 +5,7 @@ import {
   renderHint,
   setDisabled
 } from '../ui/hints.js';
+import { renderTable } from '../ui/table.js';
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
@@ -182,75 +183,6 @@ function clearNoteForm(dom) {
   if (dom.form) dom.form.reset();
   if (dom.targetId) dom.targetId.value = '';
   if (dom.tags) dom.tags.value = '';
-}
-
-function renderNotesTable(wrapper, notes, clear, selectedId) {
-  clear(wrapper);
-
-  if (!notes || notes.length === 0) {
-    renderHint(wrapper, 'No notes match this filter.');
-    return;
-  }
-
-  const table = document.createElement('table');
-
-  const headerRow = document.createElement('tr');
-  ['Target type', 'Target', 'Author', 'Body', 'Context', 'Tags', 'Actions'].forEach(h => {
-    const th = document.createElement('th');
-    th.textContent = h;
-    headerRow.appendChild(th);
-  });
-  table.appendChild(headerRow);
-
-  notes.forEach(n => {
-    const tr = document.createElement('tr');
-    tr.dataset.noteId = n.id;
-    tr.classList.add('clickable-row');
-    if (selectedId && idsMatch(n.id, selectedId)) {
-      tr.classList.add('selected');
-    }
-
-    const tdType = document.createElement('td');
-    tdType.textContent = n.targetType || '';
-    tr.appendChild(tdType);
-
-    const tdTarget = document.createElement('td');
-    tdTarget.textContent = n.targetLabel || n.targetId || '';
-    tr.appendChild(tdTarget);
-
-    const tdAuthor = document.createElement('td');
-    tdAuthor.textContent = n.author || '';
-    tr.appendChild(tdAuthor);
-
-    const tdBody = document.createElement('td');
-    tdBody.textContent = n.body || '';
-    tr.appendChild(tdBody);
-
-    const tdCtx = document.createElement('td');
-    tdCtx.textContent = n.context || '';
-    tr.appendChild(tdCtx);
-
-    const tdTags = document.createElement('td');
-    tdTags.textContent = (n.tags || []).join(', ');
-    tr.appendChild(tdTags);
-
-    const tdActions = document.createElement('td');
-    const actionRow = document.createElement('div');
-    actionRow.className = 'note-actions';
-    const deleteBtn = document.createElement('button');
-    deleteBtn.type = 'button';
-    deleteBtn.className = 'danger';
-    deleteBtn.textContent = 'Delete';
-    deleteBtn.dataset.noteId = n.id;
-    deleteBtn.dataset.noteAction = 'delete';
-    actionRow.appendChild(deleteBtn);
-    tdActions.appendChild(actionRow);
-    tr.appendChild(tdActions);
-
-    table.appendChild(tr);
-  });
-
-  wrapper.appendChild(table);
 }
 
 function persistSnapshot(ctx, snapshot, storageService, statusText) {
@@ -472,7 +404,41 @@ function renderNotesTab(ctx) {
     targetIdFilter: selectedId || null
   });
 
-  renderNotesTable(wrapper, vm?.notes || [], clear, selectedNoteId);
+  renderTable(wrapper, {
+    clear,
+    rows: vm?.notes || [],
+    getRowId: n => n.id,
+    selectedId: selectedNoteId,
+    rowIdDataKey: 'noteId',
+    renderEmpty: w => renderHint(w, 'No notes match this filter.'),
+    onRowSelect: id => {
+      selectedNoteId = id;
+      renderNotesTab(ctx);
+    },
+    columns: [
+      { header: 'Target type', render: n => n.targetType || '' },
+      { header: 'Target', render: n => n.targetLabel || n.targetId || '' },
+      { header: 'Author', render: n => n.author || '' },
+      { header: 'Body', render: n => n.body || '' },
+      { header: 'Context', render: n => n.context || '' },
+      { header: 'Tags', render: n => (n.tags || []).join(', ') },
+      {
+        header: 'Actions',
+        render: n => {
+          const wrap = document.createElement('div');
+          wrap.className = 'note-actions';
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'danger';
+          btn.textContent = 'Delete';
+          btn.dataset.noteAction = 'delete';
+          btn.dataset.noteId = n.id;
+          wrap.appendChild(btn);
+          return wrap;
+        }
+      }
+    ]
+  });
 
   const notesForMovement = Array.isArray(snapshot?.notes)
     ? snapshot.notes.filter(note => note.movementId === currentMovementId)
@@ -545,22 +511,15 @@ export function registerNotesTab(ctx) {
         const target = event.target;
         if (!target) return;
         const actionBtn = target.closest('[data-note-action]');
-        if (actionBtn) {
-          const { noteAction, noteId } = actionBtn.dataset;
-          if (!noteId) return;
-          if (noteAction === 'delete') {
-            event.stopPropagation?.();
-            handleDeleteNote(context, noteId);
-          }
-          return;
-        }
+        if (!actionBtn) return;
 
-        const row = target.closest('tr[data-note-id]');
-        if (!row) return;
-        const { noteId } = row.dataset;
+        const { noteAction, noteId } = actionBtn.dataset;
         if (!noteId) return;
-        selectedNoteId = noteId;
-        rerender();
+
+        if (noteAction === 'delete') {
+          event.stopPropagation?.();
+          handleDeleteNote(context, noteId);
+        }
       };
 
       const handleFormSubmit = e => {

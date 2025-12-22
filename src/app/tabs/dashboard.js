@@ -1,5 +1,6 @@
 import { createTab } from './tabKit.js';
 import { HINT_TEXT, guardMissingViewModels, guardNoMovement, renderHint } from '../ui/hints.js';
+import { appendChipRow } from '../ui/chips.js';
 
 function getState(ctx) {
   return ctx.store.getState() || {};
@@ -33,15 +34,7 @@ function appendExampleRow(container, label, items, key) {
     return;
   }
 
-  const row = document.createElement('div');
-  row.className = 'chip-row';
-  items.forEach(item => {
-    const chip = document.createElement('span');
-    chip.className = 'chip';
-    chip.textContent = item[key] || item.id;
-    row.appendChild(chip);
-  });
-  container.appendChild(row);
+  appendChipRow(container, items, { getLabel: item => item[key] || item.id });
 }
 
 function renderDashboardTab(ctx) {
