@@ -10,6 +10,7 @@ all comments made on the pull requests.
 import argparse
 import json
 import os
+import re
 import shlex
 import subprocess
 import sys
@@ -160,6 +161,33 @@ def get_pr_checks(pr_number: int) -> List[Dict[str, str]]:
     return checks
 
 
+def extract_run_id_from_url(details_url: str) -> str | None:
+    """Extract a workflow run ID from a check details URL."""
+    if not details_url:
+        return None
+
+    match = re.search(r"/runs/(\d+)", details_url)
+    if match:
+        return match.group(1)
+
+    for segment in details_url.split("/"):
+        if segment.isdigit():
+            return segment
+    return None
+
+
+def fetch_failure_logs(details_url: str) -> str | None:
+    """Attempt to fetch raw logs for a failing check."""
+    run_id = extract_run_id_from_url(details_url)
+    if not run_id:
+        return None
+
+    try:
+        return run_command(f"gh run view {shlex.quote(run_id)} --log")
+    except subprocess.CalledProcessError:
+        return None
+
+
 def filter_existing_files(files: List[str]) -> Tuple[List[str], List[str]]:
     """Filter list of files to only those that exist on current branch."""
     existing_files: List[str] = []
@@ -307,6 +335,15 @@ def run_big_picture(
                 if summary_text:
                     for line in summary_text.splitlines():
                         diff_file.write(f"    {line}\n")
+
+                if conclusion not in {"success", "neutral", "skipped"}:
+                    logs = fetch_failure_logs(details_url)
+                    if logs:
+                        diff_file.write("    Logs:\n")
+                        for line in logs.splitlines():
+                            diff_file.write(f"        {line}\n")
+                    else:
+                        diff_file.write("    Logs: unavailable for this check\n")
 
         diff_file.write("\n")
         diff_file.write("=" * 80 + "\n")
