@@ -2,7 +2,7 @@ import { execSync } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { runNoLegacyScriptCheck } from './check-no-appjs.mjs';
+import { runNoLegacyCheck } from './check-no-legacy.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIST_DIR = path.join(ROOT, 'dist');
@@ -32,7 +32,7 @@ async function copyFileRelative(file) {
 }
 
 async function main() {
-  await runNoLegacyScriptCheck();
+  await runNoLegacyCheck();
 
   await fs.rm(DIST_DIR, { recursive: true, force: true });
   await fs.mkdir(DIST_DIR, { recursive: true });
@@ -42,7 +42,7 @@ async function main() {
 
   await Promise.all(runtimeFiles.map(copyFileRelative));
   const summary = `Copied ${runtimeFiles.length} files into ${path.relative(ROOT, DIST_DIR)}`;
-  const checkResult = await runNoLegacyScriptCheck();
+  const checkResult = await runNoLegacyCheck();
 
   console.log(summary);
   console.log(checkResult);
