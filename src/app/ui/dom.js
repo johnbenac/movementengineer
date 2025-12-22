@@ -1,8 +1,4 @@
 export function createDomUtils() {
-  function $(selector) {
-    return document.querySelector(selector);
-  }
-
   function clearElement(el) {
     if (!el) return;
     while (el.firstChild) {
@@ -31,17 +27,8 @@ export function createDomUtils() {
     }
   }
 
-  function addListenerById(id, event, handler) {
-    const el = document.getElementById(id);
-    if (!el) return null;
-    el.addEventListener(event, handler);
-    return el;
-  }
-
   return {
-    $,
     clearElement,
-    ensureSelectOptions,
-    addListenerById
+    ensureSelectOptions
   };
 }
