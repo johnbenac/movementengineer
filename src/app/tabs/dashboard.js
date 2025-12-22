@@ -1,4 +1,4 @@
-import { createTab } from './_tabKit.js';
+import { createTab } from './tabKit.js';
 import { HINT_TEXT, guardMissingViewModels, guardNoMovement, renderHint } from '../ui/hints.js';
 
 function getState(ctx) {

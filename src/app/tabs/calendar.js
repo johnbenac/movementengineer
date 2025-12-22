@@ -1,4 +1,4 @@
-import { createTab } from './_tabKit.js';
+import { createTab } from './tabKit.js';
 import {
   HINT_TEXT,
   guardMissingViewModels,
