@@ -1,5 +1,4 @@
-const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
-movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
+import { createTab } from './_tabKit.js';
 
 let selectedMovementIds = null;
 
@@ -164,19 +163,14 @@ function renderComparisonTab(ctx) {
 }
 
 export function registerComparisonTab(ctx) {
-  const tab = {
-    mount(context) {
+  return createTab(ctx, {
+    name: 'comparison',
+    render: renderComparisonTab,
+    setup: () => {
       selectedMovementIds = null;
     },
-    render: renderComparisonTab,
-    unmount() {
+    reset: () => {
       selectedMovementIds = null;
     }
-  };
-
-  movementEngineerGlobal.tabs.comparison = tab;
-  if (ctx?.tabs) {
-    ctx.tabs.comparison = tab;
-  }
-  return tab;
+  });
 }
