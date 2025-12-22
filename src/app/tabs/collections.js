@@ -1,3 +1,5 @@
+import { renderMarkdownPreview } from '../ui/markdown.js';
+
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
 
@@ -106,6 +108,10 @@ function getDomainService(ctx) {
   return ctx.services.DomainService;
 }
 
+function getMarkdownLoader(ctx) {
+  return ctx?.services?.MarkdownDatasetLoader || window.MarkdownDatasetLoader || null;
+}
+
 function getStorageService(ctx) {
   return ctx.services.StorageService;
 }
@@ -143,6 +149,166 @@ function getCollectionNames(ctx) {
 function getCollectionsWithMovementId(ctx) {
   const DomainService = getDomainService(ctx);
   return DomainService?.COLLECTIONS_WITH_MOVEMENT_ID || new Set();
+}
+
+function inferTargetCollectionFromField(field) {
+  if (!field) return null;
+  if (field === 'parentId') return 'texts';
+  if (/TextIds$/.test(field) || field === 'rootTextIds') return 'texts';
+  if (/EntityIds$/.test(field)) return 'entities';
+  if (/PracticeIds$/.test(field)) return 'practices';
+  if (/ClaimIds$/.test(field)) return 'claims';
+  if (/EventIds$/.test(field)) return 'events';
+  return null;
+}
+
+function dedupeRefFields(fields) {
+  const seen = new Set();
+  return (fields || [])
+    .filter(f => f.field && f.target)
+    .filter(f => {
+      const key = `${f.field}:${f.target}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function deriveSchemaGuide(ctx, collectionName, movementId) {
+  const DomainService = getDomainService(ctx);
+  const loader = getMarkdownLoader(ctx);
+
+  let skeleton = {};
+  try {
+    skeleton = DomainService?.createSkeletonItem
+      ? DomainService.createSkeletonItem(collectionName, movementId || 'mov-placeholder')
+      : {};
+  } catch {
+    skeleton = {};
+  }
+
+  const expectedKeys = new Set(Object.keys(skeleton || {}));
+
+  (PREVIEW_FIELDS[collectionName] || []).forEach(f => expectedKeys.add(f.key));
+
+  const collectionsWithMovementId = getCollectionsWithMovementId(ctx);
+
+  const requiredKeys = new Set(['id']);
+  if (collectionsWithMovementId.has(collectionName)) requiredKeys.add('movementId');
+
+  const labelCandidates = ['name', 'title', 'shortText', 'text'];
+  const labelKey = labelCandidates.find(k => expectedKeys.has(k));
+  if (collectionName === 'movements') requiredKeys.add('name');
+  else if (collectionName === 'notes') {
+    requiredKeys.add('targetType');
+    requiredKeys.add('targetId');
+  } else if (collectionName === 'media') {
+    requiredKeys.add('kind');
+    requiredKeys.add('uri');
+  } else if (labelKey) {
+    requiredKeys.add(labelKey);
+  }
+
+  const refFields = [];
+
+  (PREVIEW_FIELDS[collectionName] || []).forEach(f => {
+    if ((f.type === 'id' || f.type === 'idList') && f.ref) {
+      refFields.push({ field: f.key, target: f.ref });
+    }
+  });
+
+  const refRuleFields = loader?.COLLECTION_REFERENCE_RULES?.[collectionName] || [];
+  refRuleFields.forEach(field => {
+    refFields.push({ field, target: inferTargetCollectionFromField(field) });
+  });
+
+  if (collectionName === 'texts') {
+    refFields.push({ field: 'parentId', target: 'texts' });
+  }
+
+  const schema = loader?.selectCollectionSchema?.(collectionName) || null;
+  const bodyField = schema?.bodyField || null;
+
+  return {
+    expectedKeys: Array.from(expectedKeys).sort(),
+    requiredKeys: Array.from(requiredKeys),
+    referenceFields: dedupeRefFields(refFields),
+    bodyField
+  };
+}
+
+function validateRecord(ctx, collectionName, record, snapshot, guide) {
+  const issues = [];
+
+  if (!record) return issues;
+
+  (guide.requiredKeys || []).forEach(key => {
+    const value = record[key];
+    const missing =
+      value === undefined ||
+      value === null ||
+      (typeof value === 'string' && value.trim() === '') ||
+      (Array.isArray(value) && value.length === 0);
+
+    if (missing) {
+      issues.push({ level: 'error', message: `Missing ${key}` });
+    }
+  });
+
+  (guide.referenceFields || []).forEach(({ field, target }) => {
+    if (!target) return;
+
+    const value = record[field];
+    if (value === undefined || value === null || value === '') return;
+
+    const targetColl = snapshot?.[target] || [];
+    const checkOne = id => {
+      const hit = Array.isArray(targetColl) ? targetColl.find(it => it.id === id) : null;
+      if (!hit) {
+        issues.push({ level: 'warn', message: `Bad ref: ${field} → ${id}` });
+        return;
+      }
+      if (hit.movementId && record.movementId && hit.movementId !== record.movementId) {
+        issues.push({ level: 'warn', message: `Cross-movement ref: ${field} → ${id}` });
+      }
+    };
+
+    if (Array.isArray(value)) value.filter(Boolean).forEach(checkOne);
+    else checkOne(value);
+  });
+
+  if (collectionName === 'notes') {
+    const loader = getMarkdownLoader(ctx);
+    const targetType = record.targetType;
+    const targetId = record.targetId;
+    const typeMap = loader?.NOTE_TARGET_TYPES || null;
+
+    const canonical = typeMap
+      ? typeMap[String(targetType).replace(/[\s_]/g, '').toLowerCase()]
+      : targetType;
+
+    const targetCollection =
+      canonical === 'Movement' ? 'movements'
+      : canonical === 'TextNode' ? 'texts'
+      : canonical === 'Entity' ? 'entities'
+      : canonical === 'Practice' ? 'practices'
+      : canonical === 'Event' ? 'events'
+      : canonical === 'Rule' ? 'rules'
+      : canonical === 'Claim' ? 'claims'
+      : canonical === 'MediaAsset' ? 'media'
+      : null;
+
+    if (targetCollection && targetId) {
+      const coll = snapshot?.[targetCollection] || [];
+      const hit = Array.isArray(coll) ? coll.find(it => it.id === targetId) : null;
+      if (!hit) issues.push({ level: 'warn', message: `Bad note target: ${targetType} → ${targetId}` });
+      if (hit?.movementId && record.movementId && hit.movementId !== record.movementId) {
+        issues.push({ level: 'warn', message: `Cross-movement note target` });
+      }
+    }
+  }
+
+  return issues;
 }
 
 function getNavigation(state) {
@@ -193,6 +359,114 @@ function updateNavigationButtons(nav) {
   if (!backBtn || !fwdBtn) return;
   backBtn.disabled = nav.index <= 0;
   fwdBtn.disabled = nav.index < 0 || nav.index >= nav.stack.length - 1;
+}
+
+function makeIssueBadge(issue) {
+  const span = document.createElement('span');
+  span.className = `issue-badge ${issue.level === 'error' ? 'error' : 'warn'}`;
+  span.textContent = issue.message;
+  return span;
+}
+
+function renderSchemaGuide(ctx, state, guide, issues) {
+  const el = document.getElementById('collections-schema-guide');
+  if (!el) return;
+  ctx.dom.clearElement(el);
+
+  const header = document.createElement('div');
+  header.className = 'card-header';
+
+  const titleWrap = document.createElement('div');
+  const eyebrow = document.createElement('div');
+  eyebrow.className = 'eyebrow';
+  eyebrow.textContent = 'Schema guide';
+  const title = document.createElement('h3');
+  title.className = 'card-title';
+  title.textContent = state.currentCollectionName || '—';
+  titleWrap.appendChild(eyebrow);
+  titleWrap.appendChild(title);
+
+  const issueStrip = document.createElement('div');
+  issueStrip.className = 'issue-strip';
+  issues.slice(0, 6).forEach(i => issueStrip.appendChild(makeIssueBadge(i)));
+
+  header.appendChild(titleWrap);
+  header.appendChild(issueStrip);
+  el.appendChild(header);
+
+  const required = document.createElement('div');
+  required.className = 'muted small-text';
+  required.innerHTML = `<strong>Required:</strong> ${guide.requiredKeys.map(k => `<code>${k}</code>`).join(' ') || '—'}`;
+  el.appendChild(required);
+
+  if (guide.bodyField) {
+    const body = document.createElement('div');
+    body.className = 'muted small-text';
+    body.innerHTML = `<strong>Markdown body field:</strong> <code>${guide.bodyField}</code>`;
+    el.appendChild(body);
+  }
+
+  if (guide.referenceFields.length) {
+    const refs = document.createElement('div');
+    refs.className = 'muted small-text';
+    refs.innerHTML =
+      `<strong>References:</strong> ` +
+      guide.referenceFields
+        .map(r => `<code>${r.field}</code> → <code>${r.target}</code>`)
+        .join(' · ');
+    el.appendChild(refs);
+  }
+
+  const details = document.createElement('details');
+  details.style.marginTop = '0.5rem';
+  const summary = document.createElement('summary');
+  summary.textContent = 'Expected keys';
+  details.appendChild(summary);
+
+  const keys = document.createElement('div');
+  keys.style.marginTop = '0.35rem';
+  keys.innerHTML = guide.expectedKeys.map(k => `<code>${k}</code>`).join(' ');
+  details.appendChild(keys);
+
+  el.appendChild(details);
+}
+
+function renderMarkdownPane(ctx, state, record, issues = []) {
+  const previewEl = document.getElementById('collections-markdown-preview');
+  const rawEl = document.getElementById('collections-markdown-raw');
+  const issuesEl = document.getElementById('collections-markdown-issues');
+  if (!previewEl || !rawEl || !issuesEl) return;
+
+  ctx.dom.clearElement(issuesEl);
+  issues.slice(0, 6).forEach(i => issuesEl.appendChild(makeIssueBadge(i)));
+
+  if (!record) {
+    rawEl.textContent = '';
+    previewEl.classList.add('empty');
+    previewEl.innerHTML = '<p class="muted">Select an item to see markdown.</p>';
+    return;
+  }
+
+  previewEl.classList.remove('empty');
+
+  const loader = getMarkdownLoader(ctx);
+  const snapshot = state.snapshot || {};
+
+  const markdownText =
+    loader?.renderMarkdownForRecord
+      ? loader.renderMarkdownForRecord(snapshot, state.currentCollectionName, record)
+      : (JSON.stringify(record, null, 2) || '');
+
+  rawEl.textContent = markdownText;
+
+  renderMarkdownPreview(previewEl, markdownText, { enabled: true });
+}
+
+function renderJsonIssues(issues) {
+  const issuesEl = document.getElementById('collections-json-issues');
+  if (!issuesEl) return;
+  issuesEl.innerHTML = '';
+  issues.slice(0, 6).forEach(i => issuesEl.appendChild(makeIssueBadge(i)));
 }
 
 function isMovementFilterEnabled() {
@@ -489,6 +763,12 @@ function renderItemEditor(ctx, tab, state) {
   tab.__state.isPopulatingEditor = false;
 }
 
+function getSelectedRecord(state) {
+  if (!state.currentItemId) return null;
+  const coll = state.snapshot?.[state.currentCollectionName] || [];
+  return Array.isArray(coll) ? coll.find(it => it.id === state.currentItemId) : null;
+}
+
 function renderCollectionsTab(ctx, tab) {
   const state = getState(ctx);
   const collectionNames = getCollectionNames(ctx);
@@ -506,9 +786,18 @@ function renderCollectionsTab(ctx, tab) {
     select.value = collectionName;
   }
 
-  renderCollectionList(ctx, tab, { ...state, currentCollectionName: collectionName });
-  renderItemPreview(ctx, { ...state, currentCollectionName: collectionName });
-  renderItemEditor(ctx, tab, { ...state, currentCollectionName: collectionName });
+  const normalizedState = { ...state, currentCollectionName: collectionName };
+  renderCollectionList(ctx, tab, normalizedState);
+
+  const record = getSelectedRecord(normalizedState);
+  const guide = deriveSchemaGuide(ctx, collectionName, normalizedState.currentMovementId);
+  const issues = validateRecord(ctx, collectionName, record, normalizedState.snapshot || {}, guide);
+
+  renderSchemaGuide(ctx, normalizedState, guide, issues);
+  renderItemPreview(ctx, normalizedState);
+  renderMarkdownPane(ctx, normalizedState, record, issues);
+  renderItemEditor(ctx, tab, normalizedState);
+  renderJsonIssues(issues);
   updateNavigationButtons(getNavigation(state));
 }
 
@@ -767,6 +1056,7 @@ export function registerCollectionsTab(ctx) {
       const navBack = document.getElementById('btn-preview-back');
       const navForward = document.getElementById('btn-preview-forward');
       const editor = document.getElementById('item-editor');
+      const copyMarkdownBtn = document.getElementById('btn-copy-item-markdown');
 
       const rerender = () => tab.render(context);
       const handleStateChange = () => {
@@ -787,6 +1077,26 @@ export function registerCollectionsTab(ctx) {
         if (tab.__state.isPopulatingEditor) return;
         context.store?.markDirty?.('item');
       };
+      const handleCopyMarkdown = async () => {
+        const rawEl = document.getElementById('collections-markdown-raw');
+        const text = rawEl?.textContent || '';
+        if (!text.trim()) {
+          context.setStatus?.('Nothing to copy');
+          return;
+        }
+        try {
+          await navigator.clipboard.writeText(text);
+          context.setStatus?.('Markdown copied');
+        } catch {
+          const tmp = document.createElement('textarea');
+          tmp.value = text;
+          document.body.appendChild(tmp);
+          tmp.select();
+          document.execCommand('copy');
+          document.body.removeChild(tmp);
+          context.setStatus?.('Markdown copied');
+        }
+      };
 
       if (select) select.addEventListener('change', handleSelectChange);
       if (filterCheckbox) filterCheckbox.addEventListener('change', handleFilterChange);
@@ -796,6 +1106,7 @@ export function registerCollectionsTab(ctx) {
       if (navBack) navBack.addEventListener('click', handleNavBack);
       if (navForward) navForward.addEventListener('click', handleNavForward);
       if (editor) editor.addEventListener('input', handleEditorInput);
+      if (copyMarkdownBtn) copyMarkdownBtn.addEventListener('click', handleCopyMarkdown);
 
       const unsubscribe = context?.subscribe ? context.subscribe(handleStateChange) : null;
 
@@ -808,6 +1119,7 @@ export function registerCollectionsTab(ctx) {
         navBack,
         navForward,
         editor,
+        copyMarkdownBtn,
         handleSelectChange,
         handleFilterChange,
         handleAdd,
@@ -816,6 +1128,7 @@ export function registerCollectionsTab(ctx) {
         handleNavBack,
         handleNavForward,
         handleEditorInput,
+        handleCopyMarkdown,
         rerender,
         unsubscribe
       };
@@ -834,6 +1147,7 @@ export function registerCollectionsTab(ctx) {
       if (h.navBack) h.navBack.removeEventListener('click', h.handleNavBack);
       if (h.navForward) h.navForward.removeEventListener('click', h.handleNavForward);
       if (h.editor) h.editor.removeEventListener('input', h.handleEditorInput);
+      if (h.copyMarkdownBtn) h.copyMarkdownBtn.removeEventListener('click', h.handleCopyMarkdown);
       if (typeof h.unsubscribe === 'function') h.unsubscribe();
       this.__handlers = null;
       this.__state.isPopulatingEditor = false;
