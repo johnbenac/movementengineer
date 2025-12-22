@@ -270,4 +270,47 @@ describe('claims tab module', () => {
     const selectedRow = document.querySelector('tr.selected');
     expect(selectedRow?.dataset.claimId).toBe('c1');
   });
+
+  it('clears module selection state on unmount', async () => {
+    renderDom();
+    const snapshot = {
+      claims: [
+        { id: 'c1', movementId: 'm1', text: 'One', category: null },
+        { id: 'c2', movementId: 'm1', text: 'Two', category: null }
+      ],
+      entities: [],
+      texts: []
+    };
+    const ViewModels = {
+      buildClaimsExplorerViewModel: vi.fn((snap, { movementId }) => ({
+        claims: (snap.claims || [])
+          .filter(c => c.movementId === movementId)
+          .map(c => ({
+            ...c,
+            tags: c.tags || [],
+            aboutEntities: [],
+            sourceEntities: [],
+            sourceTexts: [],
+            sourcesOfTruth: c.sourcesOfTruth || []
+          }))
+      }))
+    };
+    const ctx = createCtx(snapshot, 'm1', { ViewModels });
+    const { registerClaimsTab } = await import('../../../../src/app/tabs/claims.js');
+    const tab = registerClaimsTab(ctx);
+
+    tab.mount(ctx);
+    tab.render(ctx);
+
+    const secondRow = document.querySelector('tr[data-claim-id="c2"]');
+    secondRow?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    expect(document.querySelector('tr.selected')?.dataset.claimId).toBe('c2');
+
+    tab.unmount();
+    tab.mount(ctx);
+    tab.render(ctx);
+
+    expect(document.querySelector('tr.selected')?.dataset.claimId).toBe('c1');
+  });
 });

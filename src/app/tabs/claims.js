@@ -498,6 +498,8 @@ export function registerClaimsTab(ctx) {
         }
       });
       if (typeof h.unsubscribe === 'function') h.unsubscribe();
+      selectedClaimId = null;
+      lastMovementId = null;
       this.__handlers = null;
     }
   };
