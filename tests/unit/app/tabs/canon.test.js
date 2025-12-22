@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { HINT_TEXT } from '../../../../src/app/ui/hints.js';
 import { addTextCollection } from '../../../../src/app/tabs/canon/actions.js';
 import { createDomUtils } from '../../../../src/app/ui/dom.js';
 
@@ -123,7 +124,7 @@ describe('canon tab module', () => {
 
     expect(ctx.showFatalImportError).not.toHaveBeenCalled();
     expect(document.getElementById('shelf-list').textContent).toContain(
-      'Create or select a movement first.'
+      HINT_TEXT.MOVEMENT_REQUIRED
     );
   });
 

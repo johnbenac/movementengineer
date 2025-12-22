@@ -1,4 +1,5 @@
 import { createTab } from './_tabKit.js';
+import { HINT_TEXT, renderHint } from '../ui/hints.js';
 
 let selectedMovementIds = null;
 
@@ -28,29 +29,23 @@ function setSelectedMovementId(snapshot, movementId, checked) {
   selectedMovementIds = available.filter(id => desired.has(id));
 }
 
-function renderMessage(target, text) {
-  const p = document.createElement('p');
-  p.textContent = text;
-  target.appendChild(p);
-}
-
 function renderComparisonTable({ wrapper, snapshot, viewModels, movementIds, clear }) {
   clear(wrapper);
 
   if (!viewModels || typeof viewModels.buildComparisonViewModel !== 'function') {
-    renderMessage(wrapper, 'ViewModels module not loaded.');
+    renderHint(wrapper, HINT_TEXT.VIEWMODELS_MISSING);
     return;
   }
 
   if (!movementIds.length) {
-    renderMessage(wrapper, 'Select at least one movement.');
+    renderHint(wrapper, 'Select at least one movement.');
     return;
   }
 
   const cmpVm = viewModels.buildComparisonViewModel(snapshot, { movementIds });
   const rows = cmpVm?.rows || [];
   if (!rows.length) {
-    renderMessage(wrapper, 'No data available for comparison.');
+    renderHint(wrapper, 'No data available for comparison.');
     return;
   }
 
@@ -131,7 +126,7 @@ function renderComparisonTab(ctx) {
   const snapshot = state?.snapshot;
   const movements = Array.isArray(snapshot?.movements) ? snapshot.movements : [];
   if (!movements.length) {
-    renderMessage(selector, 'No movements to compare yet.');
+    renderHint(selector, 'No movements to compare yet.');
     return;
   }
 

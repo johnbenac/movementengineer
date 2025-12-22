@@ -1,3 +1,9 @@
+import {
+  HINT_TEXT,
+  createHint,
+  guardMissingViewModels,
+  guardNoMovement
+} from '../../ui/hints.js';
 import { collectDescendants, normaliseArray, parseCsvInput } from '../../utils/values.js';
 import { renderMarkdownPreview, openMarkdownModal } from '../../ui/markdown.js';
 import { deleteTextCollection, persistCanonItem } from './actions.js';
@@ -58,10 +64,7 @@ function normalizeVm(vm) {
 }
 
 function renderEmptyHint(text) {
-  const p = document.createElement('p');
-  p.className = 'library-empty';
-  p.textContent = text;
-  return p;
+  return createHint(text, { extraClasses: ['library-empty'] });
 }
 
 export function renderLibraryView(ctx) {
@@ -96,22 +99,27 @@ export function renderLibraryView(ctx) {
     searchResults.classList.remove('visible');
   }
 
-  if (!selection.currentMovementId) {
-    shelfList.appendChild(renderEmptyHint('Create or select a movement first.'));
-    bookList.appendChild(renderEmptyHint('Choose a movement to see books.'));
-    tocTree.appendChild(renderEmptyHint('No table of contents to show.'));
-    textEditor.appendChild(renderEmptyHint('Select a movement to edit texts.'));
+  if (
+    guardNoMovement({
+      movementId: selection.currentMovementId,
+      wrappers: [shelfList, bookList, tocTree, textEditor],
+      dom: ctx.dom,
+      message: HINT_TEXT.MOVEMENT_REQUIRED,
+      hintOptions: { extraClasses: ['library-empty'] }
+    })
+  )
     return;
-  }
 
   const ViewModels = getViewModels(ctx);
-  if (!ViewModels || typeof ViewModels.buildLibraryEditorViewModel !== 'function') {
-    shelfList.appendChild(renderEmptyHint('ViewModels module not loaded.'));
-    bookList.appendChild(renderEmptyHint('ViewModels module not loaded.'));
-    tocTree.appendChild(renderEmptyHint('ViewModels module not loaded.'));
-    textEditor.appendChild(renderEmptyHint('ViewModels module not loaded.'));
+  if (
+    guardMissingViewModels({
+      ok: ViewModels && typeof ViewModels.buildLibraryEditorViewModel === 'function',
+      wrappers: [shelfList, bookList, tocTree, textEditor],
+      dom: ctx.dom,
+      hintOptions: { extraClasses: ['library-empty'] }
+    })
+  )
     return;
-  }
 
   const searchQuery = document.getElementById('library-search')?.value || '';
   const buildVm = params =>

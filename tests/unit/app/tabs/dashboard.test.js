@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { HINT_TEXT } from '../../../../src/app/ui/hints.js';
 import { createDomUtils } from '../../../../src/app/ui/dom.js';
 
 function renderDom(withTab = false) {
@@ -73,15 +74,15 @@ describe('dashboard tab module', () => {
   it('shows empty state when no movement is selected', async () => {
     renderDom();
     const ctx = createCtx({ snapshot: {}, currentMovementId: null }, null);
-    const { registerDashboardTab } = await import('../../../../src/app/tabs/dashboard.js');
-    const tab = registerDashboardTab(ctx);
+  const { registerDashboardTab } = await import('../../../../src/app/tabs/dashboard.js');
+  const tab = registerDashboardTab(ctx);
 
-    tab.render(ctx);
+  tab.render(ctx);
 
-    expect(document.getElementById('dashboard-content').textContent).toContain(
-      'Create a movement on the left'
-    );
-  });
+  expect(document.getElementById('dashboard-content').textContent).toContain(
+    HINT_TEXT.MOVEMENT_REQUIRED
+  );
+});
 
   it('shows message when ViewModels are missing', async () => {
     renderDom();
