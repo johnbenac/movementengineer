@@ -1,5 +1,4 @@
-const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
-movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
+import { createTab } from './_tabKit.js';
 
 function hint(text) {
   const p = document.createElement('p');
@@ -90,13 +89,8 @@ function renderAuthorityTab(ctx) {
 }
 
 export function registerAuthorityTab(ctx) {
-  const tab = {
+  return createTab(ctx, {
+    name: 'authority',
     render: renderAuthorityTab
-  };
-
-  movementEngineerGlobal.tabs.authority = tab;
-  if (ctx?.tabs) {
-    ctx.tabs.authority = tab;
-  }
-  return tab;
+  });
 }
