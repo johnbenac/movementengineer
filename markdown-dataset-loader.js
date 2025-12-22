@@ -1172,6 +1172,35 @@
     return renderMarkdown(updatedFrontMatter, body);
   }
 
+  function renderMarkdownForRecord(snapshot, collection, record) {
+    if (!snapshot || !collection || !record) return '';
+
+    const fileIndex = snapshot.__repoFileIndex || {};
+    const rawByPath = snapshot.__repoRawMarkdownByPath || {};
+    const baselineByMovement = snapshot.__repoBaselineByMovement || {};
+
+    const movementId = record.movementId || record.id;
+    const baseline = baselineByMovement[movementId] || null;
+
+    const key = `${collection}:${record.id}`;
+    const path = fileIndex[key] || null;
+
+    const baselineMap = baseline ? baseline[collection] || {} : null;
+    const baselineRecord = baselineMap ? baselineMap[record.id] : null;
+
+    const raw = path ? rawByPath[path] : undefined;
+
+    if (raw !== undefined && baselineRecord && deepEqual(record, baselineRecord)) {
+      return raw;
+    }
+
+    if (raw !== undefined && baselineRecord) {
+      return patchMarkdown(raw, collection, baselineRecord, record, path);
+    }
+
+    return generateMarkdownForRecord(collection, record);
+  }
+
   async function exportMovementToZip(snapshot, movementId, options = {}) {
     if (!snapshot || typeof snapshot !== 'object') {
       throw new Error('A snapshot is required to export a movement.');
@@ -1296,7 +1325,8 @@
     createLocalRepoReader,
     createGitHubRepoReader,
     parseGitHubRepoUrl,
-    buildBaselineByMovement
+    buildBaselineByMovement,
+    renderMarkdownForRecord
   };
 
   async function importMovementRepo(repoUrl) {
@@ -1315,6 +1345,9 @@
 
   api.importMovementRepo = importMovementRepo;
   api.exportRepoToZip = exportRepoToZip;
+  api.COLLECTION_REFERENCE_RULES = COLLECTION_REFERENCE_RULES;
+  api.NOTE_TARGET_TYPES = NOTE_TARGET_TYPES;
+  api.renderMarkdownForRecord = renderMarkdownForRecord;
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = api;

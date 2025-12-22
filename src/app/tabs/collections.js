@@ -1,3 +1,5 @@
+import { renderMarkdownPreview } from '../ui/markdown.js';
+
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
 
@@ -106,6 +108,10 @@ function getDomainService(ctx) {
   return ctx.services.DomainService;
 }
 
+function getMarkdownLoader(ctx) {
+  return ctx?.services?.MarkdownDatasetLoader || window.MarkdownDatasetLoader || null;
+}
+
 function getStorageService(ctx) {
   return ctx.services.StorageService;
 }
@@ -143,6 +149,92 @@ function getCollectionNames(ctx) {
 function getCollectionsWithMovementId(ctx) {
   const DomainService = getDomainService(ctx);
   return DomainService?.COLLECTIONS_WITH_MOVEMENT_ID || new Set();
+}
+
+function inferTargetCollectionFromField(field) {
+  if (!field) return null;
+  if (field === 'parentId') return 'texts';
+  if (/TextIds$/.test(field) || field === 'rootTextIds') return 'texts';
+  if (/EntityIds$/.test(field)) return 'entities';
+  if (/PracticeIds$/.test(field)) return 'practices';
+  if (/ClaimIds$/.test(field)) return 'claims';
+  if (/EventIds$/.test(field)) return 'events';
+  return null;
+}
+
+function dedupeRefFields(fields) {
+  const seen = new Set();
+  return (fields || [])
+    .filter(f => f.field && f.target)
+    .filter(f => {
+      const key = `${f.field}:${f.target}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function deriveSchemaGuide(ctx, collectionName, movementId) {
+  const DomainService = getDomainService(ctx);
+  const loader = getMarkdownLoader(ctx);
+
+  let skeleton = {};
+  try {
+    skeleton = DomainService?.createSkeletonItem
+      ? DomainService.createSkeletonItem(collectionName, movementId || 'mov-placeholder')
+      : {};
+  } catch {
+    skeleton = {};
+  }
+
+  const expectedKeys = new Set(Object.keys(skeleton || {}));
+
+  (PREVIEW_FIELDS[collectionName] || []).forEach(f => expectedKeys.add(f.key));
+
+  const collectionsWithMovementId = getCollectionsWithMovementId(ctx);
+
+  const requiredKeys = new Set(['id']);
+  if (collectionsWithMovementId.has(collectionName)) requiredKeys.add('movementId');
+
+  const labelCandidates = ['name', 'title', 'shortText', 'text'];
+  const labelKey = labelCandidates.find(k => expectedKeys.has(k));
+  if (collectionName === 'movements') requiredKeys.add('name');
+  else if (collectionName === 'notes') {
+    requiredKeys.add('targetType');
+    requiredKeys.add('targetId');
+  } else if (collectionName === 'media') {
+    requiredKeys.add('kind');
+    requiredKeys.add('uri');
+  } else if (labelKey) {
+    requiredKeys.add(labelKey);
+  }
+
+  const refFields = [];
+
+  (PREVIEW_FIELDS[collectionName] || []).forEach(f => {
+    if ((f.type === 'id' || f.type === 'idList') && f.ref) {
+      refFields.push({ field: f.key, target: f.ref });
+    }
+  });
+
+  const refRuleFields = loader?.COLLECTION_REFERENCE_RULES?.[collectionName] || [];
+  refRuleFields.forEach(field => {
+    refFields.push({ field, target: inferTargetCollectionFromField(field) });
+  });
+
+  if (collectionName === 'texts') {
+    refFields.push({ field: 'parentId', target: 'texts' });
+  }
+
+  const schema = loader?.selectCollectionSchema?.(collectionName) || null;
+  const bodyField = schema?.bodyField || null;
+
+  return {
+    expectedKeys: Array.from(expectedKeys).sort(),
+    requiredKeys: Array.from(requiredKeys),
+    referenceFields: dedupeRefFields(refFields),
+    bodyField
+  };
 }
 
 function getNavigation(state) {
@@ -387,7 +479,7 @@ function renderCollectionList(ctx, tab, state) {
   if (deleteBtn) deleteBtn.disabled = !state.currentItemId;
 }
 
-function renderItemPreview(ctx, state) {
+function renderItemPreview(ctx, state, recordOverride) {
   const titleEl = document.getElementById('item-preview-title');
   const subtitleEl = document.getElementById('item-preview-subtitle');
   const body = document.getElementById('item-preview-body');
@@ -399,7 +491,7 @@ function renderItemPreview(ctx, state) {
   clear(body);
   badge.textContent = state.currentCollectionName || '—';
 
-  if (!state.currentItemId) {
+  if (!state.currentItemId && !recordOverride) {
     titleEl.textContent = 'Select an item';
     subtitleEl.textContent = 'Preview will appear here';
     const p = document.createElement('p');
@@ -410,7 +502,7 @@ function renderItemPreview(ctx, state) {
   }
 
   const coll = snapshot[state.currentCollectionName] || [];
-  const item = coll.find(it => it.id === state.currentItemId);
+  const item = recordOverride || coll.find(it => it.id === state.currentItemId);
   if (!item) {
     titleEl.textContent = 'Not found';
     subtitleEl.textContent = '';
@@ -422,7 +514,8 @@ function renderItemPreview(ctx, state) {
   }
 
   titleEl.textContent = getLabelForItem(item);
-  subtitleEl.textContent = `${(state.currentCollectionName || '').slice(0, -1)} · ${item.id}`;
+  const itemId = item.id || state.currentItemId || '—';
+  subtitleEl.textContent = `${(state.currentCollectionName || '').slice(0, -1)} · ${itemId}`;
 
   const fields = PREVIEW_FIELDS[state.currentCollectionName];
   if (!fields) {
@@ -452,6 +545,196 @@ function renderItemPreview(ctx, state) {
 
     renderPreviewRow(ctx, body, snapshot, 'Child texts', children, 'idList', 'texts');
   }
+}
+
+function makeIssueBadge(issue) {
+  const span = document.createElement('span');
+  span.className = `issue-badge ${issue.level === 'error' ? 'error' : 'warn'}`;
+  span.textContent = issue.message;
+  return span;
+}
+
+function validateRecord(ctx, collectionName, record, snapshot, guide) {
+  const issues = [];
+  const safeGuide = guide || { requiredKeys: [], referenceFields: [] };
+
+  if (!record) return issues;
+
+  (safeGuide.requiredKeys || []).forEach(key => {
+    const value = record[key];
+    const missing =
+      value === undefined ||
+      value === null ||
+      (typeof value === 'string' && value.trim() === '') ||
+      (Array.isArray(value) && value.length === 0);
+
+    if (missing) {
+      issues.push({ level: 'error', message: `Missing ${key}` });
+    }
+  });
+
+  (safeGuide.referenceFields || []).forEach(({ field, target }) => {
+    if (!target) return;
+
+    const value = record[field];
+    if (value === undefined || value === null || value === '') return;
+
+    const targetColl = snapshot?.[target] || [];
+    const checkOne = id => {
+      const hit = Array.isArray(targetColl) ? targetColl.find(it => it.id === id) : null;
+      if (!hit) {
+        issues.push({ level: 'warn', message: `Bad ref: ${field} → ${id}` });
+        return;
+      }
+      if (hit.movementId && record.movementId && hit.movementId !== record.movementId) {
+        issues.push({ level: 'warn', message: `Cross-movement ref: ${field} → ${id}` });
+      }
+    };
+
+    if (Array.isArray(value)) value.filter(Boolean).forEach(checkOne);
+    else checkOne(value);
+  });
+
+  if (collectionName === 'notes') {
+    const loader = getMarkdownLoader(ctx);
+    const targetType = record.targetType;
+    const targetId = record.targetId;
+    const typeMap = loader?.NOTE_TARGET_TYPES || null;
+
+    const canonical = typeMap
+      ? typeMap[String(targetType).replace(/[\s_]/g, '').toLowerCase()] || targetType
+      : targetType;
+
+    const targetCollectionMap = {
+      Movement: 'movements',
+      TextNode: 'texts',
+      Entity: 'entities',
+      Practice: 'practices',
+      Event: 'events',
+      Rule: 'rules',
+      Claim: 'claims',
+      MediaAsset: 'media'
+    };
+    const targetCollection = targetCollectionMap[canonical] || null;
+
+    if (targetCollection && targetId) {
+      const coll = snapshot?.[targetCollection] || [];
+      const hit = Array.isArray(coll) ? coll.find(it => it.id === targetId) : null;
+      if (!hit) issues.push({ level: 'warn', message: `Bad note target: ${targetType} → ${targetId}` });
+      if (hit?.movementId && record.movementId && hit.movementId !== record.movementId) {
+        issues.push({ level: 'warn', message: 'Cross-movement note target' });
+      }
+    }
+  }
+
+  return issues;
+}
+
+function renderSchemaGuide(ctx, state, guide, issues) {
+  const el = document.getElementById('collections-schema-guide');
+  if (!el) return;
+  const safeGuide = guide || { expectedKeys: [], requiredKeys: [], referenceFields: [], bodyField: null };
+  const clear = ctx.dom?.clearElement || (() => {});
+  clear(el);
+
+  const header = document.createElement('div');
+  header.className = 'card-header';
+
+  const titleWrap = document.createElement('div');
+  const eyebrow = document.createElement('div');
+  eyebrow.className = 'eyebrow';
+  eyebrow.textContent = 'Schema guide';
+  const title = document.createElement('h3');
+  title.className = 'card-title';
+  title.textContent = state.currentCollectionName || '—';
+  titleWrap.appendChild(eyebrow);
+  titleWrap.appendChild(title);
+
+  const issueStrip = document.createElement('div');
+  issueStrip.className = 'issue-strip';
+  (issues || []).slice(0, 6).forEach(i => issueStrip.appendChild(makeIssueBadge(i)));
+
+  header.appendChild(titleWrap);
+  header.appendChild(issueStrip);
+  el.appendChild(header);
+
+  const required = document.createElement('div');
+  required.className = 'muted small-text';
+  required.innerHTML = `<strong>Required:</strong> ${safeGuide.requiredKeys.map(k => `<code>${k}</code>`).join(' ') || '—'}`;
+  el.appendChild(required);
+
+  if (safeGuide.bodyField) {
+    const body = document.createElement('div');
+    body.className = 'muted small-text';
+    body.innerHTML = `<strong>Markdown body field:</strong> <code>${safeGuide.bodyField}</code>`;
+    el.appendChild(body);
+  }
+
+  if (safeGuide.referenceFields.length) {
+    const refs = document.createElement('div');
+    refs.className = 'muted small-text';
+    refs.innerHTML =
+      `<strong>References:</strong> ` +
+      safeGuide.referenceFields.map(r => `<code>${r.field}</code> → <code>${r.target}</code>`).join(' · ');
+    el.appendChild(refs);
+  }
+
+  const details = document.createElement('details');
+  details.style.marginTop = '0.5rem';
+  const summary = document.createElement('summary');
+  summary.textContent = 'Expected keys';
+  details.appendChild(summary);
+
+  const keys = document.createElement('div');
+  keys.style.marginTop = '0.35rem';
+  keys.innerHTML = safeGuide.expectedKeys.map(k => `<code>${k}</code>`).join(' ');
+  details.appendChild(keys);
+
+  el.appendChild(details);
+}
+
+function renderMarkdownPane(ctx, state, record, issues) {
+  const previewEl = document.getElementById('collections-markdown-preview');
+  const rawEl = document.getElementById('collections-markdown-raw');
+  const issuesEl = document.getElementById('collections-markdown-issues');
+  if (!previewEl || !rawEl || !issuesEl) return;
+
+  const clear = ctx.dom?.clearElement || (() => {});
+  clear(issuesEl);
+
+  (issues || []).slice(0, 6).forEach(i => issuesEl.appendChild(makeIssueBadge(i)));
+
+  if (!record) {
+    rawEl.textContent = '';
+    previewEl.classList.add('empty');
+    previewEl.innerHTML = '<p class="muted">Select an item to see markdown.</p>';
+    return;
+  }
+
+  const loader = getMarkdownLoader(ctx);
+  const snapshot = state.snapshot || {};
+
+  const markdownText = loader?.renderMarkdownForRecord
+    ? loader.renderMarkdownForRecord(snapshot, state.currentCollectionName, record)
+    : JSON.stringify(record, null, 2) || '';
+
+  rawEl.textContent = markdownText;
+
+  previewEl.classList.remove('empty');
+  renderMarkdownPreview(previewEl, markdownText || record.body || record.text || '', { enabled: true });
+}
+
+function renderJsonIssues(issues) {
+  const issuesEl = document.getElementById('collections-json-issues');
+  if (!issuesEl) return;
+  issuesEl.innerHTML = '';
+  (issues || []).slice(0, 6).forEach(i => issuesEl.appendChild(makeIssueBadge(i)));
+}
+
+function getSelectedRecord(state) {
+  if (!state.currentItemId) return null;
+  const coll = state.snapshot?.[state.currentCollectionName] || [];
+  return Array.isArray(coll) ? coll.find(it => it.id === state.currentItemId) : null;
 }
 
 function renderItemEditor(ctx, tab, state) {
@@ -506,9 +789,25 @@ function renderCollectionsTab(ctx, tab) {
     select.value = collectionName;
   }
 
-  renderCollectionList(ctx, tab, { ...state, currentCollectionName: collectionName });
-  renderItemPreview(ctx, { ...state, currentCollectionName: collectionName });
-  renderItemEditor(ctx, tab, { ...state, currentCollectionName: collectionName });
+  const normalizedState = { ...state, currentCollectionName: collectionName };
+
+  renderCollectionList(ctx, tab, normalizedState);
+
+  const record = getSelectedRecord(normalizedState);
+  const guide = deriveSchemaGuide(ctx, collectionName, normalizedState.currentMovementId);
+  const issues = validateRecord(
+    ctx,
+    collectionName,
+    record,
+    normalizedState.snapshot || {},
+    guide
+  );
+
+  renderSchemaGuide(ctx, normalizedState, guide, issues);
+  renderItemPreview(ctx, normalizedState, record);
+  renderMarkdownPane(ctx, normalizedState, record, issues);
+  renderItemEditor(ctx, tab, normalizedState);
+  renderJsonIssues(issues);
   updateNavigationButtons(getNavigation(state));
 }
 
@@ -767,6 +1066,7 @@ export function registerCollectionsTab(ctx) {
       const navBack = document.getElementById('btn-preview-back');
       const navForward = document.getElementById('btn-preview-forward');
       const editor = document.getElementById('item-editor');
+      const copyMarkdownBtn = document.getElementById('btn-copy-item-markdown');
 
       const rerender = () => tab.render(context);
       const handleStateChange = () => {
@@ -786,6 +1086,69 @@ export function registerCollectionsTab(ctx) {
       const handleEditorInput = () => {
         if (tab.__state.isPopulatingEditor) return;
         context.store?.markDirty?.('item');
+
+        const value = editor ? editor.value : '';
+        const state = getState(context);
+        const collectionName = state.currentCollectionName;
+        const normalizedState = { ...state, currentCollectionName: collectionName };
+
+        if (!value.trim()) {
+          renderMarkdownPane(context, normalizedState, null, []);
+          renderJsonIssues([]);
+          renderItemPreview(context, normalizedState, null);
+          return;
+        }
+
+        try {
+          const obj = JSON.parse(value);
+          const guide = deriveSchemaGuide(context, collectionName, normalizedState.currentMovementId);
+          const issues = validateRecord(
+            context,
+            collectionName,
+            obj,
+            normalizedState.snapshot || {},
+            guide
+          );
+          renderMarkdownPane(context, normalizedState, obj, issues);
+          renderJsonIssues(issues);
+          renderItemPreview(context, normalizedState, obj);
+        } catch (err) {
+          const parseIssues = value.trim() ? [{ level: 'error', message: 'Invalid JSON' }] : [];
+          renderJsonIssues(parseIssues);
+          const previewEl = document.getElementById('collections-markdown-preview');
+          const rawEl = document.getElementById('collections-markdown-raw');
+          const issuesEl = document.getElementById('collections-markdown-issues');
+          if (issuesEl) {
+            const clearIssues = context.dom?.clearElement || (() => {});
+            clearIssues(issuesEl);
+            parseIssues.forEach(i => issuesEl.appendChild(makeIssueBadge(i)));
+          }
+          if (previewEl && rawEl) {
+            previewEl.classList.add('empty');
+            previewEl.innerHTML = '<p class="muted">Invalid JSON. Fix errors to preview.</p>';
+            rawEl.textContent = '';
+          }
+        }
+      };
+      const handleCopyMarkdown = async () => {
+        const rawEl = document.getElementById('collections-markdown-raw');
+        const text = rawEl?.textContent || '';
+        if (!text.trim()) {
+          context.setStatus?.('Nothing to copy');
+          return;
+        }
+        try {
+          await navigator.clipboard.writeText(text);
+          context.setStatus?.('Markdown copied');
+        } catch (err) {
+          const tmp = document.createElement('textarea');
+          tmp.value = text;
+          document.body.appendChild(tmp);
+          tmp.select();
+          document.execCommand('copy');
+          document.body.removeChild(tmp);
+          context.setStatus?.('Markdown copied');
+        }
       };
 
       if (select) select.addEventListener('change', handleSelectChange);
@@ -796,6 +1159,7 @@ export function registerCollectionsTab(ctx) {
       if (navBack) navBack.addEventListener('click', handleNavBack);
       if (navForward) navForward.addEventListener('click', handleNavForward);
       if (editor) editor.addEventListener('input', handleEditorInput);
+      if (copyMarkdownBtn) copyMarkdownBtn.addEventListener('click', handleCopyMarkdown);
 
       const unsubscribe = context?.subscribe ? context.subscribe(handleStateChange) : null;
 
@@ -808,6 +1172,7 @@ export function registerCollectionsTab(ctx) {
         navBack,
         navForward,
         editor,
+        copyMarkdownBtn,
         handleSelectChange,
         handleFilterChange,
         handleAdd,
@@ -816,6 +1181,7 @@ export function registerCollectionsTab(ctx) {
         handleNavBack,
         handleNavForward,
         handleEditorInput,
+        handleCopyMarkdown,
         rerender,
         unsubscribe
       };
@@ -834,6 +1200,7 @@ export function registerCollectionsTab(ctx) {
       if (h.navBack) h.navBack.removeEventListener('click', h.handleNavBack);
       if (h.navForward) h.navForward.removeEventListener('click', h.handleNavForward);
       if (h.editor) h.editor.removeEventListener('input', h.handleEditorInput);
+      if (h.copyMarkdownBtn) h.copyMarkdownBtn.removeEventListener('click', h.handleCopyMarkdown);
       if (typeof h.unsubscribe === 'function') h.unsubscribe();
       this.__handlers = null;
       this.__state.isPopulatingEditor = false;
