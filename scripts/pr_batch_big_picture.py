@@ -10,6 +10,7 @@ all comments made on the pull requests.
 import argparse
 import json
 import os
+import re
 import shlex
 import subprocess
 import sys
@@ -136,28 +137,77 @@ def get_pr_checks(pr_number: int) -> List[Dict[str, str]]:
     data = json.loads(checks_json)
 
     checks: List[Dict[str, str]] = []
+    log_cache: Dict[str, Tuple[str, str]] = {}
     for check in data.get("statusCheckRollup") or []:
-        checks.append(
-            {
-                "name": check.get("name")
-                or check.get("context")
-                or check.get("title")
-                or "unknown check",
-                "status": check.get("status")
-                or check.get("state")
-                or "unknown",
-                "conclusion": check.get("conclusion")
-                or check.get("state")
-                or "unknown",
-                "detailsUrl": check.get("detailsUrl")
-                or check.get("targetUrl")
-                or "",
-                "title": check.get("title") or "",
-                "summary": check.get("summary") or check.get("text") or "",
-            }
-        )
+        check_entry = {
+            "name": check.get("name")
+            or check.get("context")
+            or check.get("title")
+            or "unknown check",
+            "status": check.get("status")
+            or check.get("state")
+            or "unknown",
+            "conclusion": check.get("conclusion")
+            or check.get("state")
+            or "unknown",
+            "detailsUrl": check.get("detailsUrl")
+            or check.get("targetUrl")
+            or "",
+            "title": check.get("title") or "",
+            "summary": check.get("summary") or check.get("text") or "",
+        }
+        fetch_failure_logs_for_check(check_entry, log_cache)
+        checks.append(check_entry)
 
     return checks
+
+
+def is_failure_conclusion(conclusion: str | None) -> bool:
+    """Return True if a check conclusion represents a failure."""
+    if not conclusion:
+        return False
+
+    return conclusion.lower() not in {
+        "success",
+        "neutral",
+        "skipped",
+        "stale",
+    }
+
+
+def extract_action_run_id(details_url: str | None) -> str | None:
+    """Extract the GitHub Actions run ID from a details URL, if present."""
+    if not details_url:
+        return None
+
+    match = re.search(r"/actions/runs/(\\d+)", details_url)
+    return match.group(1) if match else None
+
+
+def fetch_failure_logs_for_check(check: Dict[str, str], log_cache: Dict[str, Tuple[str, str]]) -> None:
+    """Fetch raw logs for failing GitHub Actions checks and attach them to the check."""
+    conclusion = check.get("conclusion") or ""
+    if not is_failure_conclusion(conclusion):
+        return
+
+    details_url = check.get("detailsUrl") or ""
+    run_id = extract_action_run_id(details_url)
+    if not run_id:
+        check["logError"] = "No GitHub Actions run ID found in details URL"
+        return
+
+    if run_id not in log_cache:
+        try:
+            logs = run_command(f"gh run view {shlex.quote(run_id)} --log")
+            log_cache[run_id] = (logs, "")
+        except subprocess.CalledProcessError as exc:
+            log_cache[run_id] = ("", f"Failed to fetch logs for run {run_id}: {exc}")
+
+    logs, error = log_cache[run_id]
+    if logs:
+        check["rawLogs"] = logs
+    elif error:
+        check["logError"] = error
 
 
 def filter_existing_files(files: List[str]) -> Tuple[List[str], List[str]]:
@@ -307,6 +357,12 @@ def run_big_picture(
                 if summary_text:
                     for line in summary_text.splitlines():
                         diff_file.write(f"    {line}\n")
+                if check.get("rawLogs"):
+                    diff_file.write("    Raw logs:\n")
+                    for line in check["rawLogs"].splitlines():
+                        diff_file.write(f"        {line}\n")
+                elif check.get("logError"):
+                    diff_file.write(f"    Log retrieval note: {check['logError']}\n")
 
         diff_file.write("\n")
         diff_file.write("=" * 80 + "\n")
