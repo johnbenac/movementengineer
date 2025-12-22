@@ -10,6 +10,7 @@ all comments made on the pull requests.
 import argparse
 import json
 import os
+import re
 import shlex
 import subprocess
 import sys
@@ -160,6 +161,35 @@ def get_pr_checks(pr_number: int) -> List[Dict[str, str]]:
     return checks
 
 
+def extract_actions_run_id(details_url: str | None) -> str | None:
+    """Extract the GitHub Actions run ID from a details URL."""
+    if not details_url:
+        return None
+    match = re.search(r"/actions/runs/(\d+)", details_url)
+    return match.group(1) if match else None
+
+
+def get_failed_check_logs(check: Dict[str, str]) -> str | None:
+    """Retrieve raw logs for failed GitHub Actions checks."""
+    conclusion = (check.get("conclusion") or "").lower()
+    if conclusion in {"success", "neutral", "skipped"}:
+        return None
+
+    run_id = extract_actions_run_id(check.get("detailsUrl") or "")
+    if not run_id:
+        return None
+
+    try:
+        print(
+            f"Fetching logs for failed check '{check.get('name', 'unknown check')}' "
+            f"(run {run_id})"
+        )
+        return run_command(f"gh run view {shlex.quote(run_id)} --log")
+    except subprocess.CalledProcessError as exc:
+        print(f"Warning: Failed to fetch logs for run {run_id}: {exc}")
+        return None
+
+
 def filter_existing_files(files: List[str]) -> Tuple[List[str], List[str]]:
     """Filter list of files to only those that exist on current branch."""
     existing_files: List[str] = []
@@ -256,6 +286,7 @@ def run_big_picture(
     comments: List[Dict[str, str]],
     checks: List[Dict[str, str]],
     output_file: str,
+    include_logs: bool = True,
     base_branch: str = "main",
     local_branch: str | None = None,
 ) -> bool:
@@ -298,6 +329,7 @@ def run_big_picture(
                 status = check.get("status") or "unknown"
                 conclusion = check.get("conclusion") or "unknown"
                 details_url = check.get("detailsUrl") or ""
+                log_output = check.get("logOutput") or ""
                 heading = f"- {name}: status={status}, conclusion={conclusion}"
                 if details_url:
                     heading += f" [{details_url}]"
@@ -306,6 +338,10 @@ def run_big_picture(
                 summary_text = check.get("summary") or check.get("title") or ""
                 if summary_text:
                     for line in summary_text.splitlines():
+                        diff_file.write(f"    {line}\n")
+                if include_logs and log_output:
+                    diff_file.write("    Logs:\n")
+                    for line in log_output.splitlines():
                         diff_file.write(f"    {line}\n")
 
         diff_file.write("\n")
@@ -339,6 +375,7 @@ def create_master_comparison(
     start_pr: int,
     end_pr: int,
     output_file: str,
+    include_logs: bool,
 ) -> bool:
     """Create a master comparison file combining all individual PR diff files."""
     print("Creating master comparison file...")
@@ -348,7 +385,8 @@ def create_master_comparison(
         return False
 
     with open(output_file, "w", encoding="utf-8") as outf:
-        outf.write(f"# Master Comparison: PRs {start_pr}-{end_pr}\n")
+        log_suffix = "with logs" if include_logs else "without logs"
+        outf.write(f"# Master Comparison ({log_suffix}): PRs {start_pr}-{end_pr}\n")
         outf.write(f"# Total PRs: {len(pr_files)}\n")
         outf.write(f"# Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
         outf.write("=" * 80 + "\n\n")
@@ -373,6 +411,7 @@ def create_touched_files_compilation(
     start_pr: int,
     end_pr: int,
     output_file: str,
+    include_logs: bool,
     master_comparison_file: str | None = None,
 ) -> bool:
     """Create a compilation of unique touched files from the base branch."""
@@ -385,7 +424,10 @@ def create_touched_files_compilation(
     sorted_files = sorted(touched_files)
 
     with open(output_file, "w", encoding="utf-8") as outf:
-        outf.write(f"# Touched Files (base branch) for PRs {start_pr}-{end_pr}\n")
+        log_suffix = "with logs" if include_logs else "without logs"
+        outf.write(
+            f"# Touched Files (base branch, {log_suffix}) for PRs {start_pr}-{end_pr}\n"
+        )
         outf.write(f"# Total unique files: {len(sorted_files)}\n")
         outf.write(f"# Source branch: {base_branch}\n")
         outf.write(f"# Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
@@ -426,6 +468,7 @@ def create_summary_compilation(
     start_pr: int,
     end_pr: int,
     output_file: str,
+    include_logs: bool,
 ) -> bool:
     """Create a concise summary document for all processed PRs."""
     print("Creating summary compilation file...")
@@ -435,7 +478,8 @@ def create_summary_compilation(
         return False
 
     with open(output_file, "w", encoding="utf-8") as outf:
-        outf.write(f"# PR Summary Compilation: PRs {start_pr}-{end_pr}\n")
+        log_suffix = "with logs" if include_logs else "without logs"
+        outf.write(f"# PR Summary Compilation ({log_suffix}): PRs {start_pr}-{end_pr}\n")
         outf.write(f"# Total PRs: {len(pr_files)}\n")
         outf.write(f"# Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
         outf.write("=" * 80 + "\n\n")
@@ -498,6 +542,12 @@ def main() -> None:
         pr_infos: List[Dict[str, str]] = []
         touched_files: Set[str] = set()
 
+        variants = [
+            {"label": "with-logs", "include_logs": True},
+            {"label": "without-logs", "include_logs": False},
+        ]
+        include_logs_requested = any(variant["include_logs"] for variant in variants)
+
         for pr_num in range(args.start_pr, args.end_pr + 1):
             try:
                 pr_info = get_pr_info(pr_num)
@@ -510,7 +560,9 @@ def main() -> None:
             print("Error: No valid PRs found in the specified range")
             sys.exit(1)
 
-        successful_prs: List[Tuple[Dict[str, str], str]] = []
+        successful_prs: Dict[str, List[Tuple[Dict[str, str], str]]] = {
+            variant["label"]: [] for variant in variants
+        }
 
         for pr_info in pr_infos:
             print(f"\n--- Processing PR #{pr_info['number']}: {pr_info['title']} ---")
@@ -558,53 +610,84 @@ def main() -> None:
             except (subprocess.CalledProcessError, json.JSONDecodeError, KeyError) as exc:
                 print(f"Failed to retrieve checks for PR #{pr_info['number']}: {exc}")
                 checks = []
+            else:
+                if include_logs_requested:
+                    for check in checks:
+                        logs = get_failed_check_logs(check)
+                        if logs:
+                            check["logOutput"] = logs
 
-            output_file = os.path.join(
-                args.output_dir, f"pr-{pr_info['number']}-implementation.txt"
-            )
-            if run_big_picture(
-                pr_info,
-                existing_files,
-                comments,
-                checks,
-                output_file,
-                base_branch=args.base_branch,
-                local_branch=local_branch,
-            ):
-                successful_prs.append((pr_info, output_file))
+            for variant in variants:
+                variant_label = variant["label"]
+                output_file = os.path.join(
+                    args.output_dir,
+                    f"pr-{pr_info['number']}-implementation-{variant_label}.txt",
+                )
+                if run_big_picture(
+                    pr_info,
+                    existing_files,
+                    comments,
+                    checks,
+                    output_file,
+                    include_logs=variant["include_logs"],
+                    base_branch=args.base_branch,
+                    local_branch=local_branch,
+                ):
+                    successful_prs[variant_label].append((pr_info, output_file))
 
-        if successful_prs:
-            master_output = os.path.join(
-                args.output_dir, f"pr-comparison-{args.start_pr}-{args.end_pr}.txt"
-            )
-            create_master_comparison(
-                successful_prs, args.start_pr, args.end_pr, master_output
-            )
+        any_success = any(pr_list for pr_list in successful_prs.values())
+        if any_success:
+            for variant in variants:
+                variant_label = variant["label"]
+                pr_list = successful_prs[variant_label]
+                if not pr_list:
+                    continue
 
-            summary_output = os.path.join(
-                args.output_dir, f"pr-summaries-{args.start_pr}-{args.end_pr}.txt"
-            )
-            create_summary_compilation(
-                successful_prs, args.start_pr, args.end_pr, summary_output
-            )
+                master_output = os.path.join(
+                    args.output_dir,
+                    f"pr-comparison-{args.start_pr}-{args.end_pr}-{variant_label}.txt",
+                )
+                create_master_comparison(
+                    pr_list,
+                    args.start_pr,
+                    args.end_pr,
+                    master_output,
+                    include_logs=variant["include_logs"],
+                )
 
-            touched_output = os.path.join(
-                args.output_dir, f"pr-touched-files-{args.start_pr}-{args.end_pr}.txt"
-            )
-            create_touched_files_compilation(
-                touched_files,
-                args.base_branch,
-                args.start_pr,
-                args.end_pr,
-                touched_output,
-                master_output,
-            )
+                summary_output = os.path.join(
+                    args.output_dir,
+                    f"pr-summaries-{args.start_pr}-{args.end_pr}-{variant_label}.txt",
+                )
+                create_summary_compilation(
+                    pr_list,
+                    args.start_pr,
+                    args.end_pr,
+                    summary_output,
+                    include_logs=variant["include_logs"],
+                )
 
-            print(f"\n✓ Successfully processed {len(successful_prs)} PR(s)")
-            print(f"✓ Individual files: {args.output_dir}/pr-{{num}}-implementation.txt")
-            print(f"✓ Master comparison: {master_output}")
-            print(f"✓ Summary compilation: {summary_output}")
-            print(f"✓ Touched files compilation: {touched_output}")
+                touched_output = os.path.join(
+                    args.output_dir,
+                    f"pr-touched-files-{args.start_pr}-{args.end_pr}-{variant_label}.txt",
+                )
+                create_touched_files_compilation(
+                    touched_files,
+                    args.base_branch,
+                    args.start_pr,
+                    args.end_pr,
+                    touched_output,
+                    include_logs=variant["include_logs"],
+                    master_comparison_file=master_output,
+                )
+
+                print(f"\n✓ Successfully processed {len(pr_list)} PR(s) for {variant_label}")
+                print(
+                    f"✓ Individual files: {args.output_dir}/pr-{{num}}-implementation-{variant_label}.txt"
+                )
+                print(f"✓ Master comparison: {master_output}")
+                print(f"✓ Summary compilation: {summary_output}")
+                print(f"✓ Touched files compilation: {touched_output}")
         else:
             print("\nNo PRs were successfully processed")
 
