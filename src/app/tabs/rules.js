@@ -455,7 +455,10 @@ function renderRulesTab(ctx) {
         header: 'Supporting texts',
         render: r =>
           r.supportingTexts?.length
-            ? createChipRow(r.supportingTexts, { getLabel: t => t.title || t.id })
+            ? createChipRow(r.supportingTexts, {
+                getLabel: t => t.title || t.id,
+                getTarget: t => ({ kind: 'item', collection: 'texts', id: t.id })
+              })
             : ''
       },
       {
@@ -472,7 +475,10 @@ function renderRulesTab(ctx) {
         header: 'Related practices',
         render: r =>
           r.relatedPractices?.length
-            ? createChipRow(r.relatedPractices, { getLabel: p => p.name || p.id })
+            ? createChipRow(r.relatedPractices, {
+                getLabel: p => p.name || p.id,
+                getTarget: p => ({ kind: 'item', collection: 'practices', id: p.id })
+              })
             : ''
       },
       { header: 'Sources of truth', render: r => (r.sourcesOfTruth || []).join(', ') }
@@ -545,6 +551,11 @@ export function registerRulesTab(ctx) {
         h.deleteBtn.removeEventListener('click', h.deleteHandler);
       if (typeof h.unsubscribe === 'function') h.unsubscribe();
       this.__handlers = null;
+    },
+    open(context, ruleId) {
+      this.__state.selectedRuleId = ruleId || null;
+      context.actions.activateTab?.('rules');
+      this.render?.(context);
     }
   };
 

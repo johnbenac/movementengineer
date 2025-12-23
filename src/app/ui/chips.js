@@ -2,6 +2,12 @@
 
 const DEFAULT_LABEL_KEYS = ['name', 'title', 'shortText', 'text', 'id'];
 
+const CHIP_KIND_ITEM = 'item';
+const CHIP_KIND_FACET = 'facet';
+
+let globalHandlersAttached = false;
+let handlerCtx = null;
+
 export function defaultChipLabel(item) {
   if (item === undefined || item === null) return '';
   if (typeof item === 'string' || typeof item === 'number') return String(item);
@@ -17,10 +23,65 @@ function isNode(value) {
   return value && typeof value === 'object' && typeof value.nodeType === 'number';
 }
 
+function normaliseTarget(target, item, getTarget) {
+  if (target) return target;
+  if (typeof getTarget === 'function') return getTarget(item) || null;
+  return null;
+}
+
+function applyTargetDataset(el, target) {
+  if (!target || !target.kind) throw new Error('Chip target is required');
+  const { kind } = target;
+  if (kind === CHIP_KIND_ITEM) {
+    if (!target.collection || !target.id) {
+      throw new Error('Item chip requires collection and id');
+    }
+    el.dataset.chipKind = CHIP_KIND_ITEM;
+    el.dataset.chipCollection = target.collection;
+    el.dataset.chipId = target.id;
+  } else if (kind === CHIP_KIND_FACET) {
+    if (!target.facet || target.value === undefined || target.value === null) {
+      throw new Error('Facet chip requires facet and value');
+    }
+    el.dataset.chipKind = CHIP_KIND_FACET;
+    el.dataset.chipFacet = target.facet;
+    el.dataset.chipValue = target.value;
+    if (target.scope) el.dataset.chipScope = target.scope;
+  } else {
+    throw new Error(`Unknown chip kind: ${kind}`);
+  }
+  el.dataset.rowSelect = 'ignore';
+}
+
+export function readChipTargetFromEl(el) {
+  if (!el) return null;
+  const dataset = el.dataset || {};
+  if (!dataset.chipKind) return null;
+  if (dataset.chipKind === CHIP_KIND_ITEM) {
+    const { chipCollection: collection, chipId: id } = dataset;
+    if (!collection || !id) return null;
+    return { kind: CHIP_KIND_ITEM, collection, id };
+  }
+  if (dataset.chipKind === CHIP_KIND_FACET) {
+    const { chipFacet: facet, chipValue: value, chipScope: scope } = dataset;
+    if (!facet || value === undefined) return null;
+    return { kind: CHIP_KIND_FACET, facet, value, scope: scope || undefined };
+  }
+  return null;
+}
+
+function attachKeyboardActivation(el) {
+  el.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      el.click();
+    }
+  });
+}
+
 /**
  * Creates a single chip element.
  * - variant: 'default' | 'entity' | 'tag'
- * - onClick: if provided, chip becomes keyboard-accessible and marked as role="button"
  */
 export function createChip(item, opts = {}) {
   const {
@@ -30,10 +91,11 @@ export function createChip(item, opts = {}) {
     getLabel = defaultChipLabel,
     title,
     getTitle,
-    onClick,
-    dataset,
+    target,
+    getTarget,
     attrs,
-    tagName = 'span'
+    tagName = 'button',
+    type = 'button'
   } = opts;
 
   const el = document.createElement(tagName);
@@ -42,6 +104,9 @@ export function createChip(item, opts = {}) {
     variant === 'entity' ? 'chip-entity' : variant === 'tag' ? 'chip-tag' : '';
 
   el.className = ['chip', variantClass, className].filter(Boolean).join(' ').trim();
+  el.classList.add('clickable');
+
+  if (tagName === 'button') el.type = type;
 
   const text = label != null ? label : getLabel(item);
   el.textContent = text || '';
@@ -50,12 +115,8 @@ export function createChip(item, opts = {}) {
     title != null ? title : typeof getTitle === 'function' ? getTitle(item) : null;
   if (resolvedTitle) el.title = resolvedTitle;
 
-  if (dataset && typeof dataset === 'object') {
-    Object.entries(dataset).forEach(([k, v]) => {
-      if (v === undefined || v === null) return;
-      el.dataset[k] = String(v);
-    });
-  }
+  const chipTarget = normaliseTarget(target, item, getTarget);
+  applyTargetDataset(el, chipTarget);
 
   if (attrs && typeof attrs === 'object') {
     Object.entries(attrs).forEach(([k, v]) => {
@@ -64,22 +125,7 @@ export function createChip(item, opts = {}) {
     });
   }
 
-  if (typeof onClick === 'function') {
-    el.classList.add('clickable');
-
-    // Important: make chips count as "interactive targets" inside clickable table rows.
-    // Your existing interactive guard checks [role="button"].
-    el.setAttribute('role', 'button');
-    el.tabIndex = 0;
-
-    el.addEventListener('click', e => onClick(item, e));
-    el.addEventListener('keydown', e => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        el.click();
-      }
-    });
-  }
+  attachKeyboardActivation(el);
 
   return el;
 }
@@ -108,9 +154,6 @@ export function appendChipRow(container, items, opts = {}) {
   return row;
 }
 
-/**
- * Small label used throughout existing tabs (Calendar/Media use inline headings like "Entities:")
- */
 export function appendInlineLabel(container, text, opts = {}) {
   const { fontSize = '0.75rem', className = '' } = opts;
   const el = document.createElement('div');
@@ -120,3 +163,59 @@ export function appendInlineLabel(container, text, opts = {}) {
   container.appendChild(el);
   return el;
 }
+
+export function attachGlobalChipHandlers(ctx) {
+  if (ctx) handlerCtx = ctx;
+  if (globalHandlersAttached) return;
+  const handleClick = event => {
+    const context = handlerCtx;
+    const chip = event.target.closest?.('.chip');
+    if (!chip) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const target = readChipTargetFromEl(chip);
+    if (!target) {
+      console.error('Chip missing target', chip);
+      return;
+    }
+    if (typeof context?.actions?.openChipTarget === 'function') {
+      context.actions.openChipTarget(target);
+      return;
+    }
+
+    if (target.kind === CHIP_KINDS.FACET) {
+      context?.actions?.openFacet?.(target.facet, target.value, target.scope);
+      return;
+    }
+
+    if (target.kind === CHIP_KINDS.ITEM) {
+      const jumpAction =
+        (target.collection === 'practices' && context?.actions?.jumpToPractice) ||
+        (target.collection === 'entities' && context?.actions?.jumpToEntity) ||
+        (target.collection === 'texts' && context?.actions?.jumpToText);
+      if (typeof jumpAction === 'function') {
+        jumpAction(target.id);
+        return;
+      }
+      context?.actions?.jumpToReferencedItem?.(target.collection, target.id);
+    }
+  };
+
+  document.addEventListener('click', handleClick, true);
+  globalHandlersAttached = true;
+}
+
+export function assertNoBareChips(root = document) {
+  const chips = root?.querySelectorAll?.('.chip') || [];
+  chips.forEach(chip => {
+    const target = readChipTargetFromEl(chip);
+    if (!target) {
+      console.error('Bare chip found (missing target)', chip);
+    }
+  });
+}
+
+export const CHIP_KINDS = {
+  ITEM: CHIP_KIND_ITEM,
+  FACET: CHIP_KIND_FACET
+};

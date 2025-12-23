@@ -1,3 +1,10 @@
+import {
+  createChip,
+  createChipRow,
+  readChipTargetFromEl,
+  assertNoBareChips
+} from './chips.js';
+
 export function createDomUtils() {
   function clearElement(el) {
     if (!el) return;
@@ -71,6 +78,10 @@ export function createDomUtils() {
     ensureSelectOptions,
     ensureMultiSelectOptions,
     ensureDatalistOptions,
-    addListenerById
+    addListenerById,
+    createChip,
+    createChipRow,
+    readChipTargetFromEl,
+    assertNoBareChips
   };
 }

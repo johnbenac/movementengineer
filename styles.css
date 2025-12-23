@@ -856,12 +856,33 @@ button.danger:hover {
 }
 
 .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
   font-size: 0.75rem;
-  padding: 0.15rem 0.4rem;
+  padding: 0.15rem 0.5rem;
   border-radius: 999px;
   background: #e5e7eb;
   color: #111827;
   border: 1px solid #d1d5db;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.chip:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+.chip:hover {
+  background: #d1d5db;
+}
+
+.chip:active {
+  transform: translateY(1px);
 }
 
 .chip-tag {
@@ -877,17 +898,43 @@ button.danger:hover {
   box-shadow: 0 1px 0 rgba(55, 48, 163, 0.08);
 }
 
-.chip.clickable {
-  cursor: pointer;
-}
-
-.chip.clickable:hover {
-  background: #d1d5db;
-}
-
-.chip-entity.clickable:hover {
+.chip-entity:hover {
   background: #e0e7ff;
   border-color: #a5b4fc;
+}
+
+.chip-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: #e5e7eb;
+  border: 1px solid #d1d5db;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.facet-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  margin-bottom: 0.5rem;
+}
+
+.facet-banner .eyebrow {
+  margin-bottom: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.facet-banner button {
+  margin: 0;
 }
 
 /* Comparison */
@@ -1886,14 +1933,14 @@ a.text-link:hover {
 }
 
 /* Graph workbench filter chips */
-#gw-filter-types .chip {
+#gw-filter-types .chip-toggle {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 6px 10px;
 }
 
-#gw-filter-types .chip input[type='checkbox'] {
+#gw-filter-types .chip-toggle input[type='checkbox'] {
   transform: translateY(1px);
 }
 

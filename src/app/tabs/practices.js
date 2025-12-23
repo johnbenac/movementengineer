@@ -6,7 +6,7 @@ import {
   setDisabled
 } from '../ui/hints.js';
 import { appendSection } from '../ui/sections.js';
-import { appendChipRow } from '../ui/chips.js';
+import { appendChipRow, attachGlobalChipHandlers } from '../ui/chips.js';
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
@@ -17,10 +17,6 @@ function getState(ctx) {
 
 function getViewModels(ctx) {
   return ctx.services.ViewModels;
-}
-
-function getActions(ctx) {
-  return ctx.actions;
 }
 
 function renderPracticesTab(ctx) {
@@ -93,8 +89,6 @@ function renderPracticesTab(ctx) {
     return;
   }
 
-  const actions = getActions(ctx);
-
   const title = document.createElement('h3');
   title.textContent =
     vm.practice.name + (vm.practice.kind ? ` (${vm.practice.kind})` : '');
@@ -119,7 +113,7 @@ function renderPracticesTab(ctx) {
         variant: 'entity',
         getLabel: e => e.name || e.id,
         getTitle: e => e.kind || '',
-        onClick: e => actions.jumpToEntity?.(e.id)
+        getTarget: e => ({ kind: 'item', collection: 'entities', id: e.id })
       });
     });
   }
@@ -129,7 +123,7 @@ function renderPracticesTab(ctx) {
       appendChipRow(section, vm.instructionsTexts, {
         getLabel: t => t.title || t.id,
         getTitle: t => (Number.isFinite(t.depth) ? `Depth ${t.depth}` : ''),
-        onClick: t => actions.jumpToText?.(t.id)
+        getTarget: t => ({ kind: 'item', collection: 'texts', id: t.id })
       });
     });
   }
@@ -161,7 +155,8 @@ function renderPracticesTab(ctx) {
   if (vm.attachedEvents && vm.attachedEvents.length) {
     appendSection(detailContainer, 'Scheduled in events', section => {
       appendChipRow(section, vm.attachedEvents, {
-        getLabel: ev => `${ev.name} (${ev.recurrence})`
+        getLabel: ev => `${ev.name} (${ev.recurrence})`,
+        getTarget: ev => ({ kind: 'item', collection: 'events', id: ev.id })
       });
     });
   }
@@ -185,6 +180,7 @@ function renderPracticesTab(ctx) {
 }
 
 export function registerPracticesTab(ctx) {
+  attachGlobalChipHandlers(ctx);
   const tab = {
     __handlers: null,
     mount(context) {
@@ -210,6 +206,12 @@ export function registerPracticesTab(ctx) {
       if (h.select) h.select.removeEventListener('change', h.rerender);
       if (typeof h.unsubscribe === 'function') h.unsubscribe();
       this.__handlers = null;
+    },
+    open(context, practiceId) {
+      const select = document.getElementById('practice-select');
+      if (select) select.value = practiceId || '';
+      context.actions.activateTab?.('practices');
+      this.render?.(context);
     }
   };
 

@@ -7,7 +7,7 @@ import {
   setDisabled
 } from '../ui/hints.js';
 import { appendSection } from '../ui/sections.js';
-import { appendChipRow } from '../ui/chips.js';
+import { appendChipRow, attachGlobalChipHandlers } from '../ui/chips.js';
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
@@ -144,14 +144,17 @@ function renderEntitiesTab(ctx) {
       appendChipRow(section, vm.practices, {
         getLabel: p => p.name || p.id,
         getTitle: p => p.kind || '',
-        onClick: p => actions.jumpToPractice?.(p.id)
+        getTarget: p => ({ kind: 'item', collection: 'practices', id: p.id })
       });
     });
   }
 
   if (vm.events && vm.events.length) {
     appendSection(detailContainer, 'Appears in events', section => {
-      appendChipRow(section, vm.events, { getLabel: ev => ev.name || ev.id });
+      appendChipRow(section, vm.events, {
+        getLabel: ev => ev.name || ev.id,
+        getTarget: ev => ({ kind: 'item', collection: 'events', id: ev.id })
+      });
     });
   }
 
@@ -160,7 +163,7 @@ function renderEntitiesTab(ctx) {
       appendChipRow(section, vm.mentioningTexts, {
         getLabel: t => t.title || t.id,
         getTitle: t => (Number.isFinite(t.depth) ? `Depth ${t.depth}` : ''),
-        onClick: t => actions.jumpToText?.(t.id)
+        getTarget: t => ({ kind: 'item', collection: 'texts', id: t.id })
       });
     });
   }
@@ -267,6 +270,7 @@ function renderEntitiesTab(ctx) {
 }
 
 export function registerEntitiesTab(ctx) {
+  attachGlobalChipHandlers(ctx);
   const tab = {
     __handlers: null,
     mount(context) {
@@ -302,6 +306,12 @@ export function registerEntitiesTab(ctx) {
       if (typeof h.unsubscribe === 'function') h.unsubscribe();
       this.__handlers = null;
       entityGraphViewInstance = null;
+    },
+    open(context, entityId) {
+      const select = document.getElementById('entity-select');
+      if (select) select.value = entityId || '';
+      context.actions.activateTab?.('entities');
+      this.render?.(context);
     }
   };
 

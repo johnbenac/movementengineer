@@ -18,6 +18,7 @@ import { initMovements } from './ui/movements.js';
 import { initShell } from './shell.js';
 import { createActions } from './actions.js';
 import { renderMarkdownPreview, openMarkdownModal } from './ui/markdown.js';
+import { attachGlobalChipHandlers } from './ui/chips.js';
 import {
   collectDescendants,
   normaliseArray,
@@ -107,6 +108,7 @@ ctx.actions = {
 };
 
 assertCtx(ctx);
+attachGlobalChipHandlers(ctx);
 
 const enabledTabs = movementEngineerGlobal.bootstrapOptions?.moduleTabs;
 const shouldEnable = name =>

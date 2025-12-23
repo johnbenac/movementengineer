@@ -6,7 +6,7 @@ import {
   renderHint,
   setDisabled
 } from '../ui/hints.js';
-import { appendChipRow, appendInlineLabel } from '../ui/chips.js';
+import { appendChipRow, appendInlineLabel, attachGlobalChipHandlers } from '../ui/chips.js';
 
 function getState(ctx) {
   return ctx.store.getState() || {};
@@ -16,17 +16,12 @@ function getViewModels(ctx) {
   return ctx.services.ViewModels;
 }
 
-function getActions(ctx) {
-  return ctx.actions;
-}
-
 function renderCalendarTab(ctx) {
   const clear = ctx.dom.clearElement;
   const state = getState(ctx);
   const snapshot = state.snapshot;
   const currentMovementId = state.currentMovementId;
   const ViewModels = getViewModels(ctx);
-  const actions = getActions(ctx);
 
   const wrapper = document.getElementById('calendar-view');
   const select = document.getElementById('calendar-recurrence-filter');
@@ -89,14 +84,17 @@ function renderCalendarTab(ctx) {
     }
 
     if (e.tags?.length) {
-      appendChipRow(card, e.tags, { variant: 'tag' });
+      appendChipRow(card, e.tags, {
+        variant: 'tag',
+        getTarget: value => ({ kind: 'facet', facet: 'tag', value })
+      });
     }
 
     if (e.mainPractices?.length) {
       appendInlineLabel(card, 'Practices:');
       appendChipRow(card, e.mainPractices, {
         getLabel: p => p.name || p.id,
-        onClick: p => actions.jumpToPractice?.(p.id)
+        getTarget: p => ({ kind: 'item', collection: 'practices', id: p.id })
       });
     }
 
@@ -105,7 +103,7 @@ function renderCalendarTab(ctx) {
       appendChipRow(card, e.mainEntities, {
         variant: 'entity',
         getLabel: ent => ent.name || ent.id,
-        onClick: ent => actions.jumpToEntity?.(ent.id)
+        getTarget: ent => ({ kind: 'item', collection: 'entities', id: ent.id })
       });
     }
 
@@ -113,7 +111,7 @@ function renderCalendarTab(ctx) {
       appendInlineLabel(card, 'Readings:');
       appendChipRow(card, e.readings, {
         getLabel: t => t.title || t.id,
-        onClick: t => actions.jumpToText?.(t.id)
+        getTarget: t => ({ kind: 'item', collection: 'texts', id: t.id })
       });
     }
 
@@ -137,6 +135,7 @@ function renderCalendarTab(ctx) {
 }
 
 export function registerCalendarTab(ctx) {
+  attachGlobalChipHandlers(ctx);
   return createTab(ctx, {
     name: 'calendar',
     render: renderCalendarTab,

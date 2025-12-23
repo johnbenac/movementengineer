@@ -49,6 +49,11 @@ function uniqueSorted(values) {
   );
 }
 
+function labelForItem(item) {
+  if (!item) return '[no label]';
+  return item.name || item.title || item.shortText || item.text || item.id || '[no label]';
+}
+
 function buildTextHierarchy(texts) {
   const childrenByParent = new Map();
   const textById = new Map();
@@ -1594,6 +1599,80 @@ function buildNotesViewModel(data, input) {
   return { notes: noteRows };
 }
 
+function matchesFacet(item, facet, value) {
+  if (!item) return false;
+  switch (facet) {
+    case 'tag':
+      return normaliseArray(item.tags).includes(value);
+    case 'sourceOfTruth':
+      return normaliseArray(item.sourcesOfTruth).includes(value);
+    case 'domain':
+      return normaliseArray(item.domain).includes(value);
+    case 'appliesTo':
+      return normaliseArray(item.appliesTo).includes(value);
+    case 'category':
+      return item.category === value;
+    case 'kind':
+      return item.kind === value;
+    default:
+      return false;
+  }
+}
+
+function buildFacetExplorerViewModel(data, input = {}) {
+  const { movementId, facet, value, scope } = input;
+  const results = [];
+  if (!facet || value === undefined || value === null) {
+    return { facet, value, results };
+  }
+
+  const scopedCollections =
+    scope && scope !== 'all'
+      ? new Set(Array.isArray(scope) ? scope : [scope])
+      : null;
+
+  const collections = [
+    'entities',
+    'practices',
+    'events',
+    'rules',
+    'claims',
+    'texts',
+    'textCollections',
+    'media',
+    'notes'
+  ];
+
+  collections.forEach(collectionName => {
+    if (scopedCollections && !scopedCollections.has(collectionName)) return;
+    const items = movementId
+      ? filterByMovement(data[collectionName], movementId)
+      : normaliseArray(data[collectionName]);
+
+    items.forEach(item => {
+      if (!matchesFacet(item, facet, value, collectionName)) return;
+      results.push({
+        collectionName,
+        id: item.id,
+        label: labelForItem(item)
+      });
+    });
+  });
+
+  results.sort((a, b) => {
+    if (a.collectionName === b.collectionName) {
+      return String(a.label || '').localeCompare(String(b.label || ''), undefined, {
+        sensitivity: 'base'
+      });
+    }
+    return String(a.collectionName).localeCompare(String(b.collectionName), undefined, {
+      sensitivity: 'base'
+    });
+  });
+
+  return { facet, value, scope: scope || null, results };
+}
+
 const ViewModels = {
   buildMovementDashboardViewModel,
   buildCanonTreeViewModel,
@@ -1610,7 +1689,8 @@ const ViewModels = {
   buildAuthorityViewModel,
   buildMediaGalleryViewModel,
   buildComparisonViewModel,
-  buildNotesViewModel
+  buildNotesViewModel,
+  buildFacetExplorerViewModel
 };
 
 const globalScope =

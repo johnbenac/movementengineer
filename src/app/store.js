@@ -64,6 +64,7 @@ export function createStore(options = {}) {
     currentMovementId: computeCurrentMovementId(snapshot),
     currentCollectionName: 'entities',
     currentItemId: null,
+    facetExplorer: null,
     currentTextId: null,
     currentShelfId: null,
     currentBookId: null,

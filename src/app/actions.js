@@ -1,6 +1,8 @@
 export function createActions(ctx) {
   const actions = {};
 
+  const getTab = name => ctx?.tabs?.[name] || null;
+
   actions.markDirty = scope => {
     if (ctx?.store?.markDirty) return ctx.store.markDirty(scope);
   };
@@ -68,6 +70,45 @@ export function createActions(ctx) {
     actions.jumpToReferencedItem?.('practices', practiceId);
   actions.jumpToEntity = entityId => actions.jumpToReferencedItem?.('entities', entityId);
   actions.jumpToText = textId => actions.jumpToReferencedItem?.('texts', textId);
+
+  actions.openFacet = (facet, value, scope) => {
+    if (!facet || value === undefined || value === null) return null;
+    const target = { facet, value, scope };
+    if (ctx?.tabs?.collections?.openFacet) {
+      return ctx.tabs.collections.openFacet(ctx, target);
+    }
+    return null;
+  };
+
+  const dedicatedTabForCollection = {
+    claims: 'claims',
+    rules: 'rules',
+    entities: 'entities',
+    practices: 'practices',
+    events: 'calendar',
+    texts: 'canon',
+    textCollections: 'canon',
+    media: 'media',
+    notes: 'notes'
+  };
+
+  actions.openChipTarget = target => {
+    if (!target || !target.kind) return null;
+    if (target.kind === 'facet') {
+      return actions.openFacet?.(target.facet, target.value, target.scope);
+    }
+    if (target.kind === 'item') {
+      const { collection, id } = target;
+      const tabName = dedicatedTabForCollection[collection];
+      const tab = tabName ? getTab(tabName) : null;
+      if (tab && typeof tab.open === 'function') {
+        return tab.open(ctx, id, collection);
+      }
+      return actions.jumpToReferencedItem?.(collection, id);
+    }
+    ctx.setStatus?.('Unknown chip target');
+    return null;
+  };
 
   return actions;
 }

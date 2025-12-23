@@ -42,30 +42,43 @@ function renderMediaCards(wrapper, items, clear) {
     }
 
     if (m.tags && m.tags.length) {
-      appendChipRow(card, m.tags, { variant: 'tag' });
+      appendChipRow(card, m.tags, {
+        variant: 'tag',
+        getTarget: value => ({ kind: 'facet', facet: 'tag', value })
+      });
     }
 
     if (m.entities && m.entities.length) {
       appendInlineLabel(card, 'Entities:');
       appendChipRow(card, m.entities, {
         variant: 'entity',
-        getLabel: e => e.name || e.id
+        getLabel: e => e.name || e.id,
+        getTarget: e => ({ kind: 'item', collection: 'entities', id: e.id })
       });
     }
 
     if (m.practices && m.practices.length) {
       appendInlineLabel(card, 'Practices:');
-      appendChipRow(card, m.practices, { getLabel: p => p.name || p.id });
+      appendChipRow(card, m.practices, {
+        getLabel: p => p.name || p.id,
+        getTarget: p => ({ kind: 'item', collection: 'practices', id: p.id })
+      });
     }
 
     if (m.events && m.events.length) {
       appendInlineLabel(card, 'Events:');
-      appendChipRow(card, m.events, { getLabel: e => e.name || e.id });
+      appendChipRow(card, m.events, {
+        getLabel: e => e.name || e.id,
+        getTarget: e => ({ kind: 'item', collection: 'events', id: e.id })
+      });
     }
 
     if (m.texts && m.texts.length) {
       appendInlineLabel(card, 'Texts:');
-      appendChipRow(card, m.texts, { getLabel: t => t.title || t.id });
+      appendChipRow(card, m.texts, {
+        getLabel: t => t.title || t.id,
+        getTarget: t => ({ kind: 'item', collection: 'texts', id: t.id })
+      });
     }
 
     wrapper.appendChild(card);

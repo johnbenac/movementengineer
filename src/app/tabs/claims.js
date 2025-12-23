@@ -11,9 +11,6 @@ import { createChipRow } from '../ui/chips.js';
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
 
-let selectedClaimId = null;
-let lastMovementId = null;
-
 function getState(ctx) {
   return ctx.store.getState() || {};
 }
@@ -147,49 +144,50 @@ function populateClaimForm(form, lookups, claim, dom) {
   dom.ensureDatalistOptions(form.sourceOfTruthDatalist, lookups.sourcesOfTruth);
 }
 
-function handleAddClaim(ctx) {
+function handleAddClaim(ctx, tab) {
   const ds = getDomainService(ctx);
   const state = getState(ctx);
+  const tabState = tab?.__state || {};
   if (!ds || !state.currentMovementId) return;
   ctx.update(prev => {
     const snapshot = prev.snapshot || {};
     const created = ds.addNewItem(snapshot, 'claims', prev.currentMovementId);
-    selectedClaimId = created.id;
+    tabState.selectedClaimId = created.id;
     return { ...prev, snapshot };
   });
   ctx.store?.markDirty?.('item');
   ctx.setStatus?.('New claim created');
-  const tab = ctx.tabs?.claims;
   tab?.render?.call(tab, ctx);
 }
 
-function handleDeleteClaim(ctx) {
+function handleDeleteClaim(ctx, tab) {
   const ds = getDomainService(ctx);
   const state = getState(ctx);
-  if (!ds || !state.currentMovementId || !selectedClaimId) return;
+  const tabState = tab?.__state || {};
+  if (!ds || !state.currentMovementId || !tabState.selectedClaimId) return;
   const claims = state.snapshot?.claims || [];
-  const claim = claims.find(c => c.id === selectedClaimId);
+  const claim = claims.find(c => c.id === tabState.selectedClaimId);
   const label =
     (claim?.category ? `[${claim.category}] ` : '') + (claim?.text || claim?.id || '');
   const ok = window.confirm(
-    `Delete this claim?\n\n${label || selectedClaimId}\n\nThis cannot be undone.`
+    `Delete this claim?\n\n${label || tabState.selectedClaimId}\n\nThis cannot be undone.`
   );
   if (!ok) return;
   ctx.update(prev => {
     const snapshot = prev.snapshot || {};
-    ds.deleteItem(snapshot, 'claims', selectedClaimId);
+    ds.deleteItem(snapshot, 'claims', tabState.selectedClaimId);
     return { ...prev, snapshot };
   });
-  selectedClaimId = null;
+  tabState.selectedClaimId = null;
   ctx.store?.markDirty?.('item');
   ctx.setStatus?.('Claim deleted');
-  const tab = ctx.tabs?.claims;
   tab?.render?.call(tab, ctx);
 }
 
-function handleSaveClaim(ctx) {
+function handleSaveClaim(ctx, tab) {
   const ds = getDomainService(ctx);
   const state = getState(ctx);
+  const tabState = tab?.__state || {};
   if (!ds || !state.currentMovementId) return;
   const form = getClaimFormElements();
   const values = {
@@ -204,8 +202,8 @@ function handleSaveClaim(ctx) {
   };
 
   const claims = state.snapshot?.claims || [];
-  const existing = claims.find(c => c.id === selectedClaimId) || {
-    id: selectedClaimId || ds.generateId?.('clm-')
+  const existing = claims.find(c => c.id === tabState.selectedClaimId) || {
+    id: tabState.selectedClaimId || ds.generateId?.('clm-')
   };
 
   if (!existing.id) {
@@ -231,12 +229,14 @@ function handleSaveClaim(ctx) {
     ds.upsertItem(snapshot, 'claims', updated);
     return { ...prev, snapshot };
   });
-  selectedClaimId = updated.id;
+  tabState.selectedClaimId = updated.id;
   ctx.store?.markDirty?.('item');
   ctx.setStatus?.('Claim saved');
 }
 
 function renderClaimsTab(ctx) {
+  const tab = this || ctx?.tabs?.claims;
+  const tabState = tab?.__state || {};
   const dom = ctx.dom;
   const { clearElement: clear, ensureSelectOptions } = dom;
   const state = getState(ctx);
@@ -272,8 +272,8 @@ function renderClaimsTab(ctx) {
       message: HINT_TEXT.MOVEMENT_REQUIRED
     })
   ) {
-    selectedClaimId = null;
-    lastMovementId = null;
+    tabState.selectedClaimId = null;
+    tabState.lastMovementId = null;
     setFormDisabled(form, true);
     ensureSelectOptions(catSelect, [], 'All');
     ensureSelectOptions(entSelect, [], 'Any');
@@ -286,9 +286,9 @@ function renderClaimsTab(ctx) {
     return;
   }
 
-  if (lastMovementId !== currentMovementId) {
-    selectedClaimId = null;
-    lastMovementId = currentMovementId;
+  if (tabState.lastMovementId !== currentMovementId) {
+    tabState.selectedClaimId = null;
+    tabState.lastMovementId = currentMovementId;
   }
 
   const ViewModels = getViewModels(ctx);
@@ -329,20 +329,20 @@ function renderClaimsTab(ctx) {
 
   const visibleClaims = vm?.claims || [];
   const visibleIds = new Set(visibleClaims.map(c => c.id));
-  if (!selectedClaimId || !visibleIds.has(selectedClaimId)) {
-    selectedClaimId = visibleClaims[0]?.id || null;
+  if (!tabState.selectedClaimId || !visibleIds.has(tabState.selectedClaimId)) {
+    tabState.selectedClaimId = visibleClaims[0]?.id || null;
   }
 
   renderTable(wrapper, {
     clear,
     rows: visibleClaims,
     getRowId: c => c.id,
-    selectedId: selectedClaimId,
+    selectedId: tabState.selectedClaimId,
     rowIdDataKey: 'claimId',
     renderEmpty: w => renderHint(w, 'No claims match this filter.'),
     onRowSelect: id => {
-      selectedClaimId = id;
-      renderClaimsTab(ctx);
+      tabState.selectedClaimId = id;
+      renderClaimsTab.call(tab, ctx);
     },
     columns: [
       { header: 'Category', render: c => c.category || '' },
@@ -354,7 +354,8 @@ function renderClaimsTab(ctx) {
           c.aboutEntities?.length
             ? createChipRow(c.aboutEntities, {
                 variant: 'entity',
-                getLabel: e => e.name || e.id
+                getLabel: e => e.name || e.id,
+                getTarget: e => ({ kind: 'item', collection: 'entities', id: e.id })
               })
             : ''
       },
@@ -364,7 +365,8 @@ function renderClaimsTab(ctx) {
           c.sourceEntities?.length
             ? createChipRow(c.sourceEntities, {
                 variant: 'entity',
-                getLabel: e => e.name || e.id
+                getLabel: e => e.name || e.id,
+                getTarget: e => ({ kind: 'item', collection: 'entities', id: e.id })
               })
             : ''
       },
@@ -373,7 +375,8 @@ function renderClaimsTab(ctx) {
         render: c =>
           c.sourceTexts?.length
             ? createChipRow(c.sourceTexts, {
-                getLabel: t => t.title || t.id
+                getLabel: t => t.title || t.id,
+                getTarget: t => ({ kind: 'item', collection: 'texts', id: t.id })
               })
             : ''
       },
@@ -384,15 +387,16 @@ function renderClaimsTab(ctx) {
     ]
   });
 
-  const selectedClaim = claimsForMovement.find(c => c.id === selectedClaimId) || null;
+  const selectedClaim = claimsForMovement.find(c => c.id === tabState.selectedClaimId) || null;
   populateClaimForm(form, lookups, selectedClaim, dom);
 
-  setDisabled([deleteBtn, saveBtn], !selectedClaimId);
+  setDisabled([deleteBtn, saveBtn], !tabState.selectedClaimId);
 }
 
 export function registerClaimsTab(ctx) {
   const tab = {
     __handlers: null,
+    __state: { selectedClaimId: null, lastMovementId: null },
     mount(context) {
       const catSelect = document.getElementById('claims-category-filter');
       const entSelect = document.getElementById('claims-entity-filter');
@@ -416,9 +420,9 @@ export function registerClaimsTab(ctx) {
 
       addListener(catSelect, 'change', rerender);
       addListener(entSelect, 'change', rerender);
-      addListener(addBtn, 'click', () => handleAddClaim(context));
-      addListener(deleteBtn, 'click', () => handleDeleteClaim(context));
-      addListener(saveBtn, 'click', () => handleSaveClaim(context));
+      addListener(addBtn, 'click', () => handleAddClaim(context, tab));
+      addListener(deleteBtn, 'click', () => handleDeleteClaim(context, tab));
+      addListener(saveBtn, 'click', () => handleSaveClaim(context, tab));
       addListener(resetBtn, 'click', rerender);
 
       const unsubscribe = context?.subscribe ? context.subscribe(handleStateChange) : null;
@@ -435,9 +439,14 @@ export function registerClaimsTab(ctx) {
         }
       });
       if (typeof h.unsubscribe === 'function') h.unsubscribe();
-      selectedClaimId = null;
-      lastMovementId = null;
+      this.__state.selectedClaimId = null;
+      this.__state.lastMovementId = null;
       this.__handlers = null;
+    },
+    open(context, claimId) {
+      this.__state.selectedClaimId = claimId || null;
+      context.actions.activateTab?.('claims');
+      this.render?.(context);
     }
   };
 

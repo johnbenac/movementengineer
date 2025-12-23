@@ -80,15 +80,17 @@ describe('calendar tab module', () => {
     );
     expect(document.querySelector('#calendar-view .card h4').textContent).toBe('Weekly Service');
 
-    const practiceChip = document.querySelector('#calendar-view .chip.clickable');
+    const chips = Array.from(document.querySelectorAll('#calendar-view .chip.clickable'));
+
+    const practiceChip = chips.find(el => el.dataset.chipCollection === 'practices');
     practiceChip?.dispatchEvent(new Event('click', { bubbles: true }));
 
-    const entityChip = document.querySelector('#calendar-view .chip-entity.clickable');
+    const entityChip = chips.find(el => el.dataset.chipCollection === 'entities');
     entityChip?.dispatchEvent(new Event('click', { bubbles: true }));
 
-    const readingChip = Array.from(
-      document.querySelectorAll('#calendar-view .chip.clickable')
-    ).find(el => el.textContent === 'Psalm 23');
+    const readingChip = chips.find(
+      el => el.dataset.chipCollection === 'texts' && el.textContent === 'Psalm 23'
+    );
     readingChip?.dispatchEvent(new Event('click', { bubbles: true }));
 
     expect(ctx.actions.jumpToPractice).toHaveBeenCalledWith('p1');

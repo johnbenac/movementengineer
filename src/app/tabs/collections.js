@@ -9,8 +9,8 @@ const PREVIEW_FIELDS = {
     { label: 'Kind', key: 'kind' },
     { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
     { label: 'Summary', key: 'summary', type: 'paragraph' },
-    { label: 'Tags', key: 'tags', type: 'chips' },
-    { label: 'Sources of truth', key: 'sourcesOfTruth', type: 'chips' },
+    { label: 'Tags', key: 'tags', type: 'chips', facet: 'tag' },
+    { label: 'Sources of truth', key: 'sourcesOfTruth', type: 'chips', facet: 'sourceOfTruth' },
     { label: 'Source entities', key: 'sourceEntityIds', type: 'idList', ref: 'entities' },
     { label: 'Notes', key: 'notes', type: 'paragraph' }
   ],
@@ -20,11 +20,11 @@ const PREVIEW_FIELDS = {
     { label: 'Description', key: 'description', type: 'paragraph' },
     { label: 'Frequency', key: 'frequency' },
     { label: 'Public', key: 'isPublic', type: 'boolean' },
-    { label: 'Tags', key: 'tags', type: 'chips' },
+    { label: 'Tags', key: 'tags', type: 'chips', facet: 'tag' },
     { label: 'Involved entities', key: 'involvedEntityIds', type: 'idList', ref: 'entities' },
     { label: 'Instructions texts', key: 'instructionsTextIds', type: 'idList', ref: 'texts' },
     { label: 'Supporting claims', key: 'supportingClaimIds', type: 'idList', ref: 'claims' },
-    { label: 'Sources of truth', key: 'sourcesOfTruth', type: 'chips' },
+    { label: 'Sources of truth', key: 'sourcesOfTruth', type: 'chips', facet: 'sourceOfTruth' },
     { label: 'Source entities', key: 'sourceEntityIds', type: 'idList', ref: 'entities' },
     { label: 'Notes', key: 'notes', type: 'paragraph' }
   ],
@@ -33,7 +33,7 @@ const PREVIEW_FIELDS = {
     { label: 'Description', key: 'description', type: 'paragraph' },
     { label: 'Recurrence', key: 'recurrence' },
     { label: 'Timing rule', key: 'timingRule' },
-    { label: 'Tags', key: 'tags', type: 'chips' },
+    { label: 'Tags', key: 'tags', type: 'chips', facet: 'tag' },
     { label: 'Main practices', key: 'mainPracticeIds', type: 'idList', ref: 'practices' },
     { label: 'Main entities', key: 'mainEntityIds', type: 'idList', ref: 'entities' },
     { label: 'Readings', key: 'readingTextIds', type: 'idList', ref: 'texts' },
@@ -43,30 +43,30 @@ const PREVIEW_FIELDS = {
     { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
     { label: 'Kind', key: 'kind' },
     { label: 'Details', key: 'details', type: 'paragraph' },
-    { label: 'Applies to', key: 'appliesTo', type: 'chips' },
-    { label: 'Domain', key: 'domain', type: 'chips' },
-    { label: 'Tags', key: 'tags', type: 'chips' },
+    { label: 'Applies to', key: 'appliesTo', type: 'chips', facet: 'appliesTo', scope: 'rules' },
+    { label: 'Domain', key: 'domain', type: 'chips', facet: 'domain', scope: 'rules' },
+    { label: 'Tags', key: 'tags', type: 'chips', facet: 'tag' },
     { label: 'Supporting texts', key: 'supportingTextIds', type: 'idList', ref: 'texts' },
     { label: 'Supporting claims', key: 'supportingClaimIds', type: 'idList', ref: 'claims' },
     { label: 'Related practices', key: 'relatedPracticeIds', type: 'idList', ref: 'practices' },
-    { label: 'Sources of truth', key: 'sourcesOfTruth', type: 'chips' },
+    { label: 'Sources of truth', key: 'sourcesOfTruth', type: 'chips', facet: 'sourceOfTruth' },
     { label: 'Source entities', key: 'sourceEntityIds', type: 'idList', ref: 'entities' }
   ],
   claims: [
     { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
     { label: 'Category', key: 'category' },
     { label: 'Text', key: 'text', type: 'paragraph' },
-    { label: 'Tags', key: 'tags', type: 'chips' },
+    { label: 'Tags', key: 'tags', type: 'chips', facet: 'tag' },
     { label: 'About entities', key: 'aboutEntityIds', type: 'idList', ref: 'entities' },
     { label: 'Source texts', key: 'sourceTextIds', type: 'idList', ref: 'texts' },
-    { label: 'Sources of truth', key: 'sourcesOfTruth', type: 'chips' },
+    { label: 'Sources of truth', key: 'sourcesOfTruth', type: 'chips', facet: 'sourceOfTruth' },
     { label: 'Source entities', key: 'sourceEntityIds', type: 'idList', ref: 'entities' },
     { label: 'Notes', key: 'notes', type: 'paragraph' }
   ],
   textCollections: [
     { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
     { label: 'Description', key: 'description', type: 'paragraph' },
-    { label: 'Tags', key: 'tags', type: 'chips' },
+    { label: 'Tags', key: 'tags', type: 'chips', facet: 'tag' },
     { label: 'Root texts', key: 'rootTextIds', type: 'idList', ref: 'texts' }
   ],
   texts: [
@@ -75,7 +75,7 @@ const PREVIEW_FIELDS = {
     { label: 'Parent text', key: 'parentId', type: 'id', ref: 'texts' },
     { label: 'Content', key: 'content', type: 'paragraph' },
     { label: 'Main function', key: 'mainFunction' },
-    { label: 'Tags', key: 'tags', type: 'chips' },
+    { label: 'Tags', key: 'tags', type: 'chips', facet: 'tag' },
     { label: 'Mentions entities', key: 'mentionsEntityIds', type: 'idList', ref: 'entities' }
   ],
   media: [
@@ -84,7 +84,7 @@ const PREVIEW_FIELDS = {
     { label: 'URI', key: 'uri', type: 'link' },
     { label: 'Title', key: 'title' },
     { label: 'Description', key: 'description', type: 'paragraph' },
-    { label: 'Tags', key: 'tags', type: 'chips' },
+    { label: 'Tags', key: 'tags', type: 'chips', facet: 'tag' },
     { label: 'Linked entities', key: 'linkedEntityIds', type: 'idList', ref: 'entities' },
     { label: 'Linked practices', key: 'linkedPracticeIds', type: 'idList', ref: 'practices' },
     { label: 'Linked events', key: 'linkedEventIds', type: 'idList', ref: 'events' },
@@ -97,7 +97,7 @@ const PREVIEW_FIELDS = {
     { label: 'Author', key: 'author' },
     { label: 'Context', key: 'context', type: 'paragraph' },
     { label: 'Body', key: 'body', type: 'paragraph' },
-    { label: 'Tags', key: 'tags', type: 'chips' }
+    { label: 'Tags', key: 'tags', type: 'chips', facet: 'tag' }
   ]
 };
 
@@ -498,8 +498,13 @@ function mapIdToLabel(snapshot, collectionName, id) {
   return item ? getLabelForItem(item) : id;
 }
 
-function renderPreviewValue(ctx, container, snapshot, value, type, refCollection) {
-  const actions = getActions(ctx);
+function formatFacetLabel(target) {
+  if (!target) return '';
+  const scopeSuffix = target.scope && target.scope !== 'all' ? ` (${target.scope})` : '';
+  return `${target.facet || 'facet'}: “${target.value}”${scopeSuffix}`;
+}
+
+function renderPreviewValue(ctx, container, snapshot, value, field) {
   const placeholder = () => {
     const span = document.createElement('span');
     span.className = 'muted';
@@ -507,22 +512,31 @@ function renderPreviewValue(ctx, container, snapshot, value, type, refCollection
     container.appendChild(span);
   };
 
-  switch (type) {
+  switch (field.type) {
     case 'chips': {
       const arr = Array.isArray(value) ? value.filter(Boolean) : [];
       if (!arr.length) return placeholder();
-      container.appendChild(createChipRow(arr));
+      container.appendChild(
+        createChipRow(arr, {
+          getTarget: val => ({
+            kind: 'facet',
+            facet: field.facet || 'facet',
+            value: val,
+            scope: field.scope
+          })
+        })
+      );
       return;
     }
     case 'id': {
       if (!value) return placeholder();
       const chip = createChip(value, {
         className: 'clickable',
-        label: mapIdToLabel(snapshot, refCollection, value),
+        label: mapIdToLabel(snapshot, field.ref, value),
         attrs: { title: 'Open ' + value },
-        onClick: () => {
-          if (refCollection) actions.jumpToReferencedItem?.(refCollection, value);
-        }
+        target: field.ref
+          ? { kind: 'item', collection: field.ref, id: value }
+          : { kind: 'facet', facet: 'id', value }
       });
       container.appendChild(chip);
       return;
@@ -533,10 +547,12 @@ function renderPreviewValue(ctx, container, snapshot, value, type, refCollection
       container.appendChild(
         createChipRow(ids, {
           className: '',
-          getLabel: id => mapIdToLabel(snapshot, refCollection, id),
-          onClick: id => {
-            if (refCollection) actions.jumpToReferencedItem?.(refCollection, id);
-          }
+          getLabel: id => mapIdToLabel(snapshot, field.ref, id),
+          getTarget: id => ({
+            kind: 'item',
+            collection: field.ref,
+            id
+          })
         })
       );
       return;
@@ -581,15 +597,15 @@ function renderPreviewValue(ctx, container, snapshot, value, type, refCollection
   }
 }
 
-function renderPreviewRow(ctx, container, snapshot, label, value, type, refCollection) {
+function renderPreviewRow(ctx, container, snapshot, field, value) {
   const row = document.createElement('div');
   row.className = 'preview-row';
   const lbl = document.createElement('div');
   lbl.className = 'preview-label';
-  lbl.textContent = label;
+  lbl.textContent = field.label;
   const val = document.createElement('div');
   val.className = 'preview-value';
-  renderPreviewValue(ctx, val, snapshot, value, type, refCollection);
+  renderPreviewValue(ctx, val, snapshot, value, field);
   row.appendChild(lbl);
   row.appendChild(val);
   container.appendChild(row);
@@ -598,15 +614,75 @@ function renderPreviewRow(ctx, container, snapshot, label, value, type, refColle
 function renderCollectionList(ctx, tab, state) {
   const list = document.getElementById('collection-items');
   const deleteBtn = document.getElementById('btn-delete-item');
+  const facetBanner = document.getElementById('collections-facet-banner');
+  const facetLabel = document.getElementById('collections-facet-label');
   if (!list) return;
   const clear = ctx.dom.clearElement;
   clear(list);
+
+  const filterByMovement = isMovementFilterEnabled();
+
+  const isFacetMode = Boolean(state.facetExplorer);
+  if (facetBanner) {
+    facetBanner.hidden = !isFacetMode;
+    if (facetLabel) {
+      facetLabel.textContent = isFacetMode ? formatFacetLabel(state.facetExplorer) : '';
+    }
+  }
+
+  if (isFacetMode) {
+    const ViewModels = getViewModels(ctx);
+    const vm =
+      ViewModels?.buildFacetExplorerViewModel?.(state.snapshot || {}, {
+        movementId: filterByMovement ? state.currentMovementId : null,
+        facet: state.facetExplorer?.facet,
+        value: state.facetExplorer?.value,
+        scope: state.facetExplorer?.scope
+      }) || null;
+
+    const results = vm?.results || [];
+
+    if (!results.length) {
+      const li = document.createElement('li');
+      li.textContent = 'No matches for this facet.';
+      li.style.fontStyle = 'italic';
+      li.style.cursor = 'default';
+      list.appendChild(li);
+      if (deleteBtn) deleteBtn.disabled = true;
+      return;
+    }
+
+    results.forEach(result => {
+      const li = document.createElement('li');
+      li.dataset.id = result.id;
+      li.dataset.collection = result.collectionName;
+      if (
+        result.id === state.currentItemId &&
+        result.collectionName === state.currentCollectionName
+      ) {
+        li.classList.add('selected');
+      }
+      const primary = document.createElement('span');
+      primary.textContent = result.label || result.id;
+      const secondary = document.createElement('span');
+      secondary.className = 'secondary';
+      secondary.textContent = `${result.collectionName} · ${result.id}`;
+      li.appendChild(primary);
+      li.appendChild(secondary);
+      li.addEventListener('click', () => {
+        tab.setCollectionAndItem?.(ctx, result.collectionName, result.id);
+      });
+      list.appendChild(li);
+    });
+
+    if (deleteBtn) deleteBtn.disabled = !state.currentItemId;
+    return;
+  }
 
   const snapshot = state.snapshot || {};
   const collName = state.currentCollectionName;
   const coll = snapshot[collName] || [];
   const collectionsWithMovementId = getCollectionsWithMovementId(ctx);
-  const filterByMovement = isMovementFilterEnabled();
 
   let items = coll;
   if (
@@ -686,13 +762,19 @@ function renderItemPreview(ctx, state) {
 
   const fields = PREVIEW_FIELDS[state.currentCollectionName];
   if (!fields) {
-    renderPreviewRow(ctx, body, snapshot, 'Details', JSON.stringify(item, null, 2), 'code');
+    renderPreviewRow(
+      ctx,
+      body,
+      snapshot,
+      { label: 'Details', type: 'code' },
+      JSON.stringify(item, null, 2)
+    );
     return;
   }
 
   fields.forEach(field => {
     const value = item[field.key];
-    renderPreviewRow(ctx, body, snapshot, field.label, value, field.type, field.ref);
+    renderPreviewRow(ctx, body, snapshot, field, value);
   });
 
   if (state.currentCollectionName === 'texts') {
@@ -1043,6 +1125,7 @@ export function registerCollectionsTab(ctx) {
       const navForward = document.getElementById('btn-preview-forward');
       const editor = document.getElementById('item-editor');
       const copyMarkdownBtn = document.getElementById('btn-copy-item-markdown');
+      const clearFacetBtn = document.getElementById('collections-facet-clear');
 
       const rerender = () => tab.render(context);
       const handleStateChange = () => {
@@ -1083,6 +1166,7 @@ export function registerCollectionsTab(ctx) {
           context.setStatus?.('Markdown copied');
         }
       };
+      const handleClearFacet = () => tab.clearFacet?.(context);
 
       if (select) select.addEventListener('change', handleSelectChange);
       if (filterCheckbox) filterCheckbox.addEventListener('change', handleFilterChange);
@@ -1093,6 +1177,7 @@ export function registerCollectionsTab(ctx) {
       if (navForward) navForward.addEventListener('click', handleNavForward);
       if (editor) editor.addEventListener('input', handleEditorInput);
       if (copyMarkdownBtn) copyMarkdownBtn.addEventListener('click', handleCopyMarkdown);
+      if (clearFacetBtn) clearFacetBtn.addEventListener('click', handleClearFacet);
 
       const unsubscribe = context?.subscribe ? context.subscribe(handleStateChange) : null;
 
@@ -1106,6 +1191,8 @@ export function registerCollectionsTab(ctx) {
         navForward,
         editor,
         copyMarkdownBtn,
+        clearFacetBtn,
+        handleClearFacet,
         handleSelectChange,
         handleFilterChange,
         handleAdd,
@@ -1134,6 +1221,8 @@ export function registerCollectionsTab(ctx) {
       if (h.navForward) h.navForward.removeEventListener('click', h.handleNavForward);
       if (h.editor) h.editor.removeEventListener('input', h.handleEditorInput);
       if (h.copyMarkdownBtn) h.copyMarkdownBtn.removeEventListener('click', h.handleCopyMarkdown);
+      if (h.clearFacetBtn && h.handleClearFacet)
+        h.clearFacetBtn.removeEventListener('click', h.handleClearFacet);
       if (typeof h.unsubscribe === 'function') h.unsubscribe();
       this.__handlers = null;
       this.__state.isPopulatingEditor = false;
@@ -1145,7 +1234,40 @@ export function registerCollectionsTab(ctx) {
     addNewItem: context => addNewItem(context, tab),
     saveCurrentItem: (context, options) => saveCurrentItem(context, tab, options),
     deleteCurrentItem: context => deleteCurrentItem(context, tab),
-    navigateHistory: (context, direction) => navigateHistory(context, tab, direction)
+    navigateHistory: (context, direction) => navigateHistory(context, tab, direction),
+    openFacet: (context, target) => {
+      if (!target?.facet || target.value === undefined || target.value === null) return null;
+      const state = getState(context);
+      const ViewModels = getViewModels(context);
+      const applyMovementFilter = isMovementFilterEnabled();
+      const vm =
+        ViewModels?.buildFacetExplorerViewModel?.(state.snapshot || {}, {
+          movementId: applyMovementFilter ? state.currentMovementId : null,
+          facet: target.facet,
+          value: target.value,
+          scope: target.scope
+        }) || null;
+      const firstMatch = vm?.results?.[0] || null;
+      applyState(context, prev => ({
+        ...(prev || {}),
+        facetExplorer: target,
+        currentCollectionName: firstMatch?.collectionName || prev?.currentCollectionName,
+        currentItemId: firstMatch?.id || prev?.currentItemId
+      }));
+      ensureCollectionsTabActive(context);
+      tab.render?.(context);
+      return target;
+    },
+    clearFacet: context => {
+      applyState(context, prev => ({ ...(prev || {}), facetExplorer: null }));
+      tab.render?.(context);
+    },
+    open: (context, itemId, collectionName) => {
+      const targetCollection = collectionName || context?.store?.getState?.().currentCollectionName;
+      tab.setCollectionAndItem?.(context, targetCollection, itemId);
+      ensureCollectionsTabActive(context);
+      tab.render?.(context);
+    }
   };
 
   movementEngineerGlobal.tabs.collections = tab;
@@ -1160,6 +1282,7 @@ export function registerCollectionsTab(ctx) {
       tab.jumpToReferencedItem(ctx, collectionName, itemId);
     ctx.actions.navigateCollectionHistory = direction =>
       tab.navigateHistory(ctx, direction);
+    ctx.actions.openFacet = target => tab.openFacet(ctx, target);
   }
 
   return tab;

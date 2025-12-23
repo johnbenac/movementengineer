@@ -726,19 +726,21 @@ function renderNodeEditor(ctx, vm, selection) {
     appendChipRow(textEditor, activeNode.mentionsEntities, {
       variant: 'entity',
       getLabel: ent => ent.name || ent.id,
-      onClick: ent => actions.jumpToEntity?.(ent.id)
+      getTarget: ent => ({ kind: 'item', collection: 'entities', id: ent.id })
     });
   }
 
   if (activeNode.referencedByClaims?.length) {
     appendChipRow(textEditor, activeNode.referencedByClaims, {
-      getLabel: claim => claim.text || claim.id
+      getLabel: claim => claim.text || claim.id,
+      getTarget: claim => ({ kind: 'item', collection: 'claims', id: claim.id })
     });
   }
 
   if (activeNode.usedInEvents?.length) {
     appendChipRow(textEditor, activeNode.usedInEvents, {
-      getLabel: evt => evt.name || evt.id
+      getLabel: evt => evt.name || evt.id,
+      getTarget: evt => ({ kind: 'item', collection: 'events', id: evt.id })
     });
   }
 }
