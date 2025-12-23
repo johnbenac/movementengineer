@@ -1,5 +1,17 @@
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 const MOVEMENTS_UI_KEY = '__movementsUI';
+const COLLECTION_NAMES = [
+  'movements',
+  'textCollections',
+  'texts',
+  'entities',
+  'practices',
+  'events',
+  'rules',
+  'claims',
+  'media',
+  'notes'
+];
 
 const raf =
   typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function'
@@ -244,6 +256,89 @@ export function initMovements(ctx, options = {}) {
     } catch (err) {
       console.warn('Unable to persist last repo URL', err);
     }
+  }
+
+  function normaliseArray(value) {
+    return Array.isArray(value) ? value.filter(v => v !== undefined && v !== null) : [];
+  }
+
+  function sortByOrderThenId(items) {
+    return normaliseArray(items).slice().sort((a, b) => {
+      const ao = a?.order ?? null;
+      const bo = b?.order ?? null;
+      if (ao === null && bo !== null) return 1;
+      if (ao !== null && bo === null) return -1;
+      if (ao !== null && bo !== null && ao !== bo) return ao - bo;
+      return String(a?.id || '').localeCompare(String(b?.id || ''));
+    });
+  }
+
+  function getMovementIdForRecord(collection, record) {
+    if (!record) return null;
+    return collection === 'movements'
+      ? record.id || record.movementId || null
+      : record.movementId || null;
+  }
+
+  function mergeImportedSnapshot(existingSnapshot, importedSnapshot) {
+    const base = existingSnapshot && typeof existingSnapshot === 'object' ? existingSnapshot : {};
+    const incoming = importedSnapshot && typeof importedSnapshot === 'object' ? importedSnapshot : {};
+    const importedMovements = normaliseArray(incoming.movements);
+    const importedMovementIds = new Set(
+      importedMovements.map(m => m?.id || m?.movementId).filter(Boolean)
+    );
+
+    const mergedBaseline = { ...(base.__repoBaselineByMovement || {}) };
+    importedMovementIds.forEach(id => {
+      if (id) delete mergedBaseline[id];
+    });
+    Object.entries(incoming.__repoBaselineByMovement || {}).forEach(([movementId, baseline]) => {
+      mergedBaseline[movementId] = baseline;
+    });
+
+    const mergedFileIndex = { ...(base.__repoFileIndex || {}) };
+    const mergedRawMarkdownByPath = { ...(base.__repoRawMarkdownByPath || {}) };
+
+    COLLECTION_NAMES.forEach(collection => {
+      normaliseArray(base[collection]).forEach(item => {
+        const movementId = getMovementIdForRecord(collection, item);
+        if (!movementId || !importedMovementIds.has(movementId)) return;
+        const key = `${collection}:${item.id}`;
+        const path = mergedFileIndex[key];
+        delete mergedFileIndex[key];
+        if (path) {
+          delete mergedRawMarkdownByPath[path];
+        }
+      });
+    });
+
+    Object.entries(incoming.__repoFileIndex || {}).forEach(([key, path]) => {
+      mergedFileIndex[key] = path;
+    });
+    Object.entries(incoming.__repoRawMarkdownByPath || {}).forEach(([path, raw]) => {
+      mergedRawMarkdownByPath[path] = raw;
+    });
+
+    const mergedSnapshot = {
+      ...base,
+      version: incoming.version ?? base.version,
+      specVersion: incoming.specVersion ?? base.specVersion,
+      __repoInfo: incoming.__repoInfo ?? base.__repoInfo ?? null,
+      __repoBaselineByMovement: mergedBaseline,
+      __repoFileIndex: mergedFileIndex,
+      __repoRawMarkdownByPath: mergedRawMarkdownByPath
+    };
+
+    COLLECTION_NAMES.forEach(collection => {
+      const existingItems = normaliseArray(base[collection]).filter(item => {
+        const movementId = getMovementIdForRecord(collection, item);
+        return !movementId || !importedMovementIds.has(movementId);
+      });
+      const incomingItems = normaliseArray(incoming[collection]);
+      mergedSnapshot[collection] = sortByOrderThenId([...existingItems, ...incomingItems]);
+    });
+
+    return mergedSnapshot;
   }
 
   function renderImportStatus(message, { isError = false, isLoading = false, persist = false } = {}) {
@@ -613,11 +708,18 @@ export function initMovements(ctx, options = {}) {
       scheduleRender();
       ctx.ui?.setStatus?.('Importing markdown repo…');
       const importedSnapshot = await loader.importMovementRepo(repoUrl);
-      const movements = Array.isArray(importedSnapshot?.movements)
-        ? importedSnapshot.movements
-        : [];
+      const mergedSnapshot = mergeImportedSnapshot(getSnapshot(), importedSnapshot);
+      const movements = Array.isArray(mergedSnapshot?.movements) ? mergedSnapshot.movements : [];
+      const importedMovementIds = new Set(
+        normaliseArray(importedSnapshot?.movements)
+          .map(m => m?.id || m?.movementId)
+          .filter(Boolean)
+      );
       const currentId = getCurrentMovementId();
       const nextMovement =
+        movements.find(
+          m => importedMovementIds.has(m?.id) || importedMovementIds.has(m?.movementId)
+        ) ||
         movements.find(m => m?.id === currentId || m?.movementId === currentId) ||
         movements[0] ||
         null;
@@ -625,7 +727,7 @@ export function initMovements(ctx, options = {}) {
 
       ctx.store.setState(prev => ({
         ...prev,
-        snapshot: importedSnapshot,
+        snapshot: mergedSnapshot,
         currentMovementId: nextMovementId,
         currentItemId: null,
         currentTextId: null,
