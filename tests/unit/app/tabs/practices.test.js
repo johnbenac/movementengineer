@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDomUtils } from '../../../../src/app/ui/dom.js';
+import { installGlobalChipHandlers } from '../../../../src/app/ui/chips.js';
 
 function renderDom() {
   document.body.innerHTML = `
@@ -26,19 +27,28 @@ function createCtx(snapshot, vm, currentMovementId = 'm1', options = {}) {
   const ViewModels = {
     buildPracticeDetailViewModel: vi.fn((...args) => buildPracticeDetailViewModel(...args))
   };
-  return {
+  const actions = {
+    jumpToEntity: vi.fn(),
+    jumpToText: vi.fn(),
+    jumpToPractice: vi.fn()
+  };
+  const ctx = {
     store,
     getState: store.getState,
     services: { ViewModels },
     dom,
-    actions: {
-      jumpToEntity: vi.fn(),
-      jumpToText: vi.fn(),
-      jumpToPractice: vi.fn()
-    },
+    actions,
     subscribe,
     __subscriptions: subscriptions
   };
+  actions.openChipTarget = target => {
+    if (!target || target.kind !== 'item') return;
+    if (target.collection === 'entities') actions.jumpToEntity(target.id);
+    if (target.collection === 'texts') actions.jumpToText(target.id);
+    if (target.collection === 'practices') actions.jumpToPractice(target.id);
+  };
+  installGlobalChipHandlers(ctx);
+  return ctx;
 }
 
 describe('practices tab module', () => {

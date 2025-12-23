@@ -5,8 +5,7 @@ import {
   renderHint,
   setDisabled
 } from '../ui/hints.js';
-import { renderTable, createTextList } from '../ui/table.js';
-import { createChipRow } from '../ui/chips.js';
+import { renderTable } from '../ui/table.js';
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
@@ -356,8 +355,13 @@ function handleDeleteRule(ctx, tab) {
 function renderRulesTab(ctx) {
   const tab = this;
   const tabState = tab?.__state || {};
-  const { clearElement: clear, ensureSelectOptions, ensureMultiSelectOptions, ensureDatalistOptions } =
-    ctx.dom;
+  const {
+    clearElement: clear,
+    ensureSelectOptions,
+    ensureMultiSelectOptions,
+    ensureDatalistOptions,
+    createChipRow
+  } = ctx.dom;
   const state = getState(ctx);
   const snapshot = state.snapshot;
   const currentMovementId = state.currentMovementId;
@@ -455,24 +459,36 @@ function renderRulesTab(ctx) {
         header: 'Supporting texts',
         render: r =>
           r.supportingTexts?.length
-            ? createChipRow(r.supportingTexts, { getLabel: t => t.title || t.id })
+            ? createChipRow(r.supportingTexts, {
+                filter: t => Boolean(t?.id),
+                getLabel: t => t.title || t.id,
+                getTitle: t => (Number.isFinite(t.depth) ? `Depth ${t.depth}` : ''),
+                getTarget: t => (t?.id ? { kind: 'item', collection: 'texts', id: t.id } : null)
+              })
             : ''
       },
       {
         header: 'Supporting claims',
         render: r =>
           r.supportingClaims?.length
-            ? createTextList(
-                r.supportingClaims,
-                c => (c.category ? `[${c.category}] ` : '') + c.text
-              )
+            ? createChipRow(r.supportingClaims, {
+                filter: c => Boolean(c?.id),
+                getLabel: c => (c.category ? `[${c.category}] ` : '') + (c.text || c.id),
+                getTarget: c => (c?.id ? { kind: 'item', collection: 'claims', id: c.id } : null)
+              })
             : ''
       },
       {
         header: 'Related practices',
         render: r =>
           r.relatedPractices?.length
-            ? createChipRow(r.relatedPractices, { getLabel: p => p.name || p.id })
+            ? createChipRow(r.relatedPractices, {
+                filter: p => Boolean(p?.id),
+                getLabel: p => p.name || p.id,
+                getTitle: p => p.kind || '',
+                getTarget: p =>
+                  p?.id ? { kind: 'item', collection: 'practices', id: p.id } : null
+              })
             : ''
       },
       { header: 'Sources of truth', render: r => (r.sourcesOfTruth || []).join(', ') }
@@ -484,6 +500,11 @@ export function registerRulesTab(ctx) {
   const tab = {
     __handlers: null,
     __state: { selectedRuleId: null },
+    open(context, ruleId) {
+      this.__state.selectedRuleId = ruleId || null;
+      context.actions.activateTab?.('rules');
+      this.render?.(context);
+    },
     mount(context) {
       const kindSelect = document.getElementById('rules-kind-filter');
       const domainInput = document.getElementById('rules-domain-filter');

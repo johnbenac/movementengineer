@@ -1519,6 +1519,102 @@ function buildMediaGalleryViewModel(data, input) {
   return { items };
 }
 
+const FACET_COLLECTIONS = {
+  entities: new Set(['tag', 'sourceOfTruth', 'kind']),
+  practices: new Set(['tag', 'sourceOfTruth', 'kind']),
+  events: new Set(['tag']),
+  rules: new Set(['tag', 'sourceOfTruth', 'domain', 'appliesTo', 'kind']),
+  claims: new Set(['tag', 'sourceOfTruth', 'category']),
+  textCollections: new Set(['tag']),
+  texts: new Set(['tag']),
+  media: new Set(['tag', 'sourceOfTruth', 'kind']),
+  notes: new Set(['tag'])
+};
+
+function ensureFacetArray(value) {
+  if (Array.isArray(value)) return value;
+  return value === undefined || value === null ? [] : [value];
+}
+
+function matchesFacet(item, facet, targetValue) {
+  const target = String(targetValue).toLowerCase();
+  const matchList = values =>
+    ensureFacetArray(values).some(v => String(v).toLowerCase() === target);
+
+  switch (facet) {
+    case 'tag':
+      return matchList(item.tags);
+    case 'sourceOfTruth':
+      return matchList(item.sourcesOfTruth || item.sourceOfTruth);
+    case 'domain':
+      return matchList(item.domain);
+    case 'appliesTo':
+      return matchList(item.appliesTo);
+    case 'category':
+      return item.category && String(item.category).toLowerCase() === target;
+    case 'kind':
+      return item.kind && String(item.kind).toLowerCase() === target;
+    default:
+      return false;
+  }
+}
+
+function buildFacetExplorerViewModel(data, input = {}) {
+  const { movementId = null, facet, value, scope = null } = input;
+  const facetKey = facet ? String(facet) : null;
+  if (!facetKey || value === undefined || value === null) {
+    return { facet: facetKey, value, scope: scope || null, results: [] };
+  }
+
+  const scopeCollections =
+    scope && scope !== 'all' && FACET_COLLECTIONS[scope]
+      ? [scope]
+      : Object.keys(FACET_COLLECTIONS);
+
+  const results = [];
+  scopeCollections.forEach(collectionName => {
+    const allowedFacets = FACET_COLLECTIONS[collectionName];
+    if (!allowedFacets?.has(facetKey)) return;
+    const coll = movementId
+      ? filterByMovement(data[collectionName], movementId)
+      : normaliseArray(data[collectionName]);
+    coll.forEach(item => {
+      if (!item || !item.id) return;
+      if (!matchesFacet(item, facetKey, value)) return;
+      results.push({
+        collectionName,
+        id: item.id,
+        label: item.name || item.title || item.shortText || item.text || item.label || item.id
+      });
+    });
+  });
+
+  results.sort((a, b) => {
+    if (a.collectionName === b.collectionName) {
+      return (a.label || '').localeCompare(b.label || '');
+    }
+    return a.collectionName.localeCompare(b.collectionName);
+  });
+
+  const facetLabelMap = {
+    tag: 'Tag',
+    sourceOfTruth: 'Source of truth',
+    domain: 'Domain',
+    appliesTo: 'Applies to',
+    category: 'Category',
+    kind: 'Kind'
+  };
+
+  return {
+    facet: facetKey,
+    value: String(value),
+    scope: scope || null,
+    title: facetLabelMap[facetKey] || facetKey,
+    valueLabel: String(value),
+    results
+  };
+}
+
 function buildComparisonViewModel(data, input) {
   const { movementIds } = input;
 
@@ -1610,6 +1706,7 @@ const ViewModels = {
   buildAuthorityViewModel,
   buildMediaGalleryViewModel,
   buildComparisonViewModel,
+  buildFacetExplorerViewModel,
   buildNotesViewModel
 };
 

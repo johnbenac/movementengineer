@@ -222,6 +222,35 @@ button.danger:hover {
   color: #f9fafb;
 }
 
+.facet-explorer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.55rem;
+  background: #f9fafb;
+  margin-bottom: 0.5rem;
+}
+
+.facet-explorer-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.facet-explorer-value {
+  font-weight: 600;
+  color: #111827;
+}
+
+.facet-explorer-count {
+  font-size: 0.85rem;
+  color: #4b5563;
+}
+
 /* Content */
 
 .content {
@@ -862,6 +891,11 @@ button.danger:hover {
   background: #e5e7eb;
   color: #111827;
   border: 1px solid #d1d5db;
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  text-decoration: none;
 }
 
 .chip-tag {
@@ -888,6 +922,27 @@ button.danger:hover {
 .chip-entity.clickable:hover {
   background: #e0e7ff;
   border-color: #a5b4fc;
+}
+
+.chip:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.filter-pill {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.filter-pill input[type='checkbox'] {
+  margin: 0;
 }
 
 /* Comparison */

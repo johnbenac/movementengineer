@@ -6,7 +6,7 @@ import {
   renderHint,
   setDisabled
 } from '../ui/hints.js';
-import { appendChipRow, appendInlineLabel } from '../ui/chips.js';
+import { appendInlineLabel } from '../ui/chips.js';
 
 function getState(ctx) {
   return ctx.store.getState() || {};
@@ -16,17 +16,12 @@ function getViewModels(ctx) {
   return ctx.services.ViewModels;
 }
 
-function getActions(ctx) {
-  return ctx.actions;
-}
-
 function renderCalendarTab(ctx) {
-  const clear = ctx.dom.clearElement;
+  const { clearElement: clear, appendChipRow } = ctx.dom;
   const state = getState(ctx);
   const snapshot = state.snapshot;
   const currentMovementId = state.currentMovementId;
   const ViewModels = getViewModels(ctx);
-  const actions = getActions(ctx);
 
   const wrapper = document.getElementById('calendar-view');
   const select = document.getElementById('calendar-recurrence-filter');
@@ -89,14 +84,18 @@ function renderCalendarTab(ctx) {
     }
 
     if (e.tags?.length) {
-      appendChipRow(card, e.tags, { variant: 'tag' });
+      appendChipRow(card, e.tags, {
+        variant: 'tag',
+        getTarget: tag => (tag ? { kind: 'facet', facet: 'tag', value: tag } : null)
+      });
     }
 
     if (e.mainPractices?.length) {
       appendInlineLabel(card, 'Practices:');
       appendChipRow(card, e.mainPractices, {
+        filter: p => Boolean(p?.id),
         getLabel: p => p.name || p.id,
-        onClick: p => actions.jumpToPractice?.(p.id)
+        getTarget: p => (p?.id ? { kind: 'item', collection: 'practices', id: p.id } : null)
       });
     }
 
@@ -104,16 +103,19 @@ function renderCalendarTab(ctx) {
       appendInlineLabel(card, 'Entities:');
       appendChipRow(card, e.mainEntities, {
         variant: 'entity',
+        filter: ent => Boolean(ent?.id),
         getLabel: ent => ent.name || ent.id,
-        onClick: ent => actions.jumpToEntity?.(ent.id)
+        getTarget: ent =>
+          ent?.id ? { kind: 'item', collection: 'entities', id: ent.id } : null
       });
     }
 
     if (e.readings?.length) {
       appendInlineLabel(card, 'Readings:');
       appendChipRow(card, e.readings, {
+        filter: t => Boolean(t?.id),
         getLabel: t => t.title || t.id,
-        onClick: t => actions.jumpToText?.(t.id)
+        getTarget: t => (t?.id ? { kind: 'item', collection: 'texts', id: t.id } : null)
       });
     }
 

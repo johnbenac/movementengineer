@@ -67,6 +67,7 @@ export function createStore(options = {}) {
     currentTextId: null,
     currentShelfId: null,
     currentBookId: null,
+    facetExplorer: null,
     canonFilters: { ...DEFAULT_CANON_FILTERS },
     navigation: { stack: [], index: -1 },
     graphWorkbenchState: { ...DEFAULT_GRAPH_WORKBENCH_STATE },

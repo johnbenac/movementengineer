@@ -6,7 +6,6 @@ import {
   setDisabled
 } from '../ui/hints.js';
 import { appendSection } from '../ui/sections.js';
-import { appendChipRow } from '../ui/chips.js';
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
@@ -19,12 +18,8 @@ function getViewModels(ctx) {
   return ctx.services.ViewModels;
 }
 
-function getActions(ctx) {
-  return ctx.actions;
-}
-
 function renderPracticesTab(ctx) {
-  const { clearElement: clear, ensureSelectOptions } = ctx.dom;
+  const { clearElement: clear, ensureSelectOptions, appendChipRow } = ctx.dom;
   const state = getState(ctx);
   const snapshot = state.snapshot;
   const currentMovementId = state.currentMovementId;
@@ -93,8 +88,6 @@ function renderPracticesTab(ctx) {
     return;
   }
 
-  const actions = getActions(ctx);
-
   const title = document.createElement('h3');
   title.textContent =
     vm.practice.name + (vm.practice.kind ? ` (${vm.practice.kind})` : '');
@@ -116,10 +109,11 @@ function renderPracticesTab(ctx) {
   if (vm.entities && vm.entities.length) {
     appendSection(detailContainer, 'Involves entities', section => {
       appendChipRow(section, vm.entities, {
+        filter: e => Boolean(e?.id),
         variant: 'entity',
         getLabel: e => e.name || e.id,
         getTitle: e => e.kind || '',
-        onClick: e => actions.jumpToEntity?.(e.id)
+        getTarget: e => (e?.id ? { kind: 'item', collection: 'entities', id: e.id } : null)
       });
     });
   }
@@ -127,9 +121,10 @@ function renderPracticesTab(ctx) {
   if (vm.instructionsTexts && vm.instructionsTexts.length) {
     appendSection(detailContainer, 'Instruction texts', section => {
       appendChipRow(section, vm.instructionsTexts, {
+        filter: t => Boolean(t?.id),
         getLabel: t => t.title || t.id,
         getTitle: t => (Number.isFinite(t.depth) ? `Depth ${t.depth}` : ''),
-        onClick: t => actions.jumpToText?.(t.id)
+        getTarget: t => (t?.id ? { kind: 'item', collection: 'texts', id: t.id } : null)
       });
     });
   }
@@ -161,7 +156,9 @@ function renderPracticesTab(ctx) {
   if (vm.attachedEvents && vm.attachedEvents.length) {
     appendSection(detailContainer, 'Scheduled in events', section => {
       appendChipRow(section, vm.attachedEvents, {
-        getLabel: ev => `${ev.name} (${ev.recurrence})`
+        filter: ev => Boolean(ev?.id),
+        getLabel: ev => `${ev.name} (${ev.recurrence})`,
+        getTarget: ev => (ev?.id ? { kind: 'item', collection: 'events', id: ev.id } : null)
       });
     });
   }
@@ -187,6 +184,14 @@ function renderPracticesTab(ctx) {
 export function registerPracticesTab(ctx) {
   const tab = {
     __handlers: null,
+    open(context, practiceId) {
+      const select = document.getElementById('practice-select');
+      if (select && practiceId) {
+        select.value = practiceId;
+      }
+      context.actions.activateTab?.('practices');
+      this.render?.(context);
+    },
     mount(context) {
       const select = document.getElementById('practice-select');
 

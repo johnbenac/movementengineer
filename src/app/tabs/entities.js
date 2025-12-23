@@ -7,7 +7,6 @@ import {
   setDisabled
 } from '../ui/hints.js';
 import { appendSection } from '../ui/sections.js';
-import { appendChipRow } from '../ui/chips.js';
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
@@ -45,7 +44,7 @@ const labelForNodeType = type => GRAPH_NODE_TYPE_LABELS[type] || type || 'Unknow
 let entityGraphViewInstance = null;
 
 function renderEntitiesTab(ctx) {
-  const { clearElement: clear, ensureSelectOptions } = ctx.dom;
+  const { clearElement: clear, ensureSelectOptions, appendChipRow } = ctx.dom;
   const state = getState(ctx);
   const snapshot = state.snapshot;
   const currentMovementId = state.currentMovementId;
@@ -142,25 +141,38 @@ function renderEntitiesTab(ctx) {
   if (vm.practices && vm.practices.length) {
     appendSection(detailContainer, 'Involved in practices', section => {
       appendChipRow(section, vm.practices, {
+        filter: p => Boolean(p?.id),
         getLabel: p => p.name || p.id,
         getTitle: p => p.kind || '',
-        onClick: p => actions.jumpToPractice?.(p.id)
+        getTarget: p =>
+          p?.id
+            ? {
+                kind: 'item',
+                collection: 'practices',
+                id: p.id
+              }
+            : null
       });
     });
   }
 
   if (vm.events && vm.events.length) {
     appendSection(detailContainer, 'Appears in events', section => {
-      appendChipRow(section, vm.events, { getLabel: ev => ev.name || ev.id });
+      appendChipRow(section, vm.events, {
+        filter: ev => Boolean(ev?.id),
+        getLabel: ev => ev.name || ev.id,
+        getTarget: ev => (ev?.id ? { kind: 'item', collection: 'events', id: ev.id } : null)
+      });
     });
   }
 
   if (vm.mentioningTexts && vm.mentioningTexts.length) {
     appendSection(detailContainer, 'Mentioned in texts', section => {
       appendChipRow(section, vm.mentioningTexts, {
+        filter: t => Boolean(t?.id),
         getLabel: t => t.title || t.id,
         getTitle: t => (Number.isFinite(t.depth) ? `Depth ${t.depth}` : ''),
-        onClick: t => actions.jumpToText?.(t.id)
+        getTarget: t => (t?.id ? { kind: 'item', collection: 'texts', id: t.id } : null)
       });
     });
   }
@@ -269,6 +281,14 @@ function renderEntitiesTab(ctx) {
 export function registerEntitiesTab(ctx) {
   const tab = {
     __handlers: null,
+    open(context, entityId) {
+      const select = document.getElementById('entity-select');
+      if (select && entityId) {
+        select.value = entityId;
+      }
+      context.actions.activateTab?.('entities');
+      this.render?.(context);
+    },
     mount(context) {
       const select = document.getElementById('entity-select');
       const depthSelect = document.getElementById('entity-graph-depth');

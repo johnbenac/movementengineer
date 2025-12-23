@@ -121,6 +121,71 @@ function testRuleEditorViewModel() {
   assert(vm.options.ruleKinds.includes('must_do'), 'Default rule kinds are included');
 }
 
+function testFacetExplorerViewModel() {
+  const data = {
+    movements: [{ id: 'm1', name: 'Primary movement' }],
+    entities: [{ id: 'e1', movementId: 'm1', name: 'Entity One', tags: ['core'] }],
+    practices: [
+      { id: 'p1', movementId: 'm1', name: 'Practice One', tags: ['core'], kind: 'ritual' }
+    ],
+    events: [],
+    rules: [
+      {
+        id: 'r1',
+        movementId: 'm1',
+        shortText: 'Safety guidance',
+        domain: ['safety'],
+        appliesTo: ['everyone'],
+        tags: ['core']
+      }
+    ],
+    claims: [
+      {
+        id: 'c1',
+        movementId: 'm2',
+        text: 'Safety first',
+        category: 'safety',
+        tags: ['core']
+      }
+    ],
+    texts: [],
+    textCollections: [],
+    media: [],
+    notes: []
+  };
+
+  const tagsVm = ViewModels.buildFacetExplorerViewModel(data, {
+    movementId: 'm1',
+    facet: 'tag',
+    value: 'core'
+  });
+  assert(tagsVm.results.length === 3, 'Tag facet should find three movement-scoped items');
+  assert(
+    tagsVm.results.some(r => r.collectionName === 'entities' && r.id === 'e1'),
+    'Entities should be included in tag facet results'
+  );
+
+  const domainVm = ViewModels.buildFacetExplorerViewModel(data, {
+    movementId: 'm1',
+    facet: 'domain',
+    value: 'safety',
+    scope: 'rules'
+  });
+  assert(domainVm.results.length === 1, 'Domain facet should focus rule matches when scoped');
+  assert(domainVm.results[0].id === 'r1', 'Scoped domain facet should return the rule id');
+
+  const categoryVm = ViewModels.buildFacetExplorerViewModel(data, {
+    movementId: 'm2',
+    facet: 'category',
+    value: 'safety',
+    scope: 'claims'
+  });
+  assert(
+    categoryVm.results.length === 1 && categoryVm.results[0].id === 'c1',
+    'Category facet should return matching claims even in different movements'
+  );
+}
+
 async function runTests() {
   console.log('Running view-model tests...');
   const data = await loadFixtureData();
@@ -129,6 +194,7 @@ async function runTests() {
   testPracticeDetail(data);
   testGraphFiltering();
   testRuleEditorViewModel();
+  testFacetExplorerViewModel();
   console.log('All tests passed ✅');
 }
 

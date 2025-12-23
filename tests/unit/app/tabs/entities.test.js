@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDomUtils } from '../../../../src/app/ui/dom.js';
+import { installGlobalChipHandlers } from '../../../../src/app/ui/chips.js';
 
 function renderDom() {
   document.body.innerHTML = `
@@ -38,9 +39,10 @@ function createCtx(snapshot, detailVm, graphVm, currentMovementId = 'm1') {
   const actions = {
     jumpToPractice: vi.fn(),
     jumpToText: vi.fn(),
-    jumpToReferencedItem: vi.fn()
+    jumpToReferencedItem: vi.fn(),
+    jumpToEntity: vi.fn()
   };
-  return {
+  const ctx = {
     store,
     getState: store.getState,
     services: { ViewModels, EntityGraphView: FakeEntityGraphView },
@@ -48,6 +50,15 @@ function createCtx(snapshot, detailVm, graphVm, currentMovementId = 'm1') {
     actions,
     subscribe: () => () => {}
   };
+  actions.openChipTarget = target => {
+    if (!target || target.kind !== 'item') return;
+    if (target.collection === 'practices') actions.jumpToPractice(target.id);
+    if (target.collection === 'texts') actions.jumpToText(target.id);
+    if (target.collection === 'entities') actions.jumpToEntity(target.id);
+    if (target.collection && target.id) actions.jumpToReferencedItem(target.collection, target.id);
+  };
+  installGlobalChipHandlers(ctx);
+  return ctx;
 }
 
 describe('entities tab module', () => {

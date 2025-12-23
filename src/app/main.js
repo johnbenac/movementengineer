@@ -24,6 +24,7 @@ import {
   parseCsvInput,
   uniqueSorted
 } from './utils/values.js';
+import { installGlobalChipHandlers } from './ui/chips.js';
 
 function assertCtx(ctx) {
   if (!ctx?.store?.getState) throw new Error('ctx.store.getState missing');
@@ -106,6 +107,8 @@ ctx.actions = {
   ...createActions(ctx)
 };
 
+installGlobalChipHandlers(ctx);
+
 assertCtx(ctx);
 
 const enabledTabs = movementEngineerGlobal.bootstrapOptions?.moduleTabs;
@@ -130,6 +133,7 @@ ctx.actions.selectMovement = function selectMovement(movementId) {
     currentTextId: null,
     currentShelfId: null,
     currentBookId: null,
+    facetExplorer: null,
     navigation: { stack: [], index: -1 }
   }));
 

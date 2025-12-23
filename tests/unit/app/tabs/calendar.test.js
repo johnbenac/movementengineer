@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDomUtils } from '../../../../src/app/ui/dom.js';
+import { installGlobalChipHandlers } from '../../../../src/app/ui/chips.js';
 
 function renderDom() {
   document.body.innerHTML = `
@@ -20,16 +21,17 @@ function createCtx(vm, currentMovementId = 'm1') {
   const store = {
     getState: () => ({ snapshot: {}, currentMovementId })
   };
-  return {
+  const actions = {
+    jumpToPractice: vi.fn(),
+    jumpToEntity: vi.fn(),
+    jumpToText: vi.fn()
+  };
+  const ctx = {
     store,
     getState: store.getState,
     services: { ViewModels },
     dom: createDomUtils(),
-    actions: {
-      jumpToPractice: vi.fn(),
-      jumpToEntity: vi.fn(),
-      jumpToText: vi.fn()
-    },
+    actions,
     subscribe: fn => {
       subscriber = fn;
       return vi.fn();
@@ -38,6 +40,14 @@ function createCtx(vm, currentMovementId = 'm1') {
       return subscriber;
     }
   };
+  actions.openChipTarget = target => {
+    if (!target || target.kind !== 'item') return;
+    if (target.collection === 'practices') actions.jumpToPractice(target.id);
+    if (target.collection === 'entities') actions.jumpToEntity(target.id);
+    if (target.collection === 'texts') actions.jumpToText(target.id);
+  };
+  installGlobalChipHandlers(ctx);
+  return ctx;
 }
 
 describe('calendar tab module', () => {
@@ -80,15 +90,19 @@ describe('calendar tab module', () => {
     );
     expect(document.querySelector('#calendar-view .card h4').textContent).toBe('Weekly Service');
 
-    const practiceChip = document.querySelector('#calendar-view .chip.clickable');
+    const practiceChip = document.querySelector(
+      '#calendar-view .chip[data-chip-collection=\"practices\"]'
+    );
     practiceChip?.dispatchEvent(new Event('click', { bubbles: true }));
 
-    const entityChip = document.querySelector('#calendar-view .chip-entity.clickable');
+    const entityChip = document.querySelector(
+      '#calendar-view .chip[data-chip-collection=\"entities\"]'
+    );
     entityChip?.dispatchEvent(new Event('click', { bubbles: true }));
 
-    const readingChip = Array.from(
-      document.querySelectorAll('#calendar-view .chip.clickable')
-    ).find(el => el.textContent === 'Psalm 23');
+    const readingChip = document.querySelector(
+      '#calendar-view .chip[data-chip-collection=\"texts\"]'
+    );
     readingChip?.dispatchEvent(new Event('click', { bubbles: true }));
 
     expect(ctx.actions.jumpToPractice).toHaveBeenCalledWith('p1');

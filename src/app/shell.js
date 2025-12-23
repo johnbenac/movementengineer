@@ -129,6 +129,7 @@ export function initShell(ctx, options = {}) {
 
       if (typeof tab.render === 'function') {
         await Promise.resolve(tab.render(ctx));
+        ctx?.dom?.assertNoBareChips?.(document);
       } else {
         throw new Error(`Tab "${nextName}" has no render(ctx)`);
       }
