@@ -1,4 +1,4 @@
-/* domain-service.js
+/* domainService.js
  *
  * Snapshot mutation helpers for Movement Engineer.
  * Keeps CRUD and data-shaping logic separate from the UI layer.

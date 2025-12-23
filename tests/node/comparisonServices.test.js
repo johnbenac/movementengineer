@@ -1,11 +1,11 @@
 const path = require('path');
-const ComparisonServices = require('./comparison-services');
-const { loadMovementDataset } = require('./markdown-dataset-loader');
+const ComparisonServices = require('../../src/core/comparison/comparisonServices');
+const { loadMovementDataset } = require('../../src/core/markdownDatasetLoader');
 
 async function loadFixtureData() {
   const { data } = await loadMovementDataset({
     source: 'local',
-    repoPath: path.join(__dirname, 'test-fixtures/markdown-repo')
+    repoPath: path.join(__dirname, '..', '..', 'test-fixtures/markdown-repo')
   });
   return data;
 }
@@ -260,13 +260,13 @@ function testApplyTemplateToMovement(baseData) {
 }
 
 async function runTests() {
-  console.log('Running comparison-services tests...');
+  console.log('Running comparisonServices tests...');
   const baseData = await loadFixtureData();
   testCreateBlankBinding(baseData);
   testSetBindingValueIsPure(baseData);
   testBuildComparisonMatrixAutoCounts(baseData);
   testApplyTemplateToMovement(baseData);
-  console.log('All comparison-services tests passed ✅');
+  console.log('All comparisonServices tests passed ✅');
 }
 
 runTests().catch(err => {

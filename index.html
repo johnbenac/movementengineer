@@ -5,10 +5,11 @@
   <title>Movement Engineer v3</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="./styles.css" />
-  <script src="./scripts/marked.min.js"></script>
-  <script src="./scripts/dompurify.min.js"></script>
-  <script src="./scripts/js-yaml.min.js"></script>
+  <script src="./vendor/marked.min.js"></script>
+  <script src="./vendor/dompurify.min.js"></script>
+  <script src="./vendor/js-yaml.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="./vendor/d3.min.js"></script>
 </head>
   <body>
     <header class="top-bar">
@@ -788,15 +789,16 @@
   </main>
 
   <!-- Domain / view-model layers -->
-  <script src="./view-models.js"></script>
-  <script src="./markdown-dataset-loader.js"></script>
-  <script src="./storage.js"></script>
-  <script src="./domain-service.js"></script>
-  <script src="./graph-colors.js"></script>
-  <script src="./graph-view.js"></script>
-  <script src="./scripts/d3.min.js"></script>
-  <!-- comparison-services.js is not required for this UI, but harmless to include if you like -->
-  <!-- <script src="./comparison-services.js"></script> -->
+  <script src="./src/core/viewModels.js"></script>
+  <script src="./src/core/markdownDatasetLoader.js"></script>
+
+  <script src="./src/runtime/storageService.js"></script>
+  <script src="./src/runtime/domainService.js"></script>
+
+  <script src="./src/ui/graph/graphColors.js"></script>
+  <script src="./src/ui/graph/graphView.js"></script>
+  <!-- comparisonServices.js is not required for this UI, but harmless to include if you like -->
+  <!-- <script src="./src/core/comparison/comparisonServices.js"></script> -->
 
   <script type="module" src="./src/app/main.js"></script>
 </body>

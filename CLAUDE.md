@@ -32,16 +32,16 @@ ME_E2E_ENTRY=/index.html npx playwright test tests/e2e/smoke.spec.ts
 
 ### Development Server
 ```bash
-node scripts/dev-server.js  # Serves on http://127.0.0.1:4173
+node tools/dev-server.js  # Serves on http://127.0.0.1:4173
 ```
 
 ## Architecture
 
 ### Core Layers
 
-1. **Data Layer** (`markdown-dataset-loader.js`): Compiles Markdown files with YAML frontmatter into normalized data. Supports GitHub and local filesystem sources. Validates references between collections.
+1. **Data Layer** (`src/core/markdownDatasetLoader.js`): Compiles Markdown files with YAML frontmatter into normalized data. Supports GitHub and local filesystem sources. Validates references between collections.
 
-2. **View Models** (`view-models.js`): Transform raw collection data into shapes optimized for UI needs. Pure functions that derive display data from the snapshot.
+2. **View Models** (`src/core/viewModels.js`): Transform raw collection data into shapes optimized for UI needs. Pure functions that derive display data from the snapshot.
 
 3. **Store** (`src/app/store.js`): Central state management with pub/sub pattern. Holds `snapshot` (the data), `currentMovementId`, navigation state, and dirty flags.
 
@@ -106,8 +106,15 @@ src/app/
   ui/              # Shared UI utilities (dom.js, status.js, markdown.js)
   utils/           # Value helpers
 
-markdown-dataset-loader.js  # Data compilation (browser + Node)
-view-models.js              # Data -> UI transformation
-comparison-model.js         # Movement comparison logic
-storage.js                  # LocalStorage persistence
+src/core/markdownDatasetLoader.js  # Data compilation (browser + Node)
+src/core/viewModels.js      # Data -> UI transformation
+src/core/comparison/comparisonServices.js  # Comparison/template helpers
+src/models/comparisonModel.json  # Movement comparison meta-model (JSON)
+src/runtime/storageService.js    # LocalStorage persistence
+src/runtime/domainService.js     # Domain orchestration
+src/ui/graph/graphColors.js      # Graph color palette helpers
+src/ui/graph/graphView.js        # Graph rendering helpers
+
+tools/                      # Node/Python tooling scripts
+vendor/                     # Browser-loaded third-party libraries
 ```

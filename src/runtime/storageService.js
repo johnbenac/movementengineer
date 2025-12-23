@@ -1,4 +1,4 @@
-/* storage.js
+/* storageService.js
  *
  * Data persistence utilities for Movement Engineer.
  * Handles localStorage plumbing and snapshot structure.
