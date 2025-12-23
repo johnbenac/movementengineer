@@ -924,13 +924,32 @@ button.danger:hover {
   box-shadow: 0 1px 0 rgba(55, 48, 163, 0.08);
 }
 
-.chip:hover {
+.chip.chip-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.25rem;
+  text-align: left;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  box-shadow: none;
+  font-size: 1rem;
+  border-radius: 10px;
+}
+
+.chip:not(.chip-tile):hover {
   background: #d1d5db;
 }
 
 .chip-entity:hover {
   background: #e0e7ff;
   border-color: #a5b4fc;
+}
+
+.chip.chip-tile:hover {
+  transform: translateY(-1px);
 }
 
 .chip:focus-visible {

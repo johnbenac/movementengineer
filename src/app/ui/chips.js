@@ -3,6 +3,8 @@
 const DEFAULT_LABEL_KEYS = ['name', 'title', 'shortText', 'text', 'id'];
 let globalChipHandlerInstalled = false;
 
+const CHIP_ACTION_SELECTOR = '[data-chip-action="true"]';
+
 export function defaultChipLabel(item) {
   if (item === undefined || item === null) return '';
   if (typeof item === 'string' || typeof item === 'number') return String(item);
@@ -124,6 +126,55 @@ export function createChip(descriptor = {}) {
   return el;
 }
 
+export function createChipTile(descriptor = {}) {
+  const {
+    variant = 'default',
+    className = '',
+    title,
+    titleNode,
+    meta,
+    metaNode,
+    actions = [],
+    children = [],
+    target = null,
+    tagName = 'div',
+    attrs
+  } = descriptor;
+
+  const chip = createChip({
+    variant,
+    className: ['chip-tile', className].filter(Boolean).join(' '),
+    label: '',
+    target,
+    tagName,
+    attrs
+  });
+
+  const appendPart = (value, defaultClass, parent = chip) => {
+    if (value === undefined || value === null) return null;
+    const node = isNode(value) ? value : document.createElement('div');
+    if (!isNode(value)) node.textContent = String(value);
+    if (defaultClass && !node.className) node.className = defaultClass;
+    parent.appendChild(node);
+    return node;
+  };
+
+  appendPart(titleNode ?? title, 'chip-tile-title');
+  appendPart(metaNode ?? meta, 'meta');
+
+  (Array.isArray(children) ? children : [children]).forEach(child => appendPart(child));
+
+  const actionNodes = Array.isArray(actions) ? actions : [actions];
+  if (actionNodes.filter(Boolean).length) {
+    const actionRow = document.createElement('div');
+    actionRow.className = 'inline-actions';
+    actionNodes.forEach(action => appendPart(action, '', actionRow));
+    chip.appendChild(actionRow);
+  }
+
+  return chip;
+}
+
 /**
  * Creates a chip row.
  * - items: array (strings or objects)
@@ -195,6 +246,7 @@ export function assertNoBareChips(root = document) {
 }
 
 function activateChip(event, ctx) {
+  if (event.target?.closest?.(CHIP_ACTION_SELECTOR)) return;
   const chip = event.target?.closest?.('.chip');
   if (!chip) return;
   const target = readChipTargetFromEl(chip);
@@ -242,6 +294,7 @@ export function installGlobalChipHandler(ctx) {
   if (globalChipHandlerInstalled || typeof document === 'undefined') return () => {};
   const onClick = event => activateChip(event, ctx);
   const onKeyDown = event => {
+    if (event.target?.closest?.(CHIP_ACTION_SELECTOR)) return;
     if (!event.target?.closest?.('.chip')) return;
     if (event.key === 'Enter' || event.key === ' ') {
       activateChip(event, ctx);
