@@ -924,7 +924,7 @@ button.danger:hover {
   box-shadow: 0 1px 0 rgba(55, 48, 163, 0.08);
 }
 
-.chip:hover {
+.chip:not(.chip-tile):hover {
   background: #d1d5db;
 }
 
@@ -937,6 +937,32 @@ button.danger:hover {
   outline: 2px solid #4f46e5;
   outline-offset: 2px;
   box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+}
+
+.chip.chip-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  text-align: left;
+  width: 100%;
+  gap: 0.25rem;
+  font-size: 1rem;
+  padding: 0;
+  border-radius: 10px;
+  background: transparent;
+  border: none;
+  color: inherit;
+  box-shadow: none;
+  line-height: 1.35;
+  transition: transform 100ms ease;
+}
+
+.chip.chip-tile:hover {
+  transform: translateY(-1px);
+}
+
+.chip.chip-tile .meta {
+  font-size: 0.9rem;
 }
 
 .filter-pill {

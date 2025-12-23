@@ -159,6 +159,79 @@ export function appendInlineLabel(container, text, opts = {}) {
   return el;
 }
 
+export function createChipTileDescriptor(item, opts = {}) {
+  const {
+    className = '',
+    title,
+    getTitle = defaultChipLabel,
+    meta,
+    getMeta,
+    actions,
+    getActions,
+    ...rest
+  } = opts;
+
+  return {
+    ...createChipDescriptor(item, { ...rest, className }),
+    title: title != null ? title : typeof getTitle === 'function' ? getTitle(item) : '',
+    meta: meta != null ? meta : typeof getMeta === 'function' ? getMeta(item) : '',
+    actions: typeof getActions === 'function' ? getActions(item) : actions
+  };
+}
+
+export function createChipTile(descriptor = {}) {
+  const {
+    className = '',
+    title = '',
+    meta = '',
+    actions,
+    children = [],
+    attrs,
+    target = null,
+    actionsContainer,
+    titleEl,
+    metaEl,
+    variant
+  } = descriptor;
+
+  const chip = createChip({
+    ...descriptor,
+    variant,
+    target,
+    attrs,
+    tagName: 'div',
+    label: '',
+    className: ['chip-tile', className].filter(Boolean).join(' ')
+  });
+
+  if (titleEl || title) {
+    const heading = titleEl || document.createElement('div');
+    heading.classList.add('chip-title');
+    if (!heading.textContent && title) heading.textContent = title;
+    chip.appendChild(heading);
+  }
+
+  if (metaEl || meta) {
+    const metaLine = metaEl || document.createElement('div');
+    metaLine.classList.add('meta');
+    if (!metaLine.textContent && meta) metaLine.textContent = meta;
+    chip.appendChild(metaLine);
+  }
+
+  const actionNodes = Array.isArray(actions) ? actions.filter(Boolean) : [];
+  if (actionNodes.length) {
+    const actionRow = actionsContainer || document.createElement('div');
+    if (!actionRow.className) actionRow.className = 'inline-actions';
+    actionNodes.forEach(node => actionRow.appendChild(node));
+    chip.appendChild(actionRow);
+  }
+
+  const childNodes = Array.isArray(children) ? children : [children];
+  childNodes.filter(isNode).forEach(child => chip.appendChild(child));
+
+  return chip;
+}
+
 export function readChipTargetFromEl(el) {
   if (!el || !el.dataset) return null;
   const kind = el.dataset.chipKind;
@@ -195,6 +268,7 @@ export function assertNoBareChips(root = document) {
 }
 
 function activateChip(event, ctx) {
+  if (event.target?.closest?.('[data-chip-action="true"]')) return;
   const chip = event.target?.closest?.('.chip');
   if (!chip) return;
   const target = readChipTargetFromEl(chip);
@@ -242,6 +316,7 @@ export function installGlobalChipHandler(ctx) {
   if (globalChipHandlerInstalled || typeof document === 'undefined') return () => {};
   const onClick = event => activateChip(event, ctx);
   const onKeyDown = event => {
+    if (event.target?.closest?.('[data-chip-action="true"]')) return;
     if (!event.target?.closest?.('.chip')) return;
     if (event.key === 'Enter' || event.key === ' ') {
       activateChip(event, ctx);

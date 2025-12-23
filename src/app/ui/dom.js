@@ -3,6 +3,8 @@ import {
   assertNoBareChips,
   createChip,
   createChipRow,
+  createChipTile,
+  createChipTileDescriptor,
   installGlobalChipHandler,
   readChipTargetFromEl
 } from './chips.js';
@@ -83,6 +85,8 @@ export function createDomUtils() {
     addListenerById,
     createChip,
     createChipRow,
+    createChipTile,
+    createChipTileDescriptor,
     appendChipRow,
     readChipTargetFromEl,
     assertNoBareChips,
