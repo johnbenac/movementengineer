@@ -500,7 +500,10 @@ export function initMovements(ctx, options = {}) {
     setLastRepoUrl(repoUrl);
 
     try {
-      ctx.ui?.setStatus?.('Importing markdown repo…');
+      if (loader?.parseGitHubRepoUrl) {
+        loader.parseGitHubRepoUrl(repoUrl);
+      }
+      ctx.ui?.setStatus?.('Importing markdown repo…', { busy: true, persist: true });
       const importedSnapshot = await loader.importMovementRepo(repoUrl);
       const movements = Array.isArray(importedSnapshot?.movements)
         ? importedSnapshot.movements
@@ -535,8 +538,9 @@ export function initMovements(ctx, options = {}) {
       scheduleRender();
     } catch (err) {
       console.error(err);
-      window.alert?.(err?.message || String(err));
-      ctx.ui?.setStatus?.('Import failed');
+      const message = err?.message || String(err);
+      window.alert?.(message);
+      ctx.ui?.setStatus?.('Import failed', { persist: true });
     }
   }
 

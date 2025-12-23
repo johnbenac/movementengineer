@@ -1,5 +1,6 @@
 export function createStatusUi() {
   let fatalImportErrorDom = null;
+  let hideTimer = null;
 
   function ensureFatalImportBanner() {
     if (fatalImportErrorDom) return fatalImportErrorDom;
@@ -35,16 +36,56 @@ export function createStatusUi() {
     fatalImportErrorDom.body.textContent = '';
   }
 
-  function setStatus(text) {
+  function setStatus(text, options = {}) {
     const el = document.getElementById('status');
     if (!el) return;
-    el.textContent = text || '';
-    if (!text) return;
-    setTimeout(() => {
-      if (el.textContent === text) {
-        el.textContent = '';
+
+    const { busy = false, persist = false, duration = 2500 } = options || {};
+    const statusText = text || '';
+
+    clearTimeout(hideTimer);
+
+    let textEl = el.querySelector('.status-text');
+    if (!textEl) {
+      el.textContent = '';
+      textEl = document.createElement('span');
+      textEl.className = 'status-text';
+      el.appendChild(textEl);
+    }
+
+    let spinner = el.querySelector('.status-spinner');
+    if (busy) {
+      if (!spinner) {
+        spinner = document.createElement('span');
+        spinner.className = 'status-spinner';
+        spinner.setAttribute('aria-hidden', 'true');
+        el.insertBefore(spinner, textEl);
       }
-    }, 2500);
+      el.classList.add('is-busy');
+    } else {
+      spinner?.remove();
+      el.classList.remove('is-busy');
+    }
+
+    textEl.textContent = statusText;
+
+    if (!statusText) {
+      if (!persist) {
+        spinner?.remove();
+        el.classList.remove('is-busy');
+      }
+      return;
+    }
+
+    if (persist) return;
+
+    hideTimer = setTimeout(() => {
+      if (textEl.textContent === statusText) {
+        textEl.textContent = '';
+        spinner?.remove();
+        el.classList.remove('is-busy');
+      }
+    }, duration);
   }
 
   return {

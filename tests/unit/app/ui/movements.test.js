@@ -269,6 +269,10 @@ describe('movements UI module', () => {
     expect(importMovementRepo).toHaveBeenCalledWith(repoUrl);
     expect(store.getState().snapshot).toEqual(importedSnapshot);
     expect(selectMovement).toHaveBeenCalledWith('imp1');
+    expect(ctx.ui.setStatus).toHaveBeenCalledWith('Importing markdown repo…', {
+      busy: true,
+      persist: true
+    });
     expect(ctx.ui.setStatus).toHaveBeenCalledWith('Repo imported ✓');
     expect(store.markSaved).toHaveBeenCalledWith({ movement: true, item: true });
   });
