@@ -232,12 +232,12 @@ describe('movements UI module', () => {
 
   it('imports a markdown repo and replaces snapshot', async () => {
     const repoUrl = 'https://github.com/example/repo';
-    vi.spyOn(window, 'prompt').mockReturnValue(repoUrl);
     const importedSnapshot = {
       movements: [{ id: 'imp1', name: 'Imported movement' }],
       __repoBaselineByMovement: {}
     };
     const importMovementRepo = vi.fn().mockResolvedValue(importedSnapshot);
+    const parseGitHubRepoUrl = vi.fn();
     const state = {
       snapshot: {
         movements: [{ id: 'm1', name: 'One', shortName: 'O', summary: '', tags: [] }]
@@ -254,7 +254,7 @@ describe('movements UI module', () => {
       actions: { selectMovement },
       services: {
         DomainService: createDomainServiceStub(),
-        MarkdownDatasetLoader: { importMovementRepo }
+        MarkdownDatasetLoader: { importMovementRepo, parseGitHubRepoUrl }
       },
       dom: createDomUtils(),
       ui: { setStatus: vi.fn() },
@@ -264,13 +264,62 @@ describe('movements UI module', () => {
     initMovements(ctx);
 
     document.getElementById('btn-import-from-github').click();
+    document.getElementById('github-import-url').value = repoUrl;
+    document
+      .getElementById('github-import-form')
+      .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     await new Promise(resolve => setTimeout(resolve, 0));
 
+    expect(parseGitHubRepoUrl).toHaveBeenCalledWith(repoUrl);
     expect(importMovementRepo).toHaveBeenCalledWith(repoUrl);
     expect(store.getState().snapshot).toEqual(importedSnapshot);
     expect(selectMovement).toHaveBeenCalledWith('imp1');
     expect(ctx.ui.setStatus).toHaveBeenCalledWith('Repo imported ✓');
     expect(store.markSaved).toHaveBeenCalledWith({ movement: true, item: true });
+  });
+
+  it('shows an inline error for an invalid repo URL', async () => {
+    const repoUrl = 'https://example.com/not-github';
+    const importMovementRepo = vi.fn();
+    const parseGitHubRepoUrl = vi.fn(() => {
+      throw new Error('Only github.com URLs are supported.');
+    });
+    const state = {
+      snapshot: {
+        movements: [{ id: 'm1', name: 'One', shortName: 'O', summary: '', tags: [] }]
+      },
+      currentMovementId: 'm1',
+      flags: {}
+    };
+    const store = createStore(state);
+    const ctx = {
+      store,
+      getState: store.getState,
+      subscribe: store.subscribe,
+      actions: { selectMovement: vi.fn() },
+      services: {
+        DomainService: createDomainServiceStub(),
+        MarkdownDatasetLoader: { importMovementRepo, parseGitHubRepoUrl }
+      },
+      dom: createDomUtils(),
+      ui: { setStatus: vi.fn() },
+      shell: { renderActiveTab: vi.fn() }
+    };
+
+    initMovements(ctx);
+
+    document.getElementById('btn-import-from-github').click();
+    document.getElementById('github-import-url').value = repoUrl;
+    document
+      .getElementById('github-import-form')
+      .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(importMovementRepo).not.toHaveBeenCalled();
+    expect(ctx.ui.setStatus).not.toHaveBeenCalledWith('Importing markdown repo…');
+    expect(document.getElementById('github-import-error').textContent).toBe(
+      'Only github.com URLs are supported.'
+    );
   });
 
   it('exports a movement to a zip and triggers download', async () => {
