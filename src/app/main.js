@@ -106,6 +106,8 @@ ctx.actions = {
   ...createActions(ctx)
 };
 
+dom.installChipNavigation?.(ctx.actions);
+
 assertCtx(ctx);
 
 const enabledTabs = movementEngineerGlobal.bootstrapOptions?.moduleTabs;

@@ -69,5 +69,35 @@ export function createActions(ctx) {
   actions.jumpToEntity = entityId => actions.jumpToReferencedItem?.('entities', entityId);
   actions.jumpToText = textId => actions.jumpToReferencedItem?.('texts', textId);
 
+  actions.openFacet = (facet, value, scope = null) => {
+    if (!facet || value === undefined || value === null) return;
+    const normalizedScope = scope === 'all' ? null : scope;
+    ctx?.store?.update?.(prev => ({
+      ...prev,
+      facetExplorer: { facet, value, scope: normalizedScope }
+    }));
+    actions.activateTab?.('collections');
+    const tab = ctx?.tabs?.collections;
+    if (tab?.render) tab.render(ctx);
+  };
+
+  actions.openChipTarget = target => {
+    if (!target || !target.kind) return;
+    if (target.kind === 'item') {
+      const tab = ctx?.tabs?.[target.collection];
+      if (tab?.open) {
+        tab.open(ctx, target.id);
+        return;
+      }
+      actions.jumpToReferencedItem?.(target.collection, target.id);
+      return;
+    }
+    if (target.kind === 'facet') {
+      actions.openFacet?.(target.facet, target.value, target.scope);
+      return;
+    }
+    console.error('Unknown chip target', target);
+  };
+
   return actions;
 }

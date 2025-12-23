@@ -88,14 +88,11 @@ function renderCalendarTab(ctx) {
       card.appendChild(p);
     }
 
-    if (e.tags?.length) {
-      appendChipRow(card, e.tags, { variant: 'tag' });
-    }
-
     if (e.mainPractices?.length) {
       appendInlineLabel(card, 'Practices:');
       appendChipRow(card, e.mainPractices, {
         getLabel: p => p.name || p.id,
+        getTarget: p => ({ kind: 'item', collection: 'practices', id: p.id }),
         onClick: p => actions.jumpToPractice?.(p.id)
       });
     }
@@ -105,6 +102,7 @@ function renderCalendarTab(ctx) {
       appendChipRow(card, e.mainEntities, {
         variant: 'entity',
         getLabel: ent => ent.name || ent.id,
+        getTarget: ent => ({ kind: 'item', collection: 'entities', id: ent.id }),
         onClick: ent => actions.jumpToEntity?.(ent.id)
       });
     }
@@ -113,7 +111,16 @@ function renderCalendarTab(ctx) {
       appendInlineLabel(card, 'Readings:');
       appendChipRow(card, e.readings, {
         getLabel: t => t.title || t.id,
+        getTarget: t => ({ kind: 'item', collection: 'texts', id: t.id }),
         onClick: t => actions.jumpToText?.(t.id)
+      });
+    }
+
+    if (e.tags?.length) {
+      appendChipRow(card, e.tags, {
+        variant: 'tag',
+        getTarget: val => ({ kind: 'facet', facet: 'tag', value: val }),
+        onClick: val => actions.openFacet?.('tag', val)
       });
     }
 

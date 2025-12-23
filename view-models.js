@@ -49,6 +49,11 @@ function uniqueSorted(values) {
   );
 }
 
+function displayLabel(item) {
+  if (!item || typeof item !== 'object') return '';
+  return item.name || item.title || item.shortText || item.text || item.id || '';
+}
+
 function buildTextHierarchy(texts) {
   const childrenByParent = new Map();
   const textById = new Map();
@@ -1594,6 +1599,56 @@ function buildNotesViewModel(data, input) {
   return { notes: noteRows };
 }
 
+function matchesFacetField(value, target) {
+  if (value === undefined || value === null) return false;
+  const targetStr = String(target);
+  if (Array.isArray(value)) {
+    return value.map(String).some(v => v === targetStr);
+  }
+  return String(value) === targetStr;
+}
+
+function buildFacetExplorerViewModel(data, input) {
+  const { movementId = null, facet, value, scope = null } = input || {};
+  if (!facet || value === undefined || value === null) {
+    return { facet: facet || null, value: value ?? null, results: [] };
+  }
+
+  const collections =
+    scope && scope !== 'all'
+      ? [scope]
+      : Object.keys(data || {}).filter(key => Array.isArray(data[key]));
+
+  const results = [];
+  collections.forEach(collectionName => {
+    const items = Array.isArray(data?.[collectionName]) ? data[collectionName] : [];
+    items.forEach(item => {
+      if (movementId && item.movementId && item.movementId !== movementId) return;
+      const matches =
+        facet === 'tag' ? matchesFacetField(item.tags, value)
+        : facet === 'sourceOfTruth' ? matchesFacetField(item.sourcesOfTruth, value)
+        : facet === 'domain' ? matchesFacetField(item.domain, value)
+        : facet === 'appliesTo' ? matchesFacetField(item.appliesTo, value)
+        : facet === 'category' ? matchesFacetField(item.category, value)
+        : facet === 'kind' ? matchesFacetField(item.kind, value)
+        : false;
+      if (!matches) return;
+      results.push({
+        collectionName,
+        id: item.id,
+        label: displayLabel(item)
+      });
+    });
+  });
+
+  return {
+    facet,
+    value,
+    scope: scope || null,
+    results
+  };
+}
+
 const ViewModels = {
   buildMovementDashboardViewModel,
   buildCanonTreeViewModel,
@@ -1610,7 +1665,8 @@ const ViewModels = {
   buildAuthorityViewModel,
   buildMediaGalleryViewModel,
   buildComparisonViewModel,
-  buildNotesViewModel
+  buildNotesViewModel,
+  buildFacetExplorerViewModel
 };
 
 const globalScope =

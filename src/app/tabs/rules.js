@@ -5,7 +5,7 @@ import {
   renderHint,
   setDisabled
 } from '../ui/hints.js';
-import { renderTable, createTextList } from '../ui/table.js';
+import { renderTable } from '../ui/table.js';
 import { createChipRow } from '../ui/chips.js';
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
@@ -455,24 +455,30 @@ function renderRulesTab(ctx) {
         header: 'Supporting texts',
         render: r =>
           r.supportingTexts?.length
-            ? createChipRow(r.supportingTexts, { getLabel: t => t.title || t.id })
+            ? createChipRow(r.supportingTexts, {
+                getLabel: t => t.title || t.id,
+                getTarget: t => ({ kind: 'item', collection: 'texts', id: t.id })
+              })
             : ''
       },
       {
         header: 'Supporting claims',
         render: r =>
           r.supportingClaims?.length
-            ? createTextList(
-                r.supportingClaims,
-                c => (c.category ? `[${c.category}] ` : '') + c.text
-              )
+            ? createChipRow(r.supportingClaims, {
+                getLabel: c => (c.category ? `[${c.category}] ` : '') + (c.text || c.id),
+                getTarget: c => ({ kind: 'item', collection: 'claims', id: c.id })
+              })
             : ''
       },
       {
         header: 'Related practices',
         render: r =>
           r.relatedPractices?.length
-            ? createChipRow(r.relatedPractices, { getLabel: p => p.name || p.id })
+            ? createChipRow(r.relatedPractices, {
+                getLabel: p => p.name || p.id,
+                getTarget: p => ({ kind: 'item', collection: 'practices', id: p.id })
+              })
             : ''
       },
       { header: 'Sources of truth', render: r => (r.sourcesOfTruth || []).join(', ') }
@@ -484,6 +490,11 @@ export function registerRulesTab(ctx) {
   const tab = {
     __handlers: null,
     __state: { selectedRuleId: null },
+    open(context, ruleId) {
+      this.__state.selectedRuleId = ruleId;
+      context.actions.activateTab?.('rules');
+      this.render(context);
+    },
     mount(context) {
       const kindSelect = document.getElementById('rules-kind-filter');
       const domainInput = document.getElementById('rules-domain-filter');

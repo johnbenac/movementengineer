@@ -144,6 +144,7 @@ function renderEntitiesTab(ctx) {
       appendChipRow(section, vm.practices, {
         getLabel: p => p.name || p.id,
         getTitle: p => p.kind || '',
+        getTarget: p => ({ kind: 'item', collection: 'practices', id: p.id }),
         onClick: p => actions.jumpToPractice?.(p.id)
       });
     });
@@ -151,7 +152,11 @@ function renderEntitiesTab(ctx) {
 
   if (vm.events && vm.events.length) {
     appendSection(detailContainer, 'Appears in events', section => {
-      appendChipRow(section, vm.events, { getLabel: ev => ev.name || ev.id });
+      appendChipRow(section, vm.events, {
+        getLabel: ev => ev.name || ev.id,
+        getTarget: ev => ({ kind: 'item', collection: 'events', id: ev.id }),
+        onClick: ev => actions.jumpToReferencedItem?.('events', ev.id)
+      });
     });
   }
 
@@ -160,6 +165,7 @@ function renderEntitiesTab(ctx) {
       appendChipRow(section, vm.mentioningTexts, {
         getLabel: t => t.title || t.id,
         getTitle: t => (Number.isFinite(t.depth) ? `Depth ${t.depth}` : ''),
+        getTarget: t => ({ kind: 'item', collection: 'texts', id: t.id }),
         onClick: t => actions.jumpToText?.(t.id)
       });
     });
