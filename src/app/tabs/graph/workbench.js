@@ -784,7 +784,7 @@ function renderGraphWorkbenchFilters(ctx, dom, baseGraph, workbenchState) {
 
   nodeTypes.forEach(type => {
     const chip = document.createElement('label');
-    chip.className = 'chip';
+    chip.className = 'filter-pill';
     const color = colorForNodeType(ctx, type);
     chip.style.backgroundColor = color;
     chip.style.borderColor = color;

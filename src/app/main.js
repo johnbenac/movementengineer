@@ -106,6 +106,8 @@ ctx.actions = {
   ...createActions(ctx)
 };
 
+ctx.dom.installGlobalChipHandler?.(ctx);
+
 assertCtx(ctx);
 
 const enabledTabs = movementEngineerGlobal.bootstrapOptions?.moduleTabs;
@@ -130,6 +132,7 @@ ctx.actions.selectMovement = function selectMovement(movementId) {
     currentTextId: null,
     currentShelfId: null,
     currentBookId: null,
+    facetExplorer: null,
     navigation: { stack: [], index: -1 }
   }));
 

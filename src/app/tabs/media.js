@@ -5,7 +5,7 @@ import {
   renderHint,
   setDisabled
 } from '../ui/hints.js';
-import { appendChipRow, appendInlineLabel } from '../ui/chips.js';
+import { appendInlineLabel } from '../ui/chips.js';
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
@@ -14,8 +14,9 @@ function getState(ctx) {
   return ctx.store.getState() || {};
 }
 
-function renderMediaCards(wrapper, items, clear) {
+function renderMediaCards(ctx, wrapper, items, clear) {
   clear(wrapper);
+  const dom = ctx.dom;
 
   if (!items || items.length === 0) {
     renderHint(wrapper, 'No media match this filter.');
@@ -42,30 +43,43 @@ function renderMediaCards(wrapper, items, clear) {
     }
 
     if (m.tags && m.tags.length) {
-      appendChipRow(card, m.tags, { variant: 'tag' });
+      dom.appendChipRow(card, m.tags, {
+        variant: 'tag',
+        getTarget: tag => ({ kind: 'facet', facet: 'tag', value: tag })
+      });
     }
 
     if (m.entities && m.entities.length) {
       appendInlineLabel(card, 'Entities:');
-      appendChipRow(card, m.entities, {
+      dom.appendChipRow(card, m.entities, {
         variant: 'entity',
-        getLabel: e => e.name || e.id
+        getLabel: e => e.name || e.id,
+        getTarget: e => ({ kind: 'item', collection: 'entities', id: e.id })
       });
     }
 
     if (m.practices && m.practices.length) {
       appendInlineLabel(card, 'Practices:');
-      appendChipRow(card, m.practices, { getLabel: p => p.name || p.id });
+      dom.appendChipRow(card, m.practices, {
+        getLabel: p => p.name || p.id,
+        getTarget: p => ({ kind: 'item', collection: 'practices', id: p.id })
+      });
     }
 
     if (m.events && m.events.length) {
       appendInlineLabel(card, 'Events:');
-      appendChipRow(card, m.events, { getLabel: e => e.name || e.id });
+      dom.appendChipRow(card, m.events, {
+        getLabel: e => e.name || e.id,
+        getTarget: e => ({ kind: 'item', collection: 'events', id: e.id })
+      });
     }
 
     if (m.texts && m.texts.length) {
       appendInlineLabel(card, 'Texts:');
-      appendChipRow(card, m.texts, { getLabel: t => t.title || t.id });
+      dom.appendChipRow(card, m.texts, {
+        getLabel: t => t.title || t.id,
+        getTarget: t => ({ kind: 'item', collection: 'texts', id: t.id })
+      });
     }
 
     wrapper.appendChild(card);
@@ -172,10 +186,11 @@ function renderMediaTab(ctx) {
     textIdFilter: textIdFilter || null
   });
 
-  renderMediaCards(wrapper, vm?.items || [], clear);
+  renderMediaCards(ctx, wrapper, vm?.items || [], clear);
 }
 
 export function registerMediaTab(ctx) {
+  ctx?.dom?.installGlobalChipHandler?.(ctx);
   const tab = {
     __handlers: null,
     mount(context) {

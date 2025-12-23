@@ -1,6 +1,5 @@
 import { createTab } from './tabKit.js';
 import { HINT_TEXT, guardMissingViewModels, guardNoMovement, renderHint } from '../ui/hints.js';
-import { appendChipRow } from '../ui/chips.js';
 
 function getState(ctx) {
   return ctx.store.getState() || {};
@@ -19,7 +18,7 @@ function createStatCard(titleText) {
   return card;
 }
 
-function appendExampleRow(container, label, items, key) {
+function appendExampleRow(ctx, container, label, items, key, collectionName) {
   const heading = document.createElement('div');
   heading.className = 'section-heading';
   heading.style.fontSize = '0.85rem';
@@ -34,7 +33,10 @@ function appendExampleRow(container, label, items, key) {
     return;
   }
 
-  appendChipRow(container, items, { getLabel: item => item[key] || item.id });
+  ctx.dom.appendChipRow(container, items, {
+    getLabel: item => item[key] || item.id,
+    getTarget: item => ({ kind: 'item', collection: collectionName, id: item.id })
+  });
 }
 
 function renderDashboardTab(ctx) {
@@ -183,12 +185,20 @@ function renderDashboardTab(ctx) {
   exampleSectionTitle.textContent = 'Example nodes';
   container.appendChild(exampleSectionTitle);
 
-  appendExampleRow(container, 'Key entities', vm.exampleNodes?.keyEntities, 'name');
-  appendExampleRow(container, 'Key practices', vm.exampleNodes?.keyPractices, 'name');
-  appendExampleRow(container, 'Key events', vm.exampleNodes?.keyEvents, 'name');
+  appendExampleRow(ctx, container, 'Key entities', vm.exampleNodes?.keyEntities, 'name', 'entities');
+  appendExampleRow(
+    ctx,
+    container,
+    'Key practices',
+    vm.exampleNodes?.keyPractices,
+    'name',
+    'practices'
+  );
+  appendExampleRow(ctx, container, 'Key events', vm.exampleNodes?.keyEvents, 'name', 'events');
 }
 
 export function registerDashboardTab(ctx) {
+  ctx?.dom?.installGlobalChipHandler?.(ctx);
   return createTab(ctx, {
     name: 'dashboard',
     render: renderDashboardTab

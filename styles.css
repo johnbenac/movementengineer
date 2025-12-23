@@ -806,6 +806,26 @@ button.danger:hover {
   gap: 0.5rem;
 }
 
+.facet-banner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.5rem;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.facet-banner .eyebrow {
+  margin-bottom: 0.1rem;
+}
+
+.facet-banner .muted {
+  margin-top: 0.15rem;
+}
+
 /* Dashboard stats */
 
 .stats-grid {
@@ -862,6 +882,14 @@ button.danger:hover {
   background: #e5e7eb;
   color: #111827;
   border: 1px solid #d1d5db;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  text-decoration: none;
+  appearance: none;
+  line-height: 1.2;
+  transition: background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
 }
 
 .chip-tag {
@@ -877,17 +905,36 @@ button.danger:hover {
   box-shadow: 0 1px 0 rgba(55, 48, 163, 0.08);
 }
 
-.chip.clickable {
-  cursor: pointer;
-}
-
-.chip.clickable:hover {
+.chip:hover {
   background: #d1d5db;
 }
 
-.chip-entity.clickable:hover {
+.chip-entity:hover {
   background: #e0e7ff;
   border-color: #a5b4fc;
+}
+
+.chip:focus-visible {
+  outline: 2px solid #4f46e5;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+}
+
+.filter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  background: #e5e7eb;
+  color: #111827;
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+
+.filter-pill input {
+  margin: 0;
 }
 
 /* Comparison */
@@ -1886,14 +1933,14 @@ a.text-link:hover {
 }
 
 /* Graph workbench filter chips */
-#gw-filter-types .chip {
+#gw-filter-types .filter-pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 6px 10px;
 }
 
-#gw-filter-types .chip input[type='checkbox'] {
+#gw-filter-types .filter-pill input[type='checkbox'] {
   transform: translateY(1px);
 }
 
