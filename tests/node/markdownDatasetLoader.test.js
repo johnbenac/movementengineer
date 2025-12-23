@@ -6,7 +6,7 @@ const {
   exportRepoToZip,
   exportMovementToZip,
   buildBaselineByMovement
-} = require('./markdown-dataset-loader');
+} = require('../../src/core/markdownDatasetLoader');
 
 function assert(condition, message) {
   if (!condition) {
@@ -32,7 +32,7 @@ function listZipFiles(zip) {
 }
 
 async function testLoadAndRepoExport() {
-  const repoPath = path.join(__dirname, 'test-fixtures/markdown-repo');
+  const repoPath = path.join(__dirname, '../../test-fixtures/markdown-repo');
   const result = await loadMovementDataset({
     source: 'local',
     repoPath
@@ -87,7 +87,7 @@ async function testLoadAndRepoExport() {
 }
 
 async function testMovementScopedExport() {
-  const repoPath = path.join(__dirname, 'test-fixtures/multi-movement-repo');
+  const repoPath = path.join(__dirname, '../../test-fixtures/multi-movement-repo');
   const compiled = await loadMovementDataset({
     source: 'local',
     repoPath

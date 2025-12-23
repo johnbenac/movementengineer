@@ -45,7 +45,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          python scripts/pr_batch_big_picture.py \
+          python tools/pr_batch_big_picture.py \
             ${{ inputs.start_pr }} \
             ${{ inputs.end_pr }} \
             --base-branch "${{ inputs.base_branch }}" \

@@ -1,11 +1,11 @@
 const path = require('path');
-const ViewModels = require('./view-models');
-const { loadMovementDataset } = require('./markdown-dataset-loader');
+const ViewModels = require('../../src/core/viewModels');
+const { loadMovementDataset } = require('../../src/core/markdownDatasetLoader');
 
 async function loadFixtureData() {
   const { data } = await loadMovementDataset({
     source: 'local',
-    repoPath: path.join(__dirname, 'test-fixtures/markdown-repo')
+    repoPath: path.join(__dirname, '../../test-fixtures/markdown-repo')
   });
   return data;
 }
