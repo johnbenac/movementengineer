@@ -2,6 +2,9 @@
 
 const DEFAULT_LABEL_KEYS = ['name', 'title', 'shortText', 'text', 'id'];
 let globalChipHandlerInstalled = false;
+const CHIP_ACTION_SELECTOR = '[data-chip-action="true"]';
+
+const normaliseArray = value => (Array.isArray(value) ? value : value ? [value] : []);
 
 export function defaultChipLabel(item) {
   if (item === undefined || item === null) return '';
@@ -124,6 +127,102 @@ export function createChip(descriptor = {}) {
   return el;
 }
 
+export function createChipTileDescriptor(item, opts = {}) {
+  const {
+    className = '',
+    variant = 'default',
+    title,
+    getTitle = defaultChipLabel,
+    meta,
+    getMeta,
+    target,
+    getTarget,
+    actions,
+    getActions,
+    ariaLabel,
+    getAriaLabel
+  } = opts;
+
+  return {
+    variant,
+    className,
+    title: title != null ? title : getTitle(item),
+    meta: meta != null ? meta : typeof getMeta === 'function' ? getMeta(item) : '',
+    target: typeof getTarget === 'function' ? getTarget(item) : target,
+    actions: typeof getActions === 'function' ? getActions(item) : actions,
+    ariaLabel: ariaLabel != null ? ariaLabel : typeof getAriaLabel === 'function' ? getAriaLabel(item) : null
+  };
+}
+
+export function createChipTile(descriptor = {}) {
+  const {
+    variant = 'default',
+    className = '',
+    title = '',
+    meta = '',
+    target = null,
+    actions = null,
+    attrs,
+    render,
+    ariaLabel
+  } = descriptor;
+
+  const chip = createChip({
+    variant,
+    className: ['chip-tile', className].filter(Boolean).join(' '),
+    label: '',
+    title: descriptor.titleAttr || '',
+    target,
+    tagName: 'div',
+    attrs
+  });
+
+  chip.textContent = '';
+
+  const titleEl = document.createElement('div');
+  titleEl.className = 'chip-title';
+  titleEl.textContent = title || '';
+  chip.appendChild(titleEl);
+
+  let metaEl = null;
+  if (meta) {
+    metaEl = document.createElement('div');
+    metaEl.className = 'meta';
+    metaEl.textContent = meta;
+    chip.appendChild(metaEl);
+  }
+
+  let actionsEl = null;
+  const actionNodes = (() => {
+    const resolved = typeof actions === 'function' ? actions() : actions;
+    if (!resolved) return [];
+    if (typeof Node !== 'undefined' && resolved instanceof Node) return [resolved];
+    return normaliseArray(resolved).filter(Boolean);
+  })();
+
+  if (actionNodes.length) {
+    actionsEl = document.createElement('div');
+    actionsEl.className = 'inline-actions';
+    actionNodes.forEach(node => {
+      if (node.dataset && node.dataset.chipAction !== 'true') {
+        node.dataset.chipAction = 'true';
+      }
+      actionsEl.appendChild(node);
+    });
+    chip.appendChild(actionsEl);
+  }
+
+  if (typeof render === 'function') {
+    render({ chip, titleEl, metaEl, actionsEl });
+  }
+
+  if (!chip.getAttribute('aria-label') && (ariaLabel || title || meta)) {
+    chip.setAttribute('aria-label', ariaLabel || title || meta || '');
+  }
+
+  return chip;
+}
+
 /**
  * Creates a chip row.
  * - items: array (strings or objects)
@@ -195,6 +294,7 @@ export function assertNoBareChips(root = document) {
 }
 
 function activateChip(event, ctx) {
+  if (event.target?.closest?.(CHIP_ACTION_SELECTOR)) return;
   const chip = event.target?.closest?.('.chip');
   if (!chip) return;
   const target = readChipTargetFromEl(chip);
@@ -242,6 +342,7 @@ export function installGlobalChipHandler(ctx) {
   if (globalChipHandlerInstalled || typeof document === 'undefined') return () => {};
   const onClick = event => activateChip(event, ctx);
   const onKeyDown = event => {
+    if (event.target?.closest?.(CHIP_ACTION_SELECTOR)) return;
     if (!event.target?.closest?.('.chip')) return;
     if (event.key === 'Enter' || event.key === ' ') {
       activateChip(event, ctx);

@@ -4,6 +4,7 @@ import {
   guardMissingViewModels,
   guardNoMovement
 } from '../../ui/hints.js';
+import { createChipTile } from '../../ui/chips.js';
 import { collectDescendants, normaliseArray, parseCsvInput } from '../../utils/values.js';
 import { renderMarkdownPreview, openMarkdownModal } from '../../ui/markdown.js';
 import { deleteTextCollection, persistCanonItem } from './actions.js';
@@ -262,26 +263,13 @@ function renderShelfPane(ctx, vm, selection) {
   }
 
   vm.shelves.forEach(shelf => {
-    const card = document.createElement('div');
-    card.className = 'shelf-card';
-    if (shelf.id === selection.currentShelfId) card.classList.add('active');
-    const title = document.createElement('div');
-    title.textContent = shelf.name || 'Untitled shelf';
-    card.appendChild(title);
-    const meta = document.createElement('div');
-    meta.className = 'meta';
-    meta.textContent = `${shelf.bookCount} books · ${shelf.textCount} texts`;
-    card.appendChild(meta);
-    card.addEventListener('click', () => {
-      const shelfBookIds = Array.isArray(shelf.bookIds) ? shelf.bookIds : [];
-      applyState(ctx, prev => ({
-        ...prev,
-        currentShelfId: shelf.id,
-        currentBookId: shelfBookIds[0] || null,
-        currentTextId: shelfBookIds[0] || null
-      }));
-      renderLibraryView(ctx);
+    const card = createChipTile({
+      className: 'shelf-card',
+      target: { kind: 'item', collection: 'textCollections', id: shelf.id },
+      title: shelf.name || 'Untitled shelf',
+      meta: `${shelf.bookCount} books · ${shelf.textCount} texts`
     });
+    if (shelf.id === selection.currentShelfId) card.classList.add('active');
     shelfList.appendChild(card);
   });
 
@@ -292,16 +280,11 @@ function renderShelfPane(ctx, vm, selection) {
       vm.unshelvedBookIds.forEach(id => {
         const node = vm.nodesById[id];
         if (!node) return;
-        const card = document.createElement('div');
-        card.className = 'shelf-card';
-        card.textContent = node.title || 'Untitled book';
-        card.addEventListener('click', () => {
-          applyState(ctx, prev => ({
-            ...prev,
-            currentBookId: id,
-            currentTextId: id
-          }));
-          renderLibraryView(ctx);
+        const card = createChipTile({
+          className: 'shelf-card',
+          target: { kind: 'item', collection: 'texts', id },
+          title: node.title || 'Untitled book',
+          meta: node.label || ''
         });
         unshelvedList.appendChild(card);
       });
@@ -338,24 +321,9 @@ function renderBooksPane(ctx, vm, selection) {
     const book = vm.booksById[id];
     const node = vm.nodesById[id];
     if (!book || !node) return;
-    const card = document.createElement('div');
-    card.className = 'book-card';
-    if (id === selection.currentBookId) card.classList.add('active');
-    const title = document.createElement('div');
-    title.textContent = `${node.label ? node.label + ' ' : ''}${node.title || 'Untitled'}`;
-    card.appendChild(title);
-    const meta = document.createElement('div');
-    meta.className = 'meta';
-    const shelfCount = book.shelves.length;
-    meta.textContent = `${book.descendantCount} sections · ${book.contentCount} with content${
-      shelfCount > 1 ? ` · also on ${shelfCount - 1} shelf(s)` : ''
-    }`;
-    card.appendChild(meta);
-
-    const actions = document.createElement('div');
-    actions.className = 'inline-actions';
     const removeBtn = document.createElement('button');
     removeBtn.textContent = 'Remove from shelf';
+    removeBtn.dataset.chipAction = 'true';
     removeBtn.addEventListener('click', e => {
       e.stopPropagation();
       removeBookFromShelf(ctx, activeShelf.id, id);
@@ -363,22 +331,22 @@ function renderBooksPane(ctx, vm, selection) {
     const deleteBtn = document.createElement('button');
     deleteBtn.textContent = 'Delete book';
     deleteBtn.className = 'danger';
+    deleteBtn.dataset.chipAction = 'true';
     deleteBtn.addEventListener('click', e => {
       e.stopPropagation();
       deleteBookAndDescendants(ctx, id);
     });
-    actions.appendChild(removeBtn);
-    actions.appendChild(deleteBtn);
-    card.appendChild(actions);
 
-    card.addEventListener('click', () => {
-      applyState(ctx, prev => ({
-        ...prev,
-        currentBookId: id,
-        currentTextId: id
-      }));
-      renderLibraryView(ctx);
+    const card = createChipTile({
+      className: 'book-card',
+      target: { kind: 'item', collection: 'texts', id },
+      title: `${node.label ? node.label + ' ' : ''}${node.title || 'Untitled'}`,
+      meta: `${book.descendantCount} sections · ${book.contentCount} with content${
+        book.shelves.length > 1 ? ` · also on ${book.shelves.length - 1} shelf(s)` : ''
+      }`,
+      actions: [removeBtn, deleteBtn]
     });
+    if (id === selection.currentBookId) card.classList.add('active');
     bookList.appendChild(card);
   });
 }

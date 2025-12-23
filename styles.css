@@ -924,13 +924,40 @@ button.danger:hover {
   box-shadow: 0 1px 0 rgba(55, 48, 163, 0.08);
 }
 
-.chip:hover {
+.chip:not(.chip-tile):hover {
   background: #d1d5db;
 }
 
 .chip-entity:hover {
   background: #e0e7ff;
   border-color: #a5b4fc;
+}
+
+.chip.chip-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  text-align: left;
+  width: 100%;
+  gap: 0.25rem;
+  background: inherit;
+  border-radius: 10px;
+}
+
+.chip.chip-tile:hover {
+  transform: translateY(-1px);
+}
+
+.chip.chip-tile .chip-title {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.chip.chip-tile.shelf-card,
+.chip.chip-tile.book-card {
+  font-size: 1rem;
+  padding: 0.65rem 0.7rem 0.65rem 0.9rem;
 }
 
 .chip:focus-visible {
