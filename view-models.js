@@ -14,6 +14,18 @@ function normaliseArray(value) {
   return Array.isArray(value) ? value : [];
 }
 
+function labelForItem(item) {
+  if (!item || typeof item !== 'object') return '';
+  return (
+    item.name ||
+    item.title ||
+    item.shortText ||
+    item.text ||
+    item.id ||
+    ''
+  );
+}
+
 function buildLookup(items) {
   const map = new Map();
   normaliseArray(items).forEach(item => {
@@ -1212,6 +1224,95 @@ function buildClaimsExplorerViewModel(data, input) {
   return { claims: claimRows };
 }
 
+function matchesFacet(item, collectionName, facetName, facetValue) {
+  const value = String(facetValue);
+  const equalsValue = candidate => String(candidate) === value;
+
+  switch (facetName) {
+    case 'tag':
+      return normaliseArray(item.tags).some(equalsValue);
+    case 'sourceOfTruth':
+      return normaliseArray(item.sourcesOfTruth).some(equalsValue);
+    case 'domain':
+      return normaliseArray(item.domain).some(equalsValue);
+    case 'appliesTo':
+      return normaliseArray(item.appliesTo).some(equalsValue);
+    case 'category':
+      return item.category !== undefined && item.category !== null
+        ? equalsValue(item.category)
+        : false;
+    case 'kind':
+      return item.kind !== undefined && item.kind !== null
+        ? equalsValue(item.kind)
+        : false;
+    default:
+      return false;
+  }
+}
+
+function buildFacetExplorerViewModel(data, input) {
+  const { movementId, facet, value, scope } = input || {};
+  if (!facet || value === undefined || value === null) {
+    return { facet: facet || null, value: value ?? null, scope: scope || null, results: [] };
+  }
+
+  const facetCollections = {
+    tag: [
+      'entities',
+      'practices',
+      'events',
+      'rules',
+      'claims',
+      'textCollections',
+      'texts',
+      'media',
+      'notes'
+    ],
+    sourceOfTruth: ['claims', 'rules', 'practices', 'entities', 'media'],
+    domain: ['rules'],
+    appliesTo: ['rules'],
+    category: ['claims'],
+    kind: ['entities', 'practices', 'rules', 'media', 'events']
+  };
+
+  const baseCollections = facetCollections[facet] || Object.keys(data || {});
+  const collections =
+    scope && scope !== 'all'
+      ? baseCollections.filter(name => name === scope)
+      : baseCollections;
+
+  const results = [];
+  collections.forEach(collectionName => {
+    const items = normaliseArray(data[collectionName]);
+    items.forEach(item => {
+      if (!item || !item.id) return;
+      if (movementId && item.movementId && item.movementId !== movementId) return;
+      if (!matchesFacet(item, collectionName, facet, value)) return;
+      results.push({
+        collectionName,
+        id: item.id,
+        label: labelForItem(item) || item.id
+      });
+    });
+  });
+
+  results.sort((a, b) => {
+    if (a.collectionName === b.collectionName) {
+      return String(a.label || '').localeCompare(String(b.label || ''), undefined, {
+        sensitivity: 'base'
+      });
+    }
+    return String(a.collectionName || '').localeCompare(String(b.collectionName || ''));
+  });
+
+  return {
+    facet,
+    value,
+    scope: scope || null,
+    results
+  };
+}
+
 function buildRuleExplorerViewModel(data, input) {
   const { movementId, kindFilter, domainFilter } = input;
   let rules = filterByMovement(data.rules, movementId);
@@ -1605,6 +1706,7 @@ const ViewModels = {
   buildPracticeDetailViewModel,
   buildCalendarViewModel,
   buildClaimsExplorerViewModel,
+  buildFacetExplorerViewModel,
   buildRuleExplorerViewModel,
   buildRuleEditorViewModel,
   buildAuthorityViewModel,

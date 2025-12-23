@@ -5,8 +5,7 @@ import {
   renderHint,
   setDisabled
 } from '../ui/hints.js';
-import { renderTable, createTextList } from '../ui/table.js';
-import { createChipRow } from '../ui/chips.js';
+import { renderTable } from '../ui/table.js';
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
@@ -358,6 +357,7 @@ function renderRulesTab(ctx) {
   const tabState = tab?.__state || {};
   const { clearElement: clear, ensureSelectOptions, ensureMultiSelectOptions, ensureDatalistOptions } =
     ctx.dom;
+  const dom = ctx.dom;
   const state = getState(ctx);
   const snapshot = state.snapshot;
   const currentMovementId = state.currentMovementId;
@@ -455,24 +455,30 @@ function renderRulesTab(ctx) {
         header: 'Supporting texts',
         render: r =>
           r.supportingTexts?.length
-            ? createChipRow(r.supportingTexts, { getLabel: t => t.title || t.id })
+            ? dom.createChipRow(r.supportingTexts, {
+                getLabel: t => t.title || t.id,
+                getTarget: t => ({ kind: 'item', collection: 'texts', id: t.id })
+              })
             : ''
       },
       {
         header: 'Supporting claims',
         render: r =>
           r.supportingClaims?.length
-            ? createTextList(
-                r.supportingClaims,
-                c => (c.category ? `[${c.category}] ` : '') + c.text
-              )
+            ? dom.createChipRow(r.supportingClaims, {
+                getLabel: c => (c.category ? `[${c.category}] ` : '') + (c.text || c.id),
+                getTarget: c => ({ kind: 'item', collection: 'claims', id: c.id })
+              })
             : ''
       },
       {
         header: 'Related practices',
         render: r =>
           r.relatedPractices?.length
-            ? createChipRow(r.relatedPractices, { getLabel: p => p.name || p.id })
+            ? dom.createChipRow(r.relatedPractices, {
+                getLabel: p => p.name || p.id,
+                getTarget: p => ({ kind: 'item', collection: 'practices', id: p.id })
+              })
             : ''
       },
       { header: 'Sources of truth', render: r => (r.sourcesOfTruth || []).join(', ') }
@@ -481,6 +487,7 @@ function renderRulesTab(ctx) {
 }
 
 export function registerRulesTab(ctx) {
+  ctx?.dom?.installGlobalChipHandler?.(ctx);
   const tab = {
     __handlers: null,
     __state: { selectedRuleId: null },
@@ -533,6 +540,12 @@ export function registerRulesTab(ctx) {
       };
     },
     render: renderRulesTab,
+    open(context, ruleId) {
+      this.__state.selectedRuleId = ruleId || null;
+      context?.actions?.activateTab?.('rules');
+      this.render?.(context);
+      return { ruleId };
+    },
     unmount() {
       const h = this.__handlers;
       if (!h) return;

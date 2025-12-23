@@ -69,5 +69,43 @@ export function createActions(ctx) {
   actions.jumpToEntity = entityId => actions.jumpToReferencedItem?.('entities', entityId);
   actions.jumpToText = textId => actions.jumpToReferencedItem?.('texts', textId);
 
+  actions.openFacet = (facet, value, scope) => {
+    if (ctx?.tabs?.collections?.openFacet) {
+      return ctx.tabs.collections.openFacet(ctx, facet, value, scope);
+    }
+    ctx?.setStatus?.('Facet explorer unavailable');
+    return null;
+  };
+
+  actions.openChipTarget = target => {
+    if (!target || !target.kind) {
+      ctx?.setStatus?.('Chip missing target');
+      console.error('Chip activation missing target payload', target);
+      return null;
+    }
+
+    if (target.kind === 'facet') {
+      return actions.openFacet?.(target.facet, target.value, target.scope);
+    }
+
+    if (target.kind === 'item') {
+      const tabOpeners = {
+        claims: ctx?.tabs?.claims?.open,
+        rules: ctx?.tabs?.rules?.open,
+        entities: ctx?.tabs?.entities?.open,
+        practices: ctx?.tabs?.practices?.open
+      };
+      const open = tabOpeners[target.collection];
+      if (typeof open === 'function') {
+        const opened = open(ctx, target.id);
+        if (opened !== false) return opened;
+      }
+      return actions.jumpToReferencedItem?.(target.collection, target.id);
+    }
+
+    ctx?.setStatus?.('Unknown chip target');
+    return null;
+  };
+
   return actions;
 }

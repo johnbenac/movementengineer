@@ -7,7 +7,6 @@ import {
   setDisabled
 } from '../ui/hints.js';
 import { appendSection } from '../ui/sections.js';
-import { appendChipRow } from '../ui/chips.js';
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
@@ -46,6 +45,7 @@ let entityGraphViewInstance = null;
 
 function renderEntitiesTab(ctx) {
   const { clearElement: clear, ensureSelectOptions } = ctx.dom;
+  const dom = ctx.dom;
   const state = getState(ctx);
   const snapshot = state.snapshot;
   const currentMovementId = state.currentMovementId;
@@ -141,26 +141,29 @@ function renderEntitiesTab(ctx) {
 
   if (vm.practices && vm.practices.length) {
     appendSection(detailContainer, 'Involved in practices', section => {
-      appendChipRow(section, vm.practices, {
+      dom.appendChipRow(section, vm.practices, {
         getLabel: p => p.name || p.id,
         getTitle: p => p.kind || '',
-        onClick: p => actions.jumpToPractice?.(p.id)
+        getTarget: p => ({ kind: 'item', collection: 'practices', id: p.id })
       });
     });
   }
 
   if (vm.events && vm.events.length) {
     appendSection(detailContainer, 'Appears in events', section => {
-      appendChipRow(section, vm.events, { getLabel: ev => ev.name || ev.id });
+      dom.appendChipRow(section, vm.events, {
+        getLabel: ev => ev.name || ev.id,
+        getTarget: ev => ({ kind: 'item', collection: 'events', id: ev.id })
+      });
     });
   }
 
   if (vm.mentioningTexts && vm.mentioningTexts.length) {
     appendSection(detailContainer, 'Mentioned in texts', section => {
-      appendChipRow(section, vm.mentioningTexts, {
+      dom.appendChipRow(section, vm.mentioningTexts, {
         getLabel: t => t.title || t.id,
         getTitle: t => (Number.isFinite(t.depth) ? `Depth ${t.depth}` : ''),
-        onClick: t => actions.jumpToText?.(t.id)
+        getTarget: t => ({ kind: 'item', collection: 'texts', id: t.id })
       });
     });
   }
@@ -267,6 +270,7 @@ function renderEntitiesTab(ctx) {
 }
 
 export function registerEntitiesTab(ctx) {
+  ctx?.dom?.installGlobalChipHandler?.(ctx);
   const tab = {
     __handlers: null,
     mount(context) {
@@ -292,6 +296,13 @@ export function registerEntitiesTab(ctx) {
       this.__handlers = { select, depthSelect, relTypeInput, refreshBtn, rerender, unsubscribe };
     },
     render: renderEntitiesTab,
+    open(context, entityId) {
+      const select = document.getElementById('entity-select');
+      if (select && entityId) select.value = entityId;
+      context?.actions?.activateTab?.('entities');
+      this.render?.(context);
+      return { entityId };
+    },
     unmount() {
       const h = this.__handlers;
       if (!h) return;

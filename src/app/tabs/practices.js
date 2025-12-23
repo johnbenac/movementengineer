@@ -6,7 +6,6 @@ import {
   setDisabled
 } from '../ui/hints.js';
 import { appendSection } from '../ui/sections.js';
-import { appendChipRow } from '../ui/chips.js';
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
@@ -19,12 +18,9 @@ function getViewModels(ctx) {
   return ctx.services.ViewModels;
 }
 
-function getActions(ctx) {
-  return ctx.actions;
-}
-
 function renderPracticesTab(ctx) {
   const { clearElement: clear, ensureSelectOptions } = ctx.dom;
+  const dom = ctx.dom;
   const state = getState(ctx);
   const snapshot = state.snapshot;
   const currentMovementId = state.currentMovementId;
@@ -93,8 +89,6 @@ function renderPracticesTab(ctx) {
     return;
   }
 
-  const actions = getActions(ctx);
-
   const title = document.createElement('h3');
   title.textContent =
     vm.practice.name + (vm.practice.kind ? ` (${vm.practice.kind})` : '');
@@ -115,21 +109,21 @@ function renderPracticesTab(ctx) {
 
   if (vm.entities && vm.entities.length) {
     appendSection(detailContainer, 'Involves entities', section => {
-      appendChipRow(section, vm.entities, {
+      dom.appendChipRow(section, vm.entities, {
         variant: 'entity',
         getLabel: e => e.name || e.id,
         getTitle: e => e.kind || '',
-        onClick: e => actions.jumpToEntity?.(e.id)
+        getTarget: e => ({ kind: 'item', collection: 'entities', id: e.id })
       });
     });
   }
 
   if (vm.instructionsTexts && vm.instructionsTexts.length) {
     appendSection(detailContainer, 'Instruction texts', section => {
-      appendChipRow(section, vm.instructionsTexts, {
+      dom.appendChipRow(section, vm.instructionsTexts, {
         getLabel: t => t.title || t.id,
         getTitle: t => (Number.isFinite(t.depth) ? `Depth ${t.depth}` : ''),
-        onClick: t => actions.jumpToText?.(t.id)
+        getTarget: t => ({ kind: 'item', collection: 'texts', id: t.id })
       });
     });
   }
@@ -160,8 +154,9 @@ function renderPracticesTab(ctx) {
 
   if (vm.attachedEvents && vm.attachedEvents.length) {
     appendSection(detailContainer, 'Scheduled in events', section => {
-      appendChipRow(section, vm.attachedEvents, {
-        getLabel: ev => `${ev.name} (${ev.recurrence})`
+      dom.appendChipRow(section, vm.attachedEvents, {
+        getLabel: ev => `${ev.name} (${ev.recurrence})`,
+        getTarget: ev => ({ kind: 'item', collection: 'events', id: ev.id })
       });
     });
   }
@@ -185,6 +180,7 @@ function renderPracticesTab(ctx) {
 }
 
 export function registerPracticesTab(ctx) {
+  ctx?.dom?.installGlobalChipHandler?.(ctx);
   const tab = {
     __handlers: null,
     mount(context) {
@@ -204,6 +200,13 @@ export function registerPracticesTab(ctx) {
       this.__handlers = { select, rerender, unsubscribe };
     },
     render: renderPracticesTab,
+    open(context, practiceId) {
+      const select = document.getElementById('practice-select');
+      if (select && practiceId) select.value = practiceId;
+      context?.actions?.activateTab?.('practices');
+      this.render?.(context);
+      return { practiceId };
+    },
     unmount() {
       const h = this.__handlers;
       if (!h) return;
