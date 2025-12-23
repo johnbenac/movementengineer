@@ -155,6 +155,150 @@ function ensureFormMount() {
   return elements;
 }
 
+function createImportRepoModal({ initialUrl = '', onSubmit } = {}) {
+  const overlay = document.createElement('div');
+  overlay.className = 'markdown-modal-overlay';
+
+  const modal = document.createElement('div');
+  modal.className = 'markdown-modal github-import-modal';
+
+  const header = document.createElement('div');
+  header.className = 'markdown-modal-header';
+  const title = document.createElement('h2');
+  title.textContent = 'Load markdown repo';
+  header.appendChild(title);
+  modal.appendChild(header);
+
+  const body = document.createElement('div');
+  body.className = 'markdown-modal-body import-modal-body';
+  const intro = document.createElement('p');
+  intro.className = 'hint';
+  intro.textContent = 'Point to a GitHub repository that contains a Movement Engineer markdown dataset.';
+  body.appendChild(intro);
+
+  const form = document.createElement('form');
+  form.className = 'github-import-form';
+  form.noValidate = true;
+
+  const urlRow = document.createElement('div');
+  urlRow.className = 'form-row';
+  const urlLabel = document.createElement('label');
+  urlLabel.htmlFor = 'github-repo-url';
+  urlLabel.textContent = 'GitHub repo URL';
+  const urlInput = document.createElement('input');
+  urlInput.id = 'github-repo-url';
+  urlInput.type = 'url';
+  urlInput.required = true;
+  urlInput.placeholder = 'https://github.com/owner/repo';
+  urlInput.value = initialUrl || '';
+  urlRow.appendChild(urlLabel);
+  urlRow.appendChild(urlInput);
+  form.appendChild(urlRow);
+
+  const statusRow = document.createElement('div');
+  statusRow.className = 'import-status hidden';
+  const spinner = document.createElement('span');
+  spinner.className = 'loading-spinner hidden';
+  spinner.setAttribute('aria-hidden', 'true');
+  const statusText = document.createElement('span');
+  statusText.className = 'status-text';
+  statusRow.appendChild(spinner);
+  statusRow.appendChild(statusText);
+  form.appendChild(statusRow);
+
+  const errorEl = document.createElement('div');
+  errorEl.className = 'import-error hidden';
+  form.appendChild(errorEl);
+
+  body.appendChild(form);
+  modal.appendChild(body);
+
+  const footer = document.createElement('div');
+  footer.className = 'markdown-modal-footer';
+  const cancelBtn = document.createElement('button');
+  cancelBtn.type = 'button';
+  cancelBtn.textContent = 'Cancel';
+  const submitBtn = document.createElement('button');
+  submitBtn.type = 'submit';
+  submitBtn.textContent = 'Load repo';
+  footer.appendChild(cancelBtn);
+  footer.appendChild(submitBtn);
+  modal.appendChild(footer);
+
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+
+  const onKeyDown = evt => {
+    if (evt.key === 'Escape') {
+      close();
+    }
+  };
+  document.addEventListener('keydown', onKeyDown);
+
+  function close() {
+    document.removeEventListener('keydown', onKeyDown);
+    if (overlay.parentElement) {
+      overlay.parentElement.removeChild(overlay);
+    }
+  }
+
+  function showStatus(message, { loading = false } = {}) {
+    statusText.textContent = message || '';
+    spinner.classList.toggle('hidden', !loading);
+    statusRow.classList.toggle('hidden', !message && !loading);
+  }
+
+  function setLoading(isLoading, message = '') {
+    urlInput.disabled = isLoading;
+    submitBtn.disabled = isLoading;
+    cancelBtn.disabled = isLoading;
+    showStatus(message || statusText.textContent, { loading: isLoading });
+  }
+
+  function showError(message) {
+    if (!message) return;
+    errorEl.textContent = message;
+    errorEl.classList.remove('hidden');
+  }
+
+  function clearError() {
+    errorEl.textContent = '';
+    errorEl.classList.add('hidden');
+  }
+
+  const handleSubmit = evt => {
+    evt.preventDefault();
+    if (typeof onSubmit === 'function') {
+      onSubmit(urlInput.value.trim(), {
+        close,
+        showStatus,
+        showError,
+        clearError,
+        setLoading
+      });
+    }
+  };
+
+  urlInput.addEventListener('keydown', evt => {
+    if (evt.key === 'Enter' && !evt.shiftKey) {
+      evt.preventDefault();
+      form.requestSubmit?.();
+    }
+  });
+  form.addEventListener('submit', handleSubmit);
+  cancelBtn.addEventListener('click', () => close());
+
+  setTimeout(() => urlInput.focus(), 0);
+
+  return {
+    close,
+    showStatus,
+    showError,
+    clearError,
+    setLoading
+  };
+}
+
 function getMovementLabel(movement) {
   if (!movement) return '';
   return movement.name || movement.id || movement.movementId || '';
@@ -491,53 +635,76 @@ export function initMovements(ctx, options = {}) {
       return;
     }
 
-    const repoUrl = window.prompt?.(
-      'GitHub repo URL to load (e.g. https://github.com/owner/repo):',
-      getLastRepoUrl()
-    );
-    if (!repoUrl) return;
+    const modal = createImportRepoModal({
+      initialUrl: getLastRepoUrl(),
+      onSubmit: async (repoUrl, helpers) => {
+        helpers.clearError();
 
-    setLastRepoUrl(repoUrl);
+        if (!repoUrl) {
+          helpers.showError('Enter a GitHub repository URL to load.');
+          return;
+        }
 
-    try {
-      ctx.ui?.setStatus?.('Importing markdown repo…');
-      const importedSnapshot = await loader.importMovementRepo(repoUrl);
-      const movements = Array.isArray(importedSnapshot?.movements)
-        ? importedSnapshot.movements
-        : [];
-      const currentId = getCurrentMovementId();
-      const nextMovement =
-        movements.find(m => m?.id === currentId || m?.movementId === currentId) ||
-        movements[0] ||
-        null;
-      const nextMovementId = nextMovement?.id || nextMovement?.movementId || null;
+        if (loader?.parseGitHubRepoUrl) {
+          try {
+            loader.parseGitHubRepoUrl(repoUrl);
+          } catch (err) {
+            helpers.showError(err?.message || 'Invalid repository URL.');
+            return;
+          }
+        }
 
-      ctx.store.setState(prev => ({
-        ...prev,
-        snapshot: importedSnapshot,
-        currentMovementId: nextMovementId,
-        currentItemId: null,
-        currentTextId: null,
-        currentShelfId: null,
-        currentBookId: null,
-        navigation: { stack: [], index: -1 }
-      }));
+        setLastRepoUrl(repoUrl);
+        helpers.setLoading(true, 'Importing markdown repo…');
+        ctx.ui?.setStatus?.('Importing markdown repo…');
 
-      ctx.store?.markSaved?.({ movement: true, item: true });
+        try {
+          const importedSnapshot = await loader.importMovementRepo(repoUrl);
+          const movements = Array.isArray(importedSnapshot?.movements)
+            ? importedSnapshot.movements
+            : [];
+          const currentId = getCurrentMovementId();
+          const nextMovement =
+            movements.find(m => m?.id === currentId || m?.movementId === currentId) ||
+            movements[0] ||
+            null;
+          const nextMovementId = nextMovement?.id || nextMovement?.movementId || null;
 
-      if (ctx.actions?.selectMovement && nextMovementId) {
-        ctx.actions.selectMovement(nextMovementId);
-      } else {
-        ctx.shell?.renderActiveTab?.();
+          ctx.store.setState(prev => ({
+            ...prev,
+            snapshot: importedSnapshot,
+            currentMovementId: nextMovementId,
+            currentItemId: null,
+            currentTextId: null,
+            currentShelfId: null,
+            currentBookId: null,
+            navigation: { stack: [], index: -1 }
+          }));
+
+          ctx.store?.markSaved?.({ movement: true, item: true });
+
+          if (ctx.actions?.selectMovement && nextMovementId) {
+            ctx.actions.selectMovement(nextMovementId);
+          } else {
+            ctx.shell?.renderActiveTab?.();
+          }
+
+          helpers.setLoading(false);
+          helpers.showStatus('Repo imported ✓');
+          ctx.ui?.setStatus?.('Repo imported ✓');
+          modal.close();
+          scheduleRender();
+        } catch (err) {
+          console.error(err);
+          helpers.setLoading(false);
+          helpers.showError(err?.message || 'Import failed.');
+          ctx.showFatalImportError?.(err);
+          ctx.ui?.setStatus?.('Import failed');
+        }
       }
+    });
 
-      ctx.ui?.setStatus?.('Repo imported ✓');
-      scheduleRender();
-    } catch (err) {
-      console.error(err);
-      window.alert?.(err?.message || String(err));
-      ctx.ui?.setStatus?.('Import failed');
-    }
+    return modal;
   }
 
   function ensureExportableSnapshot(snapshot) {

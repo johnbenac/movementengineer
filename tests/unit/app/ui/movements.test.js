@@ -232,12 +232,15 @@ describe('movements UI module', () => {
 
   it('imports a markdown repo and replaces snapshot', async () => {
     const repoUrl = 'https://github.com/example/repo';
-    vi.spyOn(window, 'prompt').mockReturnValue(repoUrl);
     const importedSnapshot = {
       movements: [{ id: 'imp1', name: 'Imported movement' }],
       __repoBaselineByMovement: {}
     };
     const importMovementRepo = vi.fn().mockResolvedValue(importedSnapshot);
+    const parseGitHubRepoUrl = vi.fn().mockReturnValue({
+      owner: 'example',
+      repo: 'repo'
+    });
     const state = {
       snapshot: {
         movements: [{ id: 'm1', name: 'One', shortName: 'O', summary: '', tags: [] }]
@@ -254,7 +257,7 @@ describe('movements UI module', () => {
       actions: { selectMovement },
       services: {
         DomainService: createDomainServiceStub(),
-        MarkdownDatasetLoader: { importMovementRepo }
+        MarkdownDatasetLoader: { importMovementRepo, parseGitHubRepoUrl }
       },
       dom: createDomUtils(),
       ui: { setStatus: vi.fn() },
@@ -264,13 +267,59 @@ describe('movements UI module', () => {
     initMovements(ctx);
 
     document.getElementById('btn-import-from-github').click();
+    const urlInput = document.getElementById('github-repo-url');
+    urlInput.value = repoUrl;
+    urlInput.form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     await new Promise(resolve => setTimeout(resolve, 0));
 
     expect(importMovementRepo).toHaveBeenCalledWith(repoUrl);
     expect(store.getState().snapshot).toEqual(importedSnapshot);
     expect(selectMovement).toHaveBeenCalledWith('imp1');
+    expect(ctx.ui.setStatus).toHaveBeenCalledWith('Importing markdown repo…');
     expect(ctx.ui.setStatus).toHaveBeenCalledWith('Repo imported ✓');
     expect(store.markSaved).toHaveBeenCalledWith({ movement: true, item: true });
+    expect(document.querySelector('.markdown-modal-overlay')).toBeNull();
+  });
+
+  it('surfaces URL validation errors without calling import', async () => {
+    const repoUrl = 'notaurl';
+    const importMovementRepo = vi.fn();
+    const parseGitHubRepoUrl = vi.fn(() => {
+      throw new Error('Invalid URL. Please provide a valid GitHub repository URL.');
+    });
+    const state = {
+      snapshot: {
+        movements: [{ id: 'm1', name: 'One', shortName: 'O', summary: '', tags: [] }]
+      },
+      currentMovementId: 'm1',
+      flags: {}
+    };
+    const store = createStore(state);
+    const ctx = {
+      store,
+      getState: store.getState,
+      subscribe: store.subscribe,
+      actions: { selectMovement: vi.fn() },
+      services: {
+        DomainService: createDomainServiceStub(),
+        MarkdownDatasetLoader: { importMovementRepo, parseGitHubRepoUrl }
+      },
+      dom: createDomUtils(),
+      ui: { setStatus: vi.fn() },
+      shell: { renderActiveTab: vi.fn() }
+    };
+
+    initMovements(ctx);
+
+    document.getElementById('btn-import-from-github').click();
+    const urlInput = document.getElementById('github-repo-url');
+    urlInput.value = repoUrl;
+    urlInput.form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(importMovementRepo).not.toHaveBeenCalled();
+    const errorEl = document.querySelector('.import-error');
+    expect(errorEl?.textContent).toContain('Invalid URL');
   });
 
   it('exports a movement to a zip and triggers download', async () => {
