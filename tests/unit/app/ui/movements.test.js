@@ -273,6 +273,42 @@ describe('movements UI module', () => {
     expect(store.markSaved).toHaveBeenCalledWith({ movement: true, item: true });
   });
 
+  it('shows validation feedback for invalid repo URLs', () => {
+    vi.spyOn(window, 'prompt').mockReturnValue('not-a-valid-url');
+    const importMovementRepo = vi.fn();
+    const state = {
+      snapshot: {
+        movements: [{ id: 'm1', name: 'One', shortName: 'O', summary: '', tags: [] }]
+      },
+      currentMovementId: 'm1',
+      flags: {}
+    };
+    const store = createStore(state);
+    const ctx = {
+      store,
+      getState: store.getState,
+      subscribe: store.subscribe,
+      actions: { selectMovement: vi.fn() },
+      services: {
+        DomainService: createDomainServiceStub(),
+        MarkdownDatasetLoader: { importMovementRepo }
+      },
+      dom: createDomUtils(),
+      ui: { setStatus: vi.fn() },
+      shell: { renderActiveTab: vi.fn() }
+    };
+
+    initMovements(ctx);
+
+    document.getElementById('btn-import-from-github').click();
+
+    const importStatus = document.getElementById('import-status');
+    expect(importStatus.classList.contains('hidden')).toBe(false);
+    expect(importStatus.textContent).toMatch(/github\.com/i);
+    expect(importMovementRepo).not.toHaveBeenCalled();
+    expect(ctx.ui.setStatus).toHaveBeenCalledWith('Import cancelled');
+  });
+
   it('exports a movement to a zip and triggers download', async () => {
     const exportMovementToZip = vi.fn().mockResolvedValue({
       archive: new Blob(['zip']),
