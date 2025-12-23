@@ -22,6 +22,8 @@ export function registerCanonTab(ctx) {
     mount(context) {
       const listeners = [];
 
+      context?.dom?.installGlobalChipHandler?.(context);
+
       const rerender = () => tab.render(context);
       const handleStateChange = () => {
         const active = document.querySelector('.tab.active');
