@@ -8,8 +8,8 @@ As the project grew from a single schema file into multiple layers of logic, we 
 
 We adopt a **file and module separation convention** based on layers:
 
-1. **Schema definitions** live in their own modules: `data-model.js` defines the core movement schema; `comparison-model.js` (ADR‑018) defines comparison and template meta‑models.  These files contain no logic, only declarative schemas.
-2. **Domain logic** lives in service modules: `view-models.js` contains pure projection functions (ADR‑019); future files like `comparison-services.js` will implement comparison and template operations (ADR‑018).
+1. **Schema definitions** live in their own modules: `data-model.js` defines the core movement schema; `src/models/comparisonModel.json` (ADR‑018) defines comparison and template meta‑models.  These files contain no logic, only declarative schemas.
+2. **Domain logic** lives in service modules: `src/core/viewModels.js` contains pure projection functions (ADR‑019); future files like `src/core/comparison/comparisonServices.js` will implement comparison and template operations (ADR‑018).
 3. **Tests** live alongside code or in a `tests` directory, and are executed via Node (ADR‑020).
 4. **Documentation** lives in `docs/decisions` as Architectural Decision Records and in other markdown files for usage notes.
 
@@ -32,4 +32,4 @@ Explicitly separating files by purpose enforces the boundaries set by our other 
 
 ### Mitigation
 - Provide a high‑level README or code map explaining where different concerns live and how to add new modules.
-- Use simple naming conventions (e.g. `*-model.js` for schemas, `*-services.js` for logic, `view-models.js` for projections) to aid discovery.
+- Use simple naming conventions (e.g. camelCase module names like `viewModels.js` for projections and `comparisonServices.js` for logic, plus `*-model` files for schemas) to aid discovery.
