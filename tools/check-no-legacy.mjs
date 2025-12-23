@@ -24,8 +24,8 @@ const STRING_SCAN_EXTENSIONS = new Set(['.js', '.mjs', '.cjs', '.ts', '.tsx', '.
 const STRING_SCAN_IGNORES = [
   'tests/',
   'test-fixtures/',
-  'scripts/check-no-legacy.mjs',
-  'scripts/check-no-appjs.mjs'
+  'tools/check-no-legacy.mjs',
+  'tools/check-no-appjs.mjs'
 ];
 
 function run(command) {
