@@ -343,6 +343,9 @@ button.danger:hover {
 }
 
 .import-status {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
   margin: 0.35rem 0;
   color: #374151;
   display: flex;
@@ -372,6 +375,22 @@ button.danger:hover {
   border: 1px solid #fecaca;
   border-radius: 6px;
   padding: 0.6rem 0.75rem;
+}
+
+.loading-spinner {
+  width: 15px;
+  height: 15px;
+  border-radius: 999px;
+  border: 2px solid #cdd4df;
+  border-top-color: #374151;
+  animation: spin 0.8s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .fatal-error-banner {
@@ -908,7 +927,11 @@ button.danger:hover {
   text-decoration: none;
   appearance: none;
   line-height: 1.2;
-  transition: background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease,
+    transform 120ms ease;
 }
 
 .chip-tag {
@@ -924,7 +947,7 @@ button.danger:hover {
   box-shadow: 0 1px 0 rgba(55, 48, 163, 0.08);
 }
 
-.chip:hover {
+.chip:not(.chip-tile):hover {
   background: #d1d5db;
 }
 
@@ -937,6 +960,20 @@ button.danger:hover {
   outline: 2px solid #4f46e5;
   outline-offset: 2px;
   box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+}
+
+.chip.chip-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  text-align: left;
+  width: 100%;
+  gap: 0.25rem;
+  border-radius: 10px;
+}
+
+.chip.chip-tile:hover {
+  transform: translateY(-1px);
 }
 
 .filter-pill {
@@ -1669,6 +1706,11 @@ a.text-link:hover {
   flex-direction: column;
   gap: 0.5rem;
   margin-bottom: 0.75rem;
+}
+
+.chip.shelf-card,
+.chip.book-card {
+  font-size: 1rem;
 }
 
 .shelf-card,

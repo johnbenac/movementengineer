@@ -21,6 +21,12 @@ function isNode(value) {
   return value && typeof value === 'object' && typeof value.nodeType === 'number';
 }
 
+function shouldIgnoreChipEvent(event) {
+  const actionEl = event?.target?.closest?.('[data-chip-action="true"]');
+  if (actionEl && actionEl.closest?.('.chip')) return true;
+  return false;
+}
+
 function normaliseChipTarget(target) {
   if (!target || typeof target !== 'object') return null;
   const kind = target.kind || target.type || target.targetKind || null;
@@ -124,6 +130,59 @@ export function createChip(descriptor = {}) {
   return el;
 }
 
+function appendNodeOrText(parent, value, className) {
+  if (value === undefined || value === null) return null;
+  if (isNode(value)) {
+    if (className && value.classList) value.classList.add(className);
+    parent.appendChild(value);
+    return value;
+  }
+  const el = document.createElement('div');
+  if (className) el.className = className;
+  el.textContent = String(value);
+  parent.appendChild(el);
+  return el;
+}
+
+export function createChipTile(descriptor = {}) {
+  const {
+    className = '',
+    title = '',
+    meta = null,
+    actions = null,
+    children = null,
+    tagName = 'div'
+  } = descriptor;
+
+  const chip = createChip({
+    ...descriptor,
+    tagName: tagName || 'div',
+    className: ['chip-tile', className].filter(Boolean).join(' '),
+    label: descriptor.label ?? '',
+    title: descriptor.title ?? title
+  });
+
+  chip.textContent = '';
+
+  appendNodeOrText(chip, title, 'chip-title');
+  appendNodeOrText(chip, meta, 'meta');
+
+  const kids = Array.isArray(children) ? children : children ? [children] : [];
+  kids.forEach(child => {
+    if (child) chip.appendChild(child);
+  });
+
+  const actionEls = Array.isArray(actions) ? actions.filter(Boolean) : [];
+  if (actionEls.length) {
+    const actionsRow = document.createElement('div');
+    actionsRow.className = 'inline-actions';
+    actionEls.forEach(actionEl => actionsRow.appendChild(actionEl));
+    chip.appendChild(actionsRow);
+  }
+
+  return chip;
+}
+
 /**
  * Creates a chip row.
  * - items: array (strings or objects)
@@ -195,6 +254,7 @@ export function assertNoBareChips(root = document) {
 }
 
 function activateChip(event, ctx) {
+  if (shouldIgnoreChipEvent(event)) return;
   const chip = event.target?.closest?.('.chip');
   if (!chip) return;
   const target = readChipTargetFromEl(chip);

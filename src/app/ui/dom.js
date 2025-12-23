@@ -2,6 +2,7 @@ import {
   appendChipRow,
   assertNoBareChips,
   createChip,
+  createChipTile,
   createChipRow,
   installGlobalChipHandler,
   readChipTargetFromEl
@@ -82,6 +83,7 @@ export function createDomUtils() {
     ensureDatalistOptions,
     addListenerById,
     createChip,
+    createChipTile,
     createChipRow,
     appendChipRow,
     readChipTargetFromEl,

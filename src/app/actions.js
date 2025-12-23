@@ -1,5 +1,12 @@
 export function createActions(ctx) {
   const actions = {};
+  const { normaliseArray } = ctx?.utils?.values || {};
+  const normalizeIds = value => {
+    if (typeof normaliseArray === 'function') return normaliseArray(value);
+    if (Array.isArray(value)) return value.filter(Boolean);
+    if (value === undefined || value === null) return [];
+    return [value];
+  };
 
   actions.markDirty = scope => {
     if (ctx?.store?.markDirty) return ctx.store.markDirty(scope);
@@ -67,7 +74,59 @@ export function createActions(ctx) {
   actions.jumpToPractice = practiceId =>
     actions.jumpToReferencedItem?.('practices', practiceId);
   actions.jumpToEntity = entityId => actions.jumpToReferencedItem?.('entities', entityId);
-  actions.jumpToText = textId => actions.jumpToReferencedItem?.('texts', textId);
+  actions.jumpToTextCollection = shelfId => {
+    if (!shelfId) return null;
+    const state = ctx?.store?.getState?.() || {};
+    const snapshot = state.snapshot || {};
+    const shelf = (snapshot.textCollections || []).find(tc => tc.id === shelfId);
+    if (!shelf) return null;
+    const bookIds = normalizeIds(shelf.rootTextIds);
+    const nextBookId = bookIds[0] || null;
+    const nextTextId = nextBookId;
+    actions.activateTab?.('canon');
+    ctx?.store?.setState?.(prev => ({
+      ...(prev || {}),
+      currentShelfId: shelfId,
+      currentBookId: nextBookId,
+      currentTextId: nextTextId
+    }));
+    return { shelfId, bookId: nextBookId, textId: nextTextId };
+  };
+  actions.jumpToText = textId => {
+    if (!textId) return null;
+    const state = ctx?.store?.getState?.() || {};
+    const snapshot = state.snapshot || {};
+    const texts = Array.isArray(snapshot.texts) ? snapshot.texts : [];
+    const shelves = Array.isArray(snapshot.textCollections) ? snapshot.textCollections : [];
+    const nodeById = new Map(texts.map(t => [t?.id, t]));
+    let node = nodeById.get(textId);
+    if (!node) return null;
+    let root = node;
+    while (root?.parentId) {
+      const parent = nodeById.get(root.parentId);
+      if (!parent) break;
+      root = parent;
+    }
+    const rootBookId = root?.id || null;
+
+    const shelvesWithRoot = shelves.filter(shelf =>
+      normalizeIds(shelf.rootTextIds).includes(rootBookId)
+    );
+    const currentShelfId = state.currentShelfId;
+    let shelfId = currentShelfId;
+    if (!shelfId || !shelvesWithRoot.some(shelf => shelf.id === shelfId)) {
+      shelfId = shelvesWithRoot[0]?.id || currentShelfId || null;
+    }
+
+    actions.activateTab?.('canon');
+    ctx?.store?.setState?.(prev => ({
+      ...(prev || {}),
+      currentShelfId: shelfId,
+      currentBookId: rootBookId || null,
+      currentTextId: textId
+    }));
+    return { shelfId, bookId: rootBookId, textId };
+  };
 
   actions.openFacet = (facet, value, scope) => {
     if (ctx?.tabs?.collections?.openFacet) {
@@ -89,6 +148,14 @@ export function createActions(ctx) {
     }
 
     if (target.kind === 'item') {
+      if (target.collection === 'textCollections') {
+        const opened = actions.jumpToTextCollection?.(target.id);
+        if (opened !== null) return opened;
+      }
+      if (target.collection === 'texts') {
+        const opened = actions.jumpToText?.(target.id);
+        if (opened !== null) return opened;
+      }
       const tabOpeners = {
         claims: ctx?.tabs?.claims?.open,
         rules: ctx?.tabs?.rules?.open,
