@@ -15,7 +15,7 @@ module.exports = defineConfig({
     baseURL: process.env.PLAYWRIGHT_BASE_URL || DEFAULT_BASE_URL
   },
   webServer: {
-    command: 'node scripts/dev-server.js',
+    command: 'node tools/dev-server.js',
     url: process.env.PLAYWRIGHT_BASE_URL || DEFAULT_BASE_URL,
     reuseExistingServer: !process.env.CI
   }
