@@ -14,10 +14,12 @@ import { registerEntitiesTab } from './tabs/entities.js';
 import { registerCalendarTab } from './tabs/calendar.js';
 import { registerCollectionsTab } from './tabs/collections.js';
 import { registerAuthorityTab } from './tabs/authority.js';
+import { registerGenericCrudTab } from './tabs/genericCrud.js';
 import { initMovements } from './ui/movements.js';
 import { initShell } from './shell.js';
 import { createActions } from './actions.js';
 import { renderMarkdownPreview, openMarkdownModal } from './ui/markdown.js';
+import { featureFlags } from '../core/featureFlags.ts';
 import {
   collectDescendants,
   normaliseArray,
@@ -108,6 +110,8 @@ ctx.actions = {
   ...createActions(ctx)
 };
 
+movementEngineerGlobal.ctx = ctx;
+
 ctx.dom.installGlobalChipHandler?.(ctx);
 
 assertCtx(ctx);
@@ -164,6 +168,9 @@ function onReady(fn) {
 }
 
 onReady(() => {
+  if (featureFlags.genericCrudUi()) {
+    registerGenericCrudTab(ctx);
+  }
   if (!ctx.movementsUI) {
     ctx.movementsUI = initMovements(ctx);
   }
