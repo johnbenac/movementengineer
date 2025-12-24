@@ -1,4 +1,6 @@
 import { renderMarkdownPreview } from '../ui/markdown.js';
+import DATA_MODEL_V2_3 from '../../models/dataModel.v2_3.js';
+import { getCollectionDoc } from '../ui/schemaDoc.js';
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
@@ -178,7 +180,7 @@ function dedupeRefFields(fields) {
     });
 }
 
-function deriveSchemaGuide(ctx, collectionName, movementId) {
+function deriveSchemaGuideLegacy(ctx, collectionName, movementId) {
   const DomainService = getDomainService(ctx);
   const loader = getMarkdownLoader(ctx);
 
@@ -241,6 +243,39 @@ function deriveSchemaGuide(ctx, collectionName, movementId) {
   };
 }
 
+function deriveSchemaGuide(ctx, collectionName, movementId) {
+  const model = DATA_MODEL_V2_3;
+  const doc = getCollectionDoc(model, collectionName);
+  if (doc) return doc;
+
+  const legacy = deriveSchemaGuideLegacy(ctx, collectionName, movementId);
+  const fields = (legacy.expectedKeys || []).reduce((acc, key) => {
+    acc[key] = {
+      type: 'string',
+      required: legacy.requiredKeys.includes(key),
+      nullable: true,
+      description: ''
+    };
+    return acc;
+  }, {});
+
+  return {
+    collectionName,
+    typeName: collectionName,
+    description: '',
+    requiredKeys: legacy.requiredKeys || [],
+    bodyField: legacy.bodyField || null,
+    referenceFields: (legacy.referenceFields || []).map(ref => ({ ...ref, kind: 'many' })),
+    fieldsInOrder: legacy.expectedKeys || [],
+    enumsUsed: [],
+    fields,
+    serialization: {
+      frontMatterFields: legacy.expectedKeys || [],
+      bodyField: legacy.bodyField || null
+    }
+  };
+}
+
 function validateRecord(ctx, collectionName, record, snapshot, guide) {
   const issues = [];
 
@@ -259,8 +294,8 @@ function validateRecord(ctx, collectionName, record, snapshot, guide) {
     }
   });
 
-  (guide.referenceFields || []).forEach(({ field, target }) => {
-    if (!target) return;
+  (guide.referenceFields || []).forEach(({ field, target, kind }) => {
+    if (!target || kind === 'poly') return;
 
     const value = record[field];
     if (value === undefined || value === null || value === '') return;
@@ -282,14 +317,11 @@ function validateRecord(ctx, collectionName, record, snapshot, guide) {
   });
 
   if (collectionName === 'notes') {
-    const loader = getMarkdownLoader(ctx);
     const targetType = record.targetType;
     const targetId = record.targetId;
-    const typeMap = loader?.NOTE_TARGET_TYPES || null;
+    const typeMap = DATA_MODEL_V2_3?.notes?.targetType?.aliases || {};
 
-    const canonical = typeMap
-      ? typeMap[String(targetType).replace(/[\s_]/g, '').toLowerCase()]
-      : targetType;
+    const canonical = typeMap[String(targetType).replace(/[\s_]/g, '').toLowerCase()] || targetType;
 
     const targetCollection =
       canonical === 'Movement' ? 'movements'
@@ -301,6 +333,10 @@ function validateRecord(ctx, collectionName, record, snapshot, guide) {
       : canonical === 'Claim' ? 'claims'
       : canonical === 'MediaAsset' ? 'media'
       : null;
+
+    if (!targetCollection && targetType) {
+      issues.push({ level: 'warn', message: `Unknown note target type: ${targetType}` });
+    }
 
     if (targetCollection && targetId) {
       const coll = snapshot?.[targetCollection] || [];
@@ -424,14 +460,68 @@ function renderSchemaGuide(ctx, state, guide, issues) {
   const details = document.createElement('details');
   details.style.marginTop = '0.5rem';
   const summary = document.createElement('summary');
-  summary.textContent = 'Expected keys';
+  summary.textContent = 'Fields';
   details.appendChild(summary);
 
-  const keys = document.createElement('div');
-  keys.style.marginTop = '0.35rem';
-  keys.innerHTML = guide.expectedKeys.map(k => `<code>${k}</code>`).join(' ');
-  details.appendChild(keys);
+  const table = document.createElement('table');
+  table.style.marginTop = '0.35rem';
 
+  const thead = document.createElement('thead');
+  thead.innerHTML = `
+    <tr>
+      <th>Field</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Nullable</th>
+      <th>Stored In</th>
+      <th>Ref Target</th>
+      <th>Description</th>
+    </tr>
+  `;
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  const frontMatterFields = guide.serialization?.frontMatterFields || [];
+  const bodyField = guide.bodyField;
+  const activeCollectionName = guide.collectionName || state.currentCollectionName;
+
+  (guide.fieldsInOrder || []).forEach(fieldName => {
+    const def = guide.fields?.[fieldName] || {};
+    const inFrontMatter = frontMatterFields.includes(fieldName);
+    const inBody = bodyField === fieldName;
+    const storedIn = inFrontMatter && inBody
+      ? 'front matter + body'
+      : inBody
+        ? 'body'
+        : inFrontMatter
+          ? 'front matter'
+          : '—';
+
+    const refTarget =
+      activeCollectionName === 'notes' && fieldName === 'targetId'
+        ? '(polymorphic via targetType)'
+        : def.items?.ref || def.ref || '';
+
+    const typeParts = [];
+    if (def.type) typeParts.push(def.type);
+    if (def.format) typeParts.push(`format:${def.format}`);
+    if (def.enum) typeParts.push(`enum:${def.enum}`);
+
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td><code>${fieldName}</code>${inBody ? ' <span class="muted small-text">(body)</span>' : ''}</td>
+      <td>${typeParts.join(' · ') || '—'}</td>
+      <td>${def.required ? 'Yes' : 'No'}</td>
+      <td>${def.nullable ? 'Yes' : 'No'}</td>
+      <td>${storedIn}</td>
+      <td>${refTarget || '—'}</td>
+      <td>${def.description || '—'}</td>
+    `;
+    tbody.appendChild(row);
+  });
+
+  table.appendChild(tbody);
+  details.appendChild(table);
   el.appendChild(details);
 }
 
