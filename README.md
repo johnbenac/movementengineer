@@ -1,12 +1,52 @@
 # Movement Engineer
 
-Movement Engineer is a fully client-side tool for exploring, authoring, and comparing structured data about social movements. The app now ingests **Markdown repositories that follow the v2.3 data specification**, compiling them into the runtime dataset used by the UI and view models.
+Movement Engineer is a fully client-side tool for exploring, authoring, and comparing structured data about social movements. The app ingests **Markdown repositories that follow the v2.3 data specification**, compiling them into the runtime dataset used by the UI and view models.
 
 ## Features
-- Browse, edit, and compare movements, entities, practices, events, rules, claims, and sources.
+- Browse, edit, and compare movements, entities, practices, events, rules, claims, media, and notes.
 - Load markdown-based datasets from GitHub or the local filesystem (spec v2.3). No JSON import/export paths remain in the runtime pipeline.
 - Visualize relationships through the embedded entity graph view.
 - Lightweight domain and view-model layers decoupled from the UI for easy testing.
+
+---
+
+## Quickstart
+
+### Option A: run a local dev server (recommended)
+This avoids common `file://` fetch/CORS restrictions and matches how e2e tests run.
+
+```bash
+npm install
+node tools/dev-server.js
+# open http://127.0.0.1:4173
+```
+
+### Option B: open the static build directly
+You can open `index.html` directly in a browser, or serve the directory with any static file host.
+
+---
+
+## Loading / authoring movement data (Markdown v2.3)
+
+Movement datasets are authored as Markdown files under a `data/` directory that matches the v2.3 spec. Each collection lives in its own folder
+(for example `data/movements`, `data/entities`, `data/texts`, etc.), with YAML front matter describing fields and Markdown bodies providing long-form text.
+
+On first load, the app fetches the Upside dataset from this repository. You can point the UI at any other spec-compliant repo via **Load markdown repo**
+in the dashboard.
+
+Collections in the v2.3 model:
+
+- `movements` - top-level containers
+- `textCollections` / `texts` - hierarchical text nodes with parent references
+- `entities` - beings, places, objects, ideas (with `kind` field)
+- `practices` - rituals, disciplines, activities
+- `events` - happenings with recurrence patterns
+- `rules` - norms with graduated `RuleKind`
+- `claims` - boolean assertions with sources
+- `media` - linked artifacts (images, audio, video)
+- `notes` - annotations on any record type
+
+---
 
 ## Data model (reader's cut)
 If you want to understand what the app actually thinks a “movement” is, here’s the candid tour. The data model is opinionated on purpose: it keeps things small, explicit, and asymmetric so you can model real-world messiness without drowning in cross-links.
@@ -30,24 +70,70 @@ A few design convictions show up everywhere:
 
 If you’re building your own dataset, start with a Movement, stub a TextCollection and a few TextNodes, define your key Entities, and only then add Practices, Events, Rules, and Claims. The model rewards incremental layering: sketch the worldview first, then hang behavior, norms, and evidence on top.
 
-## Getting started
-This repository is static; you can open `index.html` directly in a browser or serve the directory with any static file host.
+---
 
-1. Clone the repository and change into it.
-2. Open `index.html` in your browser, or run a static server (for example, `npx http-server .`) and navigate to the hosted URL.
+## Development
 
-### Movement data
-Movement datasets are authored as Markdown files under a `data/` directory that matches the v2.3 spec. Each collection lives in its own folder (for example `data/movements`, `data/entities`, `data/texts`, etc.), with YAML front matter describing fields and Markdown bodies providing long-form text. The compiler normalizes everything into the `data` object expected by the existing view models, injecting `movementId` on movements and canonicalising note target types to preserve UI parity.
-
-On first load the app fetches the Upside dataset from this repository (`https://github.com/johnbenac/movementengineer`). You can point the UI at any other spec-compliant repo via **Load markdown repo** in the dashboard. JSON datasets and manifests are no longer supported in the runtime path.
-
-### Testing
-Install dependencies and run the bundled Node checks:
+### Build & test
 
 ```bash
-npm install
-npm test
+npm install              # also installs Playwright browsers
+npm test                 # node checks + unit + e2e
+npm run test:unit        # Vitest only
+npm run test:e2e         # Playwright e2e
+npm run test:smoke       # quick: unit + smoke e2e
+npm run build            # production build + legacy checks
 ```
+
+### Running individual tests
+
+```bash
+npx vitest run tests/unit/app/tabs/dashboard.test.js
+npx playwright test tests/e2e/smoke.spec.ts
+
+# e2e with specific entry point
+ME_E2E_ENTRY=/index.html npx playwright test tests/e2e/smoke.spec.ts
+```
+
+---
+
+## Architecture (high level)
+
+Core layers:
+
+1. **Data Layer** (`src/core/markdownDatasetLoader.js`): compiles Markdown + YAML frontmatter into normalized data, supports GitHub and local sources, validates references.
+2. **View Models** (`src/core/viewModels.js`): pure transforms from snapshot → UI-friendly shapes.
+3. **Store** (`src/app/store.js`): pub/sub state container (`snapshot`, `currentMovementId`, dirty flags, navigation).
+4. **Shell** (`src/app/shell.js`): tab navigation controller + lifecycle + hash routing.
+5. **Tabs** (`src/app/tabs/`): feature modules registered on `window.MovementEngineer.tabs`.
+
+Repo map (partial):
+
+```
+src/app/
+  main.js          # bootstrap + ctx creation + tab registration
+  store.js         # state management
+  shell.js         # tab navigation
+  actions.js       # navigation action creators
+  tabs/            # feature modules
+  ui/              # shared UI utilities
+  utils/           # value helpers
+
+src/core/markdownDatasetLoader.js  # data compilation (browser + Node)
+src/core/viewModels.js             # snapshot -> UI transformation
+src/models/comparisonModel.json    # movement comparison schema
+src/runtime/storageService.js      # LocalStorage persistence
+```
+
+For tab module conventions, see `src/app/tabs/README.md`.
+
+---
+
+## Contributing
+
+- If you change code, run the full test suite (`npm test`) before opening a PR.
+
+---
 
 ## PR batch diff automation
 You can generate comparison reports for ranges of pull requests directly from the GitHub web UI.
