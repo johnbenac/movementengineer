@@ -1,5 +1,4 @@
-import DATA_MODEL_V2_3 from '../../models/dataModel.v2_3.js';
-import { getCollectionDoc } from '../ui/schemaDoc.js';
+import { getCollectionDoc, getModelForSnapshot } from '../ui/schemaDoc.js';
 import { renderMarkdownPreview } from '../ui/markdown.js';
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
@@ -130,6 +129,11 @@ function getViewModels(ctx) {
   return ctx.services.ViewModels;
 }
 
+function getDataModel(ctx) {
+  const snapshot = getState(ctx)?.snapshot || null;
+  return getModelForSnapshot(snapshot);
+}
+
 function applyState(ctx, updater) {
   if (typeof ctx?.update === 'function') {
     return ctx.update(prev => {
@@ -244,7 +248,7 @@ function deriveLegacySchemaGuide(ctx, collectionName, movementId) {
 }
 
 function deriveSchemaGuide(ctx, collectionName, movementId) {
-  const guide = getCollectionDoc(DATA_MODEL_V2_3, collectionName);
+  const guide = getCollectionDoc(getDataModel(ctx), collectionName);
   if (guide) return guide;
   return deriveLegacySchemaGuide(ctx, collectionName, movementId);
 }
@@ -292,7 +296,8 @@ function validateRecord(ctx, collectionName, record, snapshot, guide) {
   if (collectionName === 'notes') {
     const targetType = record.targetType;
     const targetId = record.targetId;
-    const typeMap = DATA_MODEL_V2_3.notes?.targetType?.aliases || {};
+    const model = getModelForSnapshot(snapshot);
+    const typeMap = model?.notes?.targetType?.aliases || {};
     const canonical = typeMap[String(targetType).replace(/[\s_]/g, '').toLowerCase()] || targetType;
 
     const targetCollection =

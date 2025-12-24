@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "node tools/build-dist.mjs",
-    "test": "node tests/node/markdownDatasetLoader.test.js && node tests/node/viewModels.test.js && node tests/node/comparisonServices.test.js && npm run test:unit && npm run test:e2e",
+    "test": "node tests/node/markdownDatasetLoader.test.js && node tests/node/viewModels.test.js && node tests/node/comparisonServices.test.js && node tests/node/modelRegistry.test.js && npm run test:unit && npm run test:e2e",
     "postinstall": "playwright install --with-deps",
     "test:unit": "vitest run",
     "test:e2e": "playwright test",

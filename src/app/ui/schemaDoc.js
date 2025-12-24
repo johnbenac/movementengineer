@@ -1,4 +1,6 @@
-import DATA_MODEL_V2_3 from '../../models/dataModel.v2_3.js';
+const ModelRegistry =
+  typeof globalThis !== 'undefined' ? globalThis.ModelRegistry || null : null;
+const DEFAULT_SPEC_VERSION = ModelRegistry?.DEFAULT_SPEC_VERSION || '2.3';
 
 function dedupeReferenceFields(fields) {
   const seen = new Set();
@@ -11,8 +13,12 @@ function dedupeReferenceFields(fields) {
   });
 }
 
-export function getModelForSnapshot() {
-  return DATA_MODEL_V2_3;
+export function getModelForSnapshot(snapshot = null) {
+  const specVersion = snapshot?.specVersion || DEFAULT_SPEC_VERSION;
+  if (ModelRegistry?.getModel) {
+    return ModelRegistry.getModel(specVersion);
+  }
+  return globalThis?.DATA_MODEL_V2_3 || null;
 }
 
 export function getCollectionDoc(model, collectionName) {

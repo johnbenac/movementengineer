@@ -1,19 +1,24 @@
 (function () {
   'use strict';
 
-  const SPEC_VERSION = '2.3';
-  const COLLECTION_NAMES = [
-    'movements',
-    'textCollections',
-    'texts',
-    'entities',
-    'practices',
-    'events',
-    'rules',
-    'claims',
-    'media',
-    'notes'
-  ];
+  const ModelRegistry = (function loadRegistry() {
+    if (typeof require === 'function') {
+      return require('./modelRegistry');
+    }
+    if (typeof globalThis !== 'undefined') {
+      return globalThis.ModelRegistry || null;
+    }
+    return null;
+  })();
+
+  const DEFAULT_SPEC_VERSION = ModelRegistry?.DEFAULT_SPEC_VERSION || '2.3';
+
+  function listCollectionNames(specVersion) {
+    if (!ModelRegistry?.listCollections) {
+      throw new Error('ModelRegistry is required to list collections.');
+    }
+    return ModelRegistry.listCollections(specVersion || DEFAULT_SPEC_VERSION);
+  }
 
   const NOTE_TARGET_TYPES = {
     movement: 'Movement',
@@ -172,17 +177,18 @@
   function buildBaselineByMovement(data) {
     const baseline = {};
     const movements = normaliseArray(data.movements);
+    const collectionNames = listCollectionNames(data?.specVersion);
     movements.forEach(movement => {
       const id = movement.id;
       if (!id) return;
       baseline[id] = {};
-      COLLECTION_NAMES.forEach(collection => {
+      collectionNames.forEach(collection => {
         baseline[id][collection] = {};
       });
       baseline[id].movements[movement.id] = deepClone(movement);
     });
 
-    COLLECTION_NAMES.forEach(collection => {
+    collectionNames.forEach(collection => {
       if (collection === 'movements') return;
       normaliseArray(data[collection]).forEach(item => {
         if (!item || !item.movementId || !baseline[item.movementId]) return;
@@ -383,9 +389,9 @@
   // Compiler helpers
   // ------------------------
 
-  function ensureDataShape() {
+  function ensureDataShape(specVersion) {
     const data = {};
-    COLLECTION_NAMES.forEach(name => {
+    listCollectionNames(specVersion).forEach(name => {
       data[name] = [];
     });
     return data;
@@ -644,7 +650,7 @@
   }
 
   function validateDuplicates(data) {
-    COLLECTION_NAMES.forEach(collection => {
+    listCollectionNames(data?.specVersion).forEach(collection => {
       const seen = new Set();
       data[collection].forEach(item => {
         if (seen.has(item.id)) {
@@ -663,7 +669,7 @@
       }
     });
 
-    COLLECTION_NAMES.forEach(collection => {
+    listCollectionNames(data?.specVersion).forEach(collection => {
       if (collection === 'movements') return;
       data[collection].forEach(item => {
         if (!movementIds.has(item.movementId)) {
@@ -677,14 +683,15 @@
 
   function buildMovementIndexes(data) {
     const byMovement = {};
+    const collectionNames = listCollectionNames(data?.specVersion);
     data.movements.forEach(movement => {
       byMovement[movement.id] = {};
-      COLLECTION_NAMES.forEach(collection => {
+      collectionNames.forEach(collection => {
         byMovement[movement.id][collection] = [];
       });
     });
 
-    COLLECTION_NAMES.forEach(collection => {
+    collectionNames.forEach(collection => {
       if (collection === 'movements') return;
       data[collection].forEach(item => {
         if (!byMovement[item.movementId]) return;
@@ -851,7 +858,7 @@
   }
 
   function compileRecords(records) {
-    const data = ensureDataShape();
+    const data = ensureDataShape(DEFAULT_SPEC_VERSION);
     const fileIndex = new Map();
     const rawMarkdownByPath = {};
 
@@ -870,8 +877,8 @@
     validateMovementLinks(data);
     validateReferences(data, fileIndex);
 
-    const sorted = ensureDataShape();
-    COLLECTION_NAMES.forEach(name => {
+    const sorted = ensureDataShape(data.specVersion || DEFAULT_SPEC_VERSION);
+    listCollectionNames(data.specVersion).forEach(name => {
       sorted[name] = sortCollection(data[name]);
     });
 
@@ -889,13 +896,13 @@
 
     if (parts[0] === 'data' && parts.length >= 3) {
       const collectionDir = parts[1];
-      return COLLECTION_NAMES.includes(collectionDir) ? collectionDir : null;
+      return listCollectionNames().includes(collectionDir) ? collectionDir : null;
     }
 
     if (parts[0] === 'movements' && parts.length >= 3) {
       if (filename === 'movement.md') return 'movements';
       const collectionDir = parts[2];
-      return COLLECTION_NAMES.includes(collectionDir) ? collectionDir : null;
+      return listCollectionNames().includes(collectionDir) ? collectionDir : null;
     }
 
     return null;
@@ -966,7 +973,7 @@
     const compiled = compileRecords(records);
 
     return {
-      specVersion: SPEC_VERSION,
+      specVersion: DEFAULT_SPEC_VERSION,
       generatedAt: new Date().toISOString(),
       data: compiled.data,
       repoInfo,
@@ -1241,7 +1248,7 @@
     zip.file(movementFilePath, movementContent);
     fileCount += 1;
 
-    COLLECTION_NAMES.forEach(collection => {
+    listCollectionNames(snapshot?.specVersion).forEach(collection => {
       if (collection === 'movements') return;
       const items = normaliseArray(snapshot[collection]).filter(item => item.movementId === movementId);
       items.forEach(item => {

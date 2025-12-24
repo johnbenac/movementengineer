@@ -8,19 +8,18 @@
   'use strict';
 
   const STORAGE_KEY = 'movementDesigner.v3.snapshot';
+  const globalScope = typeof globalThis !== 'undefined' ? globalThis : window;
+  const ModelRegistry = globalScope.ModelRegistry || null;
+  const DEFAULT_SPEC_VERSION = ModelRegistry?.DEFAULT_SPEC_VERSION || '2.3';
 
-  const COLLECTION_NAMES = [
-    'movements',
-    'textCollections',
-    'texts',
-    'entities',
-    'practices',
-    'events',
-    'rules',
-    'claims',
-    'media',
-    'notes'
-  ];
+  function listCollectionNames(specVersion) {
+    if (!ModelRegistry?.listCollections) {
+      throw new Error('ModelRegistry is required to list collections.');
+    }
+    return ModelRegistry.listCollections(specVersion || DEFAULT_SPEC_VERSION);
+  }
+
+  const COLLECTION_NAMES = listCollectionNames(DEFAULT_SPEC_VERSION);
 
   const COLLECTIONS_WITH_MOVEMENT_ID = new Set([
     'textCollections',
@@ -35,8 +34,8 @@
   ]);
 
   function createEmptySnapshot() {
-    const base = { version: '2.3', specVersion: '2.3' };
-    COLLECTION_NAMES.forEach(name => {
+    const base = { version: DEFAULT_SPEC_VERSION, specVersion: DEFAULT_SPEC_VERSION };
+    listCollectionNames(DEFAULT_SPEC_VERSION).forEach(name => {
       base[name] = [];
     });
     base.__repoInfo = null;
@@ -58,14 +57,14 @@
   function ensureAllCollections(data) {
     const obj = data || {};
     delete obj.relations;
-    if (!obj.version) obj.version = '2.3';
-    if (!obj.specVersion) obj.specVersion = '2.3';
+    if (!obj.version) obj.version = DEFAULT_SPEC_VERSION;
+    if (!obj.specVersion) obj.specVersion = DEFAULT_SPEC_VERSION;
     if (!('__repoInfo' in obj)) obj.__repoInfo = null;
     if (!('__repoSource' in obj)) obj.__repoSource = null;
     if (!obj.__repoFileIndex) obj.__repoFileIndex = {};
     if (!obj.__repoRawMarkdownByPath) obj.__repoRawMarkdownByPath = {};
     if (!obj.__repoBaselineByMovement) obj.__repoBaselineByMovement = {};
-    COLLECTION_NAMES.forEach(name => {
+    listCollectionNames(obj.specVersion).forEach(name => {
       if (!Array.isArray(obj[name])) obj[name] = [];
     });
     obj.movements = obj.movements.map(movement => {
