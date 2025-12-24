@@ -50,7 +50,13 @@ function shouldScanForStrings(file) {
 }
 
 async function fileContainsStrings(file, fullPath) {
-  const contents = await fs.readFile(fullPath, 'utf8');
+  let contents = '';
+  try {
+    contents = await fs.readFile(fullPath, 'utf8');
+  } catch (err) {
+    if (err.code === 'ENOENT') return [];
+    throw err;
+  }
   const hits = [];
   const lines = contents.split(/\r?\n/);
   for (let i = 0; i < lines.length; i += 1) {

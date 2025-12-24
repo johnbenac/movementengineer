@@ -256,7 +256,7 @@ const labelForNodeType = type => GRAPH_NODE_TYPE_LABELS[type] || type || 'Unknow
 
 function colorForNodeType(ctx, type) {
   const services = getServices(ctx);
-  const colors = services.EntityGraphColors;
+  const colors = services.MovementEngineerColors || services.EntityGraphColors;
   if (colors?.colorForNodeType) {
     return colors.colorForNodeType(type);
   }
