@@ -40,12 +40,33 @@
     return globalScope?.ModelRegistry || null;
   }
 
+  function getValidationConfig() {
+    if (isNode()) {
+      return require('./validation/validationConfig');
+    }
+    return globalScope?.ValidationConfig || null;
+  }
+
+  function getShadowValidation() {
+    if (isNode()) {
+      return require('./validation/shadowValidation');
+    }
+    return globalScope?.ShadowValidation || null;
+  }
+
+  function getLegacyAdapter() {
+    if (isNode()) {
+      return require('./validation/legacyAdapter');
+    }
+    return globalScope?.LegacyValidationAdapter || null;
+  }
+
   const modelRegistry = getModelRegistry();
   if (!modelRegistry?.listCollections) {
     throw new Error('ModelRegistry is not available. Ensure it is loaded before markdownDatasetLoader.');
   }
 
-  const { DEFAULT_SPEC_VERSION, listCollections } = modelRegistry;
+  const { DEFAULT_SPEC_VERSION, listCollections, getModel } = modelRegistry;
 
   function resolveSpecVersion(value) {
     return value || DEFAULT_SPEC_VERSION;
@@ -977,6 +998,35 @@
     const specVersion = DEFAULT_SPEC_VERSION;
     const records = await readMarkdownRecords(reader, listing, specVersion);
     const compiled = compileRecords(records, specVersion);
+    const validationConfig = getValidationConfig();
+    const shadowValidation = getShadowValidation();
+    const legacyAdapter = getLegacyAdapter();
+    const validationSettings = validationConfig?.getValidationSettings
+      ? validationConfig.getValidationSettings()
+      : { shadowEnabled: false, maxIssues: 500, logExamples: 20 };
+
+    const legacyIssues = legacyAdapter?.normalizeLegacyIssues
+      ? legacyAdapter.normalizeLegacyIssues([])
+      : [];
+
+    if (validationSettings.shadowEnabled && shadowValidation?.runShadowValidation) {
+      const model = getModel(specVersion);
+      const { modelReport, diff } = shadowValidation.runShadowValidation({
+        snapshot: compiled.data,
+        model,
+        legacyIssues,
+        options: {
+          maxIssues: validationSettings.maxIssues,
+          logExamples: validationSettings.logExamples,
+          mode: 'shadow'
+        }
+      });
+
+      if (modelReport && diff) {
+        compiled.data.__debug = compiled.data.__debug || {};
+        compiled.data.__debug.modelValidationShadow = { modelReport, diff };
+      }
+    }
 
     return {
       specVersion,

@@ -94,11 +94,22 @@
     return model.collections[collectionName] || null;
   }
 
+  function resolveCollectionName(value, specVersion = DEFAULT_SPEC_VERSION) {
+    if (!value) return null;
+    const model = getModel(specVersion);
+    if (model.collections[value]) return value;
+    const match = Object.values(model.collections).find(
+      collection => collection.collectionName === value || collection.typeName === value
+    );
+    return match ? match.collectionName : null;
+  }
+
   const ModelRegistry = {
     DEFAULT_SPEC_VERSION,
     getModel,
     listCollections,
-    getCollection
+    getCollection,
+    resolveCollectionName
   };
 
   if (typeof module !== 'undefined' && module.exports) {
