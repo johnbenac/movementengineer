@@ -31,6 +31,44 @@ function listZipFiles(zip) {
   return Object.keys(zip.files).filter(name => !zip.files[name].dir);
 }
 
+async function listDirectoryFiles(root, baseRoot = root) {
+  const entries = await fs.readdir(root, { withFileTypes: true });
+  const files = [];
+
+  for (const entry of entries) {
+    const fullPath = path.join(root, entry.name);
+    if (entry.isDirectory()) {
+      const nested = await listDirectoryFiles(fullPath, baseRoot);
+      files.push(...nested);
+    } else {
+      const relative = path.relative(baseRoot, fullPath).split(path.sep).join('/');
+      files.push(relative);
+    }
+  }
+
+  return files;
+}
+
+async function assertZipMatchesDirectory(zip, basePath) {
+  const zipFiles = listZipFiles(zip).sort();
+  const repoFiles = (await listDirectoryFiles(basePath)).sort();
+
+  assert(
+    zipFiles.length === repoFiles.length,
+    `Zip file count ${zipFiles.length} should match repo file count ${repoFiles.length}`
+  );
+  assert(
+    zipFiles.every((file, idx) => file === repoFiles[idx]),
+    'Zip file paths should match repository file paths'
+  );
+
+  for (const file of repoFiles) {
+    const archived = await zip.file(file).async('nodebuffer');
+    const original = await fs.readFile(path.join(basePath, file));
+    assert(archived.equals(original), `Exported file ${file} should match original bytes`);
+  }
+}
+
 async function testLoadAndRepoExport() {
   const repoPath = path.join(__dirname, '..', '..', 'test-fixtures/markdown-repo');
   const result = await loadMovementDataset({
@@ -84,6 +122,16 @@ async function testLoadAndRepoExport() {
     archivedMovement === originalMovement,
     'Exported zip should preserve original file contents'
   );
+}
+
+async function testExportRepoMatchesFixture() {
+  const repoPath = path.join(__dirname, '..', '..', 'test-fixtures/markdown-repo');
+  const zipResult = await exportRepoToZip({
+    source: 'local',
+    repoPath
+  });
+  const zip = await JSZip.loadAsync(zipResult.archive);
+  await assertZipMatchesDirectory(zip, repoPath);
 }
 
 async function testMovementScopedExport() {
@@ -150,6 +198,7 @@ async function testMovementScopedExport() {
 async function runTests() {
   console.log('Running markdown dataset loader tests...');
   await testLoadAndRepoExport();
+  await testExportRepoMatchesFixture();
   await testMovementScopedExport();
   console.log('All markdown dataset loader tests passed ✅');
 }

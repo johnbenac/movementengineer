@@ -63,6 +63,11 @@
     if (normalized.collectionOrder) {
       Object.freeze(normalized.collectionOrder);
     }
+
+    Object.defineProperty(normalized, 'getExportSchema', {
+      value: collectionName => buildExportSchema(normalized, collectionName)
+    });
+
     return Object.freeze(normalized);
   }
 
@@ -102,6 +107,43 @@
       collection => collection.collectionName === value || collection.typeName === value
     );
     return match ? match.collectionName : null;
+  }
+
+  // Export schema must remain behavior-identical to the legacy exporter schema.
+  // Any changes here should be validated against golden export output tests.
+  function buildExportSchema(model, collectionName) {
+    const collection = model.collections[collectionName];
+    if (!collection) return null;
+
+    const serialization = collection.serialization || {};
+
+    let bodyField = serialization.bodyField ?? null;
+    if (!bodyField) {
+      const bodyFields = Object.entries(collection.fields || {})
+        .filter(([, field]) => field && field.body === true)
+        .map(([name]) => name);
+      if (bodyFields.length > 1) {
+        throw new Error(`Multiple body fields configured for ${collectionName}`);
+      }
+      bodyField = bodyFields[0] || null;
+    }
+
+    const fieldDefs = collection.fields || {};
+    const frontMatterFields = Array.isArray(serialization.frontMatterFields)
+      ? serialization.frontMatterFields.slice()
+      : Object.keys(fieldDefs).filter(fieldName => {
+        if (fieldName === bodyField) return false;
+        const field = fieldDefs[fieldName];
+        if (field && field.export === false) return false;
+        if (field && field.serialization?.omit) return false;
+        return true;
+      });
+
+    return {
+      collectionName: collection.collectionName || collectionName,
+      frontMatterFields,
+      bodyField
+    };
   }
 
   const ModelRegistry = {
