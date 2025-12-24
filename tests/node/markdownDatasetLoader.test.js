@@ -31,6 +31,44 @@ function listZipFiles(zip) {
   return Object.keys(zip.files).filter(name => !zip.files[name].dir);
 }
 
+async function listRepoFiles(repoPath) {
+  const entries = [];
+  async function walk(dir) {
+    const items = await fs.readdir(dir, { withFileTypes: true });
+    for (const item of items) {
+      const fullPath = path.join(dir, item.name);
+      if (item.isDirectory()) {
+        await walk(fullPath);
+      } else if (item.isFile()) {
+        entries.push(path.relative(repoPath, fullPath));
+      }
+    }
+  }
+  await walk(repoPath);
+  return entries;
+}
+
+async function assertZipMatchesRepo(zip, repoPath) {
+  const zipFiles = listZipFiles(zip).sort();
+  const repoFiles = (await listRepoFiles(repoPath))
+    .map(file => file.split(path.sep).join('/'))
+    .sort();
+
+  assert(
+    JSON.stringify(zipFiles) === JSON.stringify(repoFiles),
+    'Zip archive file list should match repository files'
+  );
+
+  for (const file of repoFiles) {
+    const archived = await zip.file(file).async('nodebuffer');
+    const original = await fs.readFile(path.join(repoPath, file));
+    assert(
+      Buffer.compare(archived, original) === 0,
+      `Exported file ${file} should match original bytes`
+    );
+  }
+}
+
 async function testLoadAndRepoExport() {
   const repoPath = path.join(__dirname, '..', '..', 'test-fixtures/markdown-repo');
   const result = await loadMovementDataset({
@@ -84,6 +122,8 @@ async function testLoadAndRepoExport() {
     archivedMovement === originalMovement,
     'Exported zip should preserve original file contents'
   );
+
+  await assertZipMatchesRepo(zip, repoPath);
 }
 
 async function testMovementScopedExport() {

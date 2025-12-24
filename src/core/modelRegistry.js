@@ -55,6 +55,50 @@
       collections: normalizedCollections
     };
 
+    /**
+     * Return exporter schema derived from the model.
+     * This must remain behavior-identical to the legacy exporter schema.
+     * Any changes require updating export golden tests.
+     */
+    normalized.getExportSchema = collectionName => {
+      const collection = normalized.collections[collectionName];
+      if (!collection) return null;
+
+      const serialization = collection.serialization || {};
+      let bodyField = serialization.bodyField || collection.bodyField || null;
+
+      if (!bodyField) {
+        const bodyCandidates = Object.entries(collection.fields || {})
+          .filter(([, field]) => field && (field.body === true || field.serialization?.body === true))
+          .map(([name]) => name);
+        if (bodyCandidates.length > 1) {
+          throw new Error(`Multiple body fields defined for ${collectionName}: ${bodyCandidates.join(', ')}`);
+        }
+        bodyField = bodyCandidates[0] || null;
+      }
+
+      let fields;
+      if (Array.isArray(serialization.frontMatterFields)) {
+        fields = serialization.frontMatterFields.slice();
+      } else {
+        fields = Object.entries(collection.fields || {})
+          .filter(([, field]) => {
+            if (!field) return false;
+            if (field.export === false) return false;
+            if (field.serialization === 'omit') return false;
+            if (field.serialization?.export === false) return false;
+            return true;
+          })
+          .map(([name]) => name)
+          .filter(name => name !== bodyField);
+      }
+
+      return {
+        fields,
+        bodyField
+      };
+    };
+
     if (collectionOrder) {
       normalized.collectionOrder = collectionOrder;
     }

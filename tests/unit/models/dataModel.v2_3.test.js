@@ -24,7 +24,7 @@ describe('DATA_MODEL_V2_3', () => {
     ]);
   });
 
-  it('matches selectCollectionSchema serialization mappings', () => {
+  it('matches exporter serialization mappings', () => {
     const expected = {
       movements: {
         frontMatterFields: ['id', 'movementId', 'name', 'shortName', 'tags', 'status', 'order'],
