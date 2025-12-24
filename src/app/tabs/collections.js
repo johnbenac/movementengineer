@@ -1,4 +1,6 @@
 import { renderMarkdownPreview } from '../ui/markdown.js';
+import DATA_MODEL_V2_3 from '../../models/dataModel.v2_3.js';
+import { getCollectionDoc } from '../ui/schemaDoc.js';
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
@@ -178,7 +180,7 @@ function dedupeRefFields(fields) {
     });
 }
 
-function deriveSchemaGuide(ctx, collectionName, movementId) {
+function deriveSchemaGuideFromRuntime(ctx, collectionName, movementId) {
   const DomainService = getDomainService(ctx);
   const loader = getMarkdownLoader(ctx);
 
@@ -241,6 +243,18 @@ function deriveSchemaGuide(ctx, collectionName, movementId) {
   };
 }
 
+function deriveSchemaGuide(ctx, collectionName, movementId) {
+  const modelGuide = getCollectionDoc(DATA_MODEL_V2_3, collectionName);
+  if (!modelGuide) {
+    return deriveSchemaGuideFromRuntime(ctx, collectionName, movementId);
+  }
+
+  return {
+    ...modelGuide,
+    expectedKeys: modelGuide.fieldsInOrder || []
+  };
+}
+
 function validateRecord(ctx, collectionName, record, snapshot, guide) {
   const issues = [];
 
@@ -259,8 +273,8 @@ function validateRecord(ctx, collectionName, record, snapshot, guide) {
     }
   });
 
-  (guide.referenceFields || []).forEach(({ field, target }) => {
-    if (!target) return;
+  (guide.referenceFields || []).forEach(({ field, target, kind }) => {
+    if (!target || kind === 'poly') return;
 
     const value = record[field];
     if (value === undefined || value === null || value === '') return;
@@ -282,14 +296,11 @@ function validateRecord(ctx, collectionName, record, snapshot, guide) {
   });
 
   if (collectionName === 'notes') {
-    const loader = getMarkdownLoader(ctx);
     const targetType = record.targetType;
     const targetId = record.targetId;
-    const typeMap = loader?.NOTE_TARGET_TYPES || null;
-
-    const canonical = typeMap
-      ? typeMap[String(targetType).replace(/[\s_]/g, '').toLowerCase()]
-      : targetType;
+    const typeMap = guide?.noteTargetType?.aliases || null;
+    const normalized = String(targetType || '').replace(/[\s_]/g, '').toLowerCase();
+    const canonical = typeMap ? typeMap[normalized] || targetType : targetType;
 
     const targetCollection =
       canonical === 'Movement' ? 'movements'
@@ -402,6 +413,12 @@ function renderSchemaGuide(ctx, state, guide, issues) {
   required.className = 'muted small-text';
   required.innerHTML = `<strong>Required:</strong> ${guide.requiredKeys.map(k => `<code>${k}</code>`).join(' ') || '—'}`;
   el.appendChild(required);
+  if (guide.requiredNotes) {
+    const requiredNote = document.createElement('div');
+    requiredNote.className = 'muted small-text';
+    requiredNote.textContent = guide.requiredNotes;
+    el.appendChild(requiredNote);
+  }
 
   if (guide.bodyField) {
     const body = document.createElement('div');
@@ -419,6 +436,101 @@ function renderSchemaGuide(ctx, state, guide, issues) {
         .map(r => `<code>${r.field}</code> → <code>${r.target}</code>`)
         .join(' · ');
     el.appendChild(refs);
+  }
+
+  if (guide.fieldsInOrder?.length) {
+    const details = document.createElement('details');
+    details.style.marginTop = '0.5rem';
+    const summary = document.createElement('summary');
+    summary.textContent = 'Fields';
+    details.appendChild(summary);
+
+    const table = document.createElement('table');
+    table.className = 'schema-table';
+    table.style.marginTop = '0.35rem';
+
+    const headerRow = document.createElement('tr');
+    ['Field', 'Type', 'Required', 'Nullable', 'Stored In', 'Ref Target', 'Description'].forEach(label => {
+      const th = document.createElement('th');
+      th.textContent = label;
+      headerRow.appendChild(th);
+    });
+    const thead = document.createElement('thead');
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+
+    const frontMatterFields = guide.serialization?.frontMatterFields || [];
+    const bodyField = guide.bodyField;
+
+    const formatTypeLabel = field => {
+      if (!field) return '—';
+      if (field.type === 'array') {
+        const item = field.items || {};
+        const itemParts = [item.type || 'unknown'];
+        if (item.format === 'id') itemParts.push('format:id');
+        if (item.enum) itemParts.push(`enum:${item.enum}`);
+        return `array<${itemParts.join(' ')}>`;
+      }
+      const parts = [field.type || 'unknown'];
+      if (field.format === 'id') parts.push('format:id');
+      if (field.enum) parts.push(`enum:${field.enum}`);
+      return parts.join(' ');
+    };
+
+    guide.fieldsInOrder.forEach(fieldName => {
+      const field = guide.fields?.[fieldName] || {};
+      const row = document.createElement('tr');
+
+      const fieldCell = document.createElement('td');
+      const fieldLabel = fieldName === bodyField ? `${fieldName} (body)` : fieldName;
+      fieldCell.innerHTML = `<code>${fieldLabel}</code>`;
+      row.appendChild(fieldCell);
+
+      const typeCell = document.createElement('td');
+      typeCell.textContent = formatTypeLabel(field);
+      row.appendChild(typeCell);
+
+      const requiredCell = document.createElement('td');
+      requiredCell.textContent = field.required ? 'Yes' : 'No';
+      row.appendChild(requiredCell);
+
+      const nullableCell = document.createElement('td');
+      nullableCell.textContent = field.nullable ? 'Yes' : 'No';
+      row.appendChild(nullableCell);
+
+      const storedInCell = document.createElement('td');
+      const inFrontMatter = frontMatterFields.includes(fieldName);
+      const inBody = bodyField === fieldName;
+      storedInCell.textContent =
+        inFrontMatter && inBody
+          ? 'front matter + body'
+          : inBody
+            ? 'body'
+            : inFrontMatter
+              ? 'front matter'
+              : '—';
+      row.appendChild(storedInCell);
+
+      const refCell = document.createElement('td');
+      if (state.currentCollectionName === 'notes' && fieldName === 'targetId') {
+        refCell.textContent = '(polymorphic via targetType)';
+      } else {
+        refCell.textContent = field.ref || field.items?.ref || '—';
+      }
+      row.appendChild(refCell);
+
+      const descCell = document.createElement('td');
+      descCell.textContent = field.description || '—';
+      row.appendChild(descCell);
+
+      tbody.appendChild(row);
+    });
+
+    table.appendChild(tbody);
+    details.appendChild(table);
+    el.appendChild(details);
   }
 
   const details = document.createElement('details');
