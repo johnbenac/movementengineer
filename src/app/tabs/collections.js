@@ -236,7 +236,7 @@ function deriveLegacySchemaGuide(ctx, collectionName, movementId) {
     refFields.push({ field: 'parentId', target: 'texts' });
   }
 
-  const schema = loader?.selectCollectionSchema?.(collectionName) || null;
+  const schema = getModel(ctx)?.getExportSchema?.(collectionName) || null;
   const bodyField = schema?.bodyField || null;
 
   return {

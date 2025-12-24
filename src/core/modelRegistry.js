@@ -55,6 +55,49 @@
       collections: normalizedCollections
     };
 
+    /**
+     * Export schemas must remain behavior-identical to the legacy exporter schema.
+     * Changing this output requires updating golden export tests to prevent output drift.
+     */
+    normalized.getExportSchema = collectionName => {
+      const collectionDef = normalizedCollections[collectionName];
+      if (!collectionDef) return null;
+
+      const serialization = collectionDef.serialization || {};
+      let bodyField = null;
+      if (serialization.bodyField !== undefined) {
+        bodyField = serialization.bodyField || null;
+      } else {
+        const bodyCandidates = Object.entries(collectionDef.fields || {})
+          .filter(([, def]) => def?.body === true || def?.serialization?.body === true)
+          .map(([field]) => field);
+        if (bodyCandidates.length > 1) {
+          throw new Error(`Collection ${collectionName} defines multiple body fields: ${bodyCandidates.join(', ')}`);
+        }
+        bodyField = bodyCandidates.length === 1 ? bodyCandidates[0] : null;
+      }
+
+      let frontMatterFields = null;
+      if (Array.isArray(serialization.frontMatterFields)) {
+        frontMatterFields = serialization.frontMatterFields.slice();
+      } else {
+        frontMatterFields = Object.keys(collectionDef.fields || {}).filter(field => {
+          if (field === bodyField) return false;
+          const fieldDef = collectionDef.fields?.[field] || null;
+          if (!fieldDef) return true;
+          if (fieldDef.export === false) return false;
+          if (fieldDef.serialization === 'omit' || fieldDef.serialization?.omit === true) return false;
+          return true;
+        });
+      }
+
+      return {
+        collectionName: collectionDef.collectionName || collectionName,
+        frontMatterFields,
+        bodyField
+      };
+    };
+
     if (collectionOrder) {
       normalized.collectionOrder = collectionOrder;
     }
