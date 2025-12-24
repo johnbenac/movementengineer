@@ -14,6 +14,7 @@ import { registerEntitiesTab } from './tabs/entities.js';
 import { registerCalendarTab } from './tabs/calendar.js';
 import { registerCollectionsTab } from './tabs/collections.js';
 import { registerAuthorityTab } from './tabs/authority.js';
+import { registerGenericCrudTab } from './tabs/genericCrud.js';
 import { initMovements } from './ui/movements.js';
 import { initShell } from './shell.js';
 import { createActions } from './actions.js';
@@ -24,6 +25,7 @@ import {
   parseCsvInput,
   uniqueSorted
 } from './utils/values.js';
+import { featureFlags } from '../core/featureFlags.ts';
 
 function assertCtx(ctx) {
   if (!ctx?.store?.getState) throw new Error('ctx.store.getState missing');
@@ -104,6 +106,9 @@ const ctx = {
   actions: {}
 };
 
+movementEngineerGlobal.store = store;
+movementEngineerGlobal.ctx = ctx;
+
 ctx.actions = {
   ...createActions(ctx)
 };
@@ -154,6 +159,7 @@ if (shouldEnable('graph')) registerGraphTab(ctx);
 if (shouldEnable('entities')) registerEntitiesTab(ctx);
 if (shouldEnable('calendar')) registerCalendarTab(ctx);
 if (shouldEnable('collections')) registerCollectionsTab(ctx);
+if (featureFlags.genericCrudUi()) registerGenericCrudTab(ctx);
 
 function onReady(fn) {
   if (document.readyState === 'loading') {
