@@ -6,6 +6,18 @@
   const DEFAULT_HEIGHT = 460;
   const NODE_RADIUS = 18;
   const ARROW_ID = 'graph-shared-arrow';
+  const collectionByNodeType = {
+    Movement: 'movements',
+    TextCollection: 'textCollections',
+    TextNode: 'texts',
+    Entity: 'entities',
+    Practice: 'practices',
+    Event: 'events',
+    Rule: 'rules',
+    Claim: 'claims',
+    MediaAsset: 'media',
+    Note: 'notes'
+  };
 
   const colorForNodeType =
     (globalScope && globalScope.MovementEngineerColors?.colorForNodeType) ||
@@ -38,6 +50,7 @@
   }
 
   function buildSummarySection(vm, onNodeClick) {
+    const createChip = globalScope?.MovementEngineer?.dom?.createChip;
     const aside = document.createElement('div');
     aside.className = 'entity-graph-summary';
 
@@ -49,22 +62,44 @@
     const chipRow = document.createElement('div');
     chipRow.className = 'chip-row wrap';
     vm.nodes.forEach(node => {
-      const chip = document.createElement('span');
-      chip.className =
-        'chip' + (node.id === vm.centerEntityId ? ' chip-strong' : ' clickable');
-      chip.textContent =
-        (node.id === vm.centerEntityId ? '★ ' : '') + (node.name || node.id);
-      chip.title = node.kind || node.type || '';
-      const chipColor = colorForNodeType(node.type || node.kind);
-      const surface = globalScope?.MovementEngineerColors?.deriveSurfaceColors?.(chipColor);
-      if (surface) {
-        chip.style.setProperty('--chip-accent', surface.base);
-        chip.style.setProperty('--chip-bg', surface.background);
-        chip.style.setProperty('--chip-border', surface.border);
-        chip.style.setProperty('--chip-text', surface.text);
-        chip.style.setProperty('--chip-hover', surface.hover);
-        chip.style.setProperty('--chip-border-hover', surface.borderHover);
-      }
+      const label = (node.id === vm.centerEntityId ? '★ ' : '') + (node.name || node.id);
+      const title = node.kind || node.type || '';
+      const collection = collectionByNodeType[node.type];
+      const target = collection ? { kind: 'item', collection, id: node.id } : null;
+      const chip =
+        typeof createChip === 'function'
+          ? createChip({
+              label,
+              title,
+              target,
+              className: node.id === vm.centerEntityId ? 'chip-strong' : ''
+            })
+          : (() => {
+              const fallbackChip = document.createElement('span');
+              fallbackChip.className =
+                'chip' +
+                (node.id === vm.centerEntityId ? ' chip-strong' : collection ? ' clickable' : '');
+              fallbackChip.textContent = label;
+              fallbackChip.title = title;
+              if (target) {
+                fallbackChip.dataset.chipKind = 'item';
+                fallbackChip.dataset.chipCollection = target.collection;
+                fallbackChip.dataset.chipId = target.id;
+                fallbackChip.dataset.rowSelect = 'ignore';
+              }
+              const chipColor = colorForNodeType(node.type || node.kind);
+              const surface =
+                globalScope?.MovementEngineerColors?.deriveSurfaceColors?.(chipColor);
+              if (surface) {
+                fallbackChip.style.setProperty('--chip-accent', surface.base);
+                fallbackChip.style.setProperty('--chip-bg', surface.background);
+                fallbackChip.style.setProperty('--chip-border', surface.border);
+                fallbackChip.style.setProperty('--chip-text', surface.text);
+                fallbackChip.style.setProperty('--chip-hover', surface.hover);
+                fallbackChip.style.setProperty('--chip-border-hover', surface.borderHover);
+              }
+              return fallbackChip;
+            })();
       if (node.id !== vm.centerEntityId && onNodeClick) {
         chip.addEventListener('click', () => onNodeClick(node.id, node));
       }

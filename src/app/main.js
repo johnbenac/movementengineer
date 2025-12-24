@@ -77,6 +77,7 @@ const ui = {
 services.ui = ui;
 
 const dom = createDomUtils();
+movementEngineerGlobal.dom = dom;
 const utils = {
   values: {
     parseCsvInput,
