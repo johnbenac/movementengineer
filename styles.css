@@ -316,15 +316,6 @@ button.danger:hover {
   margin-top: 0.5rem;
 }
 
-.sr-file-input {
-  position: absolute;
-  left: -9999px;
-  width: 1px;
-  height: 1px;
-  opacity: 0.001;
-  overflow: hidden;
-}
-
 .hidden {
   display: none !important;
 }
@@ -440,14 +431,6 @@ button.danger:hover {
 
 .muted {
   color: #6b7280;
-}
-
-/* Divider */
-
-.section-divider {
-  margin: 1.1rem 0;
-  border: 0;
-  border-top: 1px solid #e5e7eb;
 }
 
 /* Explorer toolbars */
@@ -1041,50 +1024,9 @@ button.danger:hover {
   font-size: 0.8rem;
 }
 
-#tab-canon .list-pane {
-  padding: 0.4rem;
-}
-
 #tab-canon .tree-container {
   flex: 1;
   min-height: 100%;
-}
-
-.text-tree {
-  list-style: none;
-  margin: 0;
-  padding-left: 0.4rem;
-}
-
-.text-node {
-  margin: 0.15rem 0;
-}
-
-.text-node-header {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.35rem;
-  cursor: pointer;
-}
-
-.text-node-title {
-  font-weight: 500;
-}
-
-.text-node.selected > .text-node-header {
-  background: #eef2ff;
-  border-radius: 3px;
-  padding: 0.15rem 0.25rem;
-}
-
-.text-node-meta {
-  font-size: 0.75rem;
-  color: #6b7280;
-}
-
-.text-node-body {
-  margin-left: 0.5rem;
-  margin-top: 0.15rem;
 }
 
 .markdown-row {
@@ -1349,24 +1291,6 @@ button.danger:hover {
   background: #eef2ff;
 }
 
-/* Links in tables / detail */
-
-a.entity-link,
-a.practice-link,
-a.event-link,
-a.text-link {
-  color: #1d4ed8;
-  text-decoration: none;
-  font-size: 0.8rem;
-}
-
-a.entity-link:hover,
-a.practice-link:hover,
-a.event-link:hover,
-a.text-link:hover {
-  text-decoration: underline;
-}
-
 /* Entity graph */
 .entity-graph-wrapper {
   display: flex;
@@ -1409,17 +1333,6 @@ a.text-link:hover {
   color: #374151;
 }
 
-.graph-edges line {
-  stroke: #9ca3af;
-  stroke-width: 1.5;
-}
-
-.graph-edge-label {
-  fill: #4b5563;
-  font-size: 0.7rem;
-  pointer-events: none;
-}
-
 .graph-node circle {
   transition: transform 0.15s ease, stroke 0.15s ease;
 }
@@ -1427,12 +1340,6 @@ a.text-link:hover {
 .graph-node:hover circle {
   transform: scale(1.05);
   stroke: #111827;
-}
-
-.graph-node.frozen .graph-node-circle {
-  stroke-dasharray: 4 2;
-  stroke: #111827;
-  stroke-width: 3px;
 }
 
 .graph-node-label {
@@ -2157,15 +2064,6 @@ a.text-link:hover {
     transition: transform 0.2s ease;
     z-index: 20;
     box-shadow: 0 10px 35px rgba(0, 0, 0, 0.2);
-  }
-
-  body.sidebar-open .sidebar {
-    transform: translateX(0);
-  }
-
-  body.sidebar-open .sidebar-scrim {
-    opacity: 1;
-    pointer-events: auto;
   }
 
   .content {
