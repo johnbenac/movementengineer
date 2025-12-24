@@ -2,7 +2,6 @@ import { getModelForSnapshot } from '../../app/ui/schemaDoc.js';
 import { useSnapshotOps } from '../../core/useSnapshotOps.ts';
 import { CollectionList } from './CollectionList.tsx';
 import { RecordList } from './RecordList.tsx';
-import { RecordDetail } from './RecordDetail.tsx';
 import { RecordEditor } from './RecordEditor.tsx';
 import {
   generateId,
@@ -18,10 +17,77 @@ function cloneRecord(record) {
   return record ? JSON.parse(JSON.stringify(record)) : {};
 }
 
+function isDevMode() {
+  if (typeof process !== 'undefined' && process.env?.NODE_ENV) {
+    return process.env.NODE_ENV !== 'production';
+  }
+  if (typeof window !== 'undefined' && window.location) {
+    const host = window.location.hostname;
+    return host === 'localhost' || host === '127.0.0.1';
+  }
+  return true;
+}
+
+function resolveViewIds(collectionDef) {
+  const viewIds = collectionDef?.ui?.views;
+  if (Array.isArray(viewIds) && viewIds.length) return viewIds.slice();
+  return ['detail'];
+}
+
+function resolveDefaultViewId(collectionDef, viewIds) {
+  return collectionDef?.ui?.defaultView || viewIds[0] || 'detail';
+}
+
+function resolveEffectiveViews(collectionName, collectionDef, plugins) {
+  const viewIds = resolveViewIds(collectionDef);
+  const effective = viewIds.filter(viewId => {
+    const exists = plugins?.getCollectionView?.(collectionName, viewId);
+    if (!exists && isDevMode()) {
+      console.warn(
+        `[plugins] Missing view plugin: collection="${collectionName}" view="${viewId}"`
+      );
+    }
+    return Boolean(exists);
+  });
+  return effective.length ? effective : ['detail'];
+}
+
+function resolveViewLabel(collectionDef, viewId, viewDef) {
+  if (collectionDef?.ui?.viewLabels?.[viewId]) return collectionDef.ui.viewLabels[viewId];
+  if (viewDef?.options?.label) return viewDef.options.label;
+  return viewId;
+}
+
+function readStoredViewId(collectionName) {
+  if (typeof window === 'undefined' || !collectionName) return null;
+  try {
+    return window.localStorage?.getItem(`me.view.${collectionName}`) || null;
+  } catch (err) {
+    return null;
+  }
+}
+
+function storeViewId(collectionName, viewId) {
+  if (typeof window === 'undefined' || !collectionName) return;
+  try {
+    window.localStorage?.setItem(`me.view.${collectionName}`, viewId);
+  } catch (err) {
+    return;
+  }
+}
+
+function DefaultDetailFallback() {
+  const placeholder = document.createElement('div');
+  placeholder.className = 'generic-crud-empty';
+  placeholder.textContent = 'Detail view unavailable.';
+  return placeholder;
+}
+
 export function createGenericCrudTab(ctx) {
   const state = {
     selectedCollectionKey: null,
     selectedRecordId: null,
+    activeViewId: null,
     mode: 'view',
     search: '',
     sortMode: 'title',
@@ -40,6 +106,11 @@ export function createGenericCrudTab(ctx) {
     const snapshotKey = getCollectionSnapshotKey(collectionDef, model);
     const records = normalizeRecords(snapshot?.[snapshotKey]);
     state.selectedRecordId = records[0]?.id || null;
+    const plugins = ctx.plugins;
+    const effectiveViews = resolveEffectiveViews(collectionKey, collectionDef, plugins);
+    const defaultViewId = resolveDefaultViewId(collectionDef, effectiveViews);
+    const storedViewId = readStoredViewId(collectionKey);
+    state.activeViewId = effectiveViews.includes(storedViewId) ? storedViewId : defaultViewId;
     state.mode = 'view';
     state.draft = null;
     rerender();
@@ -87,6 +158,7 @@ export function createGenericCrudTab(ctx) {
 
     const { snapshot, upsertRecord, deleteRecord } = useSnapshotOps();
     const model = getModelForSnapshot(snapshot);
+    const modelRegistry = globalThis.ModelRegistry || null;
     const collectionDef = state.selectedCollectionKey
       ? model?.collections?.[state.selectedCollectionKey]
       : null;
@@ -153,14 +225,83 @@ export function createGenericCrudTab(ctx) {
       );
     }
 
+    const plugins = ctx.plugins;
+    const collectionName = collectionDef?.collectionName || state.selectedCollectionKey;
+    const viewIds = collectionDef
+      ? resolveEffectiveViews(collectionName, collectionDef, plugins)
+      : [];
+    const defaultViewId = resolveDefaultViewId(collectionDef, viewIds);
+    const storedViewId = readStoredViewId(collectionName);
+    if (collectionDef && (!state.activeViewId || !viewIds.includes(state.activeViewId))) {
+      state.activeViewId = viewIds.includes(storedViewId) ? storedViewId : defaultViewId;
+    }
+
+    const resolvedViewId = state.activeViewId || defaultViewId;
+
     const rightPane = document.createElement('div');
     rightPane.className = 'card generic-crud-pane';
     const rightHeader = document.createElement('div');
     rightHeader.className = 'pane-header';
     const rightTitle = document.createElement('h3');
-    rightTitle.textContent = 'Details';
+    const activeViewDef = collectionDef && resolvedViewId
+      ? plugins?.getCollectionView?.(collectionName, resolvedViewId)
+      : null;
+    rightTitle.textContent = collectionDef
+      ? resolveViewLabel(collectionDef, resolvedViewId, activeViewDef)
+      : 'Details';
     rightHeader.appendChild(rightTitle);
+
+    if (collectionDef && viewIds.length > 1) {
+      const switcher = document.createElement('div');
+      switcher.className = 'generic-crud-view-switcher';
+      viewIds.forEach(viewId => {
+        const viewDef = plugins?.getCollectionView?.(collectionName, viewId);
+        const label = resolveViewLabel(collectionDef, viewId, viewDef);
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = label;
+        if (viewId === resolvedViewId) {
+          button.classList.add('active');
+        }
+        button.addEventListener('click', () => {
+          state.activeViewId = viewId;
+          storeViewId(collectionName, viewId);
+          rerender();
+        });
+        switcher.appendChild(button);
+      });
+      rightHeader.appendChild(switcher);
+    }
+
     rightPane.appendChild(rightHeader);
+
+    const openEditor = ({ mode, id } = {}) => {
+      if (!collectionDef) return;
+      if (mode === 'create') {
+        startCreate(collectionDef);
+        return;
+      }
+      if (mode === 'edit') {
+        const record = id
+          ? records.find(item => item?.id === id)
+          : records.find(item => item?.id === state.selectedRecordId);
+        if (record) {
+          state.selectedRecordId = record.id;
+          startEdit(record);
+        }
+      }
+    };
+    openEditor.delete = id => {
+      const recordId = id || state.selectedRecordId;
+      if (!recordId || !snapshotKey) return;
+      const ok = window.confirm('Delete this record?');
+      if (!ok) return;
+      deleteRecord(snapshotKey, recordId);
+      state.selectedRecordId = null;
+      state.mode = 'view';
+      state.draft = null;
+      rerender();
+    };
 
     if (!collectionDef) {
       const placeholder = document.createElement('div');
@@ -171,7 +312,10 @@ export function createGenericCrudTab(ctx) {
       rightPane.appendChild(
         RecordEditor({
           record: state.draft || makeDefaultRecord(collectionDef),
+          collectionName,
           collectionDef,
+          modelRegistry,
+          plugins,
           model,
           snapshot,
           mode: 'create',
@@ -190,7 +334,10 @@ export function createGenericCrudTab(ctx) {
       rightPane.appendChild(
         RecordEditor({
           record: state.draft || selectedRecord,
+          collectionName,
           collectionDef,
+          modelRegistry,
+          plugins,
           model,
           snapshot,
           mode: 'edit',
@@ -204,24 +351,21 @@ export function createGenericCrudTab(ctx) {
           onCancel: () => cancelEdit()
         })
       );
-    } else if (selectedRecord) {
-      rightPane.appendChild(
-        RecordDetail({
-          record: selectedRecord,
-          collectionDef,
-          model,
-          snapshot,
-          onEdit: () => startEdit(selectedRecord),
-          onDelete: () => {
-            const ok = window.confirm('Delete this record?');
-            if (!ok) return;
-            deleteRecord(snapshotKey, selectedRecord.id);
-            state.selectedRecordId = null;
-            state.mode = 'view';
-            rerender();
-          }
-        })
-      );
+    } else if (collectionDef) {
+      const viewDef = plugins?.getCollectionView?.(collectionName, resolvedViewId);
+      const detailDef = plugins?.getCollectionView?.('*', 'detail');
+      const ViewComponent = viewDef?.component || detailDef?.component || DefaultDetailFallback;
+      const viewNode = ViewComponent({
+        modelRegistry,
+        plugins,
+        collectionName,
+        collectionDef,
+        snapshot,
+        selectedId: state.selectedRecordId,
+        setSelectedId: id => selectRecord(id),
+        openEditor
+      });
+      rightPane.appendChild(viewNode);
     } else {
       const placeholder = document.createElement('div');
       placeholder.className = 'generic-crud-empty';

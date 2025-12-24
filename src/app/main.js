@@ -19,6 +19,9 @@ import { initMovements } from './ui/movements.js';
 import { initShell } from './shell.js';
 import { createActions } from './actions.js';
 import { renderMarkdownPreview, openMarkdownModal } from './ui/markdown.js';
+import { createPluginRegistry } from '../core/plugins/pluginRegistry.js';
+import { PluginProvider } from '../core/plugins/PluginProvider.jsx';
+import { registerBuiltInPlugins } from '../plugins/registerBuiltins.js';
 import {
   collectDescendants,
   normaliseArray,
@@ -67,6 +70,12 @@ const services = {
   d3
 };
 
+const modelRegistry = globalThis.ModelRegistry || null;
+const plugins = createPluginRegistry();
+registerBuiltInPlugins(plugins, { modelRegistry });
+plugins.finalize();
+PluginProvider({ plugins });
+
 const statusUi = createStatusUi();
 const ui = {
   ...statusUi,
@@ -101,6 +110,7 @@ const ctx = {
   setStatus: (...args) => ui.setStatus?.(...args),
   showFatalImportError: (...args) => ui.showFatalImportError?.(...args),
   clearFatalImportError: (...args) => ui.clearFatalImportError?.(...args),
+  plugins,
   tabs: movementEngineerGlobal.tabs || {},
   actions: {}
 };

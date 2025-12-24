@@ -553,6 +553,25 @@ button.danger:hover {
   margin-bottom: 0.25rem;
 }
 
+.generic-crud-view-switcher {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.generic-crud-view-switcher button {
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.75rem;
+}
+
+.generic-crud-view-switcher button.active {
+  background: #111827;
+  color: #fff;
+  border-color: #111827;
+}
+
 .generic-crud-actions {
   display: flex;
   gap: 0.5rem;
@@ -612,6 +631,36 @@ button.danger:hover {
 .generic-crud-array-row input,
 .generic-crud-array-row select {
   flex: 1;
+}
+
+.generic-crud-view-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.generic-crud-view-toolbar-group {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.generic-crud-calendar-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.generic-crud-calendar-card.active {
+  border-color: #111827;
+  box-shadow: 0 0 0 1px #111827 inset;
+}
+
+.generic-crud-calendar-card-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .schema-guide {
