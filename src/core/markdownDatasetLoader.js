@@ -40,6 +40,46 @@
     return globalScope?.ModelRegistry || null;
   }
 
+  function getValidationModules() {
+    if (isNode()) {
+      return {
+        shadowValidation: require('./validation/shadowValidation'),
+        legacyAdapter: require('./validation/legacyAdapter')
+      };
+    }
+    return {
+      shadowValidation: globalScope?.MovementEngineerValidation?.shadowValidation || null,
+      legacyAdapter: globalScope?.MovementEngineerValidation?.legacyAdapter || null
+    };
+  }
+
+  function readBooleanFlag(value) {
+    if (value === true) return true;
+    if (value === false) return false;
+    if (value === undefined || value === null) return false;
+    const text = String(value).trim().toLowerCase();
+    return ['1', 'true', 'yes', 'on'].includes(text);
+  }
+
+  function readNumberFlag(value, fallback) {
+    const num = Number(value);
+    return Number.isFinite(num) ? num : fallback;
+  }
+
+  function getShadowValidationConfig() {
+    const env = isNode() ? process.env || {} : {};
+    const enabled = readBooleanFlag(env.ME_MODEL_VALIDATION_SHADOW || globalScope?.ME_MODEL_VALIDATION_SHADOW);
+    const maxIssues = readNumberFlag(
+      env.ME_MODEL_VALIDATION_MAX_ISSUES || globalScope?.ME_MODEL_VALIDATION_MAX_ISSUES,
+      500
+    );
+    const maxLogExamples = readNumberFlag(
+      env.ME_MODEL_VALIDATION_LOG_EXAMPLES || globalScope?.ME_MODEL_VALIDATION_LOG_EXAMPLES,
+      20
+    );
+    return { enabled, maxIssues, maxLogExamples };
+  }
+
   const modelRegistry = getModelRegistry();
   if (!modelRegistry?.listCollections) {
     throw new Error('ModelRegistry is not available. Ensure it is loaded before markdownDatasetLoader.');
@@ -977,6 +1017,31 @@
     const specVersion = DEFAULT_SPEC_VERSION;
     const records = await readMarkdownRecords(reader, listing, specVersion);
     const compiled = compileRecords(records, specVersion);
+
+    const shadowConfig = getShadowValidationConfig();
+    if (shadowConfig.enabled) {
+      const modules = getValidationModules();
+      const shadowValidation = modules.shadowValidation;
+      const legacyAdapter = modules.legacyAdapter;
+      if (shadowValidation?.runShadowValidation && legacyAdapter?.normalizeLegacyIssues) {
+        const model = modelRegistry.getModel(specVersion);
+        const legacyIssues = legacyAdapter.normalizeLegacyIssues([]);
+        const { modelReport, diff } = shadowValidation.runShadowValidation({
+          snapshot: compiled.data,
+          model,
+          legacyIssues,
+          options: {
+            maxIssues: shadowConfig.maxIssues,
+            maxLogExamples: shadowConfig.maxLogExamples,
+            mode: 'shadow'
+          }
+        });
+        if (modelReport && diff) {
+          compiled.data.__debug = compiled.data.__debug || {};
+          compiled.data.__debug.modelValidationShadow = { modelReport, diff };
+        }
+      }
+    }
 
     return {
       specVersion,
