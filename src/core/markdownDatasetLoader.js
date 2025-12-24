@@ -61,6 +61,15 @@
     return globalScope?.LegacyValidationAdapter || null;
   }
 
+  let warnedMissingShadowModules = false;
+  function warnMissingShadowModules() {
+    if (warnedMissingShadowModules) return;
+    if (typeof console !== 'undefined' && console.warn) {
+      console.warn('[Model Validation Shadow] modules unavailable; skipping.');
+      warnedMissingShadowModules = true;
+    }
+  }
+
   const modelRegistry = getModelRegistry();
   if (!modelRegistry?.listCollections) {
     throw new Error('ModelRegistry is not available. Ensure it is loaded before markdownDatasetLoader.');
@@ -1004,12 +1013,16 @@
     const validationSettings = validationConfig?.getValidationSettings
       ? validationConfig.getValidationSettings()
       : { shadowEnabled: false, maxIssues: 500, logExamples: 20 };
+    const hasShadowValidation = !!shadowValidation?.runShadowValidation;
+    const hasLegacyAdapter = !!legacyAdapter?.normalizeLegacyIssues;
 
-    const legacyIssues = legacyAdapter?.normalizeLegacyIssues
-      ? legacyAdapter.normalizeLegacyIssues([])
-      : [];
+    if (validationSettings.shadowEnabled && (!hasShadowValidation || !hasLegacyAdapter)) {
+      warnMissingShadowModules();
+    }
 
-    if (validationSettings.shadowEnabled && shadowValidation?.runShadowValidation) {
+    const legacyIssues = hasLegacyAdapter ? legacyAdapter.normalizeLegacyIssues([]) : [];
+
+    if (validationSettings.shadowEnabled && hasShadowValidation) {
       const model = getModel(specVersion);
       const { modelReport, diff } = shadowValidation.runShadowValidation({
         snapshot: compiled.data,
