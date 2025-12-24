@@ -26,6 +26,13 @@
     media: ['linkedEntityIds', 'linkedPracticeIds', 'linkedEventIds', 'linkedTextIds']
   };
 
+  /**
+   * @typedef {Object} ExportCollectionSchema
+   * @property {string} collectionName
+   * @property {string[]} frontMatterFields
+   * @property {string|null} bodyField
+   */
+
   function isNode() {
     return typeof module !== 'undefined' && !!module.exports;
   }
@@ -1051,122 +1058,9 @@
     };
   }
 
-  function selectCollectionSchema(collection) {
-    const schemas = {
-      movements: {
-        fields: ['id', 'movementId', 'name', 'shortName', 'tags', 'status', 'order'],
-        bodyField: 'summary'
-      },
-      textCollections: {
-        fields: ['id', 'movementId', 'name', 'rootTextIds', 'description', 'tags', 'order'],
-        bodyField: 'description'
-      },
-      texts: {
-        fields: [
-          'id',
-          'movementId',
-          'title',
-          'label',
-          'parentId',
-          'mainFunction',
-          'tags',
-          'mentionsEntityIds',
-          'order'
-        ],
-        bodyField: 'content'
-      },
-      entities: {
-        fields: ['id', 'movementId', 'name', 'kind', 'tags', 'sourceEntityIds', 'sourcesOfTruth', 'order'],
-        bodyField: 'summary'
-      },
-      practices: {
-        fields: [
-          'id',
-          'movementId',
-          'name',
-          'kind',
-          'frequency',
-          'tags',
-          'involvedEntityIds',
-          'instructionsTextIds',
-          'supportingClaimIds',
-          'sourceEntityIds',
-          'sourcesOfTruth',
-          'order'
-        ],
-        bodyField: 'description'
-      },
-      events: {
-        fields: [
-          'id',
-          'movementId',
-          'name',
-          'recurrence',
-          'timingRule',
-          'tags',
-          'mainPracticeIds',
-          'mainEntityIds',
-          'readingTextIds',
-          'supportingClaimIds',
-          'order'
-        ],
-        bodyField: 'description'
-      },
-      rules: {
-        fields: [
-          'id',
-          'movementId',
-          'shortText',
-          'kind',
-          'appliesTo',
-          'domain',
-          'tags',
-          'supportingTextIds',
-          'supportingClaimIds',
-          'relatedPracticeIds',
-          'sourceEntityIds',
-          'sourcesOfTruth',
-          'order'
-        ],
-        bodyField: 'details'
-      },
-      claims: {
-        fields: [
-          'id',
-          'movementId',
-          'text',
-          'category',
-          'tags',
-          'aboutEntityIds',
-          'sourceTextIds',
-          'sourceEntityIds',
-          'sourcesOfTruth',
-          'order'
-        ],
-        bodyField: 'text'
-      },
-      media: {
-        fields: [
-          'id',
-          'movementId',
-          'kind',
-          'uri',
-          'title',
-          'tags',
-          'linkedEntityIds',
-          'linkedPracticeIds',
-          'linkedEventIds',
-          'linkedTextIds',
-          'order'
-        ],
-        bodyField: 'description'
-      },
-      notes: {
-        fields: ['id', 'movementId', 'targetType', 'targetId', 'author', 'context', 'tags', 'order'],
-        bodyField: 'body'
-      }
-    };
-    return schemas[collection] || null;
+  function getExportSchema(collection, specVersion) {
+    const model = getModel(resolveSpecVersion(specVersion));
+    return model.getExportSchema(collection);
   }
 
   function serialiseValue(value) {
@@ -1202,13 +1096,13 @@
     return `${fallbackBase}/${collection}/${id}.md`;
   }
 
-  function generateMarkdownForRecord(collection, record) {
-    const schema = selectCollectionSchema(collection);
+  function generateMarkdownForRecord(collection, record, specVersion) {
+    const schema = getExportSchema(collection, specVersion);
     if (!schema) {
       throw new Error(`Unknown collection for export: ${collection}`);
     }
     const fm = {};
-    schema.fields.forEach(field => {
+    schema.frontMatterFields.forEach(field => {
       const value = serialiseValue(record[field]);
       if (value !== undefined) {
         fm[field] = value;
@@ -1218,14 +1112,14 @@
     return renderMarkdown(fm, body);
   }
 
-  function patchMarkdown(originalRaw, collection, baselineRecord, currentRecord, filePath) {
+  function patchMarkdown(originalRaw, collection, baselineRecord, currentRecord, filePath, specVersion) {
     const parsed = parseFrontMatter(originalRaw, filePath || '');
-    const schema = selectCollectionSchema(collection);
+    const schema = getExportSchema(collection, specVersion);
     if (!schema) {
       throw new Error(`Unknown collection for export: ${collection}`);
     }
     const updatedFrontMatter = { ...parsed.frontMatter };
-    schema.fields.forEach(field => {
+    schema.frontMatterFields.forEach(field => {
       const baselineValue = baselineRecord ? baselineRecord[field] : undefined;
       const currentValue = currentRecord ? currentRecord[field] : undefined;
       if (!deepEqual(currentValue, baselineValue)) {
@@ -1254,6 +1148,7 @@
     const fileIndex = snapshot.__repoFileIndex || {};
     const rawByPath = snapshot.__repoRawMarkdownByPath || {};
     const baselineByMovement = snapshot.__repoBaselineByMovement || {};
+    const specVersion = resolveSpecVersion(snapshot.specVersion);
 
     const movementId = record.movementId || record.id;
     const baseline = baselineByMovement[movementId] || null;
@@ -1271,10 +1166,10 @@
     }
 
     if (raw !== undefined && baselineRecord) {
-      return patchMarkdown(raw, collection, baselineRecord, record, path);
+      return patchMarkdown(raw, collection, baselineRecord, record, path, specVersion);
     }
 
-    return generateMarkdownForRecord(collection, record);
+    return generateMarkdownForRecord(collection, record, specVersion);
   }
 
   async function exportMovementToZip(snapshot, movementId, options = {}) {
@@ -1306,13 +1201,14 @@
     const movementBaseline = baseline.movements ? baseline.movements[movement.id] : null;
     const movementRaw = rawMarkdownByPath[movementFilePath];
     const movementUnchanged = movementBaseline ? deepEqual(movement, movementBaseline) : false;
+    const specVersion = resolveSpecVersion(snapshot.specVersion);
     let movementContent;
     if (movementUnchanged && movementRaw !== undefined) {
       movementContent = movementRaw;
     } else if (movementBaseline && movementRaw !== undefined) {
-      movementContent = patchMarkdown(movementRaw, 'movements', movementBaseline, movement, movementFilePath);
+      movementContent = patchMarkdown(movementRaw, 'movements', movementBaseline, movement, movementFilePath, specVersion);
     } else {
-      movementContent = generateMarkdownForRecord('movements', movement);
+      movementContent = generateMarkdownForRecord('movements', movement, specVersion);
     }
     zip.file(movementFilePath, movementContent);
     fileCount += 1;
@@ -1332,9 +1228,9 @@
         if (unchanged && raw !== undefined) {
           content = raw;
         } else if (baselineRecord && raw !== undefined) {
-          content = patchMarkdown(raw, collection, baselineRecord, item, path);
+          content = patchMarkdown(raw, collection, baselineRecord, item, path, specVersion);
         } else {
-          content = generateMarkdownForRecord(collection, item);
+          content = generateMarkdownForRecord(collection, item, specVersion);
         }
         zip.file(path, content);
         fileCount += 1;
@@ -1408,7 +1304,6 @@
   api.COLLECTION_REFERENCE_RULES = COLLECTION_REFERENCE_RULES;
   api.NOTE_TARGET_TYPES = NOTE_TARGET_TYPES;
   api.renderMarkdownForRecord = renderMarkdownForRecord;
-  api.selectCollectionSchema = selectCollectionSchema;
 
   async function importMovementRepo(repoUrl) {
     const compiled = await loadMovementDataset({ source: 'github', repoUrl });
