@@ -11,10 +11,12 @@ import { registerMediaTab } from './tabs/media.js';
 import { registerCanonTab } from './tabs/canon.js';
 import { registerGraphTab } from './tabs/graph.js';
 import { registerEntitiesTab } from './tabs/entities.js';
-import { registerCalendarTab } from './tabs/calendar.js';
 import { registerCollectionsTab } from './tabs/collections.js';
 import { registerAuthorityTab } from './tabs/authority.js';
 import { registerGenericCrudTab } from './tabs/genericCrud.js';
+import { PluginProvider } from '../core/plugins/PluginProvider.tsx';
+import { createPluginRegistry } from '../core/plugins/pluginRegistry.js';
+import { registerBuiltInPlugins } from '../plugins/registerBuiltins.js';
 import { initMovements } from './ui/movements.js';
 import { initShell } from './shell.js';
 import { createActions } from './actions.js';
@@ -115,6 +117,13 @@ ctx.dom.installGlobalChipHandler?.(ctx);
 
 assertCtx(ctx);
 
+const modelRegistry = globalThis.ModelRegistry || null;
+const plugins = createPluginRegistry();
+registerBuiltInPlugins(plugins, { modelRegistry });
+plugins.finalize();
+PluginProvider({ plugins });
+ctx.plugins = plugins;
+
 const enabledTabs = movementEngineerGlobal.bootstrapOptions?.moduleTabs;
 const shouldEnable = name =>
   !Array.isArray(enabledTabs) ||
@@ -155,7 +164,6 @@ if (shouldEnable('media')) registerMediaTab(ctx);
 if (shouldEnable('canon')) registerCanonTab(ctx);
 if (shouldEnable('graph')) registerGraphTab(ctx);
 if (shouldEnable('entities')) registerEntitiesTab(ctx);
-if (shouldEnable('calendar')) registerCalendarTab(ctx);
 if (shouldEnable('collections')) registerCollectionsTab(ctx);
 registerGenericCrudTab(ctx);
 

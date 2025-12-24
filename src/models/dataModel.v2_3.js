@@ -518,6 +518,10 @@
       typeName: 'Event',
       description: 'Events and recurring happenings.',
       collectionName: 'events',
+      ui: {
+        views: ['calendar', 'detail'],
+        defaultView: 'calendar'
+      },
       serialization: {
         frontMatterFields: [
           'id',
