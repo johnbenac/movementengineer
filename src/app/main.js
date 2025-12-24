@@ -14,6 +14,7 @@ import { registerEntitiesTab } from './tabs/entities.js';
 import { registerCalendarTab } from './tabs/calendar.js';
 import { registerCollectionsTab } from './tabs/collections.js';
 import { registerAuthorityTab } from './tabs/authority.js';
+import { registerGenericCrudTab } from './tabs/genericCrud.js';
 import { initMovements } from './ui/movements.js';
 import { initShell } from './shell.js';
 import { createActions } from './actions.js';
@@ -108,6 +109,8 @@ ctx.actions = {
   ...createActions(ctx)
 };
 
+movementEngineerGlobal.ctx = ctx;
+
 ctx.dom.installGlobalChipHandler?.(ctx);
 
 assertCtx(ctx);
@@ -154,6 +157,7 @@ if (shouldEnable('graph')) registerGraphTab(ctx);
 if (shouldEnable('entities')) registerEntitiesTab(ctx);
 if (shouldEnable('calendar')) registerCalendarTab(ctx);
 if (shouldEnable('collections')) registerCollectionsTab(ctx);
+registerGenericCrudTab(ctx);
 
 function onReady(fn) {
   if (document.readyState === 'loading') {
