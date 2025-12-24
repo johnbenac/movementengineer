@@ -6,6 +6,18 @@
   const DEFAULT_HEIGHT = 460;
   const NODE_RADIUS = 18;
   const ARROW_ID = 'graph-shared-arrow';
+  const COLLECTION_BY_NODE_TYPE = {
+    movement: 'movements',
+    entity: 'entities',
+    textcollection: 'textCollections',
+    textnode: 'texts',
+    practice: 'practices',
+    event: 'events',
+    rule: 'rules',
+    claim: 'claims',
+    mediaasset: 'media',
+    note: 'notes'
+  };
 
   const colorForNodeType =
     (globalScope && globalScope.MovementEngineerColors?.colorForNodeType) ||
@@ -15,6 +27,12 @@
   function clearElement(el) {
     if (!el) return;
     while (el.firstChild) el.removeChild(el.firstChild);
+  }
+
+  function collectionForNodeType(type) {
+    if (!type) return null;
+    const key = String(type).toLowerCase();
+    return COLLECTION_BY_NODE_TYPE[key] || null;
   }
 
   function normaliseLinks(graph, nodeById) {
@@ -40,6 +58,7 @@
   function buildSummarySection(vm, onNodeClick) {
     const aside = document.createElement('div');
     aside.className = 'entity-graph-summary';
+    const createChip = globalScope?.MovementEngineer?.dom?.createChip;
 
     const title = document.createElement('div');
     title.className = 'section-heading small';
@@ -49,24 +68,45 @@
     const chipRow = document.createElement('div');
     chipRow.className = 'chip-row wrap';
     vm.nodes.forEach(node => {
-      const chip = document.createElement('span');
-      chip.className =
-        'chip' + (node.id === vm.centerEntityId ? ' chip-strong' : ' clickable');
-      chip.textContent =
-        (node.id === vm.centerEntityId ? '★ ' : '') + (node.name || node.id);
-      chip.title = node.kind || node.type || '';
-      const chipColor = colorForNodeType(node.type || node.kind);
-      const surface = globalScope?.MovementEngineerColors?.deriveSurfaceColors?.(chipColor);
-      if (surface) {
-        chip.style.setProperty('--chip-accent', surface.base);
-        chip.style.setProperty('--chip-bg', surface.background);
-        chip.style.setProperty('--chip-border', surface.border);
-        chip.style.setProperty('--chip-text', surface.text);
-        chip.style.setProperty('--chip-hover', surface.hover);
-        chip.style.setProperty('--chip-border-hover', surface.borderHover);
-      }
-      if (node.id !== vm.centerEntityId && onNodeClick) {
-        chip.addEventListener('click', () => onNodeClick(node.id, node));
+      const label = (node.id === vm.centerEntityId ? '★ ' : '') + (node.name || node.id);
+      const title = node.kind || node.type || '';
+      const collection = collectionForNodeType(node.type);
+      const target =
+        collection && node.id
+          ? {
+              kind: 'item',
+              collection,
+              id: node.id
+            }
+          : null;
+      let chip = null;
+
+      if (typeof createChip === 'function' && target) {
+        chip = createChip({
+          label,
+          title,
+          target,
+          className: node.id === vm.centerEntityId ? 'chip-strong' : ''
+        });
+      } else {
+        chip = document.createElement('span');
+        chip.className =
+          'chip' + (node.id === vm.centerEntityId ? ' chip-strong' : ' clickable');
+        chip.textContent = label;
+        chip.title = title;
+        const chipColor = colorForNodeType(node.type || node.kind);
+        const surface = globalScope?.MovementEngineerColors?.deriveSurfaceColors?.(chipColor);
+        if (surface) {
+          chip.style.setProperty('--chip-accent', surface.base);
+          chip.style.setProperty('--chip-bg', surface.background);
+          chip.style.setProperty('--chip-border', surface.border);
+          chip.style.setProperty('--chip-text', surface.text);
+          chip.style.setProperty('--chip-hover', surface.hover);
+          chip.style.setProperty('--chip-border-hover', surface.borderHover);
+        }
+        if (node.id !== vm.centerEntityId && onNodeClick) {
+          chip.addEventListener('click', () => onNodeClick(node.id, node));
+        }
       }
       chipRow.appendChild(chip);
     });
