@@ -1,4 +1,7 @@
-import DATA_MODEL_V2_3 from '../../models/dataModel.v2_3.js';
+const DATA_MODEL_V2_3 = globalThis.DATA_MODEL_V2_3;
+if (!DATA_MODEL_V2_3) {
+  throw new Error('DATA_MODEL_V2_3 is not available on the global scope.');
+}
 
 function dedupeReferenceFields(fields) {
   const seen = new Set();

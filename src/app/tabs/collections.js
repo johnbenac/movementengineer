@@ -1,6 +1,10 @@
-import DATA_MODEL_V2_3 from '../../models/dataModel.v2_3.js';
 import { getCollectionDoc } from '../ui/schemaDoc.js';
 import { renderMarkdownPreview } from '../ui/markdown.js';
+
+const DATA_MODEL_V2_3 = globalThis.DATA_MODEL_V2_3;
+if (!DATA_MODEL_V2_3) {
+  throw new Error('DATA_MODEL_V2_3 is not available on the global scope.');
+}
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};

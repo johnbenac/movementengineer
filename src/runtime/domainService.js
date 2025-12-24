@@ -8,7 +8,21 @@
   'use strict';
 
   const globalScope = typeof globalThis !== 'undefined' ? globalThis : window;
-  const { COLLECTION_NAMES, COLLECTIONS_WITH_MOVEMENT_ID } = globalScope.StorageService;
+  const { COLLECTIONS_WITH_MOVEMENT_ID } = globalScope.StorageService;
+
+  function getModelRegistry() {
+    if (globalScope.ModelRegistry) {
+      return globalScope.ModelRegistry;
+    }
+    if (typeof module !== 'undefined' && module.exports) {
+      return require('../core/modelRegistry');
+    }
+    throw new Error('ModelRegistry is not available.');
+  }
+
+  const { DEFAULT_SPEC_VERSION, listCollections } = getModelRegistry();
+  const COLLECTION_NAMES = listCollections(DEFAULT_SPEC_VERSION);
+  const listCollectionNames = specVersion => listCollections(specVersion);
 
   function generateId(prefix) {
     const base = prefix || 'id-';
@@ -221,6 +235,7 @@
   globalScope.DomainService = {
     COLLECTION_NAMES,
     COLLECTIONS_WITH_MOVEMENT_ID,
+    listCollectionNames,
     generateId,
     addMovement,
     updateMovement,

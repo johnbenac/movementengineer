@@ -9,18 +9,20 @@
 
   const STORAGE_KEY = 'movementDesigner.v3.snapshot';
 
-  const COLLECTION_NAMES = [
-    'movements',
-    'textCollections',
-    'texts',
-    'entities',
-    'practices',
-    'events',
-    'rules',
-    'claims',
-    'media',
-    'notes'
-  ];
+  const globalScope = typeof globalThis !== 'undefined' ? globalThis : window;
+
+  function getModelRegistry() {
+    if (globalScope.ModelRegistry) {
+      return globalScope.ModelRegistry;
+    }
+    if (typeof module !== 'undefined' && module.exports) {
+      return require('../core/modelRegistry');
+    }
+    throw new Error('ModelRegistry is not available.');
+  }
+
+  const { DEFAULT_SPEC_VERSION, listCollections } = getModelRegistry();
+  const COLLECTION_NAMES = listCollections(DEFAULT_SPEC_VERSION);
 
   const COLLECTIONS_WITH_MOVEMENT_ID = new Set([
     'textCollections',
@@ -35,8 +37,8 @@
   ]);
 
   function createEmptySnapshot() {
-    const base = { version: '2.3', specVersion: '2.3' };
-    COLLECTION_NAMES.forEach(name => {
+    const base = { version: DEFAULT_SPEC_VERSION, specVersion: DEFAULT_SPEC_VERSION };
+    listCollections(DEFAULT_SPEC_VERSION).forEach(name => {
       base[name] = [];
     });
     base.__repoInfo = null;
@@ -57,15 +59,14 @@
 
   function ensureAllCollections(data) {
     const obj = data || {};
-    delete obj.relations;
-    if (!obj.version) obj.version = '2.3';
-    if (!obj.specVersion) obj.specVersion = '2.3';
+    if (!obj.version) obj.version = DEFAULT_SPEC_VERSION;
+    if (!obj.specVersion) obj.specVersion = DEFAULT_SPEC_VERSION;
     if (!('__repoInfo' in obj)) obj.__repoInfo = null;
     if (!('__repoSource' in obj)) obj.__repoSource = null;
     if (!obj.__repoFileIndex) obj.__repoFileIndex = {};
     if (!obj.__repoRawMarkdownByPath) obj.__repoRawMarkdownByPath = {};
     if (!obj.__repoBaselineByMovement) obj.__repoBaselineByMovement = {};
-    COLLECTION_NAMES.forEach(name => {
+    listCollections(obj.specVersion || DEFAULT_SPEC_VERSION).forEach(name => {
       if (!Array.isArray(obj[name])) obj[name] = [];
     });
     obj.movements = obj.movements.map(movement => {
