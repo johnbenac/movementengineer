@@ -31,6 +31,43 @@
     });
   }
 
+  function isExportableField(fieldDef) {
+    if (!fieldDef || typeof fieldDef !== 'object') return true;
+    if (fieldDef.export === false) return false;
+    const serialization = fieldDef.serialization;
+    if (serialization === 'omit') return false;
+    if (serialization && typeof serialization === 'object') {
+      if (serialization.omit === true || serialization.export === false) return false;
+    }
+    return true;
+  }
+
+  function deriveBodyField(collectionDef) {
+    const explicit = collectionDef?.bodyField || collectionDef?.serialization?.bodyField || null;
+    if (explicit) return explicit;
+
+    const candidates = Object.entries(collectionDef.fields || {})
+      .filter(([, field]) => field?.body === true || field?.serialization?.body === true)
+      .map(([name]) => name);
+
+    if (candidates.length > 1) {
+      throw new Error(`Collection ${collectionDef.collectionName} defines multiple body fields.`);
+    }
+
+    return candidates.length === 1 ? candidates[0] : null;
+  }
+
+  function deriveFrontMatterFields(collectionDef, bodyField) {
+    const frontMatterFields = collectionDef?.serialization?.frontMatterFields;
+    if (Array.isArray(frontMatterFields) && frontMatterFields.length > 0) {
+      return frontMatterFields.slice();
+    }
+
+    return Object.keys(collectionDef.fields || {}).filter(
+      fieldName => fieldName !== bodyField && isExportableField(collectionDef.fields[fieldName])
+    );
+  }
+
   function normalizeModel(model) {
     assertValidModel(model);
     const normalizedCollections = {};
@@ -58,6 +95,20 @@
     if (collectionOrder) {
       normalized.collectionOrder = collectionOrder;
     }
+
+    // Export schema must stay behavior-identical to the legacy exporter contract.
+    // Update golden export tests whenever this shape or ordering changes.
+    normalized.getExportSchema = collectionName => {
+      const collection = normalized.collections[collectionName];
+      if (!collection) return null;
+      const bodyField = deriveBodyField(collection);
+      const frontMatterFields = deriveFrontMatterFields(collection, bodyField);
+      return {
+        collectionName,
+        frontMatterFields,
+        bodyField
+      };
+    };
 
     Object.freeze(normalizedCollections);
     if (normalized.collectionOrder) {

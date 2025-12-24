@@ -1,5 +1,6 @@
 const fs = require('fs/promises');
 const path = require('path');
+const os = require('os');
 const JSZip = require('jszip');
 const {
   loadMovementDataset,
@@ -29,6 +30,30 @@ function createSnapshotFromCompiled(compiled, sourceConfig = null) {
 
 function listZipFiles(zip) {
   return Object.keys(zip.files).filter(name => !zip.files[name].dir);
+}
+
+async function listFilesRecursive(dir) {
+  const entries = await fs.readdir(dir, { withFileTypes: true });
+  const files = await Promise.all(entries.map(async entry => {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      return listFilesRecursive(fullPath);
+    }
+    return [fullPath];
+  }));
+  return files.flat();
+}
+
+async function extractZipToDir(zip, outputDir) {
+  const files = listZipFiles(zip);
+  await Promise.all(
+    files.map(async file => {
+      const destPath = path.join(outputDir, file);
+      await fs.mkdir(path.dirname(destPath), { recursive: true });
+      const content = await zip.file(file).async('nodebuffer');
+      await fs.writeFile(destPath, content);
+    })
+  );
 }
 
 async function testLoadAndRepoExport() {
@@ -84,6 +109,45 @@ async function testLoadAndRepoExport() {
     archivedMovement === originalMovement,
     'Exported zip should preserve original file contents'
   );
+}
+
+async function testGoldenExportOutput() {
+  const repoPath = path.join(__dirname, '..', '..', 'test-fixtures/markdown-repo');
+  const compiled = await loadMovementDataset({
+    source: 'local',
+    repoPath
+  });
+  const snapshot = createSnapshotFromCompiled(compiled, { source: 'local', repoPath });
+  const movementId = 'mov-fixture';
+
+  const zipResult = await exportMovementToZip(snapshot, movementId, { outputType: 'nodebuffer' });
+  const zip = await JSZip.loadAsync(zipResult.archive);
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'movement-export-'));
+  await extractZipToDir(zip, tempDir);
+
+  const expectedFiles = await listFilesRecursive(repoPath);
+  const expectedRelative = expectedFiles
+    .map(file => path.relative(repoPath, file).split(path.sep).join('/'))
+    .sort();
+
+  const actualFiles = await listFilesRecursive(tempDir);
+  const actualRelative = actualFiles
+    .map(file => path.relative(tempDir, file).split(path.sep).join('/'))
+    .sort();
+
+  assert(
+    JSON.stringify(actualRelative) === JSON.stringify(expectedRelative),
+    'Exported movement tree should match the golden fixture files'
+  );
+
+  for (const relPath of expectedRelative) {
+    const expectedContent = await fs.readFile(path.join(repoPath, relPath));
+    const actualContent = await fs.readFile(path.join(tempDir, relPath));
+    assert(
+      Buffer.compare(actualContent, expectedContent) === 0,
+      `Exported file ${relPath} should match golden contents`
+    );
+  }
 }
 
 async function testMovementScopedExport() {
@@ -150,6 +214,7 @@ async function testMovementScopedExport() {
 async function runTests() {
   console.log('Running markdown dataset loader tests...');
   await testLoadAndRepoExport();
+  await testGoldenExportOutput();
   await testMovementScopedExport();
   console.log('All markdown dataset loader tests passed ✅');
 }

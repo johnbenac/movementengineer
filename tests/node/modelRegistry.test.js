@@ -1,4 +1,4 @@
-const { listCollections } = require('../../src/core/modelRegistry');
+const { listCollections, getModel } = require('../../src/core/modelRegistry');
 
 function assert(condition, message) {
   if (!condition) {
@@ -39,3 +39,44 @@ function testListCollections() {
 }
 
 testListCollections();
+
+function testExportSchemas() {
+  const model = getModel('2.3');
+  const expected = {
+    movements: {
+      collectionName: 'movements',
+      frontMatterFields: ['id', 'movementId', 'name', 'shortName', 'tags', 'status', 'order'],
+      bodyField: 'summary'
+    },
+    texts: {
+      collectionName: 'texts',
+      frontMatterFields: [
+        'id',
+        'movementId',
+        'title',
+        'label',
+        'parentId',
+        'mainFunction',
+        'tags',
+        'mentionsEntityIds',
+        'order'
+      ],
+      bodyField: 'content'
+    },
+    entities: {
+      collectionName: 'entities',
+      frontMatterFields: ['id', 'movementId', 'name', 'kind', 'tags', 'sourceEntityIds', 'sourcesOfTruth', 'order'],
+      bodyField: 'summary'
+    }
+  };
+
+  Object.entries(expected).forEach(([collectionName, schema]) => {
+    const actual = model.getExportSchema(collectionName);
+    assert(
+      JSON.stringify(actual) === JSON.stringify(schema),
+      `getExportSchema should match expected schema for ${collectionName}`
+    );
+  });
+}
+
+testExportSchemas();
