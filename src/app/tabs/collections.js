@@ -1,4 +1,6 @@
 import { renderMarkdownPreview } from '../ui/markdown.js';
+import DATA_MODEL_V2_3 from '../../models/dataModel.v2_3.js';
+import { getCollectionDoc } from '../ui/schemaDoc.js';
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
@@ -178,7 +180,7 @@ function dedupeRefFields(fields) {
     });
 }
 
-function deriveSchemaGuide(ctx, collectionName, movementId) {
+function deriveLegacySchemaGuide(ctx, collectionName, movementId) {
   const DomainService = getDomainService(ctx);
   const loader = getMarkdownLoader(ctx);
 
@@ -241,6 +243,19 @@ function deriveSchemaGuide(ctx, collectionName, movementId) {
   };
 }
 
+function deriveSchemaGuide(ctx, collectionName, movementId) {
+  const model = DATA_MODEL_V2_3;
+  const collection = model?.collections?.[collectionName];
+  const doc = getCollectionDoc(model, collectionName);
+  if (!collection || !doc) return deriveLegacySchemaGuide(ctx, collectionName, movementId);
+
+  return {
+    ...doc,
+    model,
+    expectedKeys: Object.keys(collection.fields || {}).sort()
+  };
+}
+
 function validateRecord(ctx, collectionName, record, snapshot, guide) {
   const issues = [];
 
@@ -259,8 +274,8 @@ function validateRecord(ctx, collectionName, record, snapshot, guide) {
     }
   });
 
-  (guide.referenceFields || []).forEach(({ field, target }) => {
-    if (!target) return;
+  (guide.referenceFields || []).forEach(({ field, target, kind }) => {
+    if (!target || kind === 'poly') return;
 
     const value = record[field];
     if (value === undefined || value === null || value === '') return;
@@ -282,14 +297,10 @@ function validateRecord(ctx, collectionName, record, snapshot, guide) {
   });
 
   if (collectionName === 'notes') {
-    const loader = getMarkdownLoader(ctx);
     const targetType = record.targetType;
     const targetId = record.targetId;
-    const typeMap = loader?.NOTE_TARGET_TYPES || null;
-
-    const canonical = typeMap
-      ? typeMap[String(targetType).replace(/[\s_]/g, '').toLowerCase()]
-      : targetType;
+    const typeMap = guide?.model?.notes?.targetType?.aliases || {};
+    const canonical = typeMap[String(targetType).replace(/[\s_]/g, '').toLowerCase()] || targetType;
 
     const targetCollection =
       canonical === 'Movement' ? 'movements'
@@ -398,9 +409,16 @@ function renderSchemaGuide(ctx, state, guide, issues) {
   header.appendChild(issueStrip);
   el.appendChild(header);
 
+  const requiredKeys = guide.requiredKeys || [];
+  const requiredLabels = requiredKeys.map(key => {
+    if (guide.collectionName === 'claims' && key === 'text') {
+      return `${key} (front matter or body)`;
+    }
+    return key;
+  });
   const required = document.createElement('div');
   required.className = 'muted small-text';
-  required.innerHTML = `<strong>Required:</strong> ${guide.requiredKeys.map(k => `<code>${k}</code>`).join(' ') || '—'}`;
+  required.innerHTML = `<strong>Required:</strong> ${requiredLabels.map(k => `<code>${k}</code>`).join(' ') || '—'}`;
   el.appendChild(required);
 
   if (guide.bodyField) {
@@ -419,6 +437,108 @@ function renderSchemaGuide(ctx, state, guide, issues) {
         .map(r => `<code>${r.field}</code> → <code>${r.target}</code>`)
         .join(' · ');
     el.appendChild(refs);
+  }
+
+  if (guide.fieldsInOrder?.length && guide.fields) {
+    const fieldsDetails = document.createElement('details');
+    fieldsDetails.style.marginTop = '0.5rem';
+    const fieldsSummary = document.createElement('summary');
+    fieldsSummary.textContent = 'Fields';
+    fieldsDetails.appendChild(fieldsSummary);
+
+    const tableWrapper = document.createElement('div');
+    tableWrapper.className = 'table-wrapper';
+    tableWrapper.style.marginTop = '0.35rem';
+
+    const table = document.createElement('table');
+    const headerRow = document.createElement('tr');
+    ['Field', 'Type', 'Required', 'Nullable', 'Stored In', 'Ref Target', 'Description'].forEach(label => {
+      const th = document.createElement('th');
+      th.textContent = label;
+      headerRow.appendChild(th);
+    });
+    table.appendChild(headerRow);
+
+    const frontMatterFields = guide.frontMatterFields || [];
+    guide.fieldsInOrder.forEach(fieldName => {
+      const field = guide.fields[fieldName];
+      if (!field) return;
+      const row = document.createElement('tr');
+
+      const fieldCell = document.createElement('td');
+      const fieldCode = document.createElement('code');
+      fieldCode.textContent = fieldName;
+      fieldCell.appendChild(fieldCode);
+      if (guide.bodyField === fieldName) {
+        const badge = document.createElement('span');
+        badge.className = 'muted';
+        badge.style.marginLeft = '0.25rem';
+        badge.textContent = '(body)';
+        fieldCell.appendChild(badge);
+      }
+      row.appendChild(fieldCell);
+
+      const typeCell = document.createElement('td');
+      if (field.type === 'array') {
+        const itemType = field.items?.type || 'unknown';
+        const itemMeta = [
+          field.items?.format ? `format:${field.items.format}` : null,
+          field.items?.enum ? `enum:${field.items.enum}` : null
+        ].filter(Boolean);
+        typeCell.textContent = itemMeta.length
+          ? `array<${itemType} ${itemMeta.join(', ')}>`
+          : `array<${itemType}>`;
+      } else {
+        const meta = [
+          field.format ? `format:${field.format}` : null,
+          field.enum ? `enum:${field.enum}` : null
+        ].filter(Boolean);
+        typeCell.textContent = meta.length ? `${field.type} ${meta.join(', ')}` : field.type;
+      }
+      row.appendChild(typeCell);
+
+      const requiredCell = document.createElement('td');
+      requiredCell.textContent = field.required ? 'Yes' : 'No';
+      row.appendChild(requiredCell);
+
+      const nullableCell = document.createElement('td');
+      nullableCell.textContent = field.nullable ? 'Yes' : 'No';
+      row.appendChild(nullableCell);
+
+      const storedCell = document.createElement('td');
+      const inFrontMatter = frontMatterFields.includes(fieldName);
+      const isBody = guide.bodyField === fieldName;
+      storedCell.textContent = inFrontMatter && isBody
+        ? 'front matter + body'
+        : isBody
+        ? 'body'
+        : inFrontMatter
+        ? 'front matter'
+        : '—';
+      row.appendChild(storedCell);
+
+      const refCell = document.createElement('td');
+      if (guide.collectionName === 'notes' && fieldName === 'targetId') {
+        refCell.textContent = '(polymorphic via targetType)';
+      } else if (field.ref) {
+        refCell.textContent = field.ref;
+      } else if (field.items?.ref) {
+        refCell.textContent = field.items.ref;
+      } else {
+        refCell.textContent = '—';
+      }
+      row.appendChild(refCell);
+
+      const descCell = document.createElement('td');
+      descCell.textContent = field.description || '—';
+      row.appendChild(descCell);
+
+      table.appendChild(row);
+    });
+
+    tableWrapper.appendChild(table);
+    fieldsDetails.appendChild(tableWrapper);
+    el.appendChild(fieldsDetails);
   }
 
   const details = document.createElement('details');
