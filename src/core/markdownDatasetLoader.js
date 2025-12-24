@@ -40,6 +40,27 @@
     return globalScope?.ModelRegistry || null;
   }
 
+  function getValidationConfigModule() {
+    if (isNode()) {
+      return require('./validation/validationConfig');
+    }
+    return globalScope?.ValidationConfig || null;
+  }
+
+  function getShadowValidationModule() {
+    if (isNode()) {
+      return require('./validation/shadowValidation');
+    }
+    return globalScope?.ShadowValidation || null;
+  }
+
+  function getLegacyAdapterModule() {
+    if (isNode()) {
+      return require('./validation/legacyAdapter');
+    }
+    return globalScope?.LegacyValidationAdapter || null;
+  }
+
   const modelRegistry = getModelRegistry();
   if (!modelRegistry?.listCollections) {
     throw new Error('ModelRegistry is not available. Ensure it is loaded before markdownDatasetLoader.');
@@ -977,6 +998,32 @@
     const specVersion = DEFAULT_SPEC_VERSION;
     const records = await readMarkdownRecords(reader, listing, specVersion);
     const compiled = compileRecords(records, specVersion);
+    const validationConfig = getValidationConfigModule()?.getValidationConfig?.();
+
+    if (validationConfig?.shadowEnabled) {
+      const shadowValidation = getShadowValidationModule();
+      const legacyAdapter = getLegacyAdapterModule();
+      const legacyIssues = legacyAdapter?.normalizeLegacyIssues
+        ? legacyAdapter.normalizeLegacyIssues([])
+        : [];
+      const model = modelRegistry.getModel(specVersion);
+      const shadowResult = shadowValidation?.runShadowValidation
+        ? shadowValidation.runShadowValidation({
+            snapshot: compiled.data,
+            model,
+            legacyIssues,
+            options: {
+              maxIssues: validationConfig.maxIssues,
+              logExamples: validationConfig.logExamples
+            }
+          })
+        : null;
+
+      if (shadowResult) {
+        compiled.data.__debug = compiled.data.__debug || {};
+        compiled.data.__debug.modelValidationShadow = shadowResult;
+      }
+    }
 
     return {
       specVersion,
