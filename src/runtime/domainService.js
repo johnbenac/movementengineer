@@ -8,7 +8,21 @@
   'use strict';
 
   const globalScope = typeof globalThis !== 'undefined' ? globalThis : window;
-  const { COLLECTION_NAMES, COLLECTIONS_WITH_MOVEMENT_ID } = globalScope.StorageService;
+  const ModelRegistry = globalScope.ModelRegistry;
+  const StorageService = globalScope.StorageService || {};
+  const DEFAULT_SPEC_VERSION = ModelRegistry?.DEFAULT_SPEC_VERSION || '2.3';
+
+  function listCollectionNames(specVersion) {
+    if (ModelRegistry?.listCollections) {
+      return ModelRegistry.listCollections(specVersion || DEFAULT_SPEC_VERSION);
+    }
+    return Array.isArray(StorageService.COLLECTION_NAMES)
+      ? [...StorageService.COLLECTION_NAMES]
+      : [];
+  }
+
+  const COLLECTION_NAMES = listCollectionNames(DEFAULT_SPEC_VERSION);
+  const COLLECTIONS_WITH_MOVEMENT_ID = StorageService.COLLECTIONS_WITH_MOVEMENT_ID || new Set();
 
   function generateId(prefix) {
     const base = prefix || 'id-';
@@ -221,6 +235,7 @@
   globalScope.DomainService = {
     COLLECTION_NAMES,
     COLLECTIONS_WITH_MOVEMENT_ID,
+    listCollectionNames,
     generateId,
     addMovement,
     updateMovement,

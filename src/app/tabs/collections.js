@@ -1,5 +1,4 @@
-import DATA_MODEL_V2_3 from '../../models/dataModel.v2_3.js';
-import { getCollectionDoc } from '../ui/schemaDoc.js';
+import { getCollectionDoc, getModelForSnapshot } from '../ui/schemaDoc.js';
 import { renderMarkdownPreview } from '../ui/markdown.js';
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
@@ -243,8 +242,8 @@ function deriveLegacySchemaGuide(ctx, collectionName, movementId) {
   };
 }
 
-function deriveSchemaGuide(ctx, collectionName, movementId) {
-  const guide = getCollectionDoc(DATA_MODEL_V2_3, collectionName);
+function deriveSchemaGuide(ctx, collectionName, movementId, snapshot) {
+  const guide = getCollectionDoc(getModelForSnapshot(snapshot), collectionName);
   if (guide) return guide;
   return deriveLegacySchemaGuide(ctx, collectionName, movementId);
 }
@@ -290,9 +289,10 @@ function validateRecord(ctx, collectionName, record, snapshot, guide) {
   });
 
   if (collectionName === 'notes') {
+    const model = getModelForSnapshot(snapshot);
     const targetType = record.targetType;
     const targetId = record.targetId;
-    const typeMap = DATA_MODEL_V2_3.notes?.targetType?.aliases || {};
+    const typeMap = model?.notes?.targetType?.aliases || {};
     const canonical = typeMap[String(targetType).replace(/[\s_]/g, '').toLowerCase()] || targetType;
 
     const targetCollection =
@@ -965,7 +965,7 @@ function renderCollectionsTab(ctx, tab) {
   });
 
   const record = getSelectedRecord(normalizedState);
-  const guide = deriveSchemaGuide(ctx, collectionName, normalizedState.currentMovementId);
+  const guide = deriveSchemaGuide(ctx, collectionName, normalizedState.currentMovementId, normalizedState.snapshot);
   const issues = validateRecord(ctx, collectionName, record, normalizedState.snapshot || {}, guide);
 
   renderSchemaGuide(ctx, normalizedState, guide, issues);
