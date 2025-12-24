@@ -1,20 +1,6 @@
 (function () {
   'use strict';
 
-  const SPEC_VERSION = '2.3';
-  const COLLECTION_NAMES = [
-    'movements',
-    'textCollections',
-    'texts',
-    'entities',
-    'practices',
-    'events',
-    'rules',
-    'claims',
-    'media',
-    'notes'
-  ];
-
   const NOTE_TARGET_TYPES = {
     movement: 'Movement',
     movementnode: 'Movement', // legacy typo safeguard
@@ -42,6 +28,27 @@
 
   function isNode() {
     return typeof module !== 'undefined' && !!module.exports;
+  }
+
+  const globalScope =
+    typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : undefined;
+
+  function getModelRegistry() {
+    if (isNode()) {
+      return require('./modelRegistry');
+    }
+    return globalScope?.ModelRegistry || null;
+  }
+
+  const modelRegistry = getModelRegistry();
+  if (!modelRegistry?.listCollections) {
+    throw new Error('ModelRegistry is not available. Ensure it is loaded before markdownDatasetLoader.');
+  }
+
+  const { DEFAULT_SPEC_VERSION, listCollections } = modelRegistry;
+
+  function resolveSpecVersion(value) {
+    return value || DEFAULT_SPEC_VERSION;
   }
 
   function getYamlLib() {
@@ -169,20 +176,21 @@
     return `---\n${fm}---\n${bodyText}`;
   }
 
-  function buildBaselineByMovement(data) {
+  function buildBaselineByMovement(data, specVersion) {
     const baseline = {};
+    const collectionNames = listCollections(resolveSpecVersion(specVersion || data?.specVersion));
     const movements = normaliseArray(data.movements);
     movements.forEach(movement => {
       const id = movement.id;
       if (!id) return;
       baseline[id] = {};
-      COLLECTION_NAMES.forEach(collection => {
+      collectionNames.forEach(collection => {
         baseline[id][collection] = {};
       });
       baseline[id].movements[movement.id] = deepClone(movement);
     });
 
-    COLLECTION_NAMES.forEach(collection => {
+    collectionNames.forEach(collection => {
       if (collection === 'movements') return;
       normaliseArray(data[collection]).forEach(item => {
         if (!item || !item.movementId || !baseline[item.movementId]) return;
@@ -383,9 +391,10 @@
   // Compiler helpers
   // ------------------------
 
-  function ensureDataShape() {
+  function ensureDataShape(specVersion) {
     const data = {};
-    COLLECTION_NAMES.forEach(name => {
+    const collectionNames = listCollections(resolveSpecVersion(specVersion));
+    collectionNames.forEach(name => {
       data[name] = [];
     });
     return data;
@@ -643,8 +652,8 @@
       });
   }
 
-  function validateDuplicates(data) {
-    COLLECTION_NAMES.forEach(collection => {
+  function validateDuplicates(data, collectionNames) {
+    collectionNames.forEach(collection => {
       const seen = new Set();
       data[collection].forEach(item => {
         if (seen.has(item.id)) {
@@ -655,7 +664,7 @@
     });
   }
 
-  function validateMovementLinks(data) {
+  function validateMovementLinks(data, collectionNames) {
     const movementIds = new Set(data.movements.map(m => m.id));
     data.movements.forEach(movement => {
       if (movement.movementId !== movement.id) {
@@ -663,7 +672,7 @@
       }
     });
 
-    COLLECTION_NAMES.forEach(collection => {
+    collectionNames.forEach(collection => {
       if (collection === 'movements') return;
       data[collection].forEach(item => {
         if (!movementIds.has(item.movementId)) {
@@ -675,16 +684,16 @@
     });
   }
 
-  function buildMovementIndexes(data) {
+  function buildMovementIndexes(data, collectionNames) {
     const byMovement = {};
     data.movements.forEach(movement => {
       byMovement[movement.id] = {};
-      COLLECTION_NAMES.forEach(collection => {
+      collectionNames.forEach(collection => {
         byMovement[movement.id][collection] = [];
       });
     });
 
-    COLLECTION_NAMES.forEach(collection => {
+    collectionNames.forEach(collection => {
       if (collection === 'movements') return;
       data[collection].forEach(item => {
         if (!byMovement[item.movementId]) return;
@@ -702,8 +711,8 @@
     }
   }
 
-  function validateReferences(data, fileIndex) {
-    const byMovement = buildMovementIndexes(data);
+  function validateReferences(data, fileIndex, collectionNames) {
+    const byMovement = buildMovementIndexes(data, collectionNames);
     Object.entries(byMovement).forEach(([movementId, collections]) => {
       const textIds = new Set(collections.texts.map(t => t.id));
       const entityIds = new Set(collections.entities.map(e => e.id));
@@ -850,8 +859,10 @@
     });
   }
 
-  function compileRecords(records) {
-    const data = ensureDataShape();
+  function compileRecords(records, specVersion) {
+    const resolvedSpecVersion = resolveSpecVersion(specVersion);
+    const collectionNames = listCollections(resolvedSpecVersion);
+    const data = ensureDataShape(resolvedSpecVersion);
     const fileIndex = new Map();
     const rawMarkdownByPath = {};
 
@@ -866,12 +877,12 @@
       }
     });
 
-    validateDuplicates(data);
-    validateMovementLinks(data);
-    validateReferences(data, fileIndex);
+    validateDuplicates(data, collectionNames);
+    validateMovementLinks(data, collectionNames);
+    validateReferences(data, fileIndex, collectionNames);
 
-    const sorted = ensureDataShape();
-    COLLECTION_NAMES.forEach(name => {
+    const sorted = ensureDataShape(resolvedSpecVersion);
+    collectionNames.forEach(name => {
       sorted[name] = sortCollection(data[name]);
     });
 
@@ -882,36 +893,37 @@
     };
   }
 
-  function detectCollectionFromPath(path) {
+  function detectCollectionFromPath(path, collectionNames) {
     const parts = path.split('/').filter(Boolean);
     const filename = parts[parts.length - 1];
     if (!/\.md$/i.test(filename)) return null;
 
     if (parts[0] === 'data' && parts.length >= 3) {
       const collectionDir = parts[1];
-      return COLLECTION_NAMES.includes(collectionDir) ? collectionDir : null;
+      return collectionNames.includes(collectionDir) ? collectionDir : null;
     }
 
     if (parts[0] === 'movements' && parts.length >= 3) {
       if (filename === 'movement.md') return 'movements';
       const collectionDir = parts[2];
-      return COLLECTION_NAMES.includes(collectionDir) ? collectionDir : null;
+      return collectionNames.includes(collectionDir) ? collectionDir : null;
     }
 
     return null;
   }
 
-  async function readMarkdownRecords(reader, repoListing) {
+  async function readMarkdownRecords(reader, repoListing, specVersion) {
+    const collectionNames = listCollections(resolveSpecVersion(specVersion));
     const records = [];
     const files = Array.isArray(repoListing.files) ? repoListing.files : repoListing;
-    const paths = files.filter(path => detectCollectionFromPath(path));
+    const paths = files.filter(path => detectCollectionFromPath(path, collectionNames));
 
     if (paths.length === 0) {
       throw new Error('No markdown records were found under the expected data/ folders.');
     }
 
     for (const path of paths) {
-      const collection = detectCollectionFromPath(path);
+      const collection = detectCollectionFromPath(path, collectionNames);
       const text = await reader.readText(path, repoListing.ref, repoListing.commitSha);
       const parsed = parseFrontMatter(text, path);
       records.push({
@@ -962,11 +974,12 @@
   async function loadMovementDataset(config) {
     const { reader, listing, repoInfo } = await prepareRepoSource(config);
 
-    const records = await readMarkdownRecords(reader, listing);
-    const compiled = compileRecords(records);
+    const specVersion = DEFAULT_SPEC_VERSION;
+    const records = await readMarkdownRecords(reader, listing, specVersion);
+    const compiled = compileRecords(records, specVersion);
 
     return {
-      specVersion: SPEC_VERSION,
+      specVersion,
       generatedAt: new Date().toISOString(),
       data: compiled.data,
       repoInfo,
@@ -1241,7 +1254,8 @@
     zip.file(movementFilePath, movementContent);
     fileCount += 1;
 
-    COLLECTION_NAMES.forEach(collection => {
+    const collectionNames = listCollections(resolveSpecVersion(snapshot?.specVersion));
+    collectionNames.forEach(collection => {
       if (collection === 'movements') return;
       const items = normaliseArray(snapshot[collection]).filter(item => item.movementId === movementId);
       items.forEach(item => {
@@ -1340,7 +1354,7 @@
       __repoInfo: compiled.repoInfo || null,
       __repoFileIndex: compiled.fileIndex || {},
       __repoRawMarkdownByPath: compiled.rawMarkdownByPath || {},
-      __repoBaselineByMovement: buildBaselineByMovement(compiled.data)
+      __repoBaselineByMovement: buildBaselineByMovement(compiled.data, compiled.specVersion)
     };
     snapshot.version = snapshot.version || compiled.specVersion;
     snapshot.specVersion = compiled.specVersion;

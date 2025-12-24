@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import DATA_MODEL_V2_3 from '../../../src/models/dataModel.v2_3.js';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+const DATA_MODEL_V2_3 = require('../../../src/models/dataModel.v2_3.js');
 
 describe('DATA_MODEL_V2_3', () => {
   it('matches the spec version', () => {
