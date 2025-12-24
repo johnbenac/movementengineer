@@ -12,6 +12,19 @@
     (globalScope && globalScope.EntityGraphColors?.colorForNodeType) ||
     (() => '#1f2937');
 
+  const NODE_COLLECTIONS = {
+    Movement: 'movements',
+    Entity: 'entities',
+    TextCollection: 'textCollections',
+    TextNode: 'texts',
+    Practice: 'practices',
+    Event: 'events',
+    Rule: 'rules',
+    Claim: 'claims',
+    MediaAsset: 'media',
+    Note: 'notes'
+  };
+
   function clearElement(el) {
     if (!el) return;
     while (el.firstChild) el.removeChild(el.firstChild);
@@ -40,6 +53,7 @@
   function buildSummarySection(vm, onNodeClick) {
     const aside = document.createElement('div');
     aside.className = 'entity-graph-summary';
+    const createChip = globalScope?.MovementEngineer?.dom?.createChip;
 
     const title = document.createElement('div');
     title.className = 'section-heading small';
@@ -49,12 +63,41 @@
     const chipRow = document.createElement('div');
     chipRow.className = 'chip-row wrap';
     vm.nodes.forEach(node => {
-      const chip = document.createElement('span');
-      chip.className =
-        'chip' + (node.id === vm.centerEntityId ? ' chip-strong' : ' clickable');
-      chip.textContent =
-        (node.id === vm.centerEntityId ? '★ ' : '') + (node.name || node.id);
-      chip.title = node.kind || node.type || '';
+      const labelPrefix = node.id === vm.centerEntityId ? '★ ' : '';
+      const collection = NODE_COLLECTIONS[node.type] || null;
+      const chipTarget =
+        collection && node.id
+          ? {
+              kind: 'item',
+              collection,
+              id: node.id
+            }
+          : null;
+
+      const chip =
+        typeof createChip === 'function'
+          ? createChip({
+              tagName: 'span',
+              className: node.id === vm.centerEntityId ? 'chip-strong' : '',
+              label: `${labelPrefix}${node.name || node.id}`,
+              title: node.kind || node.type || '',
+              target: chipTarget
+            })
+          : (() => {
+              const fallback = document.createElement('span');
+              fallback.className =
+                'chip' + (node.id === vm.centerEntityId ? ' chip-strong' : ' clickable');
+              fallback.textContent = `${labelPrefix}${node.name || node.id}`;
+              fallback.title = node.kind || node.type || '';
+              if (chipTarget) {
+                fallback.dataset.chipKind = chipTarget.kind;
+                fallback.dataset.chipCollection = chipTarget.collection;
+                fallback.dataset.chipId = chipTarget.id;
+                fallback.dataset.rowSelect = 'ignore';
+              }
+              return fallback;
+            })();
+
       const chipColor = colorForNodeType(node.type || node.kind);
       const surface = globalScope?.MovementEngineerColors?.deriveSurfaceColors?.(chipColor);
       if (surface) {
