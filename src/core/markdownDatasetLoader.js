@@ -47,6 +47,27 @@
 
   const { DEFAULT_SPEC_VERSION, listCollections } = modelRegistry;
 
+  function getValidationConfig() {
+    if (isNode()) {
+      return require('./validation/validationConfig');
+    }
+    return globalScope?.ValidationConfig || null;
+  }
+
+  function getShadowValidation() {
+    if (isNode()) {
+      return require('./validation/shadowValidation');
+    }
+    return globalScope?.ShadowValidation || null;
+  }
+
+  function getLegacyValidationAdapter() {
+    if (isNode()) {
+      return require('./validation/legacyAdapter');
+    }
+    return globalScope?.LegacyValidationAdapter || null;
+  }
+
   function resolveSpecVersion(value) {
     return value || DEFAULT_SPEC_VERSION;
   }
@@ -977,6 +998,34 @@
     const specVersion = DEFAULT_SPEC_VERSION;
     const records = await readMarkdownRecords(reader, listing, specVersion);
     const compiled = compileRecords(records, specVersion);
+
+    const validationConfig = getValidationConfig();
+    const shadowConfig = validationConfig?.getModelValidationShadowConfig
+      ? validationConfig.getModelValidationShadowConfig()
+      : { enabled: false, maxIssues: 500, logExamples: 20 };
+
+    if (shadowConfig.enabled) {
+      const shadowValidation = getShadowValidation();
+      const legacyAdapter = getLegacyValidationAdapter();
+      if (shadowValidation?.runShadowValidation && legacyAdapter?.normalizeLegacyIssues) {
+        const legacyIssues = legacyAdapter.normalizeLegacyIssues([]);
+        const model = modelRegistry.getModel(specVersion);
+        const { modelReport, diff } = shadowValidation.runShadowValidation({
+          snapshot: compiled.data,
+          model,
+          legacyIssues,
+          options: {
+            maxIssues: shadowConfig.maxIssues,
+            logExamples: shadowConfig.logExamples
+          }
+        });
+
+        compiled.data.__debug = compiled.data.__debug || {};
+        compiled.data.__debug.modelValidationShadow = { modelReport, diff };
+      } else {
+        console.warn('[Model Validation Shadow] Validation modules unavailable; skipping.');
+      }
+    }
 
     return {
       specVersion,
