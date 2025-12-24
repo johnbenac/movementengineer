@@ -5,6 +5,7 @@ import {
   getOrderedFieldNames
 } from './genericCrudHelpers.ts';
 import { FieldRenderer } from './FieldRenderer.tsx';
+import { usePlugins } from '../../core/plugins/PluginProvider.tsx';
 
 const globalScope =
   typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : undefined;
@@ -55,7 +56,10 @@ function validateDraft(draft, collectionDef, model) {
 
 export function RecordEditor({
   record,
+  collectionName,
   collectionDef,
+  modelRegistry,
+  plugins: providedPlugins,
   model,
   snapshot,
   mode,
@@ -73,6 +77,7 @@ export function RecordEditor({
   let draft = cloneRecord(record);
   const bodyField = getBodyField(collectionDef);
   const fields = getOrderedFieldNames(collectionDef);
+  const plugins = providedPlugins || usePlugins();
 
   const errorSummary = document.createElement('div');
   errorSummary.className = 'generic-crud-error-summary';
@@ -81,6 +86,8 @@ export function RecordEditor({
   const form = document.createElement('div');
 
   const fieldErrors = new Map();
+
+  let validationErrors = [];
 
   function refreshValidation() {
     const result = validateDraft(draft, collectionDef, model);
@@ -91,6 +98,7 @@ export function RecordEditor({
       bucket.push(error.message);
       fieldErrors.set(error.fieldPath, bucket);
     });
+    validationErrors = result.errors;
 
     errorSummary.innerHTML = '';
     if (!result.ok) {
@@ -125,6 +133,8 @@ export function RecordEditor({
     refreshValidation();
   }
 
+  const warnedWidgets = new Set();
+
   fields.forEach(fieldName => {
     const fieldDef = collectionDef?.fields?.[fieldName] || {};
     const row = document.createElement('div');
@@ -133,19 +143,58 @@ export function RecordEditor({
     label.textContent = fieldName;
     row.appendChild(label);
 
-    const fieldWrapper = FieldRenderer({
-      fieldDef,
-      fieldName,
-      value: draft?.[fieldName],
-      model,
-      snapshot,
-      isBodyField: fieldName === bodyField,
-      error: null,
-      onChange: nextValue => {
-        const coerced = coerceInputValue(fieldDef, nextValue);
-        updateDraft(fieldName, coerced);
+    let fieldWrapper = null;
+    const widgetId = fieldDef?.ui?.widget;
+    if (widgetId) {
+      const widget = plugins.getFieldWidget({
+        collectionName,
+        fieldName,
+        widgetId
+      });
+      if (!widget && isDevMode()) {
+        const key = `${collectionName}:${fieldName}:${widgetId}`;
+        if (!warnedWidgets.has(key)) {
+          warnedWidgets.add(key);
+          console.warn(
+            `[plugins] Missing widget plugin: collection="${collectionName}" field="${fieldName}" widget="${widgetId}"`
+          );
+        }
       }
-    });
+      if (widget?.component) {
+        fieldWrapper = widget.component({
+          modelRegistry,
+          plugins,
+          collectionName,
+          collectionDef,
+          fieldName,
+          fieldDef,
+          value: draft?.[fieldName],
+          onChange: nextValue => {
+            const coerced = coerceInputValue(fieldDef, nextValue);
+            updateDraft(fieldName, coerced);
+          },
+          record: draft,
+          mode,
+          errors: validationErrors
+        });
+      }
+    }
+
+    if (!fieldWrapper) {
+      fieldWrapper = FieldRenderer({
+        fieldDef,
+        fieldName,
+        value: draft?.[fieldName],
+        model,
+        snapshot,
+        isBodyField: fieldName === bodyField,
+        error: null,
+        onChange: nextValue => {
+          const coerced = coerceInputValue(fieldDef, nextValue);
+          updateDraft(fieldName, coerced);
+        }
+      });
+    }
 
     row.appendChild(fieldWrapper);
     form.appendChild(row);
@@ -199,4 +248,11 @@ export function RecordEditor({
   refreshFieldErrors();
 
   return wrapper;
+}
+
+function isDevMode() {
+  if (typeof process !== 'undefined' && process.env?.NODE_ENV) {
+    return process.env.NODE_ENV !== 'production';
+  }
+  return true;
 }

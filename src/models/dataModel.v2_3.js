@@ -65,6 +65,9 @@
         frontMatterFields: ['id', 'movementId', 'name', 'shortName', 'tags', 'status', 'order'],
         bodyField: 'summary'
       },
+      ui: {
+        views: ['detail']
+      },
       fields: {
         id: {
           type: 'string',
@@ -139,6 +142,9 @@
       serialization: {
         frontMatterFields: ['id', 'movementId', 'name', 'rootTextIds', 'description', 'tags', 'order'],
         bodyField: 'description'
+      },
+      ui: {
+        views: ['detail']
       },
       fields: {
         id: {
@@ -218,6 +224,9 @@
           'order'
         ],
         bodyField: 'content'
+      },
+      ui: {
+        views: ['detail']
       },
       fields: {
         id: {
@@ -312,6 +321,9 @@
         frontMatterFields: ['id', 'movementId', 'name', 'kind', 'tags', 'sourceEntityIds', 'sourcesOfTruth', 'order'],
         bodyField: 'summary'
       },
+      ui: {
+        views: ['detail']
+      },
       fields: {
         id: {
           type: 'string',
@@ -404,6 +416,9 @@
           'order'
         ],
         bodyField: 'description'
+      },
+      ui: {
+        views: ['detail']
       },
       fields: {
         id: {
@@ -534,6 +549,10 @@
         ],
         bodyField: 'description'
       },
+      ui: {
+        views: ['calendar', 'detail'],
+        defaultView: 'calendar'
+      },
       fields: {
         id: {
           type: 'string',
@@ -655,6 +674,9 @@
           'order'
         ],
         bodyField: 'details'
+      },
+      ui: {
+        views: ['detail']
       },
       fields: {
         id: {
@@ -793,6 +815,9 @@
         ],
         bodyField: 'text'
       },
+      ui: {
+        views: ['detail']
+      },
       fields: {
         id: {
           type: 'string',
@@ -902,6 +927,9 @@
         ],
         bodyField: 'description'
       },
+      ui: {
+        views: ['detail']
+      },
       fields: {
         id: {
           type: 'string',
@@ -1008,6 +1036,9 @@
       serialization: {
         frontMatterFields: ['id', 'movementId', 'targetType', 'targetId', 'author', 'context', 'tags', 'order'],
         bodyField: 'body'
+      },
+      ui: {
+        views: ['detail']
       },
       fields: {
         id: {

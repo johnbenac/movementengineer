@@ -15,6 +15,9 @@ import { registerCalendarTab } from './tabs/calendar.js';
 import { registerCollectionsTab } from './tabs/collections.js';
 import { registerAuthorityTab } from './tabs/authority.js';
 import { registerGenericCrudTab } from './tabs/genericCrud.js';
+import { createPluginRegistry } from '../core/plugins/pluginRegistry.js';
+import { PluginProvider } from '../core/plugins/PluginProvider.tsx';
+import { registerBuiltInPlugins } from '../plugins/registerBuiltins.js';
 import { initMovements } from './ui/movements.js';
 import { initShell } from './shell.js';
 import { createActions } from './actions.js';
@@ -108,6 +111,15 @@ const ctx = {
 ctx.actions = {
   ...createActions(ctx)
 };
+
+const modelRegistry = globalThis.ModelRegistry || null;
+const plugins = createPluginRegistry();
+registerBuiltInPlugins(plugins, { modelRegistry });
+plugins.finalize();
+PluginProvider({ plugins, children: null });
+
+ctx.plugins = plugins;
+ctx.modelRegistry = modelRegistry;
 
 movementEngineerGlobal.ctx = ctx;
 
