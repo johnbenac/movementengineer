@@ -250,12 +250,21 @@ button.danger:hover {
   border-bottom: 2px solid transparent;
   background: transparent;
   flex: 0 0 auto;
+  color: var(--tab-accent-text, #111827);
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .tab.active {
-  border-bottom-color: #111827;
+  border-bottom-color: var(--tab-accent, #111827);
   font-weight: 600;
-  background: #e5e7eb;
+  background: var(--tab-accent-soft, #e5e7eb);
+  color: var(--tab-accent-text, #111827);
+}
+
+.tab:hover {
+  border-bottom-color: var(--tab-accent, #111827);
+  background: var(--tab-accent-soft, #e5e7eb);
+  color: var(--tab-accent-text, #111827);
 }
 
 .tab-panel {
@@ -900,9 +909,9 @@ button.danger:hover {
   font-size: 0.75rem;
   padding: 0.15rem 0.4rem;
   border-radius: 999px;
-  background: #e5e7eb;
-  color: #111827;
-  border: 1px solid #d1d5db;
+  background: var(--chip-bg, #e5e7eb);
+  color: var(--chip-text, #111827);
+  border: 1px solid var(--chip-border, #d1d5db);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -910,6 +919,7 @@ button.danger:hover {
   text-decoration: none;
   appearance: none;
   line-height: 1.2;
+  box-shadow: var(--chip-shadow, none);
   transition:
     background 120ms ease,
     border-color 120ms ease,
@@ -918,29 +928,32 @@ button.danger:hover {
 }
 
 .chip-tag {
-  background: #f3f4f6;
-  border-color: #e5e7eb;
-  color: #374151;
+  --chip-bg: #f3f4f6;
+  --chip-border: #e5e7eb;
+  --chip-text: #374151;
 }
 
 .chip-entity {
-  background: #eef2ff;
-  border-color: #c7d2fe;
-  color: #3730a3;
-  box-shadow: 0 1px 0 rgba(55, 48, 163, 0.08);
+  --chip-bg: #eef2ff;
+  --chip-border: #c7d2fe;
+  --chip-text: #3730a3;
+  --chip-shadow: 0 1px 0 rgba(55, 48, 163, 0.08);
+  --chip-hover: #e0e7ff;
+  --chip-border-hover: #a5b4fc;
 }
 
 .chip:not(.chip-tile):hover {
-  background: #d1d5db;
+  background: var(--chip-hover, #d1d5db);
+  border-color: var(--chip-border-hover, #d1d5db);
 }
 
 .chip-entity:hover {
-  background: #e0e7ff;
-  border-color: #a5b4fc;
+  background: var(--chip-hover, #e0e7ff);
+  border-color: var(--chip-border-hover, #a5b4fc);
 }
 
 .chip:focus-visible {
-  outline: 2px solid #4f46e5;
+  outline: 2px solid var(--chip-accent, #4f46e5);
   outline-offset: 2px;
   box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
 }

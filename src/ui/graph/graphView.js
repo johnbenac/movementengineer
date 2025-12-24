@@ -8,6 +8,7 @@
   const ARROW_ID = 'graph-shared-arrow';
 
   const colorForNodeType =
+    (globalScope && globalScope.MovementEngineerColors?.colorForNodeType) ||
     (globalScope && globalScope.EntityGraphColors?.colorForNodeType) ||
     (() => '#1f2937');
 
@@ -47,18 +48,28 @@
 
     const chipRow = document.createElement('div');
     chipRow.className = 'chip-row wrap';
-      vm.nodes.forEach(node => {
-        const chip = document.createElement('span');
-        chip.className =
-          'chip' + (node.id === vm.centerEntityId ? ' chip-strong' : ' clickable');
-        chip.textContent =
-          (node.id === vm.centerEntityId ? '★ ' : '') + (node.name || node.id);
-        chip.title = node.kind || node.type || '';
-        if (node.id !== vm.centerEntityId && onNodeClick) {
-          chip.addEventListener('click', () => onNodeClick(node.id, node));
-        }
-        chipRow.appendChild(chip);
-      });
+    vm.nodes.forEach(node => {
+      const chip = document.createElement('span');
+      chip.className =
+        'chip' + (node.id === vm.centerEntityId ? ' chip-strong' : ' clickable');
+      chip.textContent =
+        (node.id === vm.centerEntityId ? '★ ' : '') + (node.name || node.id);
+      chip.title = node.kind || node.type || '';
+      const chipColor = colorForNodeType(node.type || node.kind);
+      const surface = globalScope?.MovementEngineerColors?.deriveSurfaceColors?.(chipColor);
+      if (surface) {
+        chip.style.setProperty('--chip-accent', surface.base);
+        chip.style.setProperty('--chip-bg', surface.background);
+        chip.style.setProperty('--chip-border', surface.border);
+        chip.style.setProperty('--chip-text', surface.text);
+        chip.style.setProperty('--chip-hover', surface.hover);
+        chip.style.setProperty('--chip-border-hover', surface.borderHover);
+      }
+      if (node.id !== vm.centerEntityId && onNodeClick) {
+        chip.addEventListener('click', () => onNodeClick(node.id, node));
+      }
+      chipRow.appendChild(chip);
+    });
     aside.appendChild(chipRow);
 
     const edgesTitle = document.createElement('div');

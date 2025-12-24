@@ -50,6 +50,7 @@ const {
   ViewModels,
   EntityGraphView,
   EntityGraphColors,
+  MovementEngineerColors,
   MarkdownDatasetLoader,
   d3
 } = globalThis;
@@ -60,6 +61,7 @@ const services = {
   ViewModels,
   EntityGraphView,
   EntityGraphColors,
+  MovementEngineerColors,
   MarkdownDatasetLoader,
   d3
 };

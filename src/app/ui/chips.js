@@ -2,6 +2,9 @@
 
 const DEFAULT_LABEL_KEYS = ['name', 'title', 'shortText', 'text', 'id'];
 let globalChipHandlerInstalled = false;
+const globalScope = typeof globalThis !== 'undefined' ? globalThis : window;
+const colorScheme =
+  globalScope?.MovementEngineerColors || globalScope?.EntityGraphColors || null;
 
 export function defaultChipLabel(item) {
   if (item === undefined || item === null) return '';
@@ -115,6 +118,21 @@ export function createChip(descriptor = {}) {
     el.dataset.chipInvalid = 'true';
   }
   el.dataset.rowSelect = 'ignore';
+
+  const chipColor =
+    colorScheme?.colorForChipTarget?.(normalizedTarget || target) ||
+    (normalizedTarget?.kind === 'item' &&
+      colorScheme?.colorForCollection?.(normalizedTarget.collection)) ||
+    null;
+  if (chipColor && colorScheme?.deriveSurfaceColors) {
+    const surface = colorScheme.deriveSurfaceColors(chipColor);
+    el.style.setProperty('--chip-accent', surface.base);
+    el.style.setProperty('--chip-bg', surface.background);
+    el.style.setProperty('--chip-border', surface.border);
+    el.style.setProperty('--chip-text', surface.text);
+    el.style.setProperty('--chip-hover', surface.hover);
+    el.style.setProperty('--chip-border-hover', surface.borderHover);
+  }
 
   if (attrs && typeof attrs === 'object') {
     Object.entries(attrs).forEach(([k, v]) => {
