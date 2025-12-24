@@ -1,5 +1,4 @@
-import DATA_MODEL_V2_3 from '../../models/dataModel.v2_3.js';
-import { getCollectionDoc } from '../ui/schemaDoc.js';
+import { getCollectionDoc, getModelForSnapshot } from '../ui/schemaDoc.js';
 import { renderMarkdownPreview } from '../ui/markdown.js';
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
@@ -152,6 +151,11 @@ function getCollectionNames(ctx) {
     : [];
 }
 
+function getModel(ctx) {
+  const snapshot = getState(ctx)?.snapshot || null;
+  return getModelForSnapshot(snapshot);
+}
+
 function getCollectionsWithMovementId(ctx) {
   const DomainService = getDomainService(ctx);
   return DomainService?.COLLECTIONS_WITH_MOVEMENT_ID || new Set();
@@ -244,7 +248,7 @@ function deriveLegacySchemaGuide(ctx, collectionName, movementId) {
 }
 
 function deriveSchemaGuide(ctx, collectionName, movementId) {
-  const guide = getCollectionDoc(DATA_MODEL_V2_3, collectionName);
+  const guide = getCollectionDoc(getModel(ctx), collectionName);
   if (guide) return guide;
   return deriveLegacySchemaGuide(ctx, collectionName, movementId);
 }
@@ -292,7 +296,7 @@ function validateRecord(ctx, collectionName, record, snapshot, guide) {
   if (collectionName === 'notes') {
     const targetType = record.targetType;
     const targetId = record.targetId;
-    const typeMap = DATA_MODEL_V2_3.notes?.targetType?.aliases || {};
+    const typeMap = getModel(ctx)?.notes?.targetType?.aliases || {};
     const canonical = typeMap[String(targetType).replace(/[\s_]/g, '').toLowerCase()] || targetType;
 
     const targetCollection =

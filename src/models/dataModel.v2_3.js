@@ -1,4 +1,7 @@
-export const DATA_MODEL_V2_3 = {
+(function () {
+  'use strict';
+
+  const DATA_MODEL_V2_3 = {
   specVersion: '2.3',
   collectionsOrder: [
     'movements',
@@ -1092,4 +1095,14 @@ export const DATA_MODEL_V2_3 = {
   }
 };
 
-export default DATA_MODEL_V2_3;
+  const globalScope =
+    typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : undefined;
+
+  if (globalScope) {
+    globalScope.DATA_MODEL_V2_3 = DATA_MODEL_V2_3;
+  }
+
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = DATA_MODEL_V2_3;
+  }
+})();

@@ -8,7 +8,19 @@
   'use strict';
 
   const globalScope = typeof globalThis !== 'undefined' ? globalThis : window;
-  const { COLLECTION_NAMES, COLLECTIONS_WITH_MOVEMENT_ID } = globalScope.StorageService;
+  const { COLLECTIONS_WITH_MOVEMENT_ID } = globalScope.StorageService;
+  const ModelRegistry = globalScope.ModelRegistry;
+  const DEFAULT_SPEC_VERSION = ModelRegistry?.DEFAULT_SPEC_VERSION || '2.3';
+  const COLLECTION_NAMES = ModelRegistry?.listCollections
+    ? ModelRegistry.listCollections(DEFAULT_SPEC_VERSION)
+    : [];
+
+  function listCollectionNames(specVersion) {
+    if (ModelRegistry?.listCollections) {
+      return ModelRegistry.listCollections(specVersion || DEFAULT_SPEC_VERSION);
+    }
+    return COLLECTION_NAMES.slice();
+  }
 
   function generateId(prefix) {
     const base = prefix || 'id-';
@@ -221,6 +233,7 @@
   globalScope.DomainService = {
     COLLECTION_NAMES,
     COLLECTIONS_WITH_MOVEMENT_ID,
+    listCollectionNames,
     generateId,
     addMovement,
     updateMovement,

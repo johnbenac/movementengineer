@@ -1,4 +1,9 @@
-import DATA_MODEL_V2_3 from '../../models/dataModel.v2_3.js';
+const globalScope =
+  typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : undefined;
+
+function resolveModelRegistry() {
+  return globalScope?.ModelRegistry || null;
+}
 
 function dedupeReferenceFields(fields) {
   const seen = new Set();
@@ -11,8 +16,13 @@ function dedupeReferenceFields(fields) {
   });
 }
 
-export function getModelForSnapshot() {
-  return DATA_MODEL_V2_3;
+export function getModelForSnapshot(snapshot) {
+  const registry = resolveModelRegistry();
+  const specVersion = snapshot?.specVersion || registry?.DEFAULT_SPEC_VERSION || '2.3';
+  if (registry?.getModel) {
+    return registry.getModel(specVersion);
+  }
+  return globalScope?.DATA_MODEL_V2_3 || null;
 }
 
 export function getCollectionDoc(model, collectionName) {
