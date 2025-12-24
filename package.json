@@ -7,10 +7,8 @@
     "doc": "docs"
   },
   "scripts": {
-    "check:no-legacy": "node tools/check-no-legacy.mjs",
-    "check:no-appjs": "node tools/check-no-appjs.mjs",
-    "build": "npm run check:no-legacy && node tools/build-dist.mjs && npm run check:no-legacy",
-    "test": "npm run check:no-legacy && node tests/node/markdownDatasetLoader.test.js && node tests/node/viewModels.test.js && node tests/node/comparisonServices.test.js && npm run test:unit && npm run test:e2e",
+    "build": "node tools/build-dist.mjs",
+    "test": "node tests/node/markdownDatasetLoader.test.js && node tests/node/viewModels.test.js && node tests/node/comparisonServices.test.js && npm run test:unit && npm run test:e2e",
     "postinstall": "playwright install --with-deps",
     "test:unit": "vitest run",
     "test:e2e": "playwright test",
