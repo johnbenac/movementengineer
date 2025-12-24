@@ -9,6 +9,18 @@ import { FieldRenderer } from './FieldRenderer.tsx';
 const globalScope =
   typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : undefined;
 
+function isDevEnv() {
+  if (typeof process !== 'undefined' && process.env?.NODE_ENV) {
+    return process.env.NODE_ENV !== 'production';
+  }
+  if (typeof window !== 'undefined') {
+    const host = window.location?.hostname || '';
+    if (host === 'localhost' || host === '127.0.0.1') return true;
+    if (window.location?.protocol === 'file:') return true;
+  }
+  return true;
+}
+
 function cloneRecord(record) {
   return record ? JSON.parse(JSON.stringify(record)) : {};
 }
@@ -56,7 +68,10 @@ function validateDraft(draft, collectionDef, model) {
 export function RecordEditor({
   record,
   collectionDef,
+  collectionName,
   model,
+  modelRegistry,
+  plugins,
   snapshot,
   mode,
   onSave,
@@ -81,9 +96,11 @@ export function RecordEditor({
   const form = document.createElement('div');
 
   const fieldErrors = new Map();
+  let currentErrors = [];
 
   function refreshValidation() {
     const result = validateDraft(draft, collectionDef, model);
+    currentErrors = result.errors;
     fieldErrors.clear();
     result.errors.forEach(error => {
       if (!error.fieldPath) return;
@@ -133,19 +150,51 @@ export function RecordEditor({
     label.textContent = fieldName;
     row.appendChild(label);
 
-    const fieldWrapper = FieldRenderer({
-      fieldDef,
-      fieldName,
-      value: draft?.[fieldName],
-      model,
-      snapshot,
-      isBodyField: fieldName === bodyField,
-      error: null,
-      onChange: nextValue => {
-        const coerced = coerceInputValue(fieldDef, nextValue);
-        updateDraft(fieldName, coerced);
-      }
-    });
+    const widgetId = fieldDef?.ui?.widget || null;
+    const widget =
+      widgetId && plugins?.getFieldWidget
+        ? plugins.getFieldWidget({ collectionName, fieldName, widgetId })
+        : null;
+    if (widgetId && !widget && isDevEnv()) {
+      console.warn(
+        `[plugins] Missing widget plugin: collection=\"${collectionName}\" field=\"${fieldName}\" widget=\"${widgetId}\"`
+      );
+    }
+
+    let fieldWrapper = null;
+    if (widget?.component && typeof widget.component === 'function') {
+      fieldWrapper = widget.component({
+        modelRegistry,
+        plugins,
+        collectionName,
+        collectionDef,
+        fieldName,
+        fieldDef,
+        value: draft?.[fieldName],
+        onChange: nextValue => {
+          const coerced = coerceInputValue(fieldDef, nextValue);
+          updateDraft(fieldName, coerced);
+        },
+        record: draft,
+        mode,
+        errors: currentErrors
+      });
+    }
+    if (!fieldWrapper) {
+      fieldWrapper = FieldRenderer({
+        fieldDef,
+        fieldName,
+        value: draft?.[fieldName],
+        model,
+        snapshot,
+        isBodyField: fieldName === bodyField,
+        error: null,
+        onChange: nextValue => {
+          const coerced = coerceInputValue(fieldDef, nextValue);
+          updateDraft(fieldName, coerced);
+        }
+      });
+    }
 
     row.appendChild(fieldWrapper);
     form.appendChild(row);
