@@ -553,6 +553,13 @@ button.danger:hover {
   margin-bottom: 0.25rem;
 }
 
+.generic-crud-view-switcher {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
 .generic-crud-actions {
   display: flex;
   gap: 0.5rem;

@@ -5,9 +5,18 @@ import {
   getOrderedFieldNames
 } from './genericCrudHelpers.ts';
 import { FieldRenderer } from './FieldRenderer.tsx';
+import { usePlugins } from '../../core/plugins/PluginProvider.tsx';
 
 const globalScope =
   typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : undefined;
+
+function getModelRegistry() {
+  return globalScope?.ModelRegistry || null;
+}
+
+function isDevEnvironment() {
+  return globalScope?.MovementEngineer?.bootstrapOptions?.dev === true;
+}
 
 function cloneRecord(record) {
   return record ? JSON.parse(JSON.stringify(record)) : {};
@@ -55,6 +64,7 @@ function validateDraft(draft, collectionDef, model) {
 
 export function RecordEditor({
   record,
+  collectionName,
   collectionDef,
   model,
   snapshot,
@@ -63,6 +73,9 @@ export function RecordEditor({
   onCancel
 }) {
   const wrapper = document.createElement('div');
+  const plugins = usePlugins();
+  const modelRegistry = getModelRegistry();
+  const resolvedCollectionName = collectionName || collectionDef?.collectionName || null;
   const header = document.createElement('div');
   header.className = 'generic-crud-detail-header';
   const title = document.createElement('h3');
@@ -133,19 +146,51 @@ export function RecordEditor({
     label.textContent = fieldName;
     row.appendChild(label);
 
-    const fieldWrapper = FieldRenderer({
-      fieldDef,
-      fieldName,
-      value: draft?.[fieldName],
-      model,
-      snapshot,
-      isBodyField: fieldName === bodyField,
-      error: null,
-      onChange: nextValue => {
-        const coerced = coerceInputValue(fieldDef, nextValue);
-        updateDraft(fieldName, coerced);
-      }
-    });
+    const widgetId = fieldDef?.ui?.widget || null;
+    const widget = widgetId && resolvedCollectionName
+      ? plugins.getFieldWidget({
+        collectionName: resolvedCollectionName,
+        fieldName,
+        widgetId
+      })
+      : null;
+
+    if (widgetId && !widget && isDevEnvironment()) {
+      console.warn(
+        `[plugins] Missing widget plugin: collection="${resolvedCollectionName}" field="${fieldName}" widget="${widgetId}"`
+      );
+    }
+
+    const fieldWrapper = widget?.component
+      ? widget.component({
+        modelRegistry,
+        plugins,
+        collectionName: resolvedCollectionName,
+        collectionDef,
+        fieldName,
+        fieldDef,
+        value: draft?.[fieldName],
+        onChange: nextValue => {
+          const coerced = coerceInputValue(fieldDef, nextValue);
+          updateDraft(fieldName, coerced);
+        },
+        record: draft,
+        mode,
+        errors: fieldErrors.get(fieldName) || []
+      })
+      : FieldRenderer({
+        fieldDef,
+        fieldName,
+        value: draft?.[fieldName],
+        model,
+        snapshot,
+        isBodyField: fieldName === bodyField,
+        error: null,
+        onChange: nextValue => {
+          const coerced = coerceInputValue(fieldDef, nextValue);
+          updateDraft(fieldName, coerced);
+        }
+      });
 
     row.appendChild(fieldWrapper);
     form.appendChild(row);
