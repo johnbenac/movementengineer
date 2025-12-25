@@ -237,49 +237,5 @@ export function createActions(ctx) {
     return actions.openInCollections?.(collection, itemId, options);
   };
 
-  actions.selectCollection = name => {
-    if (!name) return;
-    ctx?.store?.setState?.(prev => ({
-      ...prev,
-      currentCollectionName: name,
-      currentItemId: null
-    }));
-  };
-
-  actions.setCollectionAndItem = (collectionName, itemId, options = {}) => {
-    console.warn('actions.setCollectionAndItem is deprecated. Use openItem instead.');
-    return actions.openItem?.(collectionName, itemId, { ...options, mode: 'collections' });
-  };
-
-  actions.jumpToReferencedItem = (collectionName, itemId, options) => {
-    console.warn('actions.jumpToReferencedItem is deprecated. Use openItem instead.');
-    return actions.openItem?.(collectionName, itemId, options);
-  };
-
-  actions.jumpToPractice = practiceId => {
-    console.warn('actions.jumpToPractice is deprecated. Use openItem instead.');
-    return actions.openItem?.('practices', practiceId);
-  };
-
-  actions.jumpToEntity = entityId => {
-    console.warn('actions.jumpToEntity is deprecated. Use openItem instead.');
-    return actions.openItem?.('entities', entityId);
-  };
-
-  actions.jumpToTextCollection = shelfId => {
-    console.warn('actions.jumpToTextCollection is deprecated. Use openItem instead.');
-    return actions.openItem?.('textCollections', shelfId);
-  };
-
-  actions.jumpToText = textId => {
-    console.warn('actions.jumpToText is deprecated. Use openItem instead.');
-    return actions.openItem?.('texts', textId);
-  };
-
-  actions.openChipTarget = target => {
-    console.warn('actions.openChipTarget is deprecated. Use openTarget instead.');
-    return actions.openTarget(target);
-  };
-
   return actions;
 }

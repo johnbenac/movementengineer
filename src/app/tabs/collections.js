@@ -1041,32 +1041,6 @@ function setCollectionAndItem(ctx, tab, collectionName, itemId, options = {}) {
   return nextState;
 }
 
-function jumpToReferencedItem(ctx, tab, collectionName, itemId) {
-  if (!collectionName || !itemId) return null;
-  const actions = getActions(ctx);
-  const state = getState(ctx);
-  const snapshot = state.snapshot || {};
-
-  if (collectionName === 'movements') {
-    actions.selectMovement?.(itemId);
-    actions.activateTab?.('dashboard');
-    return null;
-  }
-
-  const coll = snapshot[collectionName];
-  if (!Array.isArray(coll)) {
-    ctx.setStatus?.('Unknown collection: ' + collectionName);
-    return null;
-  }
-  const exists = coll.find(it => it.id === itemId);
-  if (!exists) {
-    ctx.setStatus?.('Referenced item not found');
-    return null;
-  }
-  ensureCollectionsTabActive(ctx);
-  return tab.setCollectionAndItem?.(ctx, collectionName, itemId);
-}
-
 function addNewItem(ctx, tab) {
   const state = getState(ctx);
   const DomainService = getDomainService(ctx);
@@ -1365,8 +1339,6 @@ export function registerCollectionsTab(ctx) {
     },
     setCollectionAndItem: (context, collectionName, itemId, options) =>
       setCollectionAndItem(context, tab, collectionName, itemId, options),
-    jumpToReferencedItem: (context, collectionName, itemId) =>
-      jumpToReferencedItem(context, tab, collectionName, itemId),
     addNewItem: context => addNewItem(context, tab),
     saveCurrentItem: (context, options) => saveCurrentItem(context, tab, options),
     deleteCurrentItem: context => deleteCurrentItem(context, tab),
