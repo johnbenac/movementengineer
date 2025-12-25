@@ -8,6 +8,49 @@ export function createActions(ctx) {
     return [value];
   };
 
+  function normaliseTarget(input) {
+    if (!input || typeof input !== 'object') return null;
+    const kind = input.kind || input.type || input.targetKind || null;
+
+    if (kind === 'item') {
+      if (!input.collection || !input.id) return null;
+      return { kind: 'item', collection: String(input.collection), id: String(input.id) };
+    }
+
+    if (kind === 'facet') {
+      if (!input.facet || input.value === undefined || input.value === null) return null;
+      return {
+        kind: 'facet',
+        facet: String(input.facet),
+        value: String(input.value),
+        scope: input.scope ? String(input.scope) : undefined
+      };
+    }
+
+    return null;
+  }
+
+  function getNavigation(state) {
+    const nav = state?.navigation || {};
+    const stack = Array.isArray(nav.stack) ? [...nav.stack] : [];
+    if (!stack.length) return { stack: [], index: -1 };
+    const idx = typeof nav.index === 'number' ? nav.index : stack.length - 1;
+    const index = Math.max(Math.min(idx, stack.length - 1), 0);
+    return { stack, index };
+  }
+
+  function pushNavigation(nav, collectionName, itemId) {
+    if (!collectionName || !itemId) return getNavigation({ navigation: nav });
+    const base = getNavigation({ navigation: nav });
+    const current = base.stack[base.index];
+    if (current && current.collectionName === collectionName && current.itemId === itemId) {
+      return base;
+    }
+    const stack = base.stack.slice(0, base.index + 1);
+    stack.push({ collectionName, itemId });
+    return { stack, index: stack.length - 1 };
+  }
+
   actions.markDirty = scope => {
     if (ctx?.store?.markDirty) return ctx.store.markDirty(scope);
   };
@@ -21,88 +64,79 @@ export function createActions(ctx) {
     return ctx?.shell?.renderActiveTab?.();
   };
 
-  actions.selectCollection = name => {
-    if (!name) return;
-    ctx?.store?.setState?.(prev => ({
-      ...prev,
-      currentCollectionName: name,
-      currentItemId: null
-    }));
+  actions.openTarget = (target, options = {}) => {
+    const t = normaliseTarget(target);
+    if (!t) {
+      ctx?.setStatus?.('Invalid navigation target');
+      console.warn('openTarget: invalid target', target);
+      return false;
+    }
+    if (t.kind === 'facet') return actions.openFacet(t.facet, t.value, t.scope, options);
+    return actions.openItem(t.collection, t.id, options);
   };
 
-  actions.setCollectionAndItem = (collectionName, itemId, options) => {
-    if (ctx?.tabs?.collections?.setCollectionAndItem) {
-      return ctx.tabs.collections.setCollectionAndItem(ctx, collectionName, itemId, options);
+  actions.openFacet = (facet, value, scope, options = {}) => {
+    const facetKey = facet ? String(facet).trim() : '';
+    const facetValue = value !== undefined && value !== null ? String(value).trim() : '';
+
+    if (!facetKey || !facetValue) {
+      ctx?.setStatus?.('Facet target missing');
+      return false;
     }
-    const state = ctx?.store?.getState?.() || {};
-    const snapshot = state.snapshot || {};
-    const coll = snapshot[collectionName];
-    if (!Array.isArray(coll)) return null;
-    const exists = itemId ? coll.find(it => it.id === itemId) : null;
+
     ctx?.store?.setState?.(prev => ({
       ...(prev || {}),
-      currentCollectionName: collectionName || prev?.currentCollectionName,
-      currentItemId: exists ? exists.id : null
+      facetExplorer: { facet: facetKey, value: facetValue, scope: scope || null }
     }));
-    return ctx?.store?.getState?.() || null;
+
+    return actions.activateTab?.('collections');
   };
 
-  actions.jumpToReferencedItem = (collectionName, itemId) => {
-    if (!collectionName || !itemId) return null;
-    if (ctx?.tabs?.collections?.jumpToReferencedItem) {
-      return ctx.tabs.collections.jumpToReferencedItem(ctx, collectionName, itemId);
+  actions.openMovement = (movementId, options = {}) => {
+    if (!movementId) return false;
+    if (typeof ctx?.actions?.selectMovement === 'function') {
+      ctx.actions.selectMovement(movementId);
+    } else {
+      ctx?.setStatus?.('Movement selector unavailable');
+      return false;
     }
-
-    if (collectionName === 'movements') {
-      actions.selectMovement?.(itemId);
-      actions.activateTab?.('dashboard');
-      return null;
-    }
-
-    const state = ctx?.store?.getState?.() || {};
-    const snapshot = state.snapshot || {};
-    const coll = snapshot[collectionName];
-    if (!Array.isArray(coll)) return null;
-    const exists = coll.find(it => it.id === itemId);
-    if (!exists) return null;
-
-    actions.setCollectionAndItem?.(collectionName, itemId, { addToHistory: true });
-    actions.activateTab?.('collections');
-    return { collectionName, itemId };
+    return actions.activateTab?.('dashboard');
   };
 
-  actions.jumpToPractice = practiceId =>
-    actions.jumpToReferencedItem?.('practices', practiceId);
-  actions.jumpToEntity = entityId => actions.jumpToReferencedItem?.('entities', entityId);
-  actions.jumpToTextCollection = shelfId => {
-    if (!shelfId) return null;
+  actions.openTextCollection = shelfId => {
+    if (!shelfId) return false;
     const state = ctx?.store?.getState?.() || {};
     const snapshot = state.snapshot || {};
     const shelf = (snapshot.textCollections || []).find(tc => tc.id === shelfId);
-    if (!shelf) return null;
+    if (!shelf) return false;
+
     const bookIds = normalizeIds(shelf.rootTextIds);
     const nextBookId = bookIds[0] || null;
-    const nextTextId = nextBookId;
+
     actions.activateTab?.('canon');
     ctx?.store?.setState?.(prev => ({
       ...(prev || {}),
       currentShelfId: shelfId,
       currentBookId: nextBookId,
-      currentTextId: nextTextId
+      currentTextId: nextBookId
     }));
-    return { shelfId, bookId: nextBookId, textId: nextTextId };
+    return true;
   };
-  actions.jumpToText = textId => {
-    if (!textId) return null;
+
+  actions.openText = textId => {
+    if (!textId) return false;
     const state = ctx?.store?.getState?.() || {};
     const snapshot = state.snapshot || {};
     const texts = Array.isArray(snapshot.texts) ? snapshot.texts : [];
     const shelves = Array.isArray(snapshot.textCollections) ? snapshot.textCollections : [];
     const nodeById = new Map(texts.map(t => [t?.id, t]));
     let node = nodeById.get(textId);
-    if (!node) return null;
+    if (!node) return false;
+
+    const seen = new Set();
     let root = node;
-    while (root?.parentId) {
+    while (root?.parentId && !seen.has(root.parentId)) {
+      seen.add(root.parentId);
       const parent = nodeById.get(root.parentId);
       if (!parent) break;
       root = parent;
@@ -122,56 +156,110 @@ export function createActions(ctx) {
     ctx?.store?.setState?.(prev => ({
       ...(prev || {}),
       currentShelfId: shelfId,
-      currentBookId: rootBookId || null,
+      currentBookId: rootBookId,
       currentTextId: textId
     }));
-    return { shelfId, bookId: rootBookId, textId };
+    return true;
   };
 
-  actions.openFacet = (facet, value, scope) => {
-    if (ctx?.tabs?.collections?.openFacet) {
-      return ctx.tabs.collections.openFacet(ctx, facet, value, scope);
+  actions.openInCollections = (collectionName, itemId, options = {}) => {
+    const collection = collectionName ? String(collectionName) : '';
+    const id = itemId ? String(itemId) : '';
+    if (!collection || !id) return false;
+
+    const state = ctx?.store?.getState?.() || {};
+    const snapshot = state.snapshot || {};
+    const coll = snapshot?.[collection];
+    const exists = Array.isArray(coll) ? coll.find(it => it.id === id) : null;
+
+    if (!exists) {
+      ctx?.setStatus?.('Item not found');
+      return false;
     }
-    ctx?.setStatus?.('Facet explorer unavailable');
-    return null;
+
+    const addToHistory = options.addToHistory !== false;
+    const nextNav = addToHistory
+      ? pushNavigation(state.navigation, collection, id)
+      : getNavigation(state);
+
+    ctx?.store?.setState?.(prev => ({
+      ...(prev || {}),
+      currentCollectionName: collection,
+      currentItemId: id,
+      navigation: nextNav
+    }));
+
+    return actions.activateTab?.('collections');
+  };
+
+  actions.openItem = (collectionName, id, options = {}) => {
+    const collection = collectionName ? String(collectionName) : '';
+    const itemId = id ? String(id) : '';
+
+    if (!collection || !itemId) return false;
+
+    if (collection === 'movements') {
+      return actions.openMovement?.(itemId, options);
+    }
+
+    if (collection === 'textCollections') {
+      return actions.openTextCollection?.(itemId, options);
+    }
+
+    if (collection === 'texts') {
+      return actions.openText?.(itemId, options);
+    }
+
+    if (options.mode === 'collections') {
+      return actions.openInCollections?.(collection, itemId, options);
+    }
+
+    const tabByCollection = {
+      entities: 'entities',
+      practices: 'practices',
+      claims: 'claims',
+      rules: 'rules'
+    };
+
+    const tabName = tabByCollection[collection] || 'collections';
+
+    if (tabName !== 'collections') {
+      const tab = ctx?.tabs?.[tabName];
+      if (typeof tab?.open === 'function') {
+        return tab.open(ctx, itemId, options);
+      }
+      return actions.openInCollections?.(collection, itemId, {
+        ...options,
+        mode: 'collections'
+      });
+    }
+
+    return actions.openInCollections?.(collection, itemId, options);
   };
 
   actions.openChipTarget = target => {
-    if (!target || !target.kind) {
-      ctx?.setStatus?.('Chip missing target');
-      console.error('Chip activation missing target payload', target);
-      return null;
-    }
-
-    if (target.kind === 'facet') {
-      return actions.openFacet?.(target.facet, target.value, target.scope);
-    }
-
-    if (target.kind === 'item') {
-      if (target.collection === 'textCollections') {
-        const opened = actions.jumpToTextCollection?.(target.id);
-        if (opened !== null) return opened;
-      }
-      if (target.collection === 'texts') {
-        const opened = actions.jumpToText?.(target.id);
-        if (opened !== null) return opened;
-      }
-      const tabOpeners = {
-        claims: ctx?.tabs?.claims?.open,
-        rules: ctx?.tabs?.rules?.open,
-        entities: ctx?.tabs?.entities?.open,
-        practices: ctx?.tabs?.practices?.open
-      };
-      const open = tabOpeners[target.collection];
-      if (typeof open === 'function') {
-        const opened = open(ctx, target.id);
-        if (opened !== false) return opened;
-      }
-      return actions.jumpToReferencedItem?.(target.collection, target.id);
-    }
-
-    ctx?.setStatus?.('Unknown chip target');
-    return null;
+    console.warn('actions.openChipTarget is deprecated; use actions.openTarget.');
+    return actions.openTarget(target);
+  };
+  actions.jumpToReferencedItem = (collectionName, itemId, options) => {
+    console.warn('actions.jumpToReferencedItem is deprecated; use actions.openItem.');
+    return actions.openItem(collectionName, itemId, options);
+  };
+  actions.jumpToPractice = practiceId => {
+    console.warn('actions.jumpToPractice is deprecated; use actions.openItem.');
+    return actions.openItem('practices', practiceId);
+  };
+  actions.jumpToEntity = entityId => {
+    console.warn('actions.jumpToEntity is deprecated; use actions.openItem.');
+    return actions.openItem('entities', entityId);
+  };
+  actions.jumpToTextCollection = shelfId => {
+    console.warn('actions.jumpToTextCollection is deprecated; use actions.openItem.');
+    return actions.openItem('textCollections', shelfId);
+  };
+  actions.jumpToText = textId => {
+    console.warn('actions.jumpToText is deprecated; use actions.openItem.');
+    return actions.openItem('texts', textId);
   };
 
   return actions;

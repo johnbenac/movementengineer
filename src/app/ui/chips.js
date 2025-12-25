@@ -287,32 +287,16 @@ function activateChip(event, ctx) {
     return;
   }
 
-  let handled = false;
-
-  if (typeof actions.openChipTarget === 'function') {
-    const result = actions.openChipTarget(target);
-    handled = result !== false;
-  } else if (target.kind === 'facet' && typeof actions.openFacet === 'function') {
-    actions.openFacet(target.facet, target.value, target.scope);
-    handled = true;
-  } else if (target.kind === 'item') {
-    if (target.collection === 'practices' && typeof actions.jumpToPractice === 'function') {
-      actions.jumpToPractice(target.id);
-      handled = true;
-    } else if (target.collection === 'entities' && typeof actions.jumpToEntity === 'function') {
-      actions.jumpToEntity(target.id);
-      handled = true;
-    } else if (target.collection === 'texts' && typeof actions.jumpToText === 'function') {
-      actions.jumpToText(target.id);
-      handled = true;
-    } else if (typeof actions.jumpToReferencedItem === 'function') {
-      actions.jumpToReferencedItem(target.collection, target.id);
-      handled = true;
-    }
+  const openTarget = actions?.openTarget;
+  if (typeof openTarget !== 'function') {
+    console.error('ctx.actions.openTarget missing');
+    ctx?.setStatus?.('Navigation unavailable');
+    return;
   }
 
-  if (!handled) {
-    console.warn('Chip target did not navigate', target);
+  const result = openTarget(target);
+  if (result === false) {
+    console.warn('openTarget returned false', target);
   }
 }
 

@@ -81,6 +81,16 @@ function createCtx(initialState, overrides = {}) {
     services: { DomainService, StorageService },
     dom,
     setStatus: vi.fn(),
+    utils:
+      overrides.utils || {
+        values: {
+          normaliseArray: value => {
+            if (Array.isArray(value)) return value.filter(Boolean);
+            if (value === undefined || value === null) return [];
+            return [value];
+          }
+        }
+      },
     actions: overrides.actions || {},
     tabs: {}
   };
@@ -166,7 +176,7 @@ describe('collections tab module', () => {
 
   it('jumps to referenced items and activates the collections tab', async () => {
     renderDom();
-    const actions = { activateTab: vi.fn(), selectMovement: vi.fn() };
+    const shell = { activateTab: vi.fn(), renderActiveTab: vi.fn() };
     const snapshot = { entities: [{ id: 'e1', movementId: 'm1', name: 'Alpha' }] };
     const ctx = createCtx(
       {
@@ -177,14 +187,17 @@ describe('collections tab module', () => {
         navigation: { stack: [], index: -1 },
         flags: {}
       },
-      { actions }
+      {}
     );
+    ctx.shell = shell;
+    const { createActions } = await import('../../../../src/app/actions.js');
+    ctx.actions = createActions(ctx);
     const { registerCollectionsTab } = await import('../../../../src/app/tabs/collections.js');
-    const tab = registerCollectionsTab(ctx);
+    registerCollectionsTab(ctx);
 
-    tab.jumpToReferencedItem(ctx, 'entities', 'e1');
+    ctx.actions.openItem('entities', 'e1', { mode: 'collections' });
 
-    expect(actions.activateTab).toHaveBeenCalledWith('collections');
+    expect(shell.activateTab).toHaveBeenCalledWith('collections');
     expect(ctx.getState().currentItemId).toBe('e1');
   });
 
