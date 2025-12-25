@@ -6,9 +6,7 @@ import {
   setDisabled
 } from '../ui/hints.js';
 import { appendSection } from '../ui/sections.js';
-
-const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
-movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
+import { createTab } from './tabKit.js';
 
 function getState(ctx) {
   return ctx.store.getState() || {};
@@ -181,44 +179,21 @@ function renderPracticesTab(ctx) {
 
 export function registerPracticesTab(ctx) {
   ctx?.dom?.installGlobalChipHandler?.(ctx);
-  const tab = {
-    __handlers: null,
-    mount(context) {
-      const select = document.getElementById('practice-select');
-
-      const rerender = () => tab.render(context);
-      const handleStateChange = () => {
-        const active = document.querySelector('.tab.active');
-        if (!active || active.dataset.tab !== 'practices') return;
-        rerender();
-      };
-
-      if (select) select.addEventListener('change', rerender);
-
-      const unsubscribe = context?.subscribe ? context.subscribe(handleStateChange) : null;
-
-      this.__handlers = { select, rerender, unsubscribe };
-    },
+  return createTab(ctx, {
+    name: 'practices',
     render: renderPracticesTab,
-    open(context, practiceId) {
+    setup: ({ bucket, rerender }) => {
       const select = document.getElementById('practice-select');
-      if (select && practiceId) select.value = practiceId;
-      context?.actions?.activateTab?.('practices');
-      this.render?.(context);
-      return { practiceId };
+      if (select) bucket.on(select, 'change', () => rerender({ immediate: true }));
     },
-    unmount() {
-      const h = this.__handlers;
-      if (!h) return;
-      if (h.select) h.select.removeEventListener('change', h.rerender);
-      if (typeof h.unsubscribe === 'function') h.unsubscribe();
-      this.__handlers = null;
+    extend: {
+      open(context, practiceId) {
+        const select = document.getElementById('practice-select');
+        if (select && practiceId) select.value = practiceId;
+        context?.actions?.activateTab?.('practices');
+        this.render?.(context, { force: true });
+        return { practiceId };
+      }
     }
-  };
-
-  movementEngineerGlobal.tabs.practices = tab;
-  if (ctx?.tabs) {
-    ctx.tabs.practices = tab;
-  }
-  return tab;
+  });
 }
