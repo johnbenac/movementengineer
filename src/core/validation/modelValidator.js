@@ -372,6 +372,11 @@
       });
     });
 
+    if (ctx.snapshot && ctx.model && refIntegrity?.validateRecordRefs) {
+      const refIssues = refIntegrity.validateRecordRefs(record, collectionDef, ctx.snapshot, ctx.model, ctx);
+      refIssues.forEach(issue => pushIssue(issues, issue, ctx));
+    }
+
     return issues;
   }
 
