@@ -20,7 +20,17 @@ describe('ModelRegistry export schema', () => {
   it('returns the entities export schema', () => {
     expect(model.getExportSchema('entities')).toEqual({
       collectionName: 'entities',
-      frontMatterFields: ['id', 'movementId', 'name', 'kind', 'tags', 'sourceEntityIds', 'sourcesOfTruth', 'order'],
+      frontMatterFields: [
+        'id',
+        'movementId',
+        'name',
+        'kind',
+        'tags',
+        'sourceEntityIds',
+        'sourcesOfTruth',
+        'notes',
+        'order'
+      ],
       bodyField: 'summary'
     });
   });

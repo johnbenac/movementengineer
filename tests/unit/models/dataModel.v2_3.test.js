@@ -49,7 +49,17 @@ describe('DATA_MODEL_V2_3', () => {
         bodyField: 'content'
       },
       entities: {
-        frontMatterFields: ['id', 'movementId', 'name', 'kind', 'tags', 'sourceEntityIds', 'sourcesOfTruth', 'order'],
+        frontMatterFields: [
+          'id',
+          'movementId',
+          'name',
+          'kind',
+          'tags',
+          'sourceEntityIds',
+          'sourcesOfTruth',
+          'notes',
+          'order'
+        ],
         bodyField: 'summary'
       },
       practices: {
@@ -59,12 +69,14 @@ describe('DATA_MODEL_V2_3', () => {
           'name',
           'kind',
           'frequency',
+          'isPublic',
           'tags',
           'involvedEntityIds',
           'instructionsTextIds',
           'supportingClaimIds',
           'sourceEntityIds',
           'sourcesOfTruth',
+          'notes',
           'order'
         ],
         bodyField: 'description'
@@ -76,6 +88,7 @@ describe('DATA_MODEL_V2_3', () => {
           'name',
           'recurrence',
           'timingRule',
+          'notes',
           'tags',
           'mainPracticeIds',
           'mainEntityIds',
@@ -114,6 +127,7 @@ describe('DATA_MODEL_V2_3', () => {
           'sourceTextIds',
           'sourceEntityIds',
           'sourcesOfTruth',
+          'notes',
           'order'
         ],
         bodyField: 'text'
