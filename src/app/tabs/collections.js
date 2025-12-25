@@ -1,105 +1,10 @@
-import { getCollectionDoc, getModelForSnapshot } from '../ui/schemaDoc.js';
+import { getModelForSnapshot } from '../ui/schemaDoc.js';
 import { renderMarkdownPreview } from '../ui/markdown.js';
+import { getPreviewFields, getSchemaGuide } from '../utils/modelUi.js';
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
 movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
 
-const PREVIEW_FIELDS = {
-  entities: [
-    { label: 'Kind', key: 'kind' },
-    { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
-    { label: 'Summary', key: 'summary', type: 'paragraph' },
-    { label: 'Tags', key: 'tags', type: 'chips', facet: 'tag' },
-    { label: 'Sources of truth', key: 'sourcesOfTruth', type: 'chips', facet: 'sourceOfTruth' },
-    { label: 'Source entities', key: 'sourceEntityIds', type: 'idList', ref: 'entities' },
-    { label: 'Notes', key: 'notes', type: 'paragraph' }
-  ],
-  practices: [
-    { label: 'Kind', key: 'kind' },
-    { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
-    { label: 'Description', key: 'description', type: 'paragraph' },
-    { label: 'Frequency', key: 'frequency' },
-    { label: 'Public', key: 'isPublic', type: 'boolean' },
-    { label: 'Tags', key: 'tags', type: 'chips', facet: 'tag' },
-    { label: 'Involved entities', key: 'involvedEntityIds', type: 'idList', ref: 'entities' },
-    { label: 'Instructions texts', key: 'instructionsTextIds', type: 'idList', ref: 'texts' },
-    { label: 'Supporting claims', key: 'supportingClaimIds', type: 'idList', ref: 'claims' },
-    { label: 'Sources of truth', key: 'sourcesOfTruth', type: 'chips', facet: 'sourceOfTruth' },
-    { label: 'Source entities', key: 'sourceEntityIds', type: 'idList', ref: 'entities' },
-    { label: 'Notes', key: 'notes', type: 'paragraph' }
-  ],
-  events: [
-    { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
-    { label: 'Description', key: 'description', type: 'paragraph' },
-    { label: 'Recurrence', key: 'recurrence' },
-    { label: 'Timing rule', key: 'timingRule' },
-    { label: 'Tags', key: 'tags', type: 'chips', facet: 'tag' },
-    { label: 'Main practices', key: 'mainPracticeIds', type: 'idList', ref: 'practices' },
-    { label: 'Main entities', key: 'mainEntityIds', type: 'idList', ref: 'entities' },
-    { label: 'Readings', key: 'readingTextIds', type: 'idList', ref: 'texts' },
-    { label: 'Supporting claims', key: 'supportingClaimIds', type: 'idList', ref: 'claims' }
-  ],
-  rules: [
-    { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
-    { label: 'Kind', key: 'kind' },
-    { label: 'Details', key: 'details', type: 'paragraph' },
-    { label: 'Applies to', key: 'appliesTo', type: 'chips', facet: 'appliesTo', scope: 'rules' },
-    { label: 'Domain', key: 'domain', type: 'chips', facet: 'domain', scope: 'rules' },
-    { label: 'Tags', key: 'tags', type: 'chips', facet: 'tag' },
-    { label: 'Supporting texts', key: 'supportingTextIds', type: 'idList', ref: 'texts' },
-    { label: 'Supporting claims', key: 'supportingClaimIds', type: 'idList', ref: 'claims' },
-    { label: 'Related practices', key: 'relatedPracticeIds', type: 'idList', ref: 'practices' },
-    { label: 'Sources of truth', key: 'sourcesOfTruth', type: 'chips', facet: 'sourceOfTruth' },
-    { label: 'Source entities', key: 'sourceEntityIds', type: 'idList', ref: 'entities' }
-  ],
-  claims: [
-    { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
-    { label: 'Category', key: 'category' },
-    { label: 'Text', key: 'text', type: 'paragraph' },
-    { label: 'Tags', key: 'tags', type: 'chips', facet: 'tag', scope: 'claims' },
-    { label: 'About entities', key: 'aboutEntityIds', type: 'idList', ref: 'entities' },
-    { label: 'Source texts', key: 'sourceTextIds', type: 'idList', ref: 'texts' },
-    { label: 'Sources of truth', key: 'sourcesOfTruth', type: 'chips', facet: 'sourceOfTruth' },
-    { label: 'Source entities', key: 'sourceEntityIds', type: 'idList', ref: 'entities' },
-    { label: 'Notes', key: 'notes', type: 'paragraph' }
-  ],
-  textCollections: [
-    { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
-    { label: 'Description', key: 'description', type: 'paragraph' },
-    { label: 'Tags', key: 'tags', type: 'chips', facet: 'tag' },
-    { label: 'Root texts', key: 'rootTextIds', type: 'idList', ref: 'texts' }
-  ],
-  texts: [
-    { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
-    { label: 'Label', key: 'label' },
-    { label: 'Parent text', key: 'parentId', type: 'id', ref: 'texts' },
-    { label: 'Content', key: 'content', type: 'paragraph' },
-    { label: 'Main function', key: 'mainFunction' },
-    { label: 'Tags', key: 'tags', type: 'chips', facet: 'tag' },
-    { label: 'Mentions entities', key: 'mentionsEntityIds', type: 'idList', ref: 'entities' }
-  ],
-  media: [
-    { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
-    { label: 'Kind', key: 'kind' },
-    { label: 'URI', key: 'uri', type: 'link' },
-    { label: 'Title', key: 'title' },
-    { label: 'Description', key: 'description', type: 'paragraph' },
-    { label: 'Tags', key: 'tags', type: 'chips', facet: 'tag' },
-    { label: 'Linked entities', key: 'linkedEntityIds', type: 'idList', ref: 'entities' },
-    { label: 'Linked practices', key: 'linkedPracticeIds', type: 'idList', ref: 'practices' },
-    { label: 'Linked events', key: 'linkedEventIds', type: 'idList', ref: 'events' },
-    { label: 'Linked texts', key: 'linkedTextIds', type: 'idList', ref: 'texts' }
-  ],
-  notes: [
-    { label: 'Movement', key: 'movementId', type: 'id', ref: 'movements' },
-    { label: 'Target type', key: 'targetType' },
-    { label: 'Target', key: 'targetId' },
-    { label: 'Author', key: 'author' },
-    { label: 'Context', key: 'context', type: 'paragraph' },
-    { label: 'Body', key: 'body', type: 'paragraph' },
-    { label: 'Tags', key: 'tags', type: 'chips', facet: 'tag' }
-  ]
-};
 
 function getState(ctx) {
   return ctx.store.getState() || {};
@@ -161,98 +66,6 @@ function getCollectionsWithMovementId(ctx) {
   return DomainService?.COLLECTIONS_WITH_MOVEMENT_ID || new Set();
 }
 
-function inferTargetCollectionFromField(field) {
-  if (!field) return null;
-  if (field === 'parentId') return 'texts';
-  if (/TextIds$/.test(field) || field === 'rootTextIds') return 'texts';
-  if (/EntityIds$/.test(field)) return 'entities';
-  if (/PracticeIds$/.test(field)) return 'practices';
-  if (/ClaimIds$/.test(field)) return 'claims';
-  if (/EventIds$/.test(field)) return 'events';
-  return null;
-}
-
-function dedupeRefFields(fields) {
-  const seen = new Set();
-  return (fields || [])
-    .filter(f => f.field && f.target)
-    .filter(f => {
-      const key = `${f.field}:${f.target}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-}
-
-function deriveLegacySchemaGuide(ctx, collectionName, movementId) {
-  const DomainService = getDomainService(ctx);
-  const loader = getMarkdownLoader(ctx);
-
-  let skeleton = {};
-  try {
-    skeleton = DomainService?.createSkeletonItem
-      ? DomainService.createSkeletonItem(collectionName, movementId || 'mov-placeholder')
-      : {};
-  } catch {
-    skeleton = {};
-  }
-
-  const expectedKeys = new Set(Object.keys(skeleton || {}));
-
-  (PREVIEW_FIELDS[collectionName] || []).forEach(f => expectedKeys.add(f.key));
-
-  const collectionsWithMovementId = getCollectionsWithMovementId(ctx);
-
-  const requiredKeys = new Set(['id']);
-  if (collectionsWithMovementId.has(collectionName)) requiredKeys.add('movementId');
-
-  const labelCandidates = ['name', 'title', 'shortText', 'text'];
-  const labelKey = labelCandidates.find(k => expectedKeys.has(k));
-  if (collectionName === 'movements') requiredKeys.add('name');
-  else if (collectionName === 'notes') {
-    requiredKeys.add('targetType');
-    requiredKeys.add('targetId');
-  } else if (collectionName === 'media') {
-    requiredKeys.add('kind');
-    requiredKeys.add('uri');
-  } else if (labelKey) {
-    requiredKeys.add(labelKey);
-  }
-
-  const refFields = [];
-
-  (PREVIEW_FIELDS[collectionName] || []).forEach(f => {
-    if ((f.type === 'id' || f.type === 'idList') && f.ref) {
-      refFields.push({ field: f.key, target: f.ref });
-    }
-  });
-
-  const refRuleFields = loader?.COLLECTION_REFERENCE_RULES?.[collectionName] || [];
-  refRuleFields.forEach(field => {
-    refFields.push({ field, target: inferTargetCollectionFromField(field) });
-  });
-
-  if (collectionName === 'texts') {
-    refFields.push({ field: 'parentId', target: 'texts' });
-  }
-
-  const model = getModel(ctx);
-  const schema = model?.getExportSchema?.(collectionName) || null;
-  const bodyField = schema?.bodyField || null;
-
-  return {
-    expectedKeys: Array.from(expectedKeys).sort(),
-    requiredKeys: Array.from(requiredKeys),
-    referenceFields: dedupeRefFields(refFields),
-    bodyField
-  };
-}
-
-function deriveSchemaGuide(ctx, collectionName, movementId) {
-  const guide = getCollectionDoc(getModel(ctx), collectionName);
-  if (guide) return guide;
-  return deriveLegacySchemaGuide(ctx, collectionName, movementId);
-}
 
 function validateRecord(ctx, collectionName, record, snapshot, guide) {
   const issues = [];
@@ -846,8 +659,8 @@ function renderItemPreview(ctx, state) {
   titleEl.textContent = getLabelForItem(item);
   subtitleEl.textContent = `${(state.currentCollectionName || '').slice(0, -1)} · ${item.id}`;
 
-  const fields = PREVIEW_FIELDS[state.currentCollectionName];
-  if (!fields) {
+  const fields = getPreviewFields(ctx, state.currentCollectionName);
+  if (!fields || !fields.length) {
     renderPreviewRow(
       ctx,
       body,
@@ -970,7 +783,7 @@ function renderCollectionsTab(ctx, tab) {
   });
 
   const record = getSelectedRecord(normalizedState);
-  const guide = deriveSchemaGuide(ctx, collectionName, normalizedState.currentMovementId);
+  const guide = getSchemaGuide(ctx, collectionName);
   const issues = validateRecord(ctx, collectionName, record, normalizedState.snapshot || {}, guide);
 
   renderSchemaGuide(ctx, normalizedState, guide, issues);

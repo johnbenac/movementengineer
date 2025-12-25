@@ -125,7 +125,7 @@ export function coerceInputValue(fieldDef, rawValue) {
 export function getOrderedFieldNames(collectionDef) {
   if (!collectionDef) return [];
   const fields = collectionDef.fields || {};
-  const order = collectionDef.ui?.order;
+  const order = collectionDef.ui?.fieldOrder || collectionDef.ui?.order;
   if (Array.isArray(order) && order.length) {
     return order.filter(name => name in fields);
   }
