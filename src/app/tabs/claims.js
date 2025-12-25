@@ -6,9 +6,8 @@ import {
   setDisabled
 } from '../ui/hints.js';
 import { renderTable } from '../ui/table.js';
+import { createTab } from './tabKit.js';
 
-const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
-movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
 const DEFAULT_TAB_STATE = { selectedClaimId: null, lastMovementId: null };
 
 function getState(ctx) {
@@ -395,65 +394,35 @@ function renderClaimsTab(ctx) {
 
 export function registerClaimsTab(ctx) {
   ctx?.dom?.installGlobalChipHandler?.(ctx);
-  const tab = {
-    __handlers: null,
-    __state: { ...DEFAULT_TAB_STATE },
-    mount(context) {
+  return createTab(ctx, {
+    name: 'claims',
+    render: renderClaimsTab,
+    setup: ({ bucket, rerender, ctx: context, tab }) => {
       const catSelect = document.getElementById('claims-category-filter');
       const entSelect = document.getElementById('claims-entity-filter');
       const addBtn = document.getElementById('claims-add-btn');
       const deleteBtn = document.getElementById('claims-delete-btn');
       const saveBtn = document.getElementById('claims-save-btn');
       const resetBtn = document.getElementById('claims-reset-btn');
-      const listeners = [];
-      const addListener = (el, event, handler) => {
-        if (!el || typeof el.addEventListener !== 'function') return;
-        el.addEventListener(event, handler);
-        listeners.push({ el, event, handler });
-      };
 
-      const rerender = () => tab.render(context);
-      const handleStateChange = () => {
-        const active = document.querySelector('.tab.active');
-        if (!active || active.dataset.tab !== 'claims') return;
-        rerender();
-      };
-
-      addListener(catSelect, 'change', rerender);
-      addListener(entSelect, 'change', rerender);
-      addListener(addBtn, 'click', () => handleAddClaim(context, tab));
-      addListener(deleteBtn, 'click', () => handleDeleteClaim(context, tab));
-      addListener(saveBtn, 'click', () => handleSaveClaim(context, tab));
-      addListener(resetBtn, 'click', rerender);
-
-      const unsubscribe = context?.subscribe ? context.subscribe(handleStateChange) : null;
-
-      this.__handlers = { listeners, rerender, unsubscribe };
+      if (catSelect) bucket.on(catSelect, 'change', () => rerender({ immediate: true }));
+      if (entSelect) bucket.on(entSelect, 'change', () => rerender({ immediate: true }));
+      if (addBtn) bucket.on(addBtn, 'click', () => handleAddClaim(context, tab));
+      if (deleteBtn) bucket.on(deleteBtn, 'click', () => handleDeleteClaim(context, tab));
+      if (saveBtn) bucket.on(saveBtn, 'click', () => handleSaveClaim(context, tab));
+      if (resetBtn) bucket.on(resetBtn, 'click', () => rerender({ immediate: true }));
     },
-    render: renderClaimsTab,
-    open(context, claimId) {
-      this.__state.selectedClaimId = claimId || null;
-      context?.actions?.activateTab?.('claims');
-      this.render?.(context);
-      return { claimId };
+    reset: ({ tab }) => {
+      tab.__state = { ...DEFAULT_TAB_STATE };
     },
-    unmount() {
-      const h = this.__handlers;
-      if (!h) return;
-      (h.listeners || []).forEach(({ el, event, handler }) => {
-        if (el && typeof el.removeEventListener === 'function') {
-          el.removeEventListener(event, handler);
-        }
-      });
-      if (typeof h.unsubscribe === 'function') h.unsubscribe();
-      this.__state = { ...DEFAULT_TAB_STATE };
-      this.__handlers = null;
+    extend: {
+      __state: { ...DEFAULT_TAB_STATE },
+      open(context, claimId) {
+        this.__state.selectedClaimId = claimId || null;
+        context?.actions?.activateTab?.('claims');
+        this.render?.(context, { force: true });
+        return { claimId };
+      }
     }
-  };
-
-  movementEngineerGlobal.tabs.claims = tab;
-  if (ctx?.tabs) {
-    ctx.tabs.claims = tab;
-  }
-  return tab;
+  });
 }

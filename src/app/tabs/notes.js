@@ -6,9 +6,7 @@ import {
   setDisabled
 } from '../ui/hints.js';
 import { renderTable } from '../ui/table.js';
-
-const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
-movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
+import { createTab } from './tabKit.js';
 
 const BASE_TARGET_TYPES = [
   'Movement',
@@ -272,7 +270,6 @@ function handleSaveNote(ctx) {
 
   selectedNoteId = note.id;
   persistSnapshot(ctx, snapshot, StorageService, 'Note saved');
-  renderNotesTab(ctx);
 }
 
 function handleDeleteNote(ctx, noteId) {
@@ -301,7 +298,6 @@ function handleDeleteNote(ctx, noteId) {
 
   if (idsMatch(selectedNoteId, noteId)) selectedNoteId = null;
   persistSnapshot(ctx, snapshot, StorageService, 'Note deleted');
-  renderNotesTab(ctx);
 }
 
 function renderNotesTab(ctx) {
@@ -492,103 +488,63 @@ function renderNotesTab(ctx) {
 }
 
 export function registerNotesTab(ctx) {
-  const tab = {
-    __handlers: null,
-    mount(context) {
+  return createTab(ctx, {
+    name: 'notes',
+    render: renderNotesTab,
+    setup: ({ bucket, rerender, ctx: context }) => {
       const typeSelect = document.getElementById('notes-target-type-filter');
       const idSelect = document.getElementById('notes-target-id-filter');
       const formDom = getFormDom();
       const tableWrapper = document.getElementById('notes-table-wrapper');
 
-      const rerender = () => tab.render(context);
-      const handleStateChange = () => {
-        const active = document.querySelector('.tab.active');
-        if (!active || active.dataset.tab !== 'notes') return;
-        rerender();
-      };
+      if (typeSelect) bucket.on(typeSelect, 'change', () => rerender({ immediate: true }));
+      if (idSelect) bucket.on(idSelect, 'change', () => rerender({ immediate: true }));
 
-      const handleTableClick = event => {
-        const target = event.target;
-        if (!target) return;
-        const actionBtn = target.closest('[data-note-action]');
-        if (!actionBtn) return;
+      if (formDom?.form) {
+        bucket.on(formDom.form, 'submit', event => {
+          event.preventDefault();
+          handleSaveNote(context);
+          rerender({ immediate: true, force: true });
+        });
+      }
 
-        const { noteAction, noteId } = actionBtn.dataset;
-        if (!noteId) return;
+      if (formDom?.resetBtn) {
+        bucket.on(formDom.resetBtn, 'click', () => {
+          selectedNoteId = null;
+          rerender({ immediate: true });
+        });
+      }
 
-        if (noteAction === 'delete') {
-          event.stopPropagation?.();
-          handleDeleteNote(context, noteId);
-        }
-      };
+      if (formDom?.deleteBtn) {
+        bucket.on(formDom.deleteBtn, 'click', () => {
+          if (selectedNoteId) {
+            handleDeleteNote(context, selectedNoteId);
+            rerender({ immediate: true, force: true });
+          }
+        });
+      }
 
-      const handleFormSubmit = e => {
-        e.preventDefault();
-        handleSaveNote(context);
-      };
-
-      const handleFormReset = () => {
-        selectedNoteId = null;
-        rerender();
-      };
-
-      const handleDeleteButton = () => {
-        if (selectedNoteId) handleDeleteNote(context, selectedNoteId);
-      };
-
-      const handleTypeChange = () => rerender();
-
-      if (typeSelect) typeSelect.addEventListener('change', rerender);
-      if (idSelect) idSelect.addEventListener('change', rerender);
-      if (formDom?.form) formDom.form.addEventListener('submit', handleFormSubmit);
-      if (formDom?.resetBtn) formDom.resetBtn.addEventListener('click', handleFormReset);
-      if (formDom?.deleteBtn) formDom.deleteBtn.addEventListener('click', handleDeleteButton);
       if (formDom?.targetType) {
-        formDom.targetType.addEventListener('change', handleTypeChange);
+        bucket.on(formDom.targetType, 'change', () => rerender({ immediate: true }));
       }
-      if (tableWrapper) tableWrapper.addEventListener('click', handleTableClick);
 
-      const unsubscribe = context?.subscribe ? context.subscribe(handleStateChange) : null;
-
-      this.__handlers = {
-        typeSelect,
-        idSelect,
-        tableWrapper,
-        formDom,
-        handleFormSubmit,
-        handleFormReset,
-        handleTableClick,
-        handleDeleteButton,
-        handleTypeChange,
-        rerender,
-        unsubscribe
-      };
+      if (tableWrapper) {
+        bucket.on(tableWrapper, 'click', event => {
+          const actionBtn = event.target?.closest?.('[data-note-action]');
+          if (!actionBtn) return;
+          const { noteAction, noteId } = actionBtn.dataset || {};
+          if (!noteId) return;
+          if (noteAction === 'delete') {
+            event.stopPropagation?.();
+            handleDeleteNote(context, noteId);
+            rerender({ immediate: true, force: true });
+          }
+        });
+      }
     },
-    render: renderNotesTab,
-    unmount() {
-      const h = this.__handlers;
-      if (!h) return;
-      if (h.typeSelect) h.typeSelect.removeEventListener('change', h.rerender);
-      if (h.idSelect) h.idSelect.removeEventListener('change', h.rerender);
-      if (h.tableWrapper) h.tableWrapper.removeEventListener('click', h.handleTableClick);
-      if (h.formDom?.form) h.formDom.form.removeEventListener('submit', h.handleFormSubmit);
-      if (h.formDom?.resetBtn) h.formDom.resetBtn.removeEventListener('click', h.handleFormReset);
-      if (h.formDom?.deleteBtn && h.handleDeleteButton) {
-        h.formDom.deleteBtn.removeEventListener('click', h.handleDeleteButton);
-      }
-      if (h.formDom?.targetType) {
-        h.formDom.targetType.removeEventListener('change', h.handleTypeChange);
-      }
-      if (typeof h.unsubscribe === 'function') h.unsubscribe();
+    reset: () => {
       selectedNoteId = null;
       lastMovementId = null;
-      this.__handlers = null;
     }
-  };
-
-  movementEngineerGlobal.tabs.notes = tab;
-  if (ctx?.tabs) {
-    ctx.tabs.notes = tab;
-  }
-  return tab;
+  });
 }

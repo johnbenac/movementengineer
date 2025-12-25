@@ -121,10 +121,12 @@ export function createTab(ctx, config = {}) {
   function rerender(options = {}) {
     const { force = false, immediate = false } = options;
     if (scheduled) return;
-    scheduled = true;
     if (immediate) {
+      if (!shouldRenderTab(force)) return;
+      scheduled = true;
       return tab.render(ctxRef, { force });
     }
+    scheduled = true;
     schedule(() => runRender(force));
   }
 
