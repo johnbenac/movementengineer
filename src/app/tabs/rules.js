@@ -494,7 +494,6 @@ export function registerRulesTab(ctx) {
       open(context, ruleId) {
         this.__state.selectedRuleId = ruleId || null;
         context?.actions?.activateTab?.('rules');
-        this.render?.(context, { force: true });
         return { ruleId };
       }
     },

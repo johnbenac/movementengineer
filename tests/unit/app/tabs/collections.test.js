@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDomUtils } from '../../../../src/app/ui/dom.js';
+import { createActions } from '../../../../src/app/actions.js';
 
 function renderDom() {
   document.body.innerHTML = `
@@ -166,7 +167,6 @@ describe('collections tab module', () => {
 
   it('jumps to referenced items and activates the collections tab', async () => {
     renderDom();
-    const actions = { activateTab: vi.fn(), selectMovement: vi.fn() };
     const snapshot = { entities: [{ id: 'e1', movementId: 'm1', name: 'Alpha' }] };
     const ctx = createCtx(
       {
@@ -176,15 +176,16 @@ describe('collections tab module', () => {
         currentItemId: null,
         navigation: { stack: [], index: -1 },
         flags: {}
-      },
-      { actions }
+      }
     );
+    ctx.shell = { activateTab: vi.fn(), renderActiveTab: vi.fn() };
+    ctx.actions = createActions(ctx);
     const { registerCollectionsTab } = await import('../../../../src/app/tabs/collections.js');
-    const tab = registerCollectionsTab(ctx);
+    registerCollectionsTab(ctx);
 
-    tab.jumpToReferencedItem(ctx, 'entities', 'e1');
+    ctx.actions.openItem('entities', 'e1');
 
-    expect(actions.activateTab).toHaveBeenCalledWith('collections');
+    expect(ctx.shell.activateTab).toHaveBeenCalledWith('collections');
     expect(ctx.getState().currentItemId).toBe('e1');
   });
 

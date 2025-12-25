@@ -1099,7 +1099,7 @@ function renderSelected(ctx, dom, visibleEntities, entityById, baseGraph, snapsh
         btn.type = 'button';
         btn.textContent = 'Jump to source record';
         btn.addEventListener('click', () =>
-          getActions(ctx).jumpToReferencedItem?.(edge.source.collection, edge.source.id)
+          getActions(ctx).openItem?.(edge.source.collection, edge.source.id)
         );
         edgeCard.appendChild(btn);
       }

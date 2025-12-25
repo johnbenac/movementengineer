@@ -16,12 +16,15 @@ function getViewModels(ctx) {
   return ctx.services.ViewModels;
 }
 
-function renderPracticesTab(ctx) {
+const DEFAULT_TAB_STATE = { selectedPracticeId: null, lastMovementId: null };
+
+function renderPracticesTab(ctx, tab) {
   const { clearElement: clear, ensureSelectOptions } = ctx.dom;
   const dom = ctx.dom;
   const state = getState(ctx);
   const snapshot = state.snapshot;
   const currentMovementId = state.currentMovementId;
+  const tabState = tab?.__state || { ...DEFAULT_TAB_STATE };
 
   const select = document.getElementById('practice-select');
   const detailContainer = document.getElementById('practice-detail');
@@ -55,11 +58,20 @@ function renderPracticesTab(ctx) {
     .map(p => ({ value: p.id, label: p.name || p.id }));
   ensureSelectOptions(select, options, 'Choose practice');
 
-  let practiceId = select.value || null;
-  const hasValidSelection = options.some(opt => opt.value === practiceId);
-  if (!hasValidSelection) {
-    practiceId = options.length ? options[0].value : null;
-    select.value = practiceId || '';
+  const selectedFromState = tabState.selectedPracticeId;
+  const hasStateSelection = options.some(opt => opt.value === selectedFromState);
+  const selectValue = select.value || null;
+  const hasSelectValue = options.some(opt => opt.value === selectValue);
+  const practiceId = hasStateSelection
+    ? selectedFromState
+    : hasSelectValue
+      ? selectValue
+      : options.length
+        ? options[0].value
+        : null;
+  select.value = practiceId || '';
+  if (tab?.__state) {
+    tab.__state.selectedPracticeId = practiceId || null;
   }
 
   if (!practiceId) {
@@ -181,17 +193,23 @@ export function registerPracticesTab(ctx) {
   ctx?.dom?.installGlobalChipHandler?.(ctx);
   return createTab(ctx, {
     name: 'practices',
-    render: renderPracticesTab,
-    setup: ({ bucket, rerender }) => {
+    render(context) {
+      return renderPracticesTab(context, this);
+    },
+    setup: ({ bucket, rerender, tab }) => {
       const select = document.getElementById('practice-select');
-      if (select) bucket.on(select, 'change', () => rerender({ immediate: true }));
+      if (select) {
+        bucket.on(select, 'change', () => {
+          if (tab?.__state) tab.__state.selectedPracticeId = select.value || null;
+          rerender({ immediate: true });
+        });
+      }
     },
     extend: {
+      __state: { ...DEFAULT_TAB_STATE },
       open(context, practiceId) {
-        const select = document.getElementById('practice-select');
-        if (select && practiceId) select.value = practiceId;
+        this.__state.selectedPracticeId = practiceId || null;
         context?.actions?.activateTab?.('practices');
-        this.render?.(context, { force: true });
         return { practiceId };
       }
     }
