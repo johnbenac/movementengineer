@@ -136,6 +136,9 @@
       typeName: 'TextCollection',
       description: 'Groupings of related text nodes within a movement.',
       collectionName: 'textCollections',
+      ui: {
+        previewFields: ['movementId', 'description', 'tags', 'rootTextIds']
+      },
       serialization: {
         frontMatterFields: ['id', 'movementId', 'name', 'rootTextIds', 'description', 'tags', 'order'],
         bodyField: 'description'
@@ -205,6 +208,9 @@
       typeName: 'TextNode',
       description: 'Text nodes that can form a hierarchy inside a movement.',
       collectionName: 'texts',
+      ui: {
+        previewFields: ['movementId', 'label', 'parentId', 'content', 'mainFunction', 'tags', 'mentionsEntityIds']
+      },
       serialization: {
         frontMatterFields: [
           'id',
@@ -308,6 +314,9 @@
       typeName: 'Entity',
       description: 'People, places, objects, ideas, or other entities.',
       collectionName: 'entities',
+      ui: {
+        previewFields: ['kind', 'movementId', 'summary', 'tags', 'sourcesOfTruth', 'sourceEntityIds', 'notes']
+      },
       serialization: {
         frontMatterFields: ['id', 'movementId', 'name', 'kind', 'tags', 'sourceEntityIds', 'sourcesOfTruth', 'order'],
         bodyField: 'summary'
@@ -388,6 +397,22 @@
       typeName: 'Practice',
       description: 'Rituals, disciplines, or recurring practices.',
       collectionName: 'practices',
+      ui: {
+        previewFields: [
+          'kind',
+          'movementId',
+          'description',
+          'frequency',
+          'isPublic',
+          'tags',
+          'involvedEntityIds',
+          'instructionsTextIds',
+          'supportingClaimIds',
+          'sourcesOfTruth',
+          'sourceEntityIds',
+          'notes'
+        ]
+      },
       serialization: {
         frontMatterFields: [
           'id',
@@ -520,7 +545,18 @@
       collectionName: 'events',
       ui: {
         views: ['calendar', 'detail'],
-        defaultView: 'calendar'
+        defaultView: 'calendar',
+        previewFields: [
+          'movementId',
+          'description',
+          'recurrence',
+          'timingRule',
+          'tags',
+          'mainPracticeIds',
+          'mainEntityIds',
+          'readingTextIds',
+          'supportingClaimIds'
+        ]
       },
       serialization: {
         frontMatterFields: [
@@ -642,6 +678,21 @@
       typeName: 'Rule',
       description: 'Norms or rules enforced by the movement.',
       collectionName: 'rules',
+      ui: {
+        previewFields: [
+          'movementId',
+          'kind',
+          'details',
+          'appliesTo',
+          'domain',
+          'tags',
+          'supportingTextIds',
+          'supportingClaimIds',
+          'relatedPracticeIds',
+          'sourcesOfTruth',
+          'sourceEntityIds'
+        ]
+      },
       serialization: {
         frontMatterFields: [
           'id',
@@ -782,6 +833,19 @@
       typeName: 'Claim',
       description: 'Boolean assertions with sources.',
       collectionName: 'claims',
+      ui: {
+        previewFields: [
+          'movementId',
+          'category',
+          'text',
+          'tags',
+          'aboutEntityIds',
+          'sourceTextIds',
+          'sourcesOfTruth',
+          'sourceEntityIds',
+          'notes'
+        ]
+      },
       serialization: {
         frontMatterFields: [
           'id',
@@ -890,6 +954,20 @@
       typeName: 'MediaAsset',
       description: 'Linked media assets (images, audio, video, etc.).',
       collectionName: 'media',
+      ui: {
+        previewFields: [
+          'movementId',
+          'kind',
+          'uri',
+          'title',
+          'description',
+          'tags',
+          'linkedEntityIds',
+          'linkedPracticeIds',
+          'linkedEventIds',
+          'linkedTextIds'
+        ]
+      },
       serialization: {
         frontMatterFields: [
           'id',
@@ -1009,6 +1087,9 @@
       typeName: 'Note',
       description: 'Annotations attached to other records.',
       collectionName: 'notes',
+      ui: {
+        previewFields: ['movementId', 'targetType', 'targetId', 'author', 'context', 'body', 'tags']
+      },
       serialization: {
         frontMatterFields: ['id', 'movementId', 'targetType', 'targetId', 'author', 'context', 'tags', 'order'],
         bodyField: 'body'
