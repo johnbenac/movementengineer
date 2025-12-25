@@ -1,4 +1,4 @@
-import { getRecordTitle } from './genericCrudHelpers.ts';
+import { getRecordTitle } from './genericCrudHelpers.js';
 
 function normalizeRecords(records) {
   return Array.isArray(records) ? records : [];

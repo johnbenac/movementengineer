@@ -4,7 +4,7 @@ import {
   resolveEnumValues,
   resolveFieldKind,
   resolveRefCollectionName
-} from './genericCrudHelpers.ts';
+} from './genericCrudHelpers.js';
 
 function createLabeledError(message) {
   if (!message) return null;

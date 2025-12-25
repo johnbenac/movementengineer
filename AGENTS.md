@@ -29,10 +29,10 @@ npm run build            # Production build with legacy checks
 npx vitest run tests/unit/app/tabs/dashboard.test.js
 
 # Single e2e test file
-npx playwright test tests/e2e/smoke.spec.ts
+npx playwright test tests/e2e/smoke.spec.js
 
 # E2e with specific entry point
-ME_E2E_ENTRY=/index.html npx playwright test tests/e2e/smoke.spec.ts
+ME_E2E_ENTRY=/index.html npx playwright test tests/e2e/smoke.spec.js
 ```
 
 ### Development Server
@@ -96,7 +96,7 @@ The build runs `check-no-legacy.mjs` to ensure no banned files (app.js, modules/
 
 ### E2E Tests (Playwright)
 - Located in `tests/e2e/`
-- Use `gotoApp(page)` helper from `tests/helpers/gotoApp.ts`
+- Use `gotoApp(page)` helper from `tests/helpers/gotoApp.js`
 - Dev server auto-starts via playwright config
 
 ## File Organization

@@ -4,7 +4,7 @@ import {
   getRecordTitle,
   resolveFieldKind,
   resolveRefCollectionName
-} from './genericCrudHelpers.ts';
+} from './genericCrudHelpers.js';
 
 function renderValue({ value, fieldDef, model, snapshot, isBodyField }) {
   if (value === null) return 'null';

@@ -1,4 +1,4 @@
-import { getCollectionLabel, getCollectionSnapshotKey } from './genericCrudHelpers.ts';
+import { getCollectionLabel, getCollectionSnapshotKey } from './genericCrudHelpers.js';
 
 export function CollectionList({ model, selectedKey, onSelect }) {
   const wrapper = document.createElement('div');
