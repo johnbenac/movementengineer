@@ -372,6 +372,11 @@
       });
     });
 
+    if (ctx?.snapshot && ctx?.model && refIntegrity?.validateRecordRefs) {
+      const refIssues = refIntegrity.validateRecordRefs(record, collectionDef, ctx);
+      refIssues.forEach(issue => pushIssue(issues, issue, ctx));
+    }
+
     return issues;
   }
 
@@ -440,7 +445,8 @@
       const records = Array.isArray(snapshot[collectionName]) ? snapshot[collectionName] : [];
       records.forEach(record => {
         if (shouldStop(ctx, issues)) return;
-        const recordIssues = validateRecord(record, collectionDef, ctx);
+        const recordCtx = ctx?.snapshot ? { ...ctx, snapshot: null } : ctx;
+        const recordIssues = validateRecord(record, collectionDef, recordCtx);
         recordIssues.forEach(issue => pushIssue(issues, issue, ctx));
       });
     });

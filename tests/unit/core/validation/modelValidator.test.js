@@ -9,10 +9,11 @@ const model = {
   enums: {
     Role: ['leader', 'member']
   },
-  collectionOrder: ['movements', 'entities'],
+  collectionOrder: ['movements', 'entities', 'notes'],
   collections: {
     movements: {
       collectionName: 'movements',
+      typeName: 'Movement',
       fields: {
         id: { type: 'string', required: true, nullable: false },
         name: { type: 'string', required: true, nullable: false },
@@ -24,10 +25,21 @@ const model = {
     },
     entities: {
       collectionName: 'entities',
+      typeName: 'Entity',
       fields: {
         id: { type: 'string', required: true, nullable: false },
         movementId: { type: 'string', required: true, nullable: false, ref: 'movements' },
         friends: { type: 'array', required: false, nullable: false, items: { type: 'string', ref: 'entities' } }
+      }
+    },
+    notes: {
+      collectionName: 'notes',
+      typeName: 'Note',
+      fields: {
+        id: { type: 'string', required: true, nullable: false },
+        movementId: { type: 'string', required: true, nullable: false, ref: 'movements' },
+        targetType: { type: 'string', required: true, nullable: false },
+        targetId: { type: 'string', required: true, nullable: false }
       }
     }
   }
@@ -74,5 +86,42 @@ describe('modelValidator', () => {
     const report = validateDataset(snapshot, model, { model });
     const issue = report.issues.find(i => i.code === 'REF_MISSING');
     expect(issue?.fieldPath).toBe('friends[0]');
+  });
+
+  it('reports cross-movement refs', () => {
+    const snapshot = {
+      movements: [
+        { id: 'move-1', name: 'Name' },
+        { id: 'move-2', name: 'Other' }
+      ],
+      entities: [
+        { id: 'ent-1', movementId: 'move-1', friends: ['ent-2'] },
+        { id: 'ent-2', movementId: 'move-2', friends: [] }
+      ],
+      notes: []
+    };
+    const report = validateDataset(snapshot, model, { model });
+    const issue = report.issues.find(i => i.code === 'REF_CROSS_MOVEMENT');
+    expect(issue?.fieldPath).toBe('friends[0]');
+  });
+
+  it('validates note target references', () => {
+    const snapshot = {
+      movements: [
+        { id: 'move-1', name: 'Name' },
+        { id: 'move-2', name: 'Other' }
+      ],
+      entities: [{ id: 'ent-2', movementId: 'move-2', friends: [] }],
+      notes: [
+        { id: 'note-1', movementId: 'move-1', targetType: 'Entity', targetId: 'missing' },
+        { id: 'note-2', movementId: 'move-1', targetType: 'Entity', targetId: 'ent-2' },
+        { id: 'note-3', movementId: 'move-1', targetType: 'Movement', targetId: 'move-2' }
+      ]
+    };
+    const report = validateDataset(snapshot, model, { model });
+    const codes = report.issues.map(issue => issue.code);
+    expect(codes).toContain('NOTE_TARGET_MISSING');
+    expect(codes).toContain('NOTE_TARGET_CROSS_MOVEMENT');
+    expect(codes).toContain('NOTE_TARGET_WRONG_MOVEMENT');
   });
 });
