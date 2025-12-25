@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createActions } from '../../../../src/app/actions.js';
 import { createDomUtils } from '../../../../src/app/ui/dom.js';
 
 function renderDom() {
@@ -164,9 +165,9 @@ describe('collections tab module', () => {
     });
   });
 
-  it('jumps to referenced items and activates the collections tab', async () => {
+  it('opens referenced items and activates the collections tab', async () => {
     renderDom();
-    const actions = { activateTab: vi.fn(), selectMovement: vi.fn() };
+    const shell = { activateTab: vi.fn(), renderActiveTab: vi.fn() };
     const snapshot = { entities: [{ id: 'e1', movementId: 'm1', name: 'Alpha' }] };
     const ctx = createCtx(
       {
@@ -177,14 +178,14 @@ describe('collections tab module', () => {
         navigation: { stack: [], index: -1 },
         flags: {}
       },
-      { actions }
+      {}
     );
-    const { registerCollectionsTab } = await import('../../../../src/app/tabs/collections.js');
-    const tab = registerCollectionsTab(ctx);
+    ctx.shell = shell;
+    ctx.actions = createActions(ctx);
 
-    tab.jumpToReferencedItem(ctx, 'entities', 'e1');
+    ctx.actions.openItem('entities', 'e1');
 
-    expect(actions.activateTab).toHaveBeenCalledWith('collections');
+    expect(shell.activateTab).toHaveBeenCalledWith('collections');
     expect(ctx.getState().currentItemId).toBe('e1');
   });
 
