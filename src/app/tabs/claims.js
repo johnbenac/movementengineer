@@ -422,7 +422,6 @@ export function registerClaimsTab(ctx) {
       open(context, claimId) {
         this.__state.selectedClaimId = claimId || null;
         context?.actions?.activateTab?.('claims');
-        this.render?.(context, { force: true });
         return { claimId };
       }
     }

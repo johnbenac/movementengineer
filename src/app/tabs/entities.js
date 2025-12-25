@@ -25,6 +25,8 @@ function getActions(ctx) {
   return ctx.actions;
 }
 
+const DEFAULT_TAB_STATE = { selectedEntityId: null, lastMovementId: null };
+
 const GRAPH_NODE_TYPE_LABELS = {
   Entity: 'Entity',
   TextCollection: 'Canon collection',
@@ -42,6 +44,8 @@ const labelForNodeType = type => GRAPH_NODE_TYPE_LABELS[type] || type || 'Unknow
 let entityGraphViewInstance = null;
 
 function renderEntitiesTab(ctx) {
+  const tab = this && this.__state ? this : ctx?.tabs?.entities;
+  const tabState = tab?.__state || DEFAULT_TAB_STATE;
   const { clearElement: clear, ensureSelectOptions } = ctx.dom;
   const dom = ctx.dom;
   const state = getState(ctx);
@@ -71,6 +75,7 @@ function renderEntitiesTab(ctx) {
     })
   ) {
     ensureSelectOptions(select, [], 'Choose entity');
+    tabState.selectedEntityId = null;
     return;
   }
 
@@ -83,8 +88,22 @@ function renderEntitiesTab(ctx) {
     .map(e => ({ value: e.id, label: e.name || e.id }));
   ensureSelectOptions(select, options, 'Choose entity');
 
-  const entityId = select.value || (options.length ? options[0].value : null);
-  if (entityId) select.value = entityId;
+  const stateSelectedId = tabState.selectedEntityId;
+  const stateIsValid = options.some(opt => opt.value === stateSelectedId);
+  const selectIsValid = options.some(opt => opt.value === select.value);
+  const entityId = stateIsValid
+    ? stateSelectedId
+    : selectIsValid
+      ? select.value
+      : options.length
+        ? options[0].value
+        : null;
+  if (entityId) {
+    select.value = entityId;
+  } else {
+    select.value = '';
+  }
+  tabState.selectedEntityId = entityId || null;
 
   if (!entityId) {
     renderHint(detailContainer, 'No entities found for this movement.');
@@ -210,7 +229,7 @@ function renderEntitiesTab(ctx) {
         const targetCollection = typeToCollection[conn.node.type];
         li.addEventListener('click', () => {
           if (targetCollection) {
-            actions.jumpToReferencedItem?.(targetCollection, conn.node.id);
+            actions.openItem?.(targetCollection, conn.node.id);
           }
         });
 
@@ -253,10 +272,11 @@ function renderEntitiesTab(ctx) {
     entityGraphViewInstance = new EntityGraphView({
       onNodeClick: id => {
         if (!id) return;
-        const targetSelect = document.getElementById('entity-select');
-        if (targetSelect) targetSelect.value = id;
-        const tab = ctx?.tabs?.entities || window.MovementEngineer?.tabs?.entities;
-        tab?.render?.(ctx, { force: true });
+        const activeTab = ctx?.tabs?.entities || window.MovementEngineer?.tabs?.entities;
+        if (activeTab?.__state) {
+          activeTab.__state.selectedEntityId = id;
+        }
+        activeTab?.rerender?.({ immediate: true });
       }
     });
   }
@@ -273,13 +293,17 @@ export function registerEntitiesTab(ctx) {
   return createTab(ctx, {
     name: 'entities',
     render: renderEntitiesTab,
-    setup: ({ bucket, rerender }) => {
-      const on = (id, event) => {
+    setup: ({ bucket, rerender, tab }) => {
+      const on = (id, event, handler) => {
         const el = document.getElementById(id);
-        if (el) bucket.on(el, event, () => rerender({ immediate: true }));
+        if (el) bucket.on(el, event, handler || (() => rerender({ immediate: true })));
       };
 
-      on('entity-select', 'change');
+      on('entity-select', 'change', () => {
+        const select = document.getElementById('entity-select');
+        tab.__state.selectedEntityId = select?.value || null;
+        rerender({ immediate: true });
+      });
       on('entity-graph-depth', 'change');
       on('entity-graph-relation-types', 'input');
       on('btn-refresh-entity-graph', 'click');
@@ -288,11 +312,10 @@ export function registerEntitiesTab(ctx) {
       entityGraphViewInstance = null;
     },
     extend: {
+      __state: { ...DEFAULT_TAB_STATE },
       open(context, entityId) {
-        const select = document.getElementById('entity-select');
-        if (select && entityId) select.value = entityId;
+        this.__state.selectedEntityId = entityId || null;
         context?.actions?.activateTab?.('entities');
-        this.render?.(context, { force: true });
         return { entityId };
       }
     }
