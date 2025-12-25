@@ -48,10 +48,10 @@ function requiredFieldIssues(draft, collectionDef) {
   return issues;
 }
 
-function validateDraft(draft, collectionDef, model) {
+function validateDraft(draft, collectionDef, model, snapshot) {
   const validator = globalScope?.ModelValidator;
   const issues = validator?.validateRecord
-    ? validator.validateRecord(draft, collectionDef, { model })
+    ? validator.validateRecord(draft, collectionDef, { model, snapshot })
     : [];
   const baseIssues = normalizeErrors(issues || []);
   const requiredIssues = requiredFieldIssues(draft, collectionDef);
@@ -96,7 +96,7 @@ export function RecordEditor({
   const fieldErrors = new Map();
 
   function refreshValidation() {
-    const result = validateDraft(draft, collectionDef, model);
+    const result = validateDraft(draft, collectionDef, model, snapshot);
     fieldErrors.clear();
     result.errors.forEach(error => {
       if (!error.fieldPath) return;
@@ -181,7 +181,9 @@ export function RecordEditor({
       : FieldRenderer({
         fieldDef,
         fieldName,
+        collectionName: resolvedCollectionName,
         value: draft?.[fieldName],
+        record: draft,
         model,
         snapshot,
         isBodyField: fieldName === bodyField,
