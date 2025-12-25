@@ -1,14 +1,14 @@
 import { getModelForSnapshot } from '../../app/ui/schemaDoc.js';
-import { usePlugins } from '../../core/plugins/PluginProvider.tsx';
-import { useSnapshotOps } from '../../core/useSnapshotOps.ts';
-import { CollectionList } from './CollectionList.tsx';
-import { RecordList } from './RecordList.tsx';
-import { RecordEditor } from './RecordEditor.tsx';
+import { usePlugins } from '../../core/plugins/PluginProvider.js';
+import { useSnapshotOps } from '../../core/useSnapshotOps.js';
+import { CollectionList } from './CollectionList.js';
+import { RecordList } from './RecordList.js';
+import { RecordEditor } from './RecordEditor.js';
 import {
   generateId,
   getCollectionSnapshotKey,
   makeDefaultRecord
-} from './genericCrudHelpers.ts';
+} from './genericCrudHelpers.js';
 
 function normalizeRecords(records) {
   return Array.isArray(records) ? records : [];

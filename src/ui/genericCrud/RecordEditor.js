@@ -3,9 +3,9 @@ import {
   generateId,
   getBodyField,
   getOrderedFieldNames
-} from './genericCrudHelpers.ts';
-import { FieldRenderer } from './FieldRenderer.tsx';
-import { usePlugins } from '../../core/plugins/PluginProvider.tsx';
+} from './genericCrudHelpers.js';
+import { FieldRenderer } from './FieldRenderer.js';
+import { usePlugins } from '../../core/plugins/PluginProvider.js';
 
 const globalScope =
   typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : undefined;

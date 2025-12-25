@@ -14,7 +14,7 @@ import { registerEntitiesTab } from './tabs/entities.js';
 import { registerCollectionsTab } from './tabs/collections.js';
 import { registerAuthorityTab } from './tabs/authority.js';
 import { registerGenericCrudTab } from './tabs/genericCrud.js';
-import { PluginProvider } from '../core/plugins/PluginProvider.tsx';
+import { PluginProvider } from '../core/plugins/PluginProvider.js';
 import { createPluginRegistry } from '../core/plugins/pluginRegistry.js';
 import { registerBuiltInPlugins } from '../plugins/registerBuiltins.js';
 import { initMovements } from './ui/movements.js';
