@@ -6,9 +6,7 @@ import {
   setDisabled
 } from '../ui/hints.js';
 import { renderTable } from '../ui/table.js';
-
-const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
-movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
+import { createTab } from './tabKit.js';
 
 function getState(ctx) {
   return ctx.store.getState() || {};
@@ -488,10 +486,20 @@ function renderRulesTab(ctx) {
 
 export function registerRulesTab(ctx) {
   ctx?.dom?.installGlobalChipHandler?.(ctx);
-  const tab = {
-    __handlers: null,
-    __state: { selectedRuleId: null },
-    mount(context) {
+
+  return createTab(ctx, {
+    name: 'rules',
+    render: renderRulesTab,
+    extend: {
+      __state: { selectedRuleId: null },
+      open(context, ruleId) {
+        this.__state.selectedRuleId = ruleId || null;
+        context?.actions?.activateTab?.('rules');
+        this.render?.(context, { force: true });
+        return { ruleId };
+      }
+    },
+    setup: ({ bucket, rerender, ctx: context, tab }) => {
       const kindSelect = document.getElementById('rules-kind-filter');
       const domainInput = document.getElementById('rules-domain-filter');
       const ruleSelect = document.getElementById('rules-editor-select');
@@ -499,71 +507,22 @@ export function registerRulesTab(ctx) {
       const saveBtn = document.getElementById('rules-save-btn');
       const deleteBtn = document.getElementById('rules-delete-btn');
 
-      const rerender = () => tab.render(context);
-      const ruleSelectChange = () => {
-        tab.__state.selectedRuleId = ruleSelect.value || null;
-        rerender();
-      };
-      const handleAdd = () => handleAddRule(context, tab);
-      const handleSave = () => handleSaveRule(context, tab);
-      const handleDelete = () => handleDeleteRule(context, tab);
-      const handleStateChange = () => {
-        const active = document.querySelector('.tab.active');
-        if (!active || active.dataset.tab !== 'rules') return;
-        rerender();
-      };
+      if (kindSelect) bucket.on(kindSelect, 'change', () => rerender({ immediate: true }));
+      if (domainInput) bucket.on(domainInput, 'input', () => rerender({ immediate: true }));
 
-      if (kindSelect) kindSelect.addEventListener('change', rerender);
-      if (domainInput) domainInput.addEventListener('input', rerender);
       if (ruleSelect) {
-        ruleSelect.addEventListener('change', ruleSelectChange);
+        bucket.on(ruleSelect, 'change', () => {
+          tab.__state.selectedRuleId = ruleSelect.value || null;
+          rerender({ immediate: true });
+        });
       }
-      if (addBtn) addBtn.addEventListener('click', handleAdd);
-      if (saveBtn) saveBtn.addEventListener('click', handleSave);
-      if (deleteBtn) deleteBtn.addEventListener('click', handleDelete);
 
-      const unsubscribe = context?.subscribe ? context.subscribe(handleStateChange) : null;
-
-      this.__handlers = {
-        kindSelect,
-        domainInput,
-        ruleSelect,
-        ruleSelectChange,
-        addBtn,
-        addHandler: handleAdd,
-        saveBtn,
-        saveHandler: handleSave,
-        deleteBtn,
-        deleteHandler: handleDelete,
-        rerender,
-        unsubscribe
-      };
+      if (addBtn) bucket.on(addBtn, 'click', () => handleAddRule(context, tab));
+      if (saveBtn) bucket.on(saveBtn, 'click', () => handleSaveRule(context, tab));
+      if (deleteBtn) bucket.on(deleteBtn, 'click', () => handleDeleteRule(context, tab));
     },
-    render: renderRulesTab,
-    open(context, ruleId) {
-      this.__state.selectedRuleId = ruleId || null;
-      context?.actions?.activateTab?.('rules');
-      this.render?.(context);
-      return { ruleId };
-    },
-    unmount() {
-      const h = this.__handlers;
-      if (!h) return;
-      if (h.kindSelect) h.kindSelect.removeEventListener('change', h.rerender);
-      if (h.domainInput) h.domainInput.removeEventListener('input', h.rerender);
-      if (h.ruleSelect) h.ruleSelect.removeEventListener('change', h.ruleSelectChange);
-      if (h.addBtn && h.addHandler) h.addBtn.removeEventListener('click', h.addHandler);
-      if (h.saveBtn && h.saveHandler) h.saveBtn.removeEventListener('click', h.saveHandler);
-      if (h.deleteBtn && h.deleteHandler)
-        h.deleteBtn.removeEventListener('click', h.deleteHandler);
-      if (typeof h.unsubscribe === 'function') h.unsubscribe();
-      this.__handlers = null;
+    reset: ({ tab }) => {
+      if (tab?.__state) tab.__state.selectedRuleId = null;
     }
-  };
-
-  movementEngineerGlobal.tabs.rules = tab;
-  if (ctx?.tabs) {
-    ctx.tabs.rules = tab;
-  }
-  return tab;
+  });
 }
