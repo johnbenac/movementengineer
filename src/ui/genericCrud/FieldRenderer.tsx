@@ -29,13 +29,26 @@ function removeUndefined(items) {
   return items.filter(item => item !== undefined);
 }
 
-function resolveRefOptions({ ref, model, snapshot }) {
+function isMovementScopedCollection(collectionDef, options) {
+  if (collectionDef?.fields?.movementId) return true;
+  return options.some(option => option?.movementId);
+}
+
+function filterOptionsByMovement({ options, record, collectionName, collectionDef }) {
+  if (!record?.movementId) return options;
+  if (!collectionName || collectionName === 'movements') return options;
+  if (!isMovementScopedCollection(collectionDef, options)) return options;
+  return options.filter(option => option?.movementId === record.movementId);
+}
+
+function resolveRefOptions({ ref, model, snapshot, record }) {
   const collectionName = resolveRefCollectionName(ref, model);
   const list = Array.isArray(snapshot?.[collectionName]) ? snapshot[collectionName] : [];
   const collectionDef = collectionName ? model?.collections?.[collectionName] : null;
+  const options = filterOptionsByMovement({ options: list, record, collectionName, collectionDef });
   return {
     collectionName,
-    options: list,
+    options,
     collectionDef
   };
 }
@@ -48,6 +61,8 @@ export function FieldRenderer({
   fieldName,
   model,
   snapshot,
+  record,
+  collectionName,
   isBodyField
 }) {
   const wrapper = document.createElement('div');
@@ -57,7 +72,32 @@ export function FieldRenderer({
   const kind = kindInfo.kind;
   let control = null;
 
-  if (kind === 'markdown') {
+  if (collectionName === 'notes' && fieldName === 'targetId') {
+    const targetCollection = resolveRefCollectionName(record?.targetType, model);
+    if (targetCollection) {
+      const collectionDef = model?.collections?.[targetCollection] || null;
+      const list = Array.isArray(snapshot?.[targetCollection]) ? snapshot[targetCollection] : [];
+      const options = filterOptionsByMovement({
+        options: list,
+        record,
+        collectionName: targetCollection,
+        collectionDef
+      });
+      const select = document.createElement('select');
+      select.appendChild(buildSelectOption('', '—'));
+      options.forEach(option => {
+        const label = getRecordTitle(option, collectionDef) || option.id;
+        select.appendChild(buildSelectOption(option.id, label));
+      });
+      select.value = value ?? '';
+      select.addEventListener('change', event => {
+        onChange(coerceInputValue(fieldDef, event.target.value));
+      });
+      control = select;
+    }
+  }
+
+  if (!control && kind === 'markdown') {
     const textarea = document.createElement('textarea');
     textarea.rows = 6;
     textarea.value = value ?? '';
@@ -95,7 +135,7 @@ export function FieldRenderer({
   } else if (kind === 'ref') {
     const select = document.createElement('select');
     select.appendChild(buildSelectOption('', '—'));
-    const { options, collectionDef } = resolveRefOptions({ ref: kindInfo.ref, model, snapshot });
+    const { options, collectionDef } = resolveRefOptions({ ref: kindInfo.ref, model, snapshot, record });
     options.forEach(option => {
       const label = getRecordTitle(option, collectionDef) || option.id;
       select.appendChild(buildSelectOption(option.id, label));
@@ -126,7 +166,7 @@ export function FieldRenderer({
       if (itemKind === 'ref') {
         const select = document.createElement('select');
         select.appendChild(buildSelectOption('', '—'));
-        const { options, collectionDef } = resolveRefOptions({ ref: kindInfo.items.ref, model, snapshot });
+        const { options, collectionDef } = resolveRefOptions({ ref: kindInfo.items.ref, model, snapshot, record });
         options.forEach(option => {
           const label = getRecordTitle(option, collectionDef) || option.id;
           select.appendChild(buildSelectOption(option.id, label));
@@ -176,7 +216,7 @@ export function FieldRenderer({
       if (itemKind === 'ref') {
         const select = document.createElement('select');
         select.appendChild(buildSelectOption('', '—'));
-        const { options, collectionDef } = resolveRefOptions({ ref: kindInfo.items.ref, model, snapshot });
+        const { options, collectionDef } = resolveRefOptions({ ref: kindInfo.items.ref, model, snapshot, record });
         options.forEach(option => {
           const label = getRecordTitle(option, collectionDef) || option.id;
           select.appendChild(buildSelectOption(option.id, label));
