@@ -7,9 +7,7 @@ import {
   setDisabled
 } from '../ui/hints.js';
 import { appendSection } from '../ui/sections.js';
-
-const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
-movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
+import { createTab } from './tabKit.js';
 
 function getState(ctx) {
   return ctx.store.getState() || {};
@@ -271,54 +269,31 @@ function renderEntitiesTab(ctx) {
 
 export function registerEntitiesTab(ctx) {
   ctx?.dom?.installGlobalChipHandler?.(ctx);
-  const tab = {
-    __handlers: null,
-    mount(context) {
-      const select = document.getElementById('entity-select');
-      const depthSelect = document.getElementById('entity-graph-depth');
-      const relTypeInput = document.getElementById('entity-graph-relation-types');
-      const refreshBtn = document.getElementById('btn-refresh-entity-graph');
-
-      const rerender = () => tab.render(context);
-      const handleStateChange = () => {
-        const active = document.querySelector('.tab.active');
-        if (!active || active.dataset.tab !== 'entities') return;
-        rerender();
+  return createTab(ctx, {
+    name: 'entities',
+    render: renderEntitiesTab,
+    setup: ({ bucket, rerender }) => {
+      const on = (id, event) => {
+        const el = document.getElementById(id);
+        if (el) bucket.on(el, event, () => rerender({ immediate: true }));
       };
 
-      if (select) select.addEventListener('change', rerender);
-      if (depthSelect) depthSelect.addEventListener('change', rerender);
-      if (relTypeInput) relTypeInput.addEventListener('input', rerender);
-      if (refreshBtn) refreshBtn.addEventListener('click', rerender);
-
-      const unsubscribe = context?.subscribe ? context.subscribe(handleStateChange) : null;
-
-      this.__handlers = { select, depthSelect, relTypeInput, refreshBtn, rerender, unsubscribe };
+      on('entity-select', 'change');
+      on('entity-graph-depth', 'change');
+      on('entity-graph-relation-types', 'input');
+      on('btn-refresh-entity-graph', 'click');
     },
-    render: renderEntitiesTab,
-    open(context, entityId) {
-      const select = document.getElementById('entity-select');
-      if (select && entityId) select.value = entityId;
-      context?.actions?.activateTab?.('entities');
-      this.render?.(context);
-      return { entityId };
-    },
-    unmount() {
-      const h = this.__handlers;
-      if (!h) return;
-      if (h.select) h.select.removeEventListener('change', h.rerender);
-      if (h.depthSelect) h.depthSelect.removeEventListener('change', h.rerender);
-      if (h.relTypeInput) h.relTypeInput.removeEventListener('input', h.rerender);
-      if (h.refreshBtn) h.refreshBtn.removeEventListener('click', h.rerender);
-      if (typeof h.unsubscribe === 'function') h.unsubscribe();
-      this.__handlers = null;
+    reset: () => {
       entityGraphViewInstance = null;
+    },
+    extend: {
+      open(context, entityId) {
+        const select = document.getElementById('entity-select');
+        if (select && entityId) select.value = entityId;
+        context?.actions?.activateTab?.('entities');
+        this.render?.(context, { force: true });
+        return { entityId };
+      }
     }
-  };
-
-  movementEngineerGlobal.tabs.entities = tab;
-  if (ctx?.tabs) {
-    ctx.tabs.entities = tab;
-  }
-  return tab;
+  });
 }

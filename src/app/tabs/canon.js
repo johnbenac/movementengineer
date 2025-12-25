@@ -6,86 +6,45 @@ import {
   addNewBookToShelf,
   addExistingBookToShelf
 } from './canon/actions.js';
-
-const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
-movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
-
-function addListener(el, event, handler, bucket) {
-  if (!el || typeof el.addEventListener !== 'function') return;
-  el.addEventListener(event, handler);
-  bucket.push({ el, event, handler });
-}
+import { createTab } from './tabKit.js';
 
 export function registerCanonTab(ctx) {
-  const tab = {
-    __handlers: null,
-    mount(context) {
-      const listeners = [];
-
-      context?.dom?.installGlobalChipHandler?.(context);
-
-      const rerender = () => tab.render(context);
-      const handleStateChange = () => {
-        const active = document.querySelector('.tab.active');
-        if (!active || active.dataset.tab !== 'canon') return;
-        rerender();
+  ctx?.dom?.installGlobalChipHandler?.(ctx);
+  return createTab(ctx, {
+    name: 'canon',
+    render: renderLibraryView,
+    setup: ({ bucket, rerender, ctx: context }) => {
+      const on = (id, event, handler) => {
+        const el = document.getElementById(id);
+        if (el) bucket.on(el, event, handler);
       };
 
-      const searchInput = document.getElementById('library-search');
-      addListener(searchInput, 'input', () => rerender(), listeners);
+      on('library-search', 'input', () => rerender({ immediate: true }));
 
-      const addShelfBtn = document.getElementById('btn-add-text-collection');
-      addListener(addShelfBtn, 'click', () => {
+      on('btn-add-text-collection', 'click', () => {
         addTextCollection(context);
-        rerender();
-      }, listeners);
-
-      const saveShelfBtn = document.getElementById('btn-save-text-collection');
-      addListener(saveShelfBtn, 'click', () => {
-        saveTextCollection(context);
-        rerender();
-      }, listeners);
-
-      const deleteShelfBtn = document.getElementById('btn-delete-text-collection');
-      addListener(deleteShelfBtn, 'click', () => {
-        deleteTextCollection(context);
-        rerender();
-      }, listeners);
-
-      const addRootTextBtn = document.getElementById('btn-add-root-text');
-      addListener(addRootTextBtn, 'click', () => {
-        addNewBookToShelf(context);
-        rerender();
-      }, listeners);
-
-      const addExistingBookBtn = document.getElementById('btn-add-existing-book');
-      addListener(addExistingBookBtn, 'click', () => {
-        addExistingBookToShelf(context);
-        rerender();
-      }, listeners);
-
-      const unsubscribe = context?.subscribe ? context.subscribe(handleStateChange) : null;
-      this.__handlers = { listeners, unsubscribe, rerender };
-    },
-    render(context) {
-      renderLibraryView(context);
-    },
-    unmount() {
-      const h = this.__handlers;
-      if (!h) return;
-      (h.listeners || []).forEach(({ el, event, handler }) => {
-        if (el && typeof el.removeEventListener === 'function') {
-          el.removeEventListener(event, handler);
-        }
+        rerender({ immediate: true });
       });
-      if (typeof h.unsubscribe === 'function') h.unsubscribe();
-      this.__handlers = null;
-    }
-  };
 
-  movementEngineerGlobal.tabs.canon = tab;
-  if (ctx?.tabs) {
-    ctx.tabs.canon = tab;
-  }
-  return tab;
+      on('btn-save-text-collection', 'click', () => {
+        saveTextCollection(context);
+        rerender({ immediate: true });
+      });
+
+      on('btn-delete-text-collection', 'click', () => {
+        deleteTextCollection(context);
+        rerender({ immediate: true });
+      });
+
+      on('btn-add-root-text', 'click', () => {
+        addNewBookToShelf(context);
+        rerender({ immediate: true });
+      });
+
+      on('btn-add-existing-book', 'click', () => {
+        addExistingBookToShelf(context);
+        rerender({ immediate: true });
+      });
+    }
+  });
 }
