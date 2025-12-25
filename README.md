@@ -89,10 +89,10 @@ npm run build            # production build + legacy checks
 
 ```bash
 npx vitest run tests/unit/app/tabs/dashboard.test.js
-npx playwright test tests/e2e/smoke.spec.ts
+npx playwright test tests/e2e/smoke.spec.js
 
 # e2e with specific entry point
-ME_E2E_ENTRY=/index.html npx playwright test tests/e2e/smoke.spec.ts
+ME_E2E_ENTRY=/index.html npx playwright test tests/e2e/smoke.spec.js
 ```
 
 ---

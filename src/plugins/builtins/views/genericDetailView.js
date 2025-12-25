@@ -1,7 +1,7 @@
-import { useSnapshotOps } from '../../../core/useSnapshotOps.ts';
+import { useSnapshotOps } from '../../../core/useSnapshotOps.js';
 import { getModelForSnapshot } from '../../../app/ui/schemaDoc.js';
-import { RecordDetail } from '../../../ui/genericCrud/RecordDetail.tsx';
-import { getCollectionSnapshotKey } from '../../../ui/genericCrud/genericCrudHelpers.ts';
+import { RecordDetail } from '../../../ui/genericCrud/RecordDetail.js';
+import { getCollectionSnapshotKey } from '../../../ui/genericCrud/genericCrudHelpers.js';
 
 function normalizeRecords(records) {
   return Array.isArray(records) ? records : [];

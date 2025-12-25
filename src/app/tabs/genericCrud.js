@@ -1,5 +1,5 @@
-import { featureFlags } from '../../core/featureFlags.ts';
-import { createGenericCrudTab } from '../../ui/genericCrud/GenericCrudTab.tsx';
+import { featureFlags } from '../../core/featureFlags.js';
+import { createGenericCrudTab } from '../../ui/genericCrud/GenericCrudTab.js';
 import { createTab } from './tabKit.js';
 
 function ensureGenericCrudShell() {
