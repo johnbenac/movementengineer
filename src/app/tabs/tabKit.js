@@ -123,6 +123,10 @@ export function createTab(ctx, config = {}) {
     if (scheduled) return;
     scheduled = true;
     if (immediate) {
+      if (!shouldRenderTab(force)) {
+        scheduled = false;
+        return;
+      }
       return tab.render(ctxRef, { force });
     }
     schedule(() => runRender(force));

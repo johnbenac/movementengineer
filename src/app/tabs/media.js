@@ -6,9 +6,7 @@ import {
   setDisabled
 } from '../ui/hints.js';
 import { appendInlineLabel } from '../ui/chips.js';
-
-const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
-movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
+import { createTab } from './tabKit.js';
 
 function getState(ctx) {
   return ctx.store.getState() || {};
@@ -191,53 +189,19 @@ function renderMediaTab(ctx) {
 
 export function registerMediaTab(ctx) {
   ctx?.dom?.installGlobalChipHandler?.(ctx);
-  const tab = {
-    __handlers: null,
-    mount(context) {
-      const entitySelect = document.getElementById('media-entity-filter');
-      const practiceSelect = document.getElementById('media-practice-filter');
-      const eventSelect = document.getElementById('media-event-filter');
-      const textSelect = document.getElementById('media-text-filter');
-
-      const rerender = () => tab.render(context);
-      const handleStateChange = () => {
-        const active = document.querySelector('.tab.active');
-        if (!active || active.dataset.tab !== 'media') return;
-        rerender();
-      };
-
-      [entitySelect, practiceSelect, eventSelect, textSelect].forEach(selectEl => {
-        if (!selectEl) return;
-        selectEl.addEventListener('change', rerender);
-      });
-
-      const unsubscribe = context?.subscribe ? context.subscribe(handleStateChange) : null;
-
-      this.__handlers = {
-        entitySelect,
-        practiceSelect,
-        eventSelect,
-        textSelect,
-        rerender,
-        unsubscribe
-      };
-    },
+  return createTab(ctx, {
+    name: 'media',
     render: renderMediaTab,
-    unmount() {
-      const h = this.__handlers;
-      if (!h) return;
-      [h.entitySelect, h.practiceSelect, h.eventSelect, h.textSelect].forEach(selectEl => {
-        if (!selectEl) return;
-        selectEl.removeEventListener('change', h.rerender);
+    setup: ({ bucket, rerender }) => {
+      [
+        'media-entity-filter',
+        'media-practice-filter',
+        'media-event-filter',
+        'media-text-filter'
+      ].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) bucket.on(el, 'change', () => rerender({ immediate: true }));
       });
-      if (typeof h.unsubscribe === 'function') h.unsubscribe();
-      this.__handlers = null;
     }
-  };
-
-  movementEngineerGlobal.tabs.media = tab;
-  if (ctx?.tabs) {
-    ctx.tabs.media = tab;
-  }
-  return tab;
+  });
 }
