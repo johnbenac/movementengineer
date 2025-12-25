@@ -164,9 +164,8 @@ describe('collections tab module', () => {
     });
   });
 
-  it('jumps to referenced items and activates the collections tab', async () => {
+  it('selects an item in the current collection', async () => {
     renderDom();
-    const actions = { activateTab: vi.fn(), selectMovement: vi.fn() };
     const snapshot = { entities: [{ id: 'e1', movementId: 'm1', name: 'Alpha' }] };
     const ctx = createCtx(
       {
@@ -176,15 +175,13 @@ describe('collections tab module', () => {
         currentItemId: null,
         navigation: { stack: [], index: -1 },
         flags: {}
-      },
-      { actions }
+      }
     );
     const { registerCollectionsTab } = await import('../../../../src/app/tabs/collections.js');
     const tab = registerCollectionsTab(ctx);
 
-    tab.jumpToReferencedItem(ctx, 'entities', 'e1');
+    tab.setCollectionAndItem(ctx, 'entities', 'e1');
 
-    expect(actions.activateTab).toHaveBeenCalledWith('collections');
     expect(ctx.getState().currentItemId).toBe('e1');
   });
 

@@ -36,9 +36,7 @@ function createCtx(snapshot, detailVm, graphVm, currentMovementId = 'm1') {
     buildEntityGraphViewModel: vi.fn(() => graphVm)
   };
   const actions = {
-    jumpToPractice: vi.fn(),
-    jumpToText: vi.fn(),
-    jumpToReferencedItem: vi.fn()
+    openTarget: vi.fn()
   };
   return {
     store,
@@ -88,13 +86,21 @@ describe('entities tab module', () => {
 
     expect(document.querySelector('#entity-detail h3').textContent).toContain('Entity One');
     expect(document.querySelector('#entity-detail').textContent).toContain('Summary');
-    expect(ctx.actions.jumpToPractice).not.toHaveBeenCalled();
+    expect(ctx.actions.openTarget).not.toHaveBeenCalled();
     document.querySelector('.chip.clickable').dispatchEvent(new Event('click', { bubbles: true }));
-    expect(ctx.actions.jumpToPractice).toHaveBeenCalledWith('p1');
+    expect(ctx.actions.openTarget).toHaveBeenCalledWith({
+      kind: 'item',
+      collection: 'practices',
+      id: 'p1'
+    });
     document.querySelector('.chip.clickable[title^="Depth"]').dispatchEvent(
       new Event('click', { bubbles: true })
     );
-    expect(ctx.actions.jumpToText).toHaveBeenCalledWith('t1');
+    expect(ctx.actions.openTarget).toHaveBeenCalledWith({
+      kind: 'item',
+      collection: 'texts',
+      id: 't1'
+    });
 
     expect(ctx.services.ViewModels.buildEntityGraphViewModel).toHaveBeenCalledWith(snapshot, {
       movementId: 'm1',

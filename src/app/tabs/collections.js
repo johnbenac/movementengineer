@@ -121,10 +121,6 @@ function getStore(ctx) {
   return ctx.store || null;
 }
 
-function getActions(ctx) {
-  return ctx.actions;
-}
-
 function getViewModels(ctx) {
   return ctx.services.ViewModels;
 }
@@ -981,16 +977,6 @@ function renderCollectionsTab(ctx, tab) {
   updateNavigationButtons(getNavigation(state));
 }
 
-function ensureCollectionsTabActive(ctx) {
-  const actions = getActions(ctx);
-  if (typeof actions.activateTab === 'function') {
-    actions.activateTab('collections');
-    return;
-  }
-  const btn = document.querySelector('.tab[data-tab="collections"]');
-  if (btn) btn.click();
-}
-
 function setCollectionAndItem(ctx, tab, collectionName, itemId, options = {}) {
   const { addToHistory = true, fromHistory = false } = options;
   const state = getState(ctx);
@@ -1039,32 +1025,6 @@ function setCollectionAndItem(ctx, tab, collectionName, itemId, options = {}) {
   }
   tab.render?.(ctx);
   return nextState;
-}
-
-function jumpToReferencedItem(ctx, tab, collectionName, itemId) {
-  if (!collectionName || !itemId) return null;
-  const actions = getActions(ctx);
-  const state = getState(ctx);
-  const snapshot = state.snapshot || {};
-
-  if (collectionName === 'movements') {
-    actions.selectMovement?.(itemId);
-    actions.activateTab?.('dashboard');
-    return null;
-  }
-
-  const coll = snapshot[collectionName];
-  if (!Array.isArray(coll)) {
-    ctx.setStatus?.('Unknown collection: ' + collectionName);
-    return null;
-  }
-  const exists = coll.find(it => it.id === itemId);
-  if (!exists) {
-    ctx.setStatus?.('Referenced item not found');
-    return null;
-  }
-  ensureCollectionsTabActive(ctx);
-  return tab.setCollectionAndItem?.(ctx, collectionName, itemId);
 }
 
 function addNewItem(ctx, tab) {
@@ -1223,25 +1183,6 @@ function navigateHistory(ctx, tab, direction) {
   });
 }
 
-function openFacet(ctx, tab, facet, value, scope) {
-  const facetKey = facet ? String(facet).trim() : '';
-  const facetValue =
-    value !== undefined && value !== null ? String(value).trim() : '';
-
-  if (!facetKey || !facetValue) {
-    ctx.setStatus?.('Facet target missing');
-    return null;
-  }
-
-  applyState(ctx, prev => ({
-    ...prev,
-    facetExplorer: { facet: facetKey, value: facetValue, scope: scope || null }
-  }));
-  ensureCollectionsTabActive(ctx);
-  tab.render?.(ctx);
-  return { facet: facetKey, value: facetValue, scope: scope || null };
-}
-
 function clearFacet(ctx, tab) {
   applyState(ctx, prev => ({ ...prev, facetExplorer: null }));
   tab.render?.(ctx);
@@ -1365,13 +1306,10 @@ export function registerCollectionsTab(ctx) {
     },
     setCollectionAndItem: (context, collectionName, itemId, options) =>
       setCollectionAndItem(context, tab, collectionName, itemId, options),
-    jumpToReferencedItem: (context, collectionName, itemId) =>
-      jumpToReferencedItem(context, tab, collectionName, itemId),
     addNewItem: context => addNewItem(context, tab),
     saveCurrentItem: (context, options) => saveCurrentItem(context, tab, options),
     deleteCurrentItem: context => deleteCurrentItem(context, tab),
     navigateHistory: (context, direction) => navigateHistory(context, tab, direction),
-    openFacet: (context, facet, value, scope) => openFacet(context, tab, facet, value, scope),
     clearFacet: context => clearFacet(context, tab)
   };
 
@@ -1379,16 +1317,5 @@ export function registerCollectionsTab(ctx) {
   if (ctx?.tabs) {
     ctx.tabs.collections = tab;
   }
-  if (ctx) {
-    ctx.actions = ctx.actions || {};
-    ctx.actions.setCollectionAndItem = (collectionName, itemId, options) =>
-      tab.setCollectionAndItem(ctx, collectionName, itemId, options);
-    ctx.actions.jumpToReferencedItem = (collectionName, itemId) =>
-      tab.jumpToReferencedItem(ctx, collectionName, itemId);
-    ctx.actions.navigateCollectionHistory = direction =>
-      tab.navigateHistory(ctx, direction);
-    ctx.actions.openFacet = (facet, value, scope) => tab.openFacet(ctx, facet, value, scope);
-  }
-
   return tab;
 }

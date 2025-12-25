@@ -19,9 +19,7 @@ function createCtx(vm, currentMovementId = 'm1') {
     services: { ViewModels },
     dom: createDomUtils(),
     actions: {
-      jumpToPractice: vi.fn(),
-      jumpToEntity: vi.fn(),
-      jumpToText: vi.fn()
+      openTarget: vi.fn()
     }
   };
 }
@@ -79,9 +77,21 @@ describe('EventsCalendarView', () => {
     );
     readingChip?.dispatchEvent(new Event('click', { bubbles: true }));
 
-    expect(ctx.actions.jumpToPractice).toHaveBeenCalledWith('p1');
-    expect(ctx.actions.jumpToEntity).toHaveBeenCalledWith('e1');
-    expect(ctx.actions.jumpToText).toHaveBeenCalledWith('t1');
+    expect(ctx.actions.openTarget).toHaveBeenCalledWith({
+      kind: 'item',
+      collection: 'practices',
+      id: 'p1'
+    });
+    expect(ctx.actions.openTarget).toHaveBeenCalledWith({
+      kind: 'item',
+      collection: 'entities',
+      id: 'e1'
+    });
+    expect(ctx.actions.openTarget).toHaveBeenCalledWith({
+      kind: 'item',
+      collection: 'texts',
+      id: 't1'
+    });
   });
 
   it('disables controls and shows hint when no movement is selected', () => {
