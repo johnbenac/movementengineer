@@ -1379,16 +1379,6 @@ export function registerCollectionsTab(ctx) {
   if (ctx?.tabs) {
     ctx.tabs.collections = tab;
   }
-  if (ctx) {
-    ctx.actions = ctx.actions || {};
-    ctx.actions.setCollectionAndItem = (collectionName, itemId, options) =>
-      tab.setCollectionAndItem(ctx, collectionName, itemId, options);
-    ctx.actions.jumpToReferencedItem = (collectionName, itemId) =>
-      tab.jumpToReferencedItem(ctx, collectionName, itemId);
-    ctx.actions.navigateCollectionHistory = direction =>
-      tab.navigateHistory(ctx, direction);
-    ctx.actions.openFacet = (facet, value, scope) => tab.openFacet(ctx, facet, value, scope);
-  }
 
   return tab;
 }

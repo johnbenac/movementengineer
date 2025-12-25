@@ -41,6 +41,9 @@ function assertCtx(ctx) {
     throw new Error('ctx.ui.markdown.renderMarkdownPreview missing');
   if (!ctx?.ui?.markdown?.openMarkdownModal)
     throw new Error('ctx.ui.markdown.openMarkdownModal missing');
+  if (!ctx?.actions?.openTarget) throw new Error('ctx.actions.openTarget missing');
+  if (!ctx?.actions?.openItem) throw new Error('ctx.actions.openItem missing');
+  if (!ctx?.actions?.openFacet) throw new Error('ctx.actions.openFacet missing');
 }
 
 const movementEngineerGlobal = (globalThis.MovementEngineer ||= {});

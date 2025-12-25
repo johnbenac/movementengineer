@@ -32,9 +32,7 @@ function createCtx(snapshot, vm, currentMovementId = 'm1', options = {}) {
     services: { ViewModels },
     dom,
     actions: {
-      jumpToEntity: vi.fn(),
-      jumpToText: vi.fn(),
-      jumpToPractice: vi.fn()
+      openTarget: vi.fn()
     },
     subscribe,
     __subscriptions: subscriptions
@@ -86,8 +84,16 @@ describe('practices tab module', () => {
       new Event('click', { bubbles: true })
     );
 
-    expect(ctx.actions.jumpToEntity).toHaveBeenCalledWith('e1');
-    expect(ctx.actions.jumpToText).toHaveBeenCalledWith('t1');
+    expect(ctx.actions.openTarget).toHaveBeenCalledWith({
+      kind: 'item',
+      collection: 'entities',
+      id: 'e1'
+    });
+    expect(ctx.actions.openTarget).toHaveBeenCalledWith({
+      kind: 'item',
+      collection: 'texts',
+      id: 't1'
+    });
   });
 
   it('disables selection and shows hint when no movement is selected', async () => {
