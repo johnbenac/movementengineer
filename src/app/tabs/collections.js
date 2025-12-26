@@ -79,8 +79,21 @@ function validateRecord(ctx, collectionName, record, snapshot, guide) {
     const value = record[field];
     if (value === undefined || value === null || value === '') return;
 
-    const targetColl = snapshot?.[target] || [];
+    const nodeIndex = ctx?.store?.getState?.()?.nodeIndex || null;
+    const isAny = target === 'any' || target === '*';
+    const targetColl = isAny ? null : snapshot?.[target] || [];
     const checkOne = id => {
+      if (isAny) {
+        const node = nodeIndex?.get?.(id) || null;
+        if (!node) {
+          issues.push({ level: 'warn', message: `Bad ref: ${field} → ${id}` });
+          return;
+        }
+        if (node.movementId && record.movementId && node.movementId !== record.movementId) {
+          issues.push({ level: 'warn', message: `Cross-movement ref: ${field} → ${id}` });
+        }
+        return;
+      }
       const hit = Array.isArray(targetColl) ? targetColl.find(it => it.id === id) : null;
       if (!hit) {
         issues.push({ level: 'warn', message: `Bad ref: ${field} → ${id}` });
@@ -94,33 +107,6 @@ function validateRecord(ctx, collectionName, record, snapshot, guide) {
     if (Array.isArray(value)) value.filter(Boolean).forEach(checkOne);
     else checkOne(value);
   });
-
-  if (collectionName === 'notes') {
-    const targetType = record.targetType;
-    const targetId = record.targetId;
-    const typeMap = getModel(ctx)?.notes?.targetType?.aliases || {};
-    const canonical = typeMap[String(targetType).replace(/[\s_]/g, '').toLowerCase()] || targetType;
-
-    const targetCollection =
-      canonical === 'Movement' ? 'movements'
-      : canonical === 'TextNode' ? 'texts'
-      : canonical === 'Entity' ? 'entities'
-      : canonical === 'Practice' ? 'practices'
-      : canonical === 'Event' ? 'events'
-      : canonical === 'Rule' ? 'rules'
-      : canonical === 'Claim' ? 'claims'
-      : canonical === 'MediaAsset' ? 'media'
-      : null;
-
-    if (targetCollection && targetId) {
-      const coll = snapshot?.[targetCollection] || [];
-      const hit = Array.isArray(coll) ? coll.find(it => it.id === targetId) : null;
-      if (!hit) issues.push({ level: 'warn', message: `Bad note target: ${targetType} → ${targetId}` });
-      if (hit?.movementId && record.movementId && hit.movementId !== record.movementId) {
-        issues.push({ level: 'warn', message: `Cross-movement note target` });
-      }
-    }
-  }
 
   return issues;
 }
@@ -318,7 +304,7 @@ function renderSchemaGuide(ctx, state, guide, issues) {
       row.appendChild(storedInCell);
 
       const refCell = document.createElement('td');
-      const refTarget = field.ref || field.items?.ref || (fieldName === 'targetId' ? '(polymorphic via targetType)' : null);
+      const refTarget = field.ref || field.items?.ref || null;
       refCell.textContent = refTarget || '—';
       row.appendChild(refCell);
 

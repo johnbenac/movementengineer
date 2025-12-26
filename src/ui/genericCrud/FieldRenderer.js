@@ -1,5 +1,6 @@
 import {
   coerceInputValue,
+  getCollectionLabel,
   getRecordTitle,
   resolveEnumValues,
   resolveFieldKind,
@@ -40,6 +41,24 @@ function resolveRefOptions({ ref, model, snapshot }) {
   };
 }
 
+function resolveAnyRefOptions({ nodeIndex, model, record }) {
+  const options = Array.isArray(nodeIndex?.all) ? nodeIndex.all : [];
+  const movementId = record?.movementId || null;
+  const filtered = movementId
+    ? options.filter(node => !node.movementId || node.movementId === movementId)
+    : options.slice();
+  const labelFor = node => {
+    const collectionDef = model?.collections?.[node.collectionName];
+    const collectionLabel = getCollectionLabel(collectionDef, node.collectionName);
+    return `${node.title || node.id} (${collectionLabel}:${node.id})`;
+  };
+  return filtered.map(node => ({
+    id: node.id,
+    label: labelFor(node),
+    collectionName: node.collectionName
+  }));
+}
+
 function shouldFilterByMovement({ collectionName, model, options }) {
   if (!collectionName || collectionName === 'movements') return false;
   const collectionDef = model?.collections?.[collectionName];
@@ -63,7 +82,8 @@ export function FieldRenderer({
   record,
   model,
   snapshot,
-  isBodyField
+  isBodyField,
+  nodeIndex
 }) {
   const wrapper = document.createElement('div');
   wrapper.className = 'generic-crud-field-input';
@@ -71,31 +91,6 @@ export function FieldRenderer({
   const kindInfo = resolveFieldKind(fieldDef, { isBodyField });
   const kind = kindInfo.kind;
   let control = null;
-
-  if (collectionName === 'notes' && fieldName === 'targetId') {
-    const targetCollectionName = resolveRefCollectionName(record?.targetType, model);
-    if (targetCollectionName) {
-      const select = document.createElement('select');
-      select.appendChild(buildSelectOption('', '—'));
-      const options = Array.isArray(snapshot?.[targetCollectionName]) ? snapshot[targetCollectionName] : [];
-      const filteredOptions = filterOptionsByMovement({
-        options,
-        record,
-        collectionName: targetCollectionName,
-        model
-      });
-      const collectionDef = model?.collections?.[targetCollectionName] || null;
-      filteredOptions.forEach(option => {
-        const label = getRecordTitle(option, collectionDef) || option.id;
-        select.appendChild(buildSelectOption(option.id, label));
-      });
-      select.value = value ?? '';
-      select.addEventListener('change', event => {
-        onChange(coerceInputValue(fieldDef, event.target.value));
-      });
-      control = select;
-    }
-  }
 
   if (!control && kind === 'markdown') {
     const textarea = document.createElement('textarea');
@@ -135,21 +130,28 @@ export function FieldRenderer({
   } else if (!control && kind === 'ref') {
     const select = document.createElement('select');
     select.appendChild(buildSelectOption('', '—'));
-    const { options, collectionDef, collectionName: refCollectionName } = resolveRefOptions({
-      ref: kindInfo.ref,
-      model,
-      snapshot
-    });
-    const filteredOptions = filterOptionsByMovement({
-      options,
-      record,
-      collectionName: refCollectionName,
-      model
-    });
-    filteredOptions.forEach(option => {
-      const label = getRecordTitle(option, collectionDef) || option.id;
-      select.appendChild(buildSelectOption(option.id, label));
-    });
+    if (kindInfo.ref === '*') {
+      const options = resolveAnyRefOptions({ nodeIndex, model, record });
+      options.forEach(option => {
+        select.appendChild(buildSelectOption(option.id, option.label));
+      });
+    } else {
+      const { options, collectionDef, collectionName: refCollectionName } = resolveRefOptions({
+        ref: kindInfo.ref,
+        model,
+        snapshot
+      });
+      const filteredOptions = filterOptionsByMovement({
+        options,
+        record,
+        collectionName: refCollectionName,
+        model
+      });
+      filteredOptions.forEach(option => {
+        const label = getRecordTitle(option, collectionDef) || option.id;
+        select.appendChild(buildSelectOption(option.id, label));
+      });
+    }
     select.value = value ?? '';
     select.addEventListener('change', event => {
       onChange(coerceInputValue(fieldDef, event.target.value));
@@ -176,21 +178,28 @@ export function FieldRenderer({
       if (itemKind === 'ref') {
         const select = document.createElement('select');
         select.appendChild(buildSelectOption('', '—'));
-        const { options, collectionDef, collectionName: refCollectionName } = resolveRefOptions({
-          ref: kindInfo.items.ref,
-          model,
-          snapshot
-        });
-        const filteredOptions = filterOptionsByMovement({
-          options,
-          record,
-          collectionName: refCollectionName,
-          model
-        });
-        filteredOptions.forEach(option => {
-          const label = getRecordTitle(option, collectionDef) || option.id;
-          select.appendChild(buildSelectOption(option.id, label));
-        });
+        if (kindInfo.items.ref === '*') {
+          const options = resolveAnyRefOptions({ nodeIndex, model, record });
+          options.forEach(option => {
+            select.appendChild(buildSelectOption(option.id, option.label));
+          });
+        } else {
+          const { options, collectionDef, collectionName: refCollectionName } = resolveRefOptions({
+            ref: kindInfo.items.ref,
+            model,
+            snapshot
+          });
+          const filteredOptions = filterOptionsByMovement({
+            options,
+            record,
+            collectionName: refCollectionName,
+            model
+          });
+          filteredOptions.forEach(option => {
+            const label = getRecordTitle(option, collectionDef) || option.id;
+            select.appendChild(buildSelectOption(option.id, label));
+          });
+        }
         select.value = itemValue ?? '';
         select.addEventListener('change', event => {
           const next = currentItems.slice();
@@ -236,21 +245,28 @@ export function FieldRenderer({
       if (itemKind === 'ref') {
         const select = document.createElement('select');
         select.appendChild(buildSelectOption('', '—'));
-        const { options, collectionDef, collectionName: refCollectionName } = resolveRefOptions({
-          ref: kindInfo.items.ref,
-          model,
-          snapshot
-        });
-        const filteredOptions = filterOptionsByMovement({
-          options,
-          record,
-          collectionName: refCollectionName,
-          model
-        });
-        filteredOptions.forEach(option => {
-          const label = getRecordTitle(option, collectionDef) || option.id;
-          select.appendChild(buildSelectOption(option.id, label));
-        });
+        if (kindInfo.items.ref === '*') {
+          const options = resolveAnyRefOptions({ nodeIndex, model, record });
+          options.forEach(option => {
+            select.appendChild(buildSelectOption(option.id, option.label));
+          });
+        } else {
+          const { options, collectionDef, collectionName: refCollectionName } = resolveRefOptions({
+            ref: kindInfo.items.ref,
+            model,
+            snapshot
+          });
+          const filteredOptions = filterOptionsByMovement({
+            options,
+            record,
+            collectionName: refCollectionName,
+            model
+          });
+          filteredOptions.forEach(option => {
+            const label = getRecordTitle(option, collectionDef) || option.id;
+            select.appendChild(buildSelectOption(option.id, label));
+          });
+        }
         const addButton = document.createElement('button');
         addButton.type = 'button';
         addButton.textContent = 'Add';

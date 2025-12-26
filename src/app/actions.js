@@ -13,8 +13,12 @@ export function createActions(ctx) {
     const kind = input.kind || input.type || input.targetKind || null;
 
     if (kind === 'item') {
-      if (!input.collection || !input.id) return null;
-      return { kind: 'item', collection: String(input.collection), id: String(input.id) };
+      if (!input.id) return null;
+      return {
+        kind: 'item',
+        collection: input.collection ? String(input.collection) : null,
+        id: String(input.id)
+      };
     }
 
     if (kind === 'facet') {
@@ -195,8 +199,17 @@ export function createActions(ctx) {
   };
 
   actions.openItem = (collectionName, id, options = {}) => {
-    const collection = collectionName ? String(collectionName) : '';
+    const state = ctx?.store?.getState?.() || {};
+    const nodeIndex = state.nodeIndex;
+    let resolvedCollection = collectionName ? String(collectionName) : '';
     const itemId = id ? String(id) : '';
+
+    if (!resolvedCollection && itemId && nodeIndex?.get) {
+      const node = nodeIndex.get(itemId);
+      resolvedCollection = node?.collectionName || '';
+    }
+
+    const collection = resolvedCollection;
 
     if (!collection || !itemId) return false;
 

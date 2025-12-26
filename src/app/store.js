@@ -1,3 +1,5 @@
+import { getModelForSnapshot } from './ui/schemaDoc.js';
+
 const DEFAULT_CANON_FILTERS = {
   search: '',
   tag: '',
@@ -59,7 +61,21 @@ export function createStore(options = {}) {
     : {};
   const snapshot =
     StorageService?.ensureAllCollections?.(initialSnapshot) || initialSnapshot || {};
-  let state = {
+  function buildDerivedState(nextState) {
+    if (!nextState?.snapshot) return nextState;
+    const model = getModelForSnapshot(nextState.snapshot);
+    const nodeIndex = globalThis.NodeIndex?.buildNodeIndex?.(nextState.snapshot, model) || null;
+    const graphIndex =
+      globalThis.GraphIndex?.buildGraphIndex?.(
+        nextState.snapshot,
+        model,
+        nodeIndex,
+        globalThis.ModelRegistry || null
+      ) || null;
+    return { ...nextState, nodeIndex, graphIndex };
+  }
+
+  let state = buildDerivedState({
     snapshot,
     currentMovementId: computeCurrentMovementId(snapshot),
     currentCollectionName: 'entities',
@@ -73,7 +89,7 @@ export function createStore(options = {}) {
     graphWorkbenchState: { ...DEFAULT_GRAPH_WORKBENCH_STATE },
     flags: ensureFlags(),
     statusText: ''
-  };
+  });
 
   const subscribers = new Set();
 
@@ -93,7 +109,8 @@ export function createStore(options = {}) {
 
   function setState(nextState) {
     if (!nextState) return state;
-    state = typeof nextState === 'function' ? nextState(state) || state : nextState;
+    const resolved = typeof nextState === 'function' ? nextState(state) || state : nextState;
+    state = buildDerivedState(resolved);
     notify(state);
     return state;
   }

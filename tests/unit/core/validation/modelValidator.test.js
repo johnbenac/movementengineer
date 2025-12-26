@@ -38,8 +38,8 @@ const model = {
       fields: {
         id: { type: 'string', required: true, nullable: false },
         movementId: { type: 'string', required: true, nullable: false, ref: 'movements' },
-        targetType: { type: 'string', required: true, nullable: false },
-        targetId: { type: 'string', required: true, nullable: false }
+        targetType: { type: 'string', required: false, nullable: true },
+        targetId: { type: 'string', required: true, nullable: false, ref: '*' }
       }
     }
   }
@@ -118,7 +118,7 @@ describe('modelValidator', () => {
       ]
     };
     const report = validateDataset(snapshot, model, { model });
-    const issue = report.issues.find(i => i.code === 'NOTE_TARGET_MISSING');
+    const issue = report.issues.find(i => i.code === 'REF_MISSING');
     expect(issue?.fieldPath).toBe('targetId');
   });
 
@@ -134,7 +134,7 @@ describe('modelValidator', () => {
       ]
     };
     const report = validateDataset(snapshot, model, { model });
-    const issue = report.issues.find(i => i.code === 'NOTE_TARGET_CROSS_MOVEMENT');
+    const issue = report.issues.find(i => i.code === 'REF_CROSS_MOVEMENT');
     expect(issue?.fieldPath).toBe('targetId');
   });
 
@@ -150,7 +150,7 @@ describe('modelValidator', () => {
       ]
     };
     const report = validateDataset(snapshot, model, { model });
-    const issue = report.issues.find(i => i.code === 'NOTE_TARGET_WRONG_MOVEMENT');
+    const issue = report.issues.find(i => i.code === 'REF_CROSS_MOVEMENT');
     expect(issue?.fieldPath).toBe('targetId');
   });
 });

@@ -15,18 +15,6 @@ movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
 const MIN_LEFT_WIDTH = 240;
 const MIN_RIGHT_WIDTH = 260;
 
-const GRAPH_NODE_TYPE_LABELS = {
-  Entity: 'Entity',
-  TextCollection: 'Canon collection',
-  TextNode: 'Canon text',
-  Practice: 'Practice',
-  Event: 'Calendar event',
-  Rule: 'Rule',
-  Claim: 'Claim',
-  MediaAsset: 'Media',
-  Note: 'Note'
-};
-
 let workbenchGraphView = null;
 let graphWorkbenchDom = null;
 
@@ -121,7 +109,13 @@ function parseCsvInput(ctx, value) {
     .filter(Boolean);
 }
 
-const labelForNodeType = type => GRAPH_NODE_TYPE_LABELS[type] || type || 'Unknown';
+const labelForNodeType = (type, model) => {
+  if (!type) return 'Unknown';
+  const collection = Object.values(model?.collections || {}).find(
+    def => def?.typeName === type || def?.collectionName === type
+  );
+  return getCollectionLabel(collection, collection?.collectionName || type);
+};
 const EDIT_FIELD_EXCLUSIONS = new Set(['id', '_id', 'createdAt', 'updatedAt']);
 
 function getModel(ctx, snapshot) {
@@ -682,7 +676,7 @@ function renderGraphSearch(ctx, dom, baseGraphNodes, snapshot, workbenchState) {
 
   const nodeTypes = uniqueSorted(ctx, nodes.map(n => n.type));
   const opts = [{ value: 'all', label: 'All types' }].concat(
-    nodeTypes.map(t => ({ value: t, label: labelForNodeType(t) }))
+    nodeTypes.map(t => ({ value: t, label: labelForNodeType(t, model) }))
   );
 
   const prev = dom.searchKind.value || workbenchState.searchKind || 'all';
@@ -740,7 +734,7 @@ function renderGraphSearch(ctx, dom, baseGraphNodes, snapshot, workbenchState) {
 
       const right = document.createElement('span');
       right.className = 'meta';
-      right.textContent = `${labelForNodeType(node.type)} · ${node.id}`;
+      right.textContent = `${labelForNodeType(node.type, model)} · ${node.id}`;
 
       li.appendChild(left);
       li.appendChild(right);
@@ -786,7 +780,7 @@ function renderGraphWorkbenchFilters(ctx, dom, baseGraph, snapshot, workbenchSta
 
   if (dom.filterCenterLabel) {
     dom.filterCenterLabel.textContent = centerNode
-      ? `${getNodeDisplayInfo(ctx, centerNode, snapshot, model).title || centerNode.id} (${labelForNodeType(centerNode.type)}) [${centerNode.id}]`
+      ? `${getNodeDisplayInfo(ctx, centerNode, snapshot, model).title || centerNode.id} (${labelForNodeType(centerNode.type, model)}) [${centerNode.id}]`
       : 'No center selected; showing full graph.';
   }
 
@@ -826,7 +820,7 @@ function renderGraphWorkbenchFilters(ctx, dom, baseGraph, snapshot, workbenchSta
     });
 
     const label = document.createElement('span');
-    label.textContent = labelForNodeType(type);
+    label.textContent = labelForNodeType(type, model);
 
     chip.appendChild(cb);
     chip.appendChild(label);
@@ -933,7 +927,7 @@ function renderSelected(ctx, dom, baseGraph, snapshot, workbenchState) {
       titleEl.textContent = node.name || node.id;
       const subtitleEl = document.createElement('p');
       subtitleEl.className = 'graph-selected-subtitle';
-      subtitleEl.textContent = `${labelForNodeType(node.type)} · ${node.id}`;
+      subtitleEl.textContent = `${labelForNodeType(node.type, model)} · ${node.id}`;
       card.appendChild(titleEl);
       card.appendChild(subtitleEl);
       card.appendChild(createHint('Editing is not available for this node type yet.'));

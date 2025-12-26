@@ -109,6 +109,44 @@
     return match ? match.collectionName : null;
   }
 
+  function isRefField(fieldDef) {
+    if (!fieldDef) return false;
+    if (fieldDef.ref) return true;
+    if (fieldDef.type === 'array' && fieldDef.items?.ref) return true;
+    return false;
+  }
+
+  function isRefAnyField(fieldDef) {
+    if (!fieldDef) return false;
+    if (fieldDef.ref === '*') return true;
+    if (fieldDef.type === 'array' && fieldDef.items?.ref === '*') return true;
+    return false;
+  }
+
+  function getRefTarget(fieldDef) {
+    if (!fieldDef) return null;
+    if (fieldDef.ref) return fieldDef.ref;
+    if (fieldDef.items?.ref) return fieldDef.items.ref;
+    return null;
+  }
+
+  function listRefFieldPaths(collectionDef) {
+    if (!collectionDef?.fields) return [];
+    const fields = collectionDef.fields;
+    const refs = [];
+    Object.entries(fields).forEach(([name, fieldDef]) => {
+      if (!fieldDef) return;
+      if (fieldDef.ref) {
+        refs.push({ path: name, def: fieldDef });
+        return;
+      }
+      if (fieldDef.type === 'array' && fieldDef.items?.ref) {
+        refs.push({ path: name, def: fieldDef });
+      }
+    });
+    return refs;
+  }
+
   // Export schema must remain behavior-identical to the legacy exporter schema.
   // Any changes here should be validated against golden export output tests.
   function buildExportSchema(model, collectionName) {
@@ -151,7 +189,11 @@
     getModel,
     listCollections,
     getCollection,
-    resolveCollectionName
+    resolveCollectionName,
+    isRefField,
+    isRefAnyField,
+    getRefTarget,
+    listRefFieldPaths
   };
 
   if (typeof module !== 'undefined' && module.exports) {

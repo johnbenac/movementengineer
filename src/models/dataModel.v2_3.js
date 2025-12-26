@@ -1149,17 +1149,18 @@
         },
         targetType: {
           type: 'string',
-          required: true,
-          nullable: false,
-          description: 'Target collection type (canonicalized via alias map).',
-          enum: 'NoteTargetType'
+          required: false,
+          nullable: true,
+          default: null,
+          description: 'Optional target type hint (derived from targetId at runtime).'
         },
         targetId: {
           type: 'string',
           format: 'id',
           required: true,
           nullable: false,
-          description: 'Target record id (polymorphic by targetType).'
+          description: 'Target record id (universal).',
+          ref: '*'
         },
         author: {
           type: 'string',
@@ -1200,14 +1201,6 @@
       },
       constraints: [
         { kind: 'unique', scope: 'global', fields: ['id'] },
-        {
-          kind: 'noteTargetCanonicalization',
-          description: 'targetType is canonicalized using the alias map.'
-        },
-        {
-          kind: 'noteTargetExists',
-          description: 'targetId must exist in the collection implied by canonical targetType.'
-        },
         {
           kind: 'movementScopedRefs',
           description: 'Note targets must belong to the same movement.'

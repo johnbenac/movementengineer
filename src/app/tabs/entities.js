@@ -205,18 +205,7 @@ function renderEntitiesTab(ctx) {
   if (vm.connections && vm.connections.length) {
     appendSection(detailContainer, 'Connections (derived)', section => {
       const ul = document.createElement('ul');
-      const typeToCollection = {
-        Movement: 'movements',
-        TextCollection: 'textCollections',
-        TextNode: 'texts',
-        Entity: 'entities',
-        Practice: 'practices',
-        Event: 'events',
-        Rule: 'rules',
-        Claim: 'claims',
-        MediaAsset: 'media',
-        Note: 'notes'
-      };
+      const nodeIndex = ctx?.store?.getState?.()?.nodeIndex || null;
 
       vm.connections.forEach(conn => {
         const li = document.createElement('li');
@@ -226,7 +215,8 @@ function renderEntitiesTab(ctx) {
         li.textContent = `${arrow} ${conn.relationType || 'link'} ${arrow} ${otherLabel}${meta}`;
         li.style.cursor = 'pointer';
 
-        const targetCollection = typeToCollection[conn.node.type];
+        const targetCollection =
+          conn.node.collectionName || nodeIndex?.get?.(conn.node.id)?.collectionName || null;
         li.addEventListener('click', () => {
           if (targetCollection) {
             actions.openItem?.(targetCollection, conn.node.id);

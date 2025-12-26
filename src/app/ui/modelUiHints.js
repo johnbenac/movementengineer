@@ -345,7 +345,6 @@ function deriveLegacySchemaGuide(ctx, collectionName, movementId) {
   const labelKey = labelCandidates.find(k => expectedKeys.has(k));
   if (collectionName === 'movements') requiredKeys.add('name');
   else if (collectionName === 'notes') {
-    requiredKeys.add('targetType');
     requiredKeys.add('targetId');
   } else if (collectionName === 'media') {
     requiredKeys.add('kind');

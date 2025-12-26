@@ -188,7 +188,7 @@
         return {
           id: generateId('note-'),
           movementId: rid,
-          targetType: 'Entity',
+          targetType: null,
           targetId: '',
           author: null,
           body: '',

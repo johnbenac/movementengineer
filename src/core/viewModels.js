@@ -10,6 +10,44 @@
  * The output mirrors the canonical view models described in the project brief.
  */
 
+const globalScope =
+  typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : undefined;
+
+function getModelRegistry() {
+  if (typeof module !== 'undefined' && module.exports) {
+    return require('./modelRegistry');
+  }
+  return globalScope?.ModelRegistry || null;
+}
+
+function getNodeIndexModule() {
+  if (typeof module !== 'undefined' && module.exports) {
+    return require('./nodeIndex');
+  }
+  return globalScope?.NodeIndex || null;
+}
+
+function getGraphIndexModule() {
+  if (typeof module !== 'undefined' && module.exports) {
+    return require('./graphIndex');
+  }
+  return globalScope?.GraphIndex || null;
+}
+
+function getModelForData(data) {
+  const registry = getModelRegistry();
+  const specVersion =
+    data?.specVersion ||
+    data?.version ||
+    registry?.DEFAULT_SPEC_VERSION ||
+    globalScope?.DATA_MODEL_V2_3?.specVersion ||
+    '2.3';
+  if (registry?.getModel) {
+    return registry.getModel(specVersion);
+  }
+  return globalScope?.DATA_MODEL_V2_3 || null;
+}
+
 function normaliseArray(value) {
   return Array.isArray(value) ? value : [];
 }
@@ -618,6 +656,7 @@ function buildEntityDetailViewModel(data, input) {
               id: otherNode.id,
               name: otherNode.name,
               type: otherNode.type,
+              collectionName: otherNode.collectionName,
               kind: otherNode.kind ?? null
             }
           : { id: otherId, name: otherId, type: null, kind: null },
@@ -684,293 +723,53 @@ function buildMovementGraphModel(data, input) {
   const relationFilterSet = Array.isArray(relationTypeFilter)
     ? new Set(relationTypeFilter)
     : null;
+  const model = getModelForData(data);
+  const registry = getModelRegistry();
+  const nodeIndexModule = getNodeIndexModule();
+  const graphIndexModule = getGraphIndexModule();
 
-  const lookups = {
-    Movement: buildLookup(filterByMovement(data.movements, movementId)),
-    TextCollection: buildLookup(filterByMovement(data.textCollections, movementId)),
-    TextNode: buildLookup(filterByMovement(data.texts, movementId)),
-    Entity: buildLookup(filterByMovement(data.entities, movementId)),
-    Practice: buildLookup(filterByMovement(data.practices, movementId)),
-    Event: buildLookup(filterByMovement(data.events, movementId)),
-    Rule: buildLookup(filterByMovement(data.rules, movementId)),
-    Claim: buildLookup(filterByMovement(data.claims, movementId)),
-    MediaAsset: buildLookup(filterByMovement(data.media, movementId)),
-    Note: buildLookup(filterByMovement(data.notes, movementId))
-  };
+  if (!model || !nodeIndexModule?.buildNodeIndex || !graphIndexModule?.buildGraphIndex) {
+    return { nodes: [], edges: [] };
+  }
 
-  const nodes = new Map();
+  const nodeIndex = nodeIndexModule.buildNodeIndex(data, model);
+  const graphIndex = graphIndexModule.buildGraphIndex(data, model, nodeIndex, registry);
+
+  const nodes = nodeIndex.all
+    .filter(node => !movementId || node.movementId === movementId)
+    .map(node => ({
+      id: node.id,
+      name: node.title,
+      type: node.typeName || node.collectionName,
+      kind: node.record?.kind ?? null,
+      collectionName: node.collectionName
+    }));
+  const nodeSet = new Set(nodes.map(node => node.id));
   const edges = [];
 
-  const ensureNode = (type, id, fallbackName, fallbackKind) => {
-    if (!id) return null;
-    const existing = nodes.get(id);
-    if (existing) return existing;
-
-    const lookup = lookups[type];
-    const item = lookup ? lookup.get(id) : null;
-
-    const name =
-      item?.name ||
-      item?.title ||
-      item?.shortText ||
-      item?.text ||
-      item?.label ||
-      fallbackName ||
-      id;
-    const kind = item?.kind ?? fallbackKind ?? null;
-
-    const node = { id, name, type, kind };
-    nodes.set(id, node);
-    return node;
-  };
-
-  const pushEdge = (fromId, toId, relationType, idHint, source) => {
-    if (!fromId || !toId || !relationType) return;
-    if (relationFilterSet && !relationFilterSet.has(relationType)) return;
-    if (!nodes.has(fromId) || !nodes.has(toId)) return;
-    const id = idHint || `${fromId}-${relationType}-${toId}-${edges.length}`;
-    edges.push({ id, fromId, toId, relationType, source: source || null });
-  };
-
-  // Entities
-  filterByMovement(data.entities, movementId).forEach(entity => {
-    ensureNode('Entity', entity.id, entity.name, entity.kind ?? null);
-    normaliseArray(entity.sourceEntityIds).forEach(srcId => {
-      ensureNode('Entity', srcId, srcId, null);
-      pushEdge(srcId, entity.id, 'authority_for', undefined, {
-        collection: 'entities',
-        id: entity.id,
-        field: 'sourceEntityIds'
+  graphIndex.outEdgesById.forEach((outEdges, fromId) => {
+    if (!nodeSet.has(fromId)) return;
+    outEdges.forEach(edge => {
+      const toId = edge.toId;
+      if (!nodeSet.has(toId)) return;
+      const relationType = edge.fieldPath || 'ref';
+      if (relationFilterSet && !relationFilterSet.has(relationType)) return;
+      const id = `${fromId}-${relationType}-${toId}-${edges.length}`;
+      edges.push({
+        id,
+        fromId,
+        toId,
+        relationType,
+        source: {
+          collection: edge.fromCollection,
+          id: fromId,
+          field: edge.fieldPath
+        }
       });
     });
   });
 
-  // Canon: Text collections and text nodes
-  filterByMovement(data.textCollections, movementId).forEach(col => {
-    ensureNode('TextCollection', col.id, col.name, null);
-    normaliseArray(col.rootTextIds).forEach(textId => {
-      ensureNode('TextNode', textId, textId, null);
-      pushEdge(col.id, textId, 'canon_root', undefined, {
-        collection: 'textCollections',
-        id: col.id,
-        field: 'rootTextIds'
-      });
-    });
-  });
-
-  filterByMovement(data.texts, movementId).forEach(text => {
-    ensureNode('TextNode', text.id, text.title || text.label, null);
-    if (text.parentId) {
-      ensureNode('TextNode', text.parentId, text.parentId, null);
-      pushEdge(text.parentId, text.id, 'contains_text', undefined, {
-        collection: 'texts',
-        id: text.id,
-        field: 'parentId'
-      });
-    }
-    normaliseArray(text.mentionsEntityIds).forEach(entityId => {
-      ensureNode('Entity', entityId, entityId, null);
-      pushEdge(text.id, entityId, 'mentions', undefined, {
-        collection: 'texts',
-        id: text.id,
-        field: 'mentionsEntityIds'
-      });
-    });
-  });
-
-  // Practices
-  filterByMovement(data.practices, movementId).forEach(practice => {
-    ensureNode('Practice', practice.id, practice.name, practice.kind ?? null);
-    normaliseArray(practice.involvedEntityIds).forEach(entityId => {
-      ensureNode('Entity', entityId, entityId, null);
-      pushEdge(practice.id, entityId, 'involves', undefined, {
-        collection: 'practices',
-        id: practice.id,
-        field: 'involvedEntityIds'
-      });
-    });
-    normaliseArray(practice.instructionsTextIds).forEach(textId => {
-      ensureNode('TextNode', textId, textId, null);
-      pushEdge(practice.id, textId, 'instructions', undefined, {
-        collection: 'practices',
-        id: practice.id,
-        field: 'instructionsTextIds'
-      });
-    });
-    normaliseArray(practice.supportingClaimIds).forEach(claimId => {
-      ensureNode('Claim', claimId, claimId, null);
-      pushEdge(claimId, practice.id, 'supports_practice', undefined, {
-        collection: 'practices',
-        id: practice.id,
-        field: 'supportingClaimIds'
-      });
-    });
-    normaliseArray(practice.sourceEntityIds).forEach(srcId => {
-      ensureNode('Entity', srcId, srcId, null);
-      pushEdge(srcId, practice.id, 'authority_for', undefined, {
-        collection: 'practices',
-        id: practice.id,
-        field: 'sourceEntityIds'
-      });
-    });
-  });
-
-  // Events / calendar
-  filterByMovement(data.events, movementId).forEach(event => {
-    ensureNode('Event', event.id, event.name, event.recurrence ?? null);
-    normaliseArray(event.mainPracticeIds).forEach(practiceId => {
-      ensureNode('Practice', practiceId, practiceId, null);
-      pushEdge(event.id, practiceId, 'uses_practice', undefined, {
-        collection: 'events',
-        id: event.id,
-        field: 'mainPracticeIds'
-      });
-    });
-    normaliseArray(event.mainEntityIds).forEach(entityId => {
-      ensureNode('Entity', entityId, entityId, null);
-      pushEdge(event.id, entityId, 'focuses_on', undefined, {
-        collection: 'events',
-        id: event.id,
-        field: 'mainEntityIds'
-      });
-    });
-    normaliseArray(event.readingTextIds).forEach(textId => {
-      ensureNode('TextNode', textId, textId, null);
-      pushEdge(event.id, textId, 'reads', undefined, {
-        collection: 'events',
-        id: event.id,
-        field: 'readingTextIds'
-      });
-    });
-    normaliseArray(event.supportingClaimIds).forEach(claimId => {
-      ensureNode('Claim', claimId, claimId, null);
-      pushEdge(claimId, event.id, 'supports_event', undefined, {
-        collection: 'events',
-        id: event.id,
-        field: 'supportingClaimIds'
-      });
-    });
-  });
-
-  // Rules
-  filterByMovement(data.rules, movementId).forEach(rule => {
-    ensureNode('Rule', rule.id, rule.shortText, rule.kind ?? null);
-    normaliseArray(rule.supportingTextIds).forEach(textId => {
-      ensureNode('TextNode', textId, textId, null);
-      pushEdge(textId, rule.id, 'supports_rule', undefined, {
-        collection: 'rules',
-        id: rule.id,
-        field: 'supportingTextIds'
-      });
-    });
-    normaliseArray(rule.supportingClaimIds).forEach(claimId => {
-      ensureNode('Claim', claimId, claimId, null);
-      pushEdge(claimId, rule.id, 'supports_rule', undefined, {
-        collection: 'rules',
-        id: rule.id,
-        field: 'supportingClaimIds'
-      });
-    });
-    normaliseArray(rule.relatedPracticeIds).forEach(practiceId => {
-      ensureNode('Practice', practiceId, practiceId, null);
-      pushEdge(rule.id, practiceId, 'fulfilled_by', undefined, {
-        collection: 'rules',
-        id: rule.id,
-        field: 'relatedPracticeIds'
-      });
-    });
-    normaliseArray(rule.sourceEntityIds).forEach(srcId => {
-      ensureNode('Entity', srcId, srcId, null);
-      pushEdge(srcId, rule.id, 'authority_for', undefined, {
-        collection: 'rules',
-        id: rule.id,
-        field: 'sourceEntityIds'
-      });
-    });
-  });
-
-  // Claims
-  filterByMovement(data.claims, movementId).forEach(claim => {
-    ensureNode('Claim', claim.id, claim.text, claim.category ?? null);
-    normaliseArray(claim.sourceTextIds).forEach(textId => {
-      ensureNode('TextNode', textId, textId, null);
-      pushEdge(textId, claim.id, 'supports_claim', undefined, {
-        collection: 'claims',
-        id: claim.id,
-        field: 'sourceTextIds'
-      });
-    });
-    normaliseArray(claim.aboutEntityIds).forEach(entityId => {
-      ensureNode('Entity', entityId, entityId, null);
-      pushEdge(claim.id, entityId, 'about', undefined, {
-        collection: 'claims',
-        id: claim.id,
-        field: 'aboutEntityIds'
-      });
-    });
-    normaliseArray(claim.sourceEntityIds).forEach(srcId => {
-      ensureNode('Entity', srcId, srcId, null);
-      pushEdge(srcId, claim.id, 'authority_for', undefined, {
-        collection: 'claims',
-        id: claim.id,
-        field: 'sourceEntityIds'
-      });
-    });
-  });
-
-  // Media assets
-  filterByMovement(data.media, movementId).forEach(asset => {
-    ensureNode('MediaAsset', asset.id, asset.title, asset.kind ?? null);
-    normaliseArray(asset.linkedEntityIds).forEach(entityId => {
-      ensureNode('Entity', entityId, entityId, null);
-      pushEdge(asset.id, entityId, 'depicts', undefined, {
-        collection: 'media',
-        id: asset.id,
-        field: 'linkedEntityIds'
-      });
-    });
-    normaliseArray(asset.linkedPracticeIds).forEach(practiceId => {
-      ensureNode('Practice', practiceId, practiceId, null);
-      pushEdge(asset.id, practiceId, 'depicts', undefined, {
-        collection: 'media',
-        id: asset.id,
-        field: 'linkedPracticeIds'
-      });
-    });
-    normaliseArray(asset.linkedEventIds).forEach(eventId => {
-      ensureNode('Event', eventId, eventId, null);
-      pushEdge(asset.id, eventId, 'depicts', undefined, {
-        collection: 'media',
-        id: asset.id,
-        field: 'linkedEventIds'
-      });
-    });
-    normaliseArray(asset.linkedTextIds).forEach(textId => {
-      ensureNode('TextNode', textId, textId, null);
-      pushEdge(asset.id, textId, 'depicts', undefined, {
-        collection: 'media',
-        id: asset.id,
-        field: 'linkedTextIds'
-      });
-    });
-  });
-
-  // Notes
-  filterByMovement(data.notes, movementId).forEach(note => {
-    const preview = (note.body || '').slice(0, 60) || note.id;
-    ensureNode('Note', note.id, preview, null);
-    if (note.targetType && note.targetId) {
-      ensureNode(note.targetType, note.targetId, note.targetId, null);
-      pushEdge(note.id, note.targetId, 'annotates', undefined, {
-        collection: 'notes',
-        id: note.id,
-        field: 'targetId',
-        targetType: note.targetType
-      });
-    }
-  });
-
-  return { nodes: Array.from(nodes.values()), edges };
+  return { nodes, edges };
 }
 
 function filterGraphModel(graph, filters = {}) {
@@ -1656,36 +1455,32 @@ function buildComparisonViewModel(data, input) {
 function buildNotesViewModel(data, input) {
   const { movementId, targetTypeFilter, targetIdFilter } = input;
   let notes = filterByMovement(data.notes, movementId);
+  const model = getModelForData(data);
+  const nodeIndexModule = getNodeIndexModule();
+  const nodeIndex = nodeIndexModule?.buildNodeIndex && model
+    ? nodeIndexModule.buildNodeIndex(data, model)
+    : null;
+
   if (targetTypeFilter) {
-    notes = notes.filter(note => note.targetType === targetTypeFilter);
+    notes = notes.filter(note => {
+      const resolved = note.targetType || nodeIndex?.get?.(note.targetId)?.typeName || null;
+      return resolved === targetTypeFilter;
+    });
   }
   if (targetIdFilter) {
     notes = notes.filter(note => note.targetId === targetIdFilter);
   }
 
-  const lookups = {
-    Movement: buildLookup(data.movements),
-    TextNode: buildLookup(data.texts),
-    Entity: buildLookup(data.entities),
-    Practice: buildLookup(data.practices),
-    Event: buildLookup(data.events),
-    Rule: buildLookup(data.rules),
-    Claim: buildLookup(data.claims),
-    MediaAsset: buildLookup(data.media)
-  };
-
-  const resolveLabel = (targetType, targetId) => {
-    const lookup = lookups[targetType];
-    const item = lookup ? lookup.get(targetId) : null;
-    if (!item) return targetId;
-    return item.name || item.title || item.shortText || targetId;
+  const resolveLabel = targetId => {
+    const node = nodeIndex?.get?.(targetId) || null;
+    return node?.title || targetId;
   };
 
   const noteRows = notes.map(note => ({
     id: note.id,
-    targetType: note.targetType,
+    targetType: note.targetType || nodeIndex?.get?.(note.targetId)?.typeName || null,
     targetId: note.targetId,
-    targetLabel: resolveLabel(note.targetType, note.targetId),
+    targetLabel: resolveLabel(note.targetId),
     author: note.author ?? null,
     body: note.body,
     context: note.context ?? null,
@@ -1714,9 +1509,6 @@ const ViewModels = {
   buildComparisonViewModel,
   buildNotesViewModel
 };
-
-const globalScope =
-  typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : undefined;
 
 if (typeof module !== 'undefined') {
   module.exports = ViewModels;
