@@ -1123,6 +1123,11 @@
       description: 'Annotations attached to other records.',
       collectionName: 'notes',
       ui: {
+        tab: {
+          enabled: true,
+          label: 'Notes',
+          order: 999
+        },
         titleField: 'body',
         subtitleField: 'targetType',
         previewFields: ['movementId', 'targetType', 'targetId', 'author', 'context', 'body', 'tags']
@@ -1159,7 +1164,12 @@
           format: 'id',
           required: true,
           nullable: false,
-          description: 'Target record id (polymorphic by targetType).'
+          description: 'Target record id (polymorphic by targetType).',
+          ui: {
+            refBy: 'targetType',
+            refByKind: 'typeName',
+            widget: 'refPicker'
+          }
         },
         author: {
           type: 'string',

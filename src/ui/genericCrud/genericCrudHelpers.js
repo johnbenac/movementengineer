@@ -35,6 +35,57 @@ export function resolveRefCollectionName(ref, model) {
   return match?.collectionName || null;
 }
 
+export function resolveRefTargetCollection({ model, fieldDef, record }) {
+  if (!fieldDef) return null;
+  if (fieldDef.ref) return resolveRefCollectionName(fieldDef.ref, model);
+
+  const refBy = fieldDef.ui?.refBy;
+  if (!refBy) return null;
+  const typeName = record?.[refBy];
+  if (!typeName) return null;
+
+  const registry = getModelRegistry();
+  if (registry?.getCollectionNameByTypeName) {
+    return registry.getCollectionNameByTypeName(typeName, model?.specVersion);
+  }
+  return resolveRefCollectionName(typeName, model);
+}
+
+export function buildRefOptions({
+  ctx,
+  model,
+  snapshot,
+  fieldDef,
+  record,
+  currentMovementId
+}) {
+  const collectionName = resolveRefTargetCollection({ model, fieldDef, record });
+  if (!collectionName) return [];
+
+  const items = Array.isArray(snapshot?.[collectionName]) ? snapshot[collectionName] : [];
+  const collectionDef = model?.collections?.[collectionName] || null;
+  const registry = getModelRegistry();
+
+  const fallbackMovementId = currentMovementId || ctx?.store?.getState?.()?.currentMovementId || null;
+  const recordMovementId = record?.movementId || fallbackMovementId || null;
+  const targetIsMovementScoped = Boolean(collectionDef?.fields?.movementId);
+
+  const filtered =
+    targetIsMovementScoped && recordMovementId
+      ? items.filter(item => item?.movementId === recordMovementId)
+      : items;
+
+  return filtered
+    .filter(item => item?.id)
+    .map(item => {
+      const label =
+        registry?.getRecordLabel?.(collectionName, item, model?.specVersion) ||
+        getRecordTitle(item, collectionDef);
+      return { value: item.id, label: label || item.id };
+    })
+    .sort((a, b) => String(a.label).localeCompare(String(b.label)));
+}
+
 export function getCollectionLabel(collectionDef, collectionKey) {
   return (
     collectionDef?.ui?.label ||
@@ -161,7 +212,7 @@ export function resolveFieldKind(fieldDef, { isBodyField } = {}) {
     }
     return { kind: 'array', items: { kind: itemType } };
   }
-  if (fieldDef.ref) return { kind: 'ref', ref: fieldDef.ref };
+  if (fieldDef.ref || fieldDef.ui?.refBy) return { kind: 'ref', ref: fieldDef.ref || null };
   if (fieldDef.enum || fieldDef.ui?.enum) return { kind: 'enum' };
   return { kind: type };
 }

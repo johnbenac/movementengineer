@@ -3,7 +3,6 @@ import { createStatusUi } from './ui/status.js';
 import { createDomUtils } from './ui/dom.js';
 import { registerDashboardTab } from './tabs/dashboard.js';
 import { registerComparisonTab } from './tabs/comparison.js';
-import { registerNotesTab } from './tabs/notes.js';
 import { registerPracticesTab } from './tabs/practices.js';
 import { registerClaimsTab } from './tabs/claims.js';
 import { registerRulesTab } from './tabs/rules.js';
@@ -13,6 +12,7 @@ import { registerGraphTab } from './tabs/graph.js';
 import { registerEntitiesTab } from './tabs/entities.js';
 import { registerCollectionsTab } from './tabs/collections.js';
 import { registerAuthorityTab } from './tabs/authority.js';
+import { registerModelCollectionTabs } from './tabs/modelCollectionTabs.js';
 import { registerGenericCrudTab } from './tabs/genericCrud.js';
 import { PluginProvider } from '../core/plugins/PluginProvider.js';
 import { createPluginRegistry } from '../core/plugins/pluginRegistry.js';
@@ -192,7 +192,6 @@ ctx.actions.selectMovement = function selectMovement(movementId) {
 if (shouldEnable('authority')) registerAuthorityTab(ctx);
 if (shouldEnable('dashboard')) registerDashboardTab(ctx);
 if (shouldEnable('comparison')) registerComparisonTab(ctx);
-if (shouldEnable('notes')) registerNotesTab(ctx);
 if (shouldEnable('practices')) registerPracticesTab(ctx);
 if (shouldEnable('claims')) registerClaimsTab(ctx);
 if (shouldEnable('rules')) registerRulesTab(ctx);
@@ -201,6 +200,7 @@ if (shouldEnable('canon')) registerCanonTab(ctx);
 if (shouldEnable('graph')) registerGraphTab(ctx);
 if (shouldEnable('entities')) registerEntitiesTab(ctx);
 if (shouldEnable('collections')) registerCollectionsTab(ctx);
+registerModelCollectionTabs(ctx, { shouldEnable });
 registerGenericCrudTab(ctx);
 
 function onReady(fn) {

@@ -9,15 +9,15 @@ const notesSnapshot = {
     { id: 'm2', movementId: 'm2', name: 'Two' }
   ],
   textCollections: [],
-  texts: [],
+  texts: [
+    { id: 't1', movementId: 'm1', title: 'Root' },
+    { id: 't2', movementId: 'm2', title: 'Other' }
+  ],
   entities: [
-    { id: 'e1', movementId: 'm1', name: 'Alice' },
-    { id: 'e2', movementId: 'm2', name: 'Bob' }
+    { id: 'e1', movementId: 'm1', name: 'Entity One' },
+    { id: 'e2', movementId: 'm2', name: 'Entity Two' }
   ],
-  practices: [
-    { id: 'p1', movementId: 'm1', name: 'Rite' },
-    { id: 'p2', movementId: 'm2', name: 'Vow' }
-  ],
+  practices: [],
   events: [],
   rules: [],
   claims: [],
@@ -32,26 +32,6 @@ const notesSnapshot = {
       body: 'Entity note',
       context: 'Context 1',
       tags: ['tag1']
-    },
-    {
-      id: 'n2',
-      movementId: 'm1',
-      targetType: 'Practice',
-      targetId: 'p1',
-      author: 'B',
-      body: 'Practice note',
-      context: '',
-      tags: []
-    },
-    {
-      id: 'n3',
-      movementId: 'm2',
-      targetType: 'Entity',
-      targetId: 'e2',
-      author: 'C',
-      body: 'Second movement note',
-      context: '',
-      tags: ['tag2', 'tag3']
     }
   ],
   __repoInfo: null,
@@ -73,84 +53,46 @@ test.beforeEach(async ({ page }) => {
   );
 });
 
-test('renders notes tab and filters by target type + id', async ({ page }) => {
+test('creates notes with polymorphic target options', async ({ page }) => {
   await gotoApp(page);
 
-  await page.getByRole('button', { name: 'Notes' }).click();
-
+  await page.getByTestId('tab-notes').click();
   await expect(page.locator('#fatal-import-error:not(.hidden)')).toHaveCount(0);
 
-  const typeSelect = page.locator('#notes-target-type-filter');
-  const idSelect = page.locator('#notes-target-id-filter');
-  const rows = page.locator('#notes-table-wrapper table tr');
+  await page.locator('#movement-list li').filter({ hasText: 'One' }).click();
 
-  await expect(rows).toHaveCount(3);
+  const notesTab = page.getByTestId('collection-tab-notes');
+  await notesTab.getByTestId('generic-crud-new').click();
 
-  await typeSelect.selectOption('Entity');
-  await expect(rows).toHaveCount(2);
+  const movementField = notesTab.getByTestId('generic-crud-field-movementId').locator('select');
+  await movementField.selectOption('m1');
 
-  await expect(idSelect.locator('option')).toHaveCount(2);
+  const targetTypeField = notesTab.getByTestId('generic-crud-field-targetType').locator('select');
+  await targetTypeField.selectOption('TextNode');
 
-  await idSelect.selectOption('e1');
-  await expect(rows).toHaveCount(2);
-
-  await typeSelect.selectOption('Practice');
-  await expect(rows).toHaveCount(2);
-});
-
-test('switching movements updates notes list', async ({ page }) => {
-  await gotoApp(page);
-
-  await page.getByRole('button', { name: 'Notes' }).click();
-
-  const rows = page.locator('#notes-table-wrapper table tr');
-
-  await expect(rows).toHaveCount(3);
-
-  await page.locator('#movement-list li').filter({ hasText: 'Two' }).click();
-
-  await expect(rows).toHaveCount(2);
-});
-
-test('shows empty-state message when no notes exist for movement', async ({ page }) => {
-  await page.addInitScript(() => {
-    const raw = localStorage.getItem('movementDesigner.v3.snapshot');
-    const snap = raw ? JSON.parse(raw) : null;
-    if (snap) snap.notes = [];
-    localStorage.setItem('movementDesigner.v3.snapshot', JSON.stringify(snap));
-  });
-
-  await gotoApp(page);
-  await page.getByRole('button', { name: 'Notes' }).click();
-
-  await expect(page.locator('#notes-table-wrapper')).toContainText(
-    'No notes match this filter.'
+  const targetIdOptions = notesTab.locator('[data-testid="ref-options-targetId"] option');
+  await expect(targetIdOptions).toHaveCount(1);
+  const textOptions = await targetIdOptions.evaluateAll(options =>
+    options.map(option => option.value)
   );
-});
+  expect(textOptions).toEqual(['t1']);
 
-test('shows select-movement hint when there is no selected movement', async ({ page }) => {
-  const emptySnapshot = {
-    ...notesSnapshot,
-    movements: [],
-    notes: [],
-    entities: [],
-    practices: []
-  };
+  const targetIdInput = notesTab.getByTestId('generic-crud-field-targetId').locator('input');
+  await targetIdInput.fill('t1');
 
-  await page.addInitScript(
-    ({ snapshot }) => {
-      localStorage.setItem('movementDesigner.v3.snapshot', JSON.stringify(snapshot));
-    },
-    { snapshot: emptySnapshot }
+  await targetTypeField.selectOption('Entity');
+  await expect(targetIdOptions).toHaveCount(1);
+  const entityOptions = await targetIdOptions.evaluateAll(options =>
+    options.map(option => option.value)
   );
+  expect(entityOptions).toEqual(['e1']);
+  await targetIdInput.fill('e1');
 
-  await gotoApp(page);
-  await page.getByRole('button', { name: 'Notes' }).click();
+  const bodyField = notesTab.getByTestId('generic-crud-field-body').locator('textarea');
+  await bodyField.fill('New note');
 
-  await expect(page.locator('#notes-table-wrapper')).toContainText(
-    'Create or select a movement on the left'
-  );
+  await notesTab.getByTestId('generic-crud-save').click();
 
-  await expect(page.locator('#notes-target-type-filter')).toBeDisabled();
-  await expect(page.locator('#notes-target-id-filter')).toBeDisabled();
+  const records = notesTab.getByTestId('generic-crud-record');
+  await expect(records.filter({ hasText: 'New note' })).toHaveCount(1);
 });

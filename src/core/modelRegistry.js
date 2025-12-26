@@ -42,6 +42,13 @@
       };
     });
 
+    const typeNameToCollectionName = {};
+    Object.values(normalizedCollections).forEach(def => {
+      if (def?.typeName) {
+        typeNameToCollectionName[def.typeName] = def.collectionName;
+      }
+    });
+
     const collectionOrder = Array.isArray(model.collectionOrder)
       ? model.collectionOrder.slice()
       : Array.isArray(model.collectionsOrder)
@@ -52,7 +59,8 @@
       ...model,
       specVersion: model.specVersion,
       enums: model.enums || {},
-      collections: normalizedCollections
+      collections: normalizedCollections,
+      typeNameToCollectionName
     };
 
     if (collectionOrder) {
@@ -60,6 +68,7 @@
     }
 
     Object.freeze(normalizedCollections);
+    Object.freeze(typeNameToCollectionName);
     if (normalized.collectionOrder) {
       Object.freeze(normalized.collectionOrder);
     }
@@ -99,6 +108,10 @@
     return model.collections[collectionName] || null;
   }
 
+  function getCollectionDef(collectionName, specVersion = DEFAULT_SPEC_VERSION) {
+    return getCollection(collectionName, specVersion);
+  }
+
   function resolveCollectionName(value, specVersion = DEFAULT_SPEC_VERSION) {
     if (!value) return null;
     const model = getModel(specVersion);
@@ -107,6 +120,32 @@
       collection => collection.collectionName === value || collection.typeName === value
     );
     return match ? match.collectionName : null;
+  }
+
+  function getCollectionNameByTypeName(typeName, specVersion = DEFAULT_SPEC_VERSION) {
+    if (!typeName) return null;
+    const model = getModel(specVersion);
+    return model.typeNameToCollectionName?.[typeName] || null;
+  }
+
+  function getRecordLabel(collectionName, record, specVersion = DEFAULT_SPEC_VERSION) {
+    if (!record) return '—';
+    const collectionDef = getCollection(collectionName, specVersion);
+    const titleField =
+      collectionDef?.ui?.titleField ||
+      collectionDef?.display?.titleField ||
+      collectionDef?.ui?.displayField ||
+      null;
+    const subtitleField = collectionDef?.ui?.subtitleField || null;
+    const title =
+      (titleField && record[titleField]) ||
+      record.name ||
+      record.title ||
+      record.label ||
+      record.id ||
+      '—';
+    const subtitle = subtitleField && record[subtitleField] ? record[subtitleField] : null;
+    return subtitle ? `${title} — ${subtitle}` : title;
   }
 
   // Export schema must remain behavior-identical to the legacy exporter schema.
@@ -151,7 +190,10 @@
     getModel,
     listCollections,
     getCollection,
-    resolveCollectionName
+    getCollectionDef,
+    resolveCollectionName,
+    getCollectionNameByTypeName,
+    getRecordLabel
   };
 
   if (typeof module !== 'undefined' && module.exports) {

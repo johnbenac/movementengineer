@@ -1,4 +1,4 @@
-const { listCollections } = require('../../src/core/modelRegistry');
+const { listCollections, getCollectionNameByTypeName } = require('../../src/core/modelRegistry');
 
 function assert(condition, message) {
   if (!condition) {
@@ -39,3 +39,20 @@ function testListCollections() {
 }
 
 testListCollections();
+
+function testGetCollectionNameByTypeName() {
+  assert(
+    getCollectionNameByTypeName('TextNode', '2.3') === 'texts',
+    'TextNode should map to texts collection'
+  );
+  assert(
+    getCollectionNameByTypeName('MediaAsset', '2.3') === 'media',
+    'MediaAsset should map to media collection'
+  );
+  assert(
+    getCollectionNameByTypeName('DoesNotExist', '2.3') === null,
+    'Unknown typeName should return null'
+  );
+}
+
+testGetCollectionNameByTypeName();

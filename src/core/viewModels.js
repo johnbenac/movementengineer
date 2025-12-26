@@ -1653,48 +1653,6 @@ function buildComparisonViewModel(data, input) {
   return { rows: normaliseArray(movementIds).map(buildRow) };
 }
 
-function buildNotesViewModel(data, input) {
-  const { movementId, targetTypeFilter, targetIdFilter } = input;
-  let notes = filterByMovement(data.notes, movementId);
-  if (targetTypeFilter) {
-    notes = notes.filter(note => note.targetType === targetTypeFilter);
-  }
-  if (targetIdFilter) {
-    notes = notes.filter(note => note.targetId === targetIdFilter);
-  }
-
-  const lookups = {
-    Movement: buildLookup(data.movements),
-    TextNode: buildLookup(data.texts),
-    Entity: buildLookup(data.entities),
-    Practice: buildLookup(data.practices),
-    Event: buildLookup(data.events),
-    Rule: buildLookup(data.rules),
-    Claim: buildLookup(data.claims),
-    MediaAsset: buildLookup(data.media)
-  };
-
-  const resolveLabel = (targetType, targetId) => {
-    const lookup = lookups[targetType];
-    const item = lookup ? lookup.get(targetId) : null;
-    if (!item) return targetId;
-    return item.name || item.title || item.shortText || targetId;
-  };
-
-  const noteRows = notes.map(note => ({
-    id: note.id,
-    targetType: note.targetType,
-    targetId: note.targetId,
-    targetLabel: resolveLabel(note.targetType, note.targetId),
-    author: note.author ?? null,
-    body: note.body,
-    context: note.context ?? null,
-    tags: normaliseArray(note.tags)
-  }));
-
-  return { notes: noteRows };
-}
-
 const ViewModels = {
   buildMovementDashboardViewModel,
   buildCanonTreeViewModel,
@@ -1711,8 +1669,7 @@ const ViewModels = {
   buildRuleEditorViewModel,
   buildAuthorityViewModel,
   buildMediaGalleryViewModel,
-  buildComparisonViewModel,
-  buildNotesViewModel
+  buildComparisonViewModel
 };
 
 const globalScope =

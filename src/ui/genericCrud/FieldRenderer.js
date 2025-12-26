@@ -1,9 +1,8 @@
 import {
   coerceInputValue,
-  getRecordTitle,
+  buildRefOptions,
   resolveEnumValues,
-  resolveFieldKind,
-  resolveRefCollectionName
+  resolveFieldKind
 } from './genericCrudHelpers.js';
 
 function createLabeledError(message) {
@@ -29,30 +28,6 @@ function removeUndefined(items) {
   return items.filter(item => item !== undefined);
 }
 
-function resolveRefOptions({ ref, model, snapshot }) {
-  const collectionName = resolveRefCollectionName(ref, model);
-  const list = Array.isArray(snapshot?.[collectionName]) ? snapshot[collectionName] : [];
-  const collectionDef = collectionName ? model?.collections?.[collectionName] : null;
-  return {
-    collectionName,
-    options: list,
-    collectionDef
-  };
-}
-
-function shouldFilterByMovement({ collectionName, model, options }) {
-  if (!collectionName || collectionName === 'movements') return false;
-  const collectionDef = model?.collections?.[collectionName];
-  if (collectionDef?.fields?.movementId) return true;
-  return options.some(option => option && Object.prototype.hasOwnProperty.call(option, 'movementId'));
-}
-
-function filterOptionsByMovement({ options, record, collectionName, model }) {
-  if (!record?.movementId) return options;
-  if (!shouldFilterByMovement({ collectionName, model, options })) return options;
-  return options.filter(option => option?.movementId === record.movementId);
-}
-
 export function FieldRenderer({
   fieldDef,
   value,
@@ -63,7 +38,8 @@ export function FieldRenderer({
   record,
   model,
   snapshot,
-  isBodyField
+  isBodyField,
+  currentMovementId
 }) {
   const wrapper = document.createElement('div');
   wrapper.className = 'generic-crud-field-input';
@@ -71,31 +47,6 @@ export function FieldRenderer({
   const kindInfo = resolveFieldKind(fieldDef, { isBodyField });
   const kind = kindInfo.kind;
   let control = null;
-
-  if (collectionName === 'notes' && fieldName === 'targetId') {
-    const targetCollectionName = resolveRefCollectionName(record?.targetType, model);
-    if (targetCollectionName) {
-      const select = document.createElement('select');
-      select.appendChild(buildSelectOption('', '—'));
-      const options = Array.isArray(snapshot?.[targetCollectionName]) ? snapshot[targetCollectionName] : [];
-      const filteredOptions = filterOptionsByMovement({
-        options,
-        record,
-        collectionName: targetCollectionName,
-        model
-      });
-      const collectionDef = model?.collections?.[targetCollectionName] || null;
-      filteredOptions.forEach(option => {
-        const label = getRecordTitle(option, collectionDef) || option.id;
-        select.appendChild(buildSelectOption(option.id, label));
-      });
-      select.value = value ?? '';
-      select.addEventListener('change', event => {
-        onChange(coerceInputValue(fieldDef, event.target.value));
-      });
-      control = select;
-    }
-  }
 
   if (!control && kind === 'markdown') {
     const textarea = document.createElement('textarea');
@@ -133,28 +84,51 @@ export function FieldRenderer({
     });
     control = select;
   } else if (!control && kind === 'ref') {
-    const select = document.createElement('select');
-    select.appendChild(buildSelectOption('', '—'));
-    const { options, collectionDef, collectionName: refCollectionName } = resolveRefOptions({
-      ref: kindInfo.ref,
-      model,
-      snapshot
-    });
-    const filteredOptions = filterOptionsByMovement({
-      options,
-      record,
-      collectionName: refCollectionName,
-      model
-    });
-    filteredOptions.forEach(option => {
-      const label = getRecordTitle(option, collectionDef) || option.id;
-      select.appendChild(buildSelectOption(option.id, label));
-    });
-    select.value = value ?? '';
-    select.addEventListener('change', event => {
-      onChange(coerceInputValue(fieldDef, event.target.value));
-    });
-    control = select;
+    if (fieldDef.ui?.refBy) {
+      const input = document.createElement('input');
+      input.type = 'text';
+      const datalist = document.createElement('datalist');
+      const listId = `generic-crud-${collectionName || 'collection'}-${fieldName}-options`;
+      datalist.id = listId;
+      datalist.setAttribute('data-testid', `ref-options-${fieldName}`);
+      input.setAttribute('list', listId);
+      input.value = value ?? '';
+      input.addEventListener('input', event => {
+        onChange(coerceInputValue(fieldDef, event.target.value));
+      });
+      const options = buildRefOptions({
+        model,
+        snapshot,
+        fieldDef,
+        record,
+        currentMovementId
+      });
+      options.forEach(option => {
+        datalist.appendChild(buildSelectOption(option.value, option.label));
+      });
+      const container = document.createElement('div');
+      container.appendChild(input);
+      container.appendChild(datalist);
+      control = container;
+    } else {
+      const select = document.createElement('select');
+      select.appendChild(buildSelectOption('', '—'));
+      const options = buildRefOptions({
+        model,
+        snapshot,
+        fieldDef,
+        record,
+        currentMovementId
+      });
+      options.forEach(option => {
+        select.appendChild(buildSelectOption(option.value, option.label));
+      });
+      select.value = value ?? '';
+      select.addEventListener('change', event => {
+        onChange(coerceInputValue(fieldDef, event.target.value));
+      });
+      control = select;
+    }
   } else if (!control && kind === 'array') {
     const itemsWrapper = document.createElement('div');
     itemsWrapper.className = 'generic-crud-array';
@@ -176,20 +150,15 @@ export function FieldRenderer({
       if (itemKind === 'ref') {
         const select = document.createElement('select');
         select.appendChild(buildSelectOption('', '—'));
-        const { options, collectionDef, collectionName: refCollectionName } = resolveRefOptions({
-          ref: kindInfo.items.ref,
+        const options = buildRefOptions({
           model,
-          snapshot
-        });
-        const filteredOptions = filterOptionsByMovement({
-          options,
+          snapshot,
+          fieldDef: { ref: kindInfo.items.ref },
           record,
-          collectionName: refCollectionName,
-          model
+          currentMovementId
         });
-        filteredOptions.forEach(option => {
-          const label = getRecordTitle(option, collectionDef) || option.id;
-          select.appendChild(buildSelectOption(option.id, label));
+        options.forEach(option => {
+          select.appendChild(buildSelectOption(option.value, option.label));
         });
         select.value = itemValue ?? '';
         select.addEventListener('change', event => {
@@ -236,20 +205,15 @@ export function FieldRenderer({
       if (itemKind === 'ref') {
         const select = document.createElement('select');
         select.appendChild(buildSelectOption('', '—'));
-        const { options, collectionDef, collectionName: refCollectionName } = resolveRefOptions({
-          ref: kindInfo.items.ref,
+        const options = buildRefOptions({
           model,
-          snapshot
-        });
-        const filteredOptions = filterOptionsByMovement({
-          options,
+          snapshot,
+          fieldDef: { ref: kindInfo.items.ref },
           record,
-          collectionName: refCollectionName,
-          model
+          currentMovementId
         });
-        filteredOptions.forEach(option => {
-          const label = getRecordTitle(option, collectionDef) || option.id;
-          select.appendChild(buildSelectOption(option.id, label));
+        options.forEach(option => {
+          select.appendChild(buildSelectOption(option.value, option.label));
         });
         const addButton = document.createElement('button');
         addButton.type = 'button';

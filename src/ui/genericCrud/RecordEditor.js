@@ -1,5 +1,6 @@
 import {
   coerceInputValue,
+  buildRefOptions,
   generateId,
   getBodyField,
   getOrderedFieldNames
@@ -68,6 +69,7 @@ export function RecordEditor({
   collectionDef,
   model,
   snapshot,
+  currentMovementId,
   mode,
   onSave,
   onCancel
@@ -94,6 +96,15 @@ export function RecordEditor({
   const form = document.createElement('div');
 
   const fieldErrors = new Map();
+  const refDependents = new Map();
+
+  Object.entries(collectionDef?.fields || {}).forEach(([name, def]) => {
+    const refBy = def?.ui?.refBy;
+    if (!refBy) return;
+    const bucket = refDependents.get(refBy) || [];
+    bucket.push(name);
+    refDependents.set(refBy, bucket);
+  });
 
   function refreshValidation() {
     const result = validateDraft(draft, collectionDef, model, snapshot);
@@ -129,75 +140,109 @@ export function RecordEditor({
     return result.ok;
   }
 
+  function reconcileDependentRefs(changedField) {
+    const dependents = refDependents.get(changedField) || [];
+    let didClear = false;
+    dependents.forEach(dependentName => {
+      const dependentDef = collectionDef?.fields?.[dependentName] || null;
+      const currentValue = draft?.[dependentName];
+      if (!dependentDef || !currentValue) return;
+      const options = buildRefOptions({
+        model,
+        snapshot,
+        fieldDef: dependentDef,
+        record: draft,
+        currentMovementId
+      });
+      const stillValid = options.some(option => option.value === currentValue);
+      if (!stillValid) {
+        delete draft[dependentName];
+        didClear = true;
+      }
+    });
+    return didClear;
+  }
+
   function updateDraft(fieldName, nextValue) {
     if (nextValue === undefined) {
       delete draft[fieldName];
     } else {
       draft[fieldName] = nextValue;
     }
+    const hasDependents = refDependents.has(fieldName);
+    const shouldRerender = reconcileDependentRefs(fieldName);
+    if (hasDependents || shouldRerender) {
+      renderFields();
+    }
     refreshValidation();
   }
 
-  fields.forEach(fieldName => {
-    const fieldDef = collectionDef?.fields?.[fieldName] || {};
-    const row = document.createElement('div');
-    row.className = 'form-row';
-    row.setAttribute('data-testid', `generic-crud-field-${fieldName}`);
-    const label = document.createElement('label');
-    label.textContent = fieldName;
-    row.appendChild(label);
+  function renderFields() {
+    form.innerHTML = '';
+    fields.forEach(fieldName => {
+      const fieldDef = collectionDef?.fields?.[fieldName] || {};
+      const row = document.createElement('div');
+      row.className = 'form-row';
+      row.setAttribute('data-testid', `generic-crud-field-${fieldName}`);
+      const label = document.createElement('label');
+      label.textContent = fieldName;
+      row.appendChild(label);
 
-    const widgetId = fieldDef?.ui?.widget || null;
-    const widget = widgetId && resolvedCollectionName
-      ? plugins.getFieldWidget({
-        collectionName: resolvedCollectionName,
-        fieldName,
-        widgetId
-      })
-      : null;
+      const widgetId = fieldDef?.ui?.widget || null;
+      const widget = widgetId && resolvedCollectionName
+        ? plugins.getFieldWidget({
+          collectionName: resolvedCollectionName,
+          fieldName,
+          widgetId
+        })
+        : null;
 
-    if (widgetId && !widget && isDevEnvironment()) {
-      console.warn(
-        `[plugins] Missing widget plugin: collection="${resolvedCollectionName}" field="${fieldName}" widget="${widgetId}"`
-      );
-    }
+      if (widgetId && !widget && isDevEnvironment()) {
+        console.warn(
+          `[plugins] Missing widget plugin: collection="${resolvedCollectionName}" field="${fieldName}" widget="${widgetId}"`
+        );
+      }
 
-    const fieldWrapper = widget?.component
-      ? widget.component({
-        modelRegistry,
-        plugins,
-        collectionName: resolvedCollectionName,
-        collectionDef,
-        fieldName,
-        fieldDef,
-        value: draft?.[fieldName],
-        onChange: nextValue => {
-          const coerced = coerceInputValue(fieldDef, nextValue);
-          updateDraft(fieldName, coerced);
-        },
-        record: draft,
-        mode,
-        errors: fieldErrors.get(fieldName) || []
-      })
-      : FieldRenderer({
-        fieldDef,
-        fieldName,
-        collectionName: resolvedCollectionName,
-        value: draft?.[fieldName],
-        record: draft,
-        model,
-        snapshot,
-        isBodyField: fieldName === bodyField,
-        error: null,
-        onChange: nextValue => {
-          const coerced = coerceInputValue(fieldDef, nextValue);
-          updateDraft(fieldName, coerced);
-        }
-      });
+      const fieldWrapper = widget?.component
+        ? widget.component({
+          modelRegistry,
+          plugins,
+          collectionName: resolvedCollectionName,
+          collectionDef,
+          fieldName,
+          fieldDef,
+          value: draft?.[fieldName],
+          onChange: nextValue => {
+            const coerced = coerceInputValue(fieldDef, nextValue);
+            updateDraft(fieldName, coerced);
+          },
+          record: draft,
+          mode,
+          errors: fieldErrors.get(fieldName) || []
+        })
+        : FieldRenderer({
+          fieldDef,
+          fieldName,
+          collectionName: resolvedCollectionName,
+          value: draft?.[fieldName],
+          record: draft,
+          model,
+          snapshot,
+          currentMovementId,
+          isBodyField: fieldName === bodyField,
+          error: null,
+          onChange: nextValue => {
+            const coerced = coerceInputValue(fieldDef, nextValue);
+            updateDraft(fieldName, coerced);
+          }
+        });
 
-    row.appendChild(fieldWrapper);
-    form.appendChild(row);
-  });
+      row.appendChild(fieldWrapper);
+      form.appendChild(row);
+    });
+  }
+
+  renderFields();
 
   wrapper.appendChild(form);
 

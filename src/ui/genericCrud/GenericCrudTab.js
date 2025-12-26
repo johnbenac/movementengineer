@@ -6,6 +6,7 @@ import { RecordList } from './RecordList.js';
 import { RecordEditor } from './RecordEditor.js';
 import {
   generateId,
+  getCollectionLabel,
   getCollectionSnapshotKey,
   makeDefaultRecord
 } from './genericCrudHelpers.js';
@@ -123,6 +124,7 @@ export function createGenericCrudTab(ctx) {
     ctx.dom.clearElement(container);
 
     const { snapshot, upsertRecord } = useSnapshotOps();
+    const currentMovementId = ctx?.store?.getState?.()?.currentMovementId || null;
     const model = getModelForSnapshot(snapshot);
     const modelRegistry = getModelRegistry();
     const plugins = usePlugins();
@@ -208,6 +210,7 @@ export function createGenericCrudTab(ctx) {
           collectionDef,
           model,
           snapshot,
+          currentMovementId,
           mode: state.mode,
           onSave: draft => {
             if (!draft.id) draft.id = generateId(collectionDef?.fields?.id || null);
@@ -223,6 +226,242 @@ export function createGenericCrudTab(ctx) {
       );
     } else {
       const collectionName = state.selectedCollectionKey || collectionDef.collectionName;
+      const declaredViews = resolveDeclaredViews(collectionDef);
+      const supportedViews = declaredViews.filter(viewId => {
+        const supported = !!plugins.getCollectionView(collectionName, viewId);
+        if (!supported && isDevEnvironment()) {
+          console.warn(`[plugins] Missing view plugin: collection="${collectionName}" view="${viewId}"`);
+        }
+        return supported;
+      });
+      const effectiveViews = supportedViews.length ? supportedViews : ['detail'];
+      const defaultViewId =
+        collectionDef?.ui?.defaultView || effectiveViews[0] || 'detail';
+
+      if (!state.activeViewId) {
+        const stored = readStoredViewId(collectionName);
+        state.activeViewId = effectiveViews.includes(stored) ? stored : defaultViewId;
+      } else if (!effectiveViews.includes(state.activeViewId)) {
+        state.activeViewId = defaultViewId;
+      }
+
+      if (effectiveViews.length >= 2) {
+        const switcher = document.createElement('div');
+        switcher.className = 'generic-crud-view-switcher';
+        effectiveViews.forEach(viewId => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'tab';
+          if (viewId === state.activeViewId) button.classList.add('active');
+          const customLabel = collectionDef?.ui?.viewLabels?.[viewId];
+          const pluginLabel = plugins.getCollectionView(collectionName, viewId)?.options?.label;
+          button.textContent = customLabel || pluginLabel || viewId;
+          button.addEventListener('click', () => {
+            if (state.activeViewId === viewId) return;
+            state.activeViewId = viewId;
+            persistViewId(collectionName, viewId);
+            rerender();
+          });
+          switcher.appendChild(button);
+        });
+        rightPane.appendChild(switcher);
+      }
+
+      const rightHeader = document.createElement('div');
+      rightHeader.className = 'pane-header';
+      const rightTitle = document.createElement('h3');
+      rightTitle.textContent = 'Details';
+      rightHeader.appendChild(rightTitle);
+      rightPane.appendChild(rightHeader);
+
+      const viewDef = plugins.getCollectionView(collectionName, state.activeViewId || defaultViewId);
+      const fallbackView =
+        plugins.getCollectionView('*', 'detail')?.component || (() => document.createElement('div'));
+      const View = viewDef?.component || fallbackView;
+
+      rightPane.appendChild(
+        View({
+          modelRegistry,
+          plugins,
+          collectionName,
+          collectionDef,
+          snapshot,
+          selectedId: state.selectedRecordId,
+          setSelectedId: id => selectRecord(id),
+          openEditor: ({ mode, id }) => {
+            if (mode === 'create') {
+              startCreate(collectionDef);
+              return;
+            }
+            if (mode === 'edit') {
+              const target = records.find(record => record?.id === id) || null;
+              if (target) {
+                state.selectedRecordId = target.id;
+                startEdit(target);
+              }
+            }
+          }
+        })
+      );
+    }
+
+    layout.appendChild(leftPane);
+    layout.appendChild(middlePane);
+    layout.appendChild(rightPane);
+    container.appendChild(layout);
+  }
+
+  return {
+    render: renderTab,
+    setRerender
+  };
+}
+
+export function createGenericCrudCollectionTab(ctx, { collectionName, rootId }) {
+  const state = {
+    selectedRecordId: null,
+    activeViewId: null,
+    mode: 'view',
+    search: '',
+    sortMode: 'title',
+    draft: null
+  };
+
+  let rerender = () => {};
+
+  function setRerender(fn) {
+    rerender = typeof fn === 'function' ? fn : rerender;
+  }
+
+  function selectRecord(recordId) {
+    state.selectedRecordId = recordId || null;
+    state.mode = 'view';
+    state.draft = null;
+    rerender();
+  }
+
+  function startCreate(collectionDef) {
+    state.mode = 'create';
+    state.selectedRecordId = null;
+    state.draft = makeDefaultRecord(collectionDef);
+    rerender();
+  }
+
+  function startEdit(record) {
+    state.mode = 'edit';
+    state.draft = cloneRecord(record);
+    rerender();
+  }
+
+  function cancelEdit() {
+    state.mode = 'view';
+    state.draft = null;
+    rerender();
+  }
+
+  function ensureValidSelection(records) {
+    if (!state.selectedRecordId) {
+      state.selectedRecordId = records[0]?.id || null;
+      return;
+    }
+    const exists = records.some(record => record?.id === state.selectedRecordId);
+    if (!exists) {
+      state.selectedRecordId = records[0]?.id || null;
+      state.mode = 'view';
+    }
+  }
+
+  function renderTab() {
+    const container = rootId ? document.getElementById(rootId) : null;
+    if (!container) return;
+    ctx.dom.clearElement(container);
+
+    const { snapshot, upsertRecord } = useSnapshotOps();
+    const currentMovementId = ctx?.store?.getState?.()?.currentMovementId || null;
+    const model = getModelForSnapshot(snapshot);
+    const modelRegistry = getModelRegistry();
+    const plugins = usePlugins();
+    const collectionDef = collectionName ? model?.collections?.[collectionName] : null;
+    if (!collectionDef) return;
+    const snapshotKey = getCollectionSnapshotKey(collectionDef, model);
+    const records = normalizeRecords(snapshot?.[snapshotKey]);
+    ensureValidSelection(records);
+    const selectedRecord = records.find(record => record?.id === state.selectedRecordId) || null;
+
+    const layout = document.createElement('div');
+    layout.className = 'generic-crud-layout';
+
+    const leftPane = document.createElement('div');
+    leftPane.className = 'card generic-crud-pane';
+    const leftHeader = document.createElement('div');
+    leftHeader.className = 'pane-header';
+    const leftTitle = document.createElement('h3');
+    leftTitle.textContent = 'Collection';
+    leftHeader.appendChild(leftTitle);
+    leftPane.appendChild(leftHeader);
+    const label = getCollectionLabel(collectionDef, collectionName);
+    const description = collectionDef?.description;
+    const collectionSummary = document.createElement('div');
+    collectionSummary.className = 'generic-crud-empty';
+    collectionSummary.textContent = description ? `${label}: ${description}` : label;
+    leftPane.appendChild(collectionSummary);
+
+    const middlePane = document.createElement('div');
+    middlePane.className = 'card generic-crud-pane';
+    const middleHeader = document.createElement('div');
+    middleHeader.className = 'pane-header';
+    const middleTitle = document.createElement('h3');
+    middleTitle.textContent = 'Records';
+    middleHeader.appendChild(middleTitle);
+    middlePane.appendChild(middleHeader);
+
+    middlePane.appendChild(
+      RecordList({
+        collectionDef,
+        records,
+        selectedId: state.selectedRecordId,
+        search: state.search,
+        sortMode: state.sortMode,
+        onSearchChange: value => {
+          state.search = value;
+          rerender();
+        },
+        onSortChange: value => {
+          state.sortMode = value;
+          rerender();
+        },
+        onSelect: id => selectRecord(id),
+        onCreate: () => startCreate(collectionDef),
+        emptyMessage: 'No records yet'
+      })
+    );
+
+    const rightPane = document.createElement('div');
+    rightPane.className = 'card generic-crud-pane';
+    if (state.mode === 'create' || state.mode === 'edit') {
+      const isCreate = state.mode === 'create';
+      rightPane.appendChild(
+        RecordEditor({
+          record: state.draft || (isCreate ? makeDefaultRecord(collectionDef) : selectedRecord),
+          collectionName: collectionDef.collectionName || collectionName,
+          collectionDef,
+          model,
+          snapshot,
+          currentMovementId,
+          mode: state.mode,
+          onSave: draft => {
+            if (!draft.id) draft.id = generateId(collectionDef?.fields?.id || null);
+            upsertRecord(snapshotKey, draft);
+            ctx.persistence?.save?.({ show: false, clearItemDirty: true });
+            state.selectedRecordId = draft.id;
+            state.mode = 'view';
+            state.draft = null;
+            rerender();
+          },
+          onCancel: () => cancelEdit()
+        })
+      );
+    } else {
       const declaredViews = resolveDeclaredViews(collectionDef);
       const supportedViews = declaredViews.filter(viewId => {
         const supported = !!plugins.getCollectionView(collectionName, viewId);
