@@ -403,8 +403,12 @@ function getLabelForItem(item) {
   );
 }
 
-function mapIdToLabel(snapshot, collectionName, id) {
+function mapIdToLabel(snapshot, collectionName, id, nodeIndex) {
   if (!id) return '—';
+  if (collectionName === '*') {
+    const node = nodeIndex?.get?.(id) || null;
+    return node?.title || node?.id || id;
+  }
   if (collectionName === 'movements') {
     const movement = (snapshot?.movements || []).find(m => m.id === id);
     return movement ? movement.name || movement.id : id;
@@ -418,6 +422,7 @@ function renderPreviewValue(ctx, container, snapshot, field, value) {
   const dom = ctx.dom;
   const type = field?.type;
   const refCollection = field?.ref;
+  const nodeIndex = ctx?.store?.getState?.()?.nodeIndex || null;
   const placeholder = () => {
     const span = document.createElement('span');
     span.className = 'muted';
@@ -442,10 +447,15 @@ function renderPreviewValue(ctx, container, snapshot, field, value) {
     }
     case 'id': {
       if (!value) return placeholder();
+      const targetNode = refCollection === '*' ? nodeIndex?.get?.(value) || null : null;
       const chip = dom.createChip({
-        label: mapIdToLabel(snapshot, refCollection, value),
+        label: mapIdToLabel(snapshot, refCollection, value, nodeIndex),
         attrs: { title: 'Open ' + value },
-        target: { kind: 'item', collection: refCollection, id: value }
+        target: {
+          kind: 'item',
+          collection: targetNode?.collectionName || refCollection,
+          id: value
+        }
       });
       container.appendChild(chip);
       return;
@@ -456,8 +466,11 @@ function renderPreviewValue(ctx, container, snapshot, field, value) {
       container.appendChild(
         dom.createChipRow(ids, {
           className: '',
-          getLabel: id => mapIdToLabel(snapshot, refCollection, id),
-          getTarget: id => ({ kind: 'item', collection: refCollection, id })
+          getLabel: id => mapIdToLabel(snapshot, refCollection, id, nodeIndex),
+          getTarget: id => {
+            const node = refCollection === '*' ? nodeIndex?.get?.(id) || null : null;
+            return { kind: 'item', collection: node?.collectionName || refCollection, id };
+          }
         })
       );
       return;

@@ -16,16 +16,6 @@
     media_asset: 'MediaAsset'
   };
 
-  const COLLECTION_REFERENCE_RULES = {
-    texts: ['mentionsEntityIds'],
-    textCollections: ['rootTextIds'],
-    practices: ['involvedEntityIds', 'instructionsTextIds', 'supportingClaimIds', 'sourceEntityIds'],
-    events: ['mainPracticeIds', 'mainEntityIds', 'readingTextIds', 'supportingClaimIds'],
-    rules: ['supportingTextIds', 'supportingClaimIds', 'relatedPracticeIds', 'sourceEntityIds'],
-    claims: ['sourceTextIds', 'aboutEntityIds', 'sourceEntityIds'],
-    media: ['linkedEntityIds', 'linkedPracticeIds', 'linkedEventIds', 'linkedTextIds']
-  };
-
   /**
    * @typedef {Object} ExportCollectionSchema
    * @property {string} collectionName
@@ -182,13 +172,26 @@
     return typeof value === 'string' ? value : '';
   }
 
-  function cleanId(value) {
-    const str = stringOrNull(value);
-    if (!str) return null;
-    const trimmed = str.trim();
-    const unwrapped = trimmed.replace(/^\[\[/, '').replace(/\]\]$/, '');
-    return unwrapped.trim() || null;
+  function resolveCleanId() {
+    if (globalScope?.CleanId?.cleanId) return globalScope.CleanId.cleanId;
+    if (typeof module !== 'undefined' && module.exports) {
+      try {
+        const mod = require('./ids/cleanId');
+        if (mod?.cleanId) return mod.cleanId;
+      } catch (err) {
+        // ignore
+      }
+    }
+    return value => {
+      const str = stringOrNull(value);
+      if (!str) return null;
+      const trimmed = str.trim();
+      const unwrapped = trimmed.replace(/^\[\[/, '').replace(/\]\]$/, '');
+      return unwrapped.trim() || null;
+    };
   }
+
+  const cleanId = resolveCleanId();
 
   function normaliseIds(value) {
     return normaliseArray(value)
@@ -639,21 +642,18 @@
     const movementId = cleanId(frontMatter.movementId);
     const rawTarget = frontMatter.targetType;
     const targetId = cleanId(frontMatter.targetId);
-    if (!id || !movementId || !rawTarget || !targetId) {
+    if (!id || !movementId || !targetId) {
       throw new Error(`Note missing required fields (${filePath})`);
     }
-    const canonical = NOTE_TARGET_TYPES[String(rawTarget).replace(/[\s_]/g, '').toLowerCase()];
-    if (!canonical) {
-      throw new Error(
-        `Invalid note targetType "${rawTarget}" in ${filePath}. Expected one of: ${Object.values(NOTE_TARGET_TYPES)
-          .filter((v, i, arr) => arr.indexOf(v) === i)
-          .join(', ')}`
-      );
+    let targetType = stringOrNull(rawTarget);
+    if (targetType) {
+      const canonical = NOTE_TARGET_TYPES[String(targetType).replace(/[\s_]/g, '').toLowerCase()];
+      if (canonical) targetType = canonical;
     }
     return {
       id,
       movementId,
-      targetType: canonical,
+      targetType,
       targetId,
       author: stringOrNull(frontMatter.author),
       context: stringOrNull(frontMatter.context),
@@ -721,23 +721,29 @@
     });
   }
 
-  function buildMovementIndexes(data, collectionNames) {
-    const byMovement = {};
-    data.movements.forEach(movement => {
-      byMovement[movement.id] = {};
-      collectionNames.forEach(collection => {
-        byMovement[movement.id][collection] = [];
-      });
-    });
+  function buildReferenceLookups(data, collectionNames) {
+    const idSets = {};
+    const movementIdByCollection = {};
+    const nodeIndex = new Map();
 
     collectionNames.forEach(collection => {
-      if (collection === 'movements') return;
-      data[collection].forEach(item => {
-        if (!byMovement[item.movementId]) return;
-        byMovement[item.movementId][collection].push(item);
+      const items = Array.isArray(data[collection]) ? data[collection] : [];
+      idSets[collection] = new Set();
+      const movementMap = new Map();
+      items.forEach(item => {
+        if (!item?.id) return;
+        idSets[collection].add(item.id);
+        movementMap.set(item.id, item.movementId || null);
+        nodeIndex.set(item.id, {
+          id: item.id,
+          collectionName: collection,
+          movementId: item.movementId || (collection === 'movements' ? item.id : null)
+        });
       });
+      movementIdByCollection[collection] = movementMap;
     });
-    return byMovement;
+
+    return { idSets, movementIdByCollection, nodeIndex };
   }
 
   function assertRef(collectionName, fromId, field, targetId, exists, filePath) {
@@ -749,149 +755,82 @@
   }
 
   function validateReferences(data, fileIndex, collectionNames) {
-    const byMovement = buildMovementIndexes(data, collectionNames);
-    Object.entries(byMovement).forEach(([movementId, collections]) => {
-      const textIds = new Set(collections.texts.map(t => t.id));
-      const entityIds = new Set(collections.entities.map(e => e.id));
-      const practiceIds = new Set(collections.practices.map(p => p.id));
-      const claimIds = new Set(collections.claims.map(c => c.id));
-      const eventIds = new Set(collections.events.map(e => e.id));
-      const textCollectionIds = new Set(collections.textCollections.map(tc => tc.id));
-      const mediaIds = new Set(collections.media.map(m => m.id));
-      const noteIds = new Set(collections.notes.map(n => n.id));
-      const movementExists = !!data.movements.find(m => m.id === movementId);
+    const model = modelRegistry?.getModel
+      ? modelRegistry.getModel(resolveSpecVersion(data?.specVersion))
+      : null;
+    const registry = modelRegistry || null;
+    const { idSets, movementIdByCollection, nodeIndex } = buildReferenceLookups(
+      data,
+      collectionNames
+    );
 
-      collections.texts.forEach(text => {
-        if (text.parentId) {
-          assertRef('texts', text.id, 'parentId', text.parentId, textIds.has(text.parentId), fileIndex.get(`texts:${text.id}`));
-        }
-        text.mentionsEntityIds.forEach(id => {
-          assertRef('texts', text.id, 'mentionsEntityIds', id, entityIds.has(id), fileIndex.get(`texts:${text.id}`));
-        });
-      });
+    collectionNames.forEach(collectionName => {
+      const collectionDef = model?.collections?.[collectionName];
+      const refFields =
+        typeof registry?.listRefFieldPaths === 'function'
+          ? registry.listRefFieldPaths(collectionDef)
+          : [];
+      const records = Array.isArray(data?.[collectionName]) ? data[collectionName] : [];
 
-      collections.textCollections.forEach(tc => {
-        tc.rootTextIds.forEach(id => {
-          assertRef('textCollections', tc.id, 'rootTextIds', id, textIds.has(id), fileIndex.get(`textCollections:${tc.id}`));
-        });
-      });
+      records.forEach(record => {
+        refFields.forEach(({ path, def }) => {
+          const rawValue = record?.[path];
+          const values = Array.isArray(rawValue) ? rawValue : rawValue ? [rawValue] : [];
+          const refTarget = def?.ref || null;
+          values.forEach(refValue => {
+            if (!refValue) return;
+            if (refTarget === '*') {
+              const target = nodeIndex.get(refValue);
+              assertRef(
+                collectionName,
+                record?.id,
+                path,
+                refValue,
+                !!target,
+                fileIndex.get(`${collectionName}:${record?.id}`)
+              );
+              if (
+                target &&
+                record?.movementId &&
+                target.movementId &&
+                target.movementId !== record.movementId
+              ) {
+                throw new Error(
+                  `Invalid reference: ${collectionName}/${record?.id} ${path} -> ${target.collectionName}/${refValue} crosses movements`
+                );
+              }
+              return;
+            }
 
-      collections.practices.forEach(practice => {
-        practice.involvedEntityIds.forEach(id => {
-          assertRef('practices', practice.id, 'involvedEntityIds', id, entityIds.has(id), fileIndex.get(`practices:${practice.id}`));
-        });
-        practice.instructionsTextIds.forEach(id => {
-          assertRef('practices', practice.id, 'instructionsTextIds', id, textIds.has(id), fileIndex.get(`practices:${practice.id}`));
-        });
-        practice.supportingClaimIds.forEach(id => {
-          assertRef('practices', practice.id, 'supportingClaimIds', id, claimIds.has(id), fileIndex.get(`practices:${practice.id}`));
-        });
-        practice.sourceEntityIds.forEach(id => {
-          assertRef('practices', practice.id, 'sourceEntityIds', id, entityIds.has(id), fileIndex.get(`practices:${practice.id}`));
-        });
-      });
-
-      collections.events.forEach(event => {
-        event.mainPracticeIds.forEach(id => {
-          assertRef('events', event.id, 'mainPracticeIds', id, practiceIds.has(id), fileIndex.get(`events:${event.id}`));
-        });
-        event.mainEntityIds.forEach(id => {
-          assertRef('events', event.id, 'mainEntityIds', id, entityIds.has(id), fileIndex.get(`events:${event.id}`));
-        });
-        event.readingTextIds.forEach(id => {
-          assertRef('events', event.id, 'readingTextIds', id, textIds.has(id), fileIndex.get(`events:${event.id}`));
-        });
-        event.supportingClaimIds.forEach(id => {
-          assertRef('events', event.id, 'supportingClaimIds', id, claimIds.has(id), fileIndex.get(`events:${event.id}`));
-        });
-      });
-
-      collections.rules.forEach(rule => {
-        rule.supportingTextIds.forEach(id => {
-          assertRef('rules', rule.id, 'supportingTextIds', id, textIds.has(id), fileIndex.get(`rules:${rule.id}`));
-        });
-        rule.supportingClaimIds.forEach(id => {
-          assertRef('rules', rule.id, 'supportingClaimIds', id, claimIds.has(id), fileIndex.get(`rules:${rule.id}`));
-        });
-        rule.relatedPracticeIds.forEach(id => {
-          assertRef('rules', rule.id, 'relatedPracticeIds', id, practiceIds.has(id), fileIndex.get(`rules:${rule.id}`));
-        });
-        rule.sourceEntityIds.forEach(id => {
-          assertRef('rules', rule.id, 'sourceEntityIds', id, entityIds.has(id), fileIndex.get(`rules:${rule.id}`));
-        });
-      });
-
-      collections.claims.forEach(claim => {
-        claim.sourceTextIds.forEach(id => {
-          assertRef('claims', claim.id, 'sourceTextIds', id, textIds.has(id), fileIndex.get(`claims:${claim.id}`));
-        });
-        claim.aboutEntityIds.forEach(id => {
-          assertRef('claims', claim.id, 'aboutEntityIds', id, entityIds.has(id), fileIndex.get(`claims:${claim.id}`));
-        });
-        claim.sourceEntityIds.forEach(id => {
-          assertRef('claims', claim.id, 'sourceEntityIds', id, entityIds.has(id), fileIndex.get(`claims:${claim.id}`));
-        });
-      });
-
-      collections.media.forEach(asset => {
-        asset.linkedEntityIds.forEach(id => {
-          assertRef('media', asset.id, 'linkedEntityIds', id, entityIds.has(id), fileIndex.get(`media:${asset.id}`));
-        });
-        asset.linkedPracticeIds.forEach(id => {
-          assertRef('media', asset.id, 'linkedPracticeIds', id, practiceIds.has(id), fileIndex.get(`media:${asset.id}`));
-        });
-        asset.linkedEventIds.forEach(id => {
-          assertRef('media', asset.id, 'linkedEventIds', id, eventIds.has(id), fileIndex.get(`media:${asset.id}`));
-        });
-        asset.linkedTextIds.forEach(id => {
-          assertRef('media', asset.id, 'linkedTextIds', id, textIds.has(id), fileIndex.get(`media:${asset.id}`));
-        });
-      });
-
-      collections.notes.forEach(note => {
-        let targetCollectionName;
-        switch (note.targetType) {
-          case 'Movement':
-            targetCollectionName = 'movements';
-            break;
-          case 'TextNode':
-            targetCollectionName = 'texts';
-            break;
-          case 'Entity':
-            targetCollectionName = 'entities';
-            break;
-          case 'Practice':
-            targetCollectionName = 'practices';
-            break;
-          case 'Event':
-            targetCollectionName = 'events';
-            break;
-          case 'Rule':
-            targetCollectionName = 'rules';
-            break;
-          case 'Claim':
-            targetCollectionName = 'claims';
-            break;
-          case 'MediaAsset':
-            targetCollectionName = 'media';
-            break;
-          default:
-            throw new Error(`Invalid note targetType ${note.targetType} for ${note.id}`);
-        }
-        const targetCollection = data[targetCollectionName] || [];
-        const target = targetCollection.find(item => item.id === note.targetId);
-        assertRef('notes', note.id, 'targetId', note.targetId, !!target, fileIndex.get(`notes:${note.id}`));
-        if (targetCollectionName === 'movements') {
-          if (!movementExists || note.targetId !== movementId) {
-            throw new Error(
-              `Invalid reference: notes/${note.id} must target its own movement (${movementId})`
+            const resolved = registry?.resolveCollectionName
+              ? registry.resolveCollectionName(refTarget, model?.specVersion)
+              : refTarget;
+            if (!resolved) return;
+            const exists = idSets?.[resolved]?.has(refValue);
+            assertRef(
+              collectionName,
+              record?.id,
+              path,
+              refValue,
+              exists,
+              fileIndex.get(`${collectionName}:${record?.id}`)
             );
-          }
-        } else if (target && target.movementId && target.movementId !== movementId) {
-          throw new Error(
-            `Invalid reference: notes/${note.id} targets ${note.targetType}/${note.targetId} from a different movement`
-          );
-        }
+            if (!exists) return;
+            if (resolved !== 'movements') {
+              const sourceMovementId = record?.movementId;
+              const targetMovementId = movementIdByCollection?.[resolved]?.get(refValue);
+              if (
+                sourceMovementId &&
+                targetMovementId &&
+                sourceMovementId !== targetMovementId
+              ) {
+                throw new Error(
+                  `Invalid reference: ${collectionName}/${record?.id} ${path} -> ${resolved}/${refValue} crosses movements`
+                );
+              }
+            }
+          });
+        });
       });
     });
   }
@@ -1301,7 +1240,6 @@
     buildBaselineByMovement
   };
 
-  api.COLLECTION_REFERENCE_RULES = COLLECTION_REFERENCE_RULES;
   api.NOTE_TARGET_TYPES = NOTE_TARGET_TYPES;
   api.renderMarkdownForRecord = renderMarkdownForRecord;
 

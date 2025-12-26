@@ -8,7 +8,7 @@ import {
 import { renderTable } from '../ui/table.js';
 import { createTab } from './tabKit.js';
 
-const BASE_TARGET_TYPES = [
+const DEFAULT_TARGET_TYPES = [
   'Movement',
   'TextNode',
   'Entity',
@@ -19,18 +19,7 @@ const BASE_TARGET_TYPES = [
   'MediaAsset'
 ];
 
-const TARGET_TYPE_LABELS = {
-  Movement: 'Movement',
-  TextNode: 'Text',
-  Entity: 'Entity',
-  Practice: 'Practice',
-  Event: 'Event',
-  Rule: 'Rule',
-  Claim: 'Claim',
-  MediaAsset: 'Media'
-};
-
-const TARGET_COLLECTION_BY_TYPE = {
+const FALLBACK_COLLECTION_BY_TYPE = {
   Movement: 'movements',
   TextNode: 'texts',
   Entity: 'entities',
@@ -38,7 +27,8 @@ const TARGET_COLLECTION_BY_TYPE = {
   Event: 'events',
   Rule: 'rules',
   Claim: 'claims',
-  MediaAsset: 'media'
+  MediaAsset: 'media',
+  Note: 'notes'
 };
 
 let selectedNoteId = null;
@@ -46,6 +36,10 @@ let lastMovementId = null;
 
 function idsMatch(a, b) {
   if (a == null || b == null) return false;
+  const cleaner = globalThis?.CleanId?.cleanId;
+  if (typeof cleaner === 'function') {
+    return cleaner(a) === cleaner(b);
+  }
   return String(a) === String(b);
 }
 
@@ -62,6 +56,10 @@ function getViewModels(ctx) {
   return services.ViewModels;
 }
 
+function getModelRegistry() {
+  return globalThis?.ModelRegistry || null;
+}
+
 function parseCsvInput(raw) {
   return (raw || '')
     .split(',')
@@ -70,15 +68,29 @@ function parseCsvInput(raw) {
 }
 
 function labelForTargetType(type) {
-  return TARGET_TYPE_LABELS[type] || type || 'Unknown';
+  return type || 'Unknown';
 }
 
 function buildTargetTypeOptions(snapshot) {
-  const types = [...BASE_TARGET_TYPES];
+  const modelRegistry = getModelRegistry();
+  const model = modelRegistry?.getModel
+    ? modelRegistry.getModel(snapshot?.specVersion || modelRegistry.DEFAULT_SPEC_VERSION || '2.3')
+    : null;
+  const types = [];
+
+  if (model?.collections) {
+    Object.values(model.collections).forEach(collectionDef => {
+      const typeName = collectionDef?.typeName || collectionDef?.collectionName;
+      if (typeName) types.push(typeName);
+    });
+  }
   if (Array.isArray(snapshot?.notes)) {
     snapshot.notes.forEach(n => {
       if (n?.targetType) types.push(n.targetType);
     });
+  }
+  if (!types.length) {
+    types.push(...DEFAULT_TARGET_TYPES);
   }
   const seen = new Set();
   const options = [];
@@ -90,42 +102,59 @@ function buildTargetTypeOptions(snapshot) {
   return options;
 }
 
-function targetLabelForItem(targetType, item) {
-  if (!item) return '';
-  switch (targetType) {
-    case 'Movement':
-      return item.name || item.shortName || item.id;
-    case 'TextNode':
-      return item.title || item.label || item.id;
-    case 'Rule':
-      return item.shortText || item.id;
-    case 'Claim':
-      return item.text || item.id;
-    default:
-      return item.name || item.title || item.id;
-  }
-}
-
-function buildTargetIdOptions(snapshot, movementId, targetType, domainService) {
-  const collectionName = TARGET_COLLECTION_BY_TYPE[targetType];
-  if (!collectionName) return [];
-
-  const items = Array.isArray(snapshot?.[collectionName]) ? snapshot[collectionName] : [];
-  const scopedCollections = domainService?.COLLECTIONS_WITH_MOVEMENT_ID || new Set();
-
-  let filtered = items;
-  if (targetType === 'Movement') {
-    filtered = items.filter(item => item && item.id === movementId);
-  } else if (scopedCollections.has(collectionName)) {
-    filtered = items.filter(item => item && item.movementId === movementId);
+function buildTargetIdOptions(nodeIndex, movementId, targetType, modelRegistry, snapshot) {
+  const resolvedCollection =
+    (modelRegistry?.resolveCollectionName
+      ? modelRegistry.resolveCollectionName(targetType, snapshot?.specVersion)
+      : null) || FALLBACK_COLLECTION_BY_TYPE[targetType] || null;
+  const nodes = Array.isArray(nodeIndex?.all) ? nodeIndex.all : null;
+  if (nodes) {
+    return nodes
+      .filter(node => {
+        if (movementId && node.movementId && node.movementId !== movementId) return false;
+        if (resolvedCollection && node.collectionName !== resolvedCollection) return false;
+        return true;
+      })
+      .map(node => ({
+        value: node.id,
+        label: `${node.title || node.id} (${node.collectionName})`
+      }));
   }
 
-  return filtered
-    .filter(item => item && item.id)
+  if (!resolvedCollection) return [];
+  const items = Array.isArray(snapshot?.[resolvedCollection])
+    ? snapshot[resolvedCollection]
+    : [];
+  return items
+    .filter(item => {
+      if (!item?.id) return false;
+      if (resolvedCollection === 'movements') return item.id === movementId;
+      if (movementId && item.movementId) return item.movementId === movementId;
+      return true;
+    })
     .map(item => ({
       value: item.id,
-      label: targetLabelForItem(targetType, item)
+      label: item.name || item.title || item.shortText || item.id
     }));
+}
+
+function resolveTargetTypeFromSnapshot(snapshot, targetId, modelRegistry) {
+  if (!snapshot || !targetId) return null;
+  const model = modelRegistry?.getModel
+    ? modelRegistry.getModel(snapshot?.specVersion || modelRegistry.DEFAULT_SPEC_VERSION || '2.3')
+    : null;
+  const collectionNames = model?.collections
+    ? Object.keys(model.collections)
+    : Object.keys(snapshot || {});
+
+  for (const collectionName of collectionNames) {
+    const items = Array.isArray(snapshot?.[collectionName]) ? snapshot[collectionName] : [];
+    if (items.some(item => idsMatch(item?.id, targetId))) {
+      const def = model?.collections?.[collectionName];
+      return def?.typeName || def?.collectionName || collectionName;
+    }
+  }
+  return null;
 }
 
 function populateTargetIdOptions(dom, datalistEl, options) {
@@ -189,6 +218,8 @@ function handleSaveNote(ctx, rerender) {
   const state = getState(ctx);
   const snapshot = ctx.persistence.cloneSnapshot();
   const currentMovementId = state.currentMovementId;
+  const nodeIndex = state.nodeIndex;
+  const modelRegistry = getModelRegistry();
   if (!dom || !snapshot) return;
   if (!currentMovementId) {
     ctx?.setStatus?.('Select a movement before adding notes.');
@@ -208,9 +239,24 @@ function handleSaveNote(ctx, rerender) {
     tags: parseCsvInput(dom.tags?.value)
   };
 
-  if (!noteData.targetType || !noteData.targetId || !noteData.body) {
-    ctx?.setStatus?.('Target type, target ID, and body are required.');
+  if (!noteData.targetId || !noteData.body) {
+    ctx?.setStatus?.('Target ID and body are required.');
     return;
+  }
+  if (!noteData.targetType) {
+    const resolved = nodeIndex?.get?.(noteData.targetId) || null;
+    noteData.targetType =
+      resolved?.typeName ||
+      resolved?.collectionName ||
+      resolveTargetTypeFromSnapshot(snapshot, noteData.targetId, modelRegistry);
+  } else if (modelRegistry?.resolveCollectionName) {
+    const resolvedCollection = modelRegistry.resolveCollectionName(
+      noteData.targetType,
+      snapshot?.specVersion
+    );
+    if (!resolvedCollection) {
+      noteData.targetType = noteData.targetType.trim();
+    }
   }
 
   if (!DomainService?.upsertItem) {
@@ -301,7 +347,8 @@ function renderNotesTab(ctx) {
   const state = getState(ctx);
   const snapshot = state.snapshot;
   const currentMovementId = state.currentMovementId;
-  const services = getServices(ctx);
+  const nodeIndex = state.nodeIndex;
+  const modelRegistry = getModelRegistry();
 
   const wrapper = document.getElementById('notes-table-wrapper');
   const typeSelect = document.getElementById('notes-target-type-filter');
@@ -462,10 +509,11 @@ function renderNotesTab(ctx) {
   if (formDom.targetType) formDom.targetType.value = desiredTargetType;
 
   const targetIdOptions = buildTargetIdOptions(
-    snapshot,
+    nodeIndex,
     currentMovementId,
     desiredTargetType,
-    services.DomainService
+    modelRegistry,
+    snapshot
   );
   populateTargetIdOptions(dom, formDom.targetIdDatalist, targetIdOptions);
 

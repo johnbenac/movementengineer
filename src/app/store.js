@@ -18,6 +18,23 @@ export const DEFAULT_GRAPH_WORKBENCH_STATE = {
   filterNodeTypes: []
 };
 
+function getModelForSnapshot(snapshot) {
+  const registry = globalThis?.ModelRegistry || null;
+  if (!registry?.getModel) return null;
+  const specVersion = snapshot?.specVersion || registry.DEFAULT_SPEC_VERSION || '2.3';
+  return registry.getModel(specVersion);
+}
+
+function buildDerivedIndexes(snapshot) {
+  const nodeIndexBuilder = globalThis?.NodeIndex?.buildNodeIndex || null;
+  const graphIndexBuilder = globalThis?.GraphIndex?.buildGraphIndex || null;
+  if (!nodeIndexBuilder) return { nodeIndex: null, graphIndex: null };
+  const model = getModelForSnapshot(snapshot);
+  const nodeIndex = nodeIndexBuilder(snapshot, model);
+  const graphIndex = graphIndexBuilder ? graphIndexBuilder(snapshot, model, nodeIndex) : null;
+  return { nodeIndex, graphIndex };
+}
+
 function ensureFlags(flags = {}) {
   const next = {
     snapshotDirty: !!flags.snapshotDirty,
@@ -59,8 +76,11 @@ export function createStore(options = {}) {
     : {};
   const snapshot =
     StorageService?.ensureAllCollections?.(initialSnapshot) || initialSnapshot || {};
+  const initialIndexes = buildDerivedIndexes(snapshot);
   let state = {
     snapshot,
+    nodeIndex: initialIndexes.nodeIndex,
+    graphIndex: initialIndexes.graphIndex,
     currentMovementId: computeCurrentMovementId(snapshot),
     currentCollectionName: 'entities',
     currentItemId: null,
@@ -93,7 +113,20 @@ export function createStore(options = {}) {
 
   function setState(nextState) {
     if (!nextState) return state;
-    state = typeof nextState === 'function' ? nextState(state) || state : nextState;
+    const prevState = state;
+    const resolved = typeof nextState === 'function' ? nextState(state) || state : nextState;
+    const shouldRebuild =
+      resolved?.snapshot &&
+      (resolved.snapshot !== prevState?.snapshot ||
+        !resolved.nodeIndex ||
+        !resolved.graphIndex);
+    const derived = shouldRebuild
+      ? {
+        ...resolved,
+        ...buildDerivedIndexes(resolved.snapshot)
+      }
+      : resolved;
+    state = derived;
     notify(state);
     return state;
   }

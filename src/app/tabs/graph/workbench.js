@@ -236,6 +236,7 @@ function renderModelRecordEditor(ctx, { collectionName, record, snapshot, model,
   const collectionDef = model?.collections?.[collectionName] || null;
   const fields = getGraphEditableFields(ctx, collectionName, collectionDef);
   const bodyField = getBodyField(collectionDef);
+  const nodeIndex = ctx?.store?.getState?.()?.nodeIndex || null;
   const form = document.createElement('form');
   form.className = 'form-stack';
   form.addEventListener('submit', event => event.preventDefault());
@@ -257,6 +258,7 @@ function renderModelRecordEditor(ctx, { collectionName, record, snapshot, model,
       record,
       model,
       snapshot,
+      nodeIndex,
       isBodyField: fieldName === bodyField,
       error: null,
       onChange: nextValue => onPatch({ [fieldName]: nextValue })
