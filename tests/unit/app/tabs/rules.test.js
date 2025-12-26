@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDomUtils } from '../../../../src/app/ui/dom.js';
+import { createPersistenceFacade } from '../../../../src/app/persistenceFacade.js';
 
 function renderDom() {
   document.body.innerHTML = `
@@ -32,7 +33,7 @@ function renderDom() {
 }
 
 function createCtx(snapshot, currentMovementId = 'm1', overrides = {}) {
-  let state = { snapshot, currentMovementId };
+  let state = { snapshot, currentMovementId, flags: {} };
   const dom = createDomUtils();
   const ViewModels =
     overrides.ViewModels ||
@@ -96,19 +97,29 @@ function createCtx(snapshot, currentMovementId = 'm1', overrides = {}) {
       }),
       deleteItem: vi.fn()
     };
-  const update = vi.fn(next => {
-    state = typeof next === 'function' ? next(state) : next;
-    return state;
-  });
   const store = {
-    markDirty: vi.fn(),
     getState: () => state,
-    update
+    setState: next => {
+      state = typeof next === 'function' ? next(state) : next;
+      return state;
+    }
   };
+  const persistence = createPersistenceFacade({
+    getSnapshot: () => state.snapshot,
+    setSnapshot: next => {
+      state = { ...state, snapshot: next };
+    },
+    getState: () => state,
+    setState: store.setState,
+    saveSnapshot: vi.fn(),
+    ensureAllCollections: overrides.StorageService?.ensureAllCollections,
+    setStatus: vi.fn(),
+    defaultShow: false
+  });
   return {
     getState: () => state,
-    update,
     store,
+    persistence,
     services: { ViewModels, DomainService },
     dom
   };
@@ -228,6 +239,7 @@ describe('rules tab module', () => {
       }))
     };
     const ctx = createCtx(snapshot, 'm1', { DomainService, ViewModels });
+    const commitSpy = vi.spyOn(ctx.persistence, 'commitSnapshot');
     const { registerRulesTab } = await import('../../../../src/app/tabs/rules.js');
     const tab = registerRulesTab(ctx);
 
@@ -249,8 +261,7 @@ describe('rules tab module', () => {
     const savedRule = DomainService.upsertItem.mock.calls[0][2];
     expect(savedRule.shortText).toBe('Updated rule');
     expect(savedRule.supportingTextIds).toEqual(['t1']);
-    expect(ctx.update).toHaveBeenCalled();
-    expect(ctx.store.markDirty).toHaveBeenCalledWith('item');
+    expect(commitSpy).toHaveBeenCalledWith(expect.any(Object), { dirtyScope: 'item' });
   });
 
   it('adds a new rule for the current movement', async () => {
@@ -297,6 +308,7 @@ describe('rules tab module', () => {
       }))
     };
     const ctx = createCtx(snapshot, 'm1', { DomainService, ViewModels });
+    const commitSpy = vi.spyOn(ctx.persistence, 'commitSnapshot');
     const { registerRulesTab } = await import('../../../../src/app/tabs/rules.js');
     const tab = registerRulesTab(ctx);
 
@@ -306,7 +318,7 @@ describe('rules tab module', () => {
     document.getElementById('rules-add-btn').dispatchEvent(new Event('click', { bubbles: true }));
 
     expect(DomainService.addNewItem).toHaveBeenCalledWith(expect.any(Object), 'rules', 'm1');
-    expect(ctx.update).toHaveBeenCalled();
+    expect(commitSpy).toHaveBeenCalledWith(expect.any(Object), { dirtyScope: 'item' });
     expect(document.getElementById('rules-editor-select').value).toBe('r2');
   });
 

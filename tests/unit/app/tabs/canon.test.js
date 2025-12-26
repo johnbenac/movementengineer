@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HINT_TEXT } from '../../../../src/app/ui/hints.js';
 import { addTextCollection } from '../../../../src/app/tabs/canon/actions.js';
 import { createDomUtils } from '../../../../src/app/ui/dom.js';
+import { createPersistenceFacade } from '../../../../src/app/persistenceFacade.js';
 
 const baseSnapshot = () => ({
   movements: [],
@@ -50,10 +51,24 @@ function createCtx({ state: stateOverrides = {}, services: servicesOverride = {}
       if (next && typeof next === 'object') Object.assign(state, next);
       return state;
     },
-    setStatus: vi.fn(),
-    markDirty: vi.fn(),
-    saveSnapshot: vi.fn()
+    setStatus: vi.fn()
   };
+  const persistence = createPersistenceFacade({
+    getSnapshot: () => state.snapshot,
+    setSnapshot: next => {
+      state.snapshot = next;
+    },
+    getState: () => state,
+    setState: next => {
+      const updated = typeof next === 'function' ? next(state) : next;
+      if (updated && typeof updated === 'object') Object.assign(state, updated);
+      return state;
+    },
+    saveSnapshot: servicesOverride.StorageService?.saveSnapshot || vi.fn(),
+    ensureAllCollections: servicesOverride.StorageService?.ensureAllCollections,
+    setStatus: vi.fn(),
+    defaultShow: false
+  });
   return {
     getState: store.getState,
     update: updater => {
@@ -70,6 +85,7 @@ function createCtx({ state: stateOverrides = {}, services: servicesOverride = {}
       return vi.fn();
     },
     store,
+    persistence,
     services: {
       DomainService:
         servicesOverride.DomainService ||
@@ -144,7 +160,7 @@ describe('canon tab module', () => {
     expect(renderSpy).toHaveBeenCalled();
   });
 
-  it('adds and persists a text collection', () => {
+  it('adds and persists a text collection', async () => {
     const snapshot = baseSnapshot();
     const DomainService = {
       addNewItem: vi.fn((snap, collection) => {
@@ -153,20 +169,16 @@ describe('canon tab module', () => {
         return item;
       })
     };
+    const saveSnapshot = vi.fn();
     const ctx = createCtx({
       state: { snapshot, currentMovementId: 'm1' },
-      services: { DomainService }
+      services: { DomainService, StorageService: { saveSnapshot } }
     });
 
-    addTextCollection(ctx);
+    await addTextCollection(ctx);
 
-    expect(ctx.store.markDirty).toHaveBeenCalledWith('item');
-    expect(ctx.store.saveSnapshot).toHaveBeenCalledWith({
-      show: false,
-      clearItemDirty: true,
-      clearMovementDirty: false
-    });
+    expect(saveSnapshot).toHaveBeenCalledWith(ctx.getState().snapshot);
     expect(ctx.getState().currentShelfId).toBe('tc1');
-    expect(snapshot.textCollections).toHaveLength(1);
+    expect(ctx.getState().snapshot.textCollections).toHaveLength(1);
   });
 });

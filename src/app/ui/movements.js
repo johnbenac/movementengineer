@@ -415,15 +415,16 @@ export function initMovements(ctx, options = {}) {
   }
 
   function markDirty() {
-    if (ctx?.store?.markDirty) {
-      ctx.store.markDirty('movement');
-    }
+    ctx?.persistence?.markDirty?.('movement');
   }
 
   function saveSnapshot() {
-    if (ctx?.store?.saveSnapshot) {
-      ctx.store.saveSnapshot({ clearMovementDirty: true, clearItemDirty: false, show: true });
-    }
+    ctx?.persistence
+      ?.save?.({ clearMovementDirty: true, clearItemDirty: false, show: true })
+      .catch(err => {
+        console.error(err);
+        ctx?.setStatus?.('Save failed');
+      });
   }
 
   function computeRenderKey(state) {
@@ -781,7 +782,16 @@ export function initMovements(ctx, options = {}) {
       navigation: { stack: [], index: -1 }
     }));
 
-    ctx.store?.markSaved?.({ movement: true, item: true });
+    try {
+      await ctx.persistence?.save?.({
+        clearMovementDirty: true,
+        clearItemDirty: true,
+        show: false
+      });
+    } catch (err) {
+      console.error(err);
+      ctx.ui?.setStatus?.('Save failed');
+    }
 
     if (ctx.actions?.selectMovement && nextMovementId) {
       ctx.actions.selectMovement(nextMovementId);

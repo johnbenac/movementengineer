@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDomUtils } from '../../../../src/app/ui/dom.js';
+import { createPersistenceFacade } from '../../../../src/app/persistenceFacade.js';
 
 function renderDom() {
   document.body.innerHTML = `
@@ -57,12 +58,26 @@ function createViewModels() {
 
 function createCtx({ snapshot, DomainService, StorageService, currentMovementId = 'm1' }) {
   const state = { snapshot, currentMovementId };
+  const setState = next => Object.assign(state, typeof next === 'function' ? next(state) : next);
   const store = {
     getState: () => state,
-    setState: next => Object.assign(state, typeof next === 'function' ? next(state) : next)
+    setState
   };
+  const persistence = createPersistenceFacade({
+    getSnapshot: () => state.snapshot,
+    setSnapshot: next => {
+      state.snapshot = next;
+    },
+    getState: () => state,
+    setState,
+    saveSnapshot: StorageService?.saveSnapshot,
+    ensureAllCollections: StorageService?.ensureAllCollections,
+    setStatus: vi.fn(),
+    defaultShow: false
+  });
   return {
     store,
+    persistence,
     getState: store.getState,
     setState: store.setState,
     subscribe: () => () => {},
@@ -149,7 +164,7 @@ describe('notes tab module', () => {
   });
 
   it('creates a new note and persists it', async () => {
-    const { ctx, DomainService, StorageService, snapshot } = await setup();
+    const { ctx, DomainService, StorageService } = await setup();
 
     document.getElementById('note-target-type').value = 'Entity';
     document.getElementById('note-target-id').value = 'e1';
@@ -161,10 +176,12 @@ describe('notes tab module', () => {
       new Event('submit', { bubbles: true, cancelable: true })
     );
 
+    await Promise.resolve();
+
     expect(DomainService.addNewItem).toHaveBeenCalled();
     expect(DomainService.upsertItem).toHaveBeenCalled();
-    expect(StorageService.saveSnapshot).toHaveBeenCalledWith(snapshot);
-    const created = snapshot.notes.find(n => n.id === 'note-new');
+    expect(StorageService.saveSnapshot).toHaveBeenCalledWith(ctx.getState().snapshot);
+    const created = ctx.getState().snapshot.notes.find(n => n.id === 'note-new');
     expect(created).toMatchObject({
       movementId: 'm1',
       targetType: 'Entity',
@@ -200,8 +217,10 @@ describe('notes tab module', () => {
       new Event('submit', { bubbles: true, cancelable: true })
     );
 
+    await Promise.resolve();
+
     expect(DomainService.upsertItem).toHaveBeenCalledWith(
-      snapshot,
+      expect.any(Object),
       'notes',
       expect.objectContaining({ id: 'n1', body: 'Updated text' })
     );
@@ -209,9 +228,11 @@ describe('notes tab module', () => {
     const deleteBtn = document.querySelector('[data-note-id="n1"][data-note-action="delete"]');
     deleteBtn.click();
 
-    expect(DomainService.deleteItem).toHaveBeenCalledWith(snapshot, 'notes', 'n1');
+    await Promise.resolve();
+
+    expect(DomainService.deleteItem).toHaveBeenCalledWith(expect.any(Object), 'notes', 'n1');
     expect(StorageService.saveSnapshot).toHaveBeenCalled();
-    expect(snapshot.notes.find(n => n.id === 'n1')).toBeUndefined();
+    expect(ctx.getState().snapshot.notes.find(n => n.id === 'n1')).toBeUndefined();
   });
 
   it('updates an existing note even when the ID is numeric', async () => {
@@ -226,7 +247,7 @@ describe('notes tab module', () => {
       tags: []
     });
 
-    const { DomainService, snapshot: snap } = await setup({ snapshot });
+    const { ctx, DomainService } = await setup({ snapshot });
 
     const row = document.querySelector('tr[data-note-id="123"]');
     row.click();
@@ -238,13 +259,15 @@ describe('notes tab module', () => {
       new Event('submit', { bubbles: true, cancelable: true })
     );
 
+    await Promise.resolve();
+
     expect(DomainService.addNewItem).not.toHaveBeenCalled();
     expect(DomainService.upsertItem).toHaveBeenCalledWith(
-      snap,
+      expect.any(Object),
       'notes',
       expect.objectContaining({ id: 123, body: 'Updated text' })
     );
-    expect(snap.notes.find(n => n.id === 123)?.body).toBe('Updated text');
+    expect(ctx.getState().snapshot.notes.find(n => n.id === 123)?.body).toBe('Updated text');
   });
 
   it('keeps the selected target type and updates target ID suggestions', async () => {

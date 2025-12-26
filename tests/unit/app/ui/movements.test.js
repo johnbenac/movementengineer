@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDomUtils } from '../../../../src/app/ui/dom.js';
 import { initMovements } from '../../../../src/app/ui/movements.js';
+import { createPersistenceFacade } from '../../../../src/app/persistenceFacade.js';
 
 function createDomainServiceStub() {
   return {
@@ -78,7 +79,7 @@ function renderDom() {
   `;
 }
 
-function createStore(initialState) {
+function createStore(initialState, overrides = {}) {
   let state = initialState;
   const subscribers = new Set();
   return {
@@ -92,10 +93,22 @@ function createStore(initialState) {
       subscribers.add(fn);
       return () => subscribers.delete(fn);
     },
-    markDirty: vi.fn(),
-    markSaved: vi.fn(),
-    saveSnapshot: vi.fn()
+    saveSnapshot: overrides.saveSnapshot || vi.fn()
   };
+}
+
+function createPersistence(store, saveSnapshot = store.saveSnapshot) {
+  return createPersistenceFacade({
+    getSnapshot: () => store.getState().snapshot,
+    setSnapshot: snapshot => {
+      store.setState(prev => ({ ...prev, snapshot }));
+    },
+    getState: store.getState,
+    setState: store.setState,
+    saveSnapshot,
+    setStatus: vi.fn(),
+    defaultShow: false
+  });
 }
 
 describe('movements UI module', () => {
@@ -126,8 +139,20 @@ describe('movements UI module', () => {
       flags: {}
     };
     const store = createStore(state);
+    const persistence = createPersistenceFacade({
+      getSnapshot: () => store.getState().snapshot,
+      setSnapshot: snapshot => {
+        store.setState(prev => ({ ...prev, snapshot }));
+      },
+      getState: store.getState,
+      setState: store.setState,
+      saveSnapshot: store.saveSnapshot,
+      setStatus: vi.fn(),
+      defaultShow: false
+    });
     const ctx = {
       store,
+      persistence,
       getState: store.getState,
       subscribe: store.subscribe,
       actions: { selectMovement: vi.fn() },
@@ -157,8 +182,20 @@ describe('movements UI module', () => {
       flags: {}
     };
     const store = createStore(state);
+    const persistence = createPersistenceFacade({
+      getSnapshot: () => store.getState().snapshot,
+      setSnapshot: snapshot => {
+        store.setState(prev => ({ ...prev, snapshot }));
+      },
+      getState: store.getState,
+      setState: store.setState,
+      saveSnapshot: store.saveSnapshot,
+      setStatus: vi.fn(),
+      defaultShow: false
+    });
     const ctx = {
       store,
+      persistence,
       getState: store.getState,
       subscribe: store.subscribe,
       actions: { selectMovement: vi.fn() },
@@ -168,12 +205,14 @@ describe('movements UI module', () => {
 
     initMovements(ctx);
 
+    const markDirtySpy = vi.spyOn(ctx.persistence, 'markDirty');
+
     const nameInput = document.getElementById('movement-name');
     nameInput.value = 'Updated';
     nameInput.dispatchEvent(new Event('input', { bubbles: true }));
 
     expect(store.getState().snapshot.movements[0].name).toBe('Updated');
-    expect(store.markDirty).toHaveBeenCalledWith('movement');
+    expect(markDirtySpy).toHaveBeenCalledWith('movement');
   });
 
   it('delegates selection, add, and save actions', () => {
@@ -202,10 +241,23 @@ describe('movements UI module', () => {
       currentMovementId: 'm1',
       flags: {}
     };
-    const store = createStore(state);
+    const saveSnapshot = vi.fn();
+    const store = createStore(state, { saveSnapshot });
+    const persistence = createPersistenceFacade({
+      getSnapshot: () => store.getState().snapshot,
+      setSnapshot: snapshot => {
+        store.setState(prev => ({ ...prev, snapshot }));
+      },
+      getState: store.getState,
+      setState: store.setState,
+      saveSnapshot,
+      setStatus: vi.fn(),
+      defaultShow: false
+    });
     const selectMovement = vi.fn();
     const ctx = {
       store,
+      persistence,
       getState: store.getState,
       subscribe: store.subscribe,
       actions: { selectMovement },
@@ -223,11 +275,7 @@ describe('movements UI module', () => {
     expect(selectMovement).toHaveBeenCalledWith('m2');
 
     document.getElementById('btn-save-movement').click();
-    expect(store.saveSnapshot).toHaveBeenCalledWith({
-      clearMovementDirty: true,
-      clearItemDirty: false,
-      show: true
-    });
+    expect(saveSnapshot).toHaveBeenCalledWith(ctx.getState().snapshot);
   });
 
   it('imports a markdown repo and merges it with the existing snapshot', async () => {
@@ -246,9 +294,11 @@ describe('movements UI module', () => {
       flags: {}
     };
     const store = createStore(state);
+    const persistence = createPersistence(store);
     const selectMovement = vi.fn();
     const ctx = {
       store,
+      persistence,
       getState: store.getState,
       subscribe: store.subscribe,
       actions: { selectMovement },
@@ -278,7 +328,7 @@ describe('movements UI module', () => {
     ]);
     expect(selectMovement).toHaveBeenCalledWith('imp1');
     expect(ctx.ui.setStatus).toHaveBeenCalledWith('Repo imported ✓');
-    expect(store.markSaved).toHaveBeenCalledWith({ movement: true, item: true });
+    expect(store.saveSnapshot).toHaveBeenCalledWith(ctx.getState().snapshot);
   });
   it('preserves existing data when importing an additional repo', async () => {
     const repoUrl = 'https://github.com/example/other';
@@ -316,9 +366,11 @@ describe('movements UI module', () => {
     };
 
     const store = createStore(state);
+    const persistence = createPersistence(store);
 
     const ctx = {
       store,
+      persistence,
       getState: store.getState,
       subscribe: store.subscribe,
       actions: { selectMovement: vi.fn() },
@@ -385,9 +437,11 @@ describe('movements UI module', () => {
     };
 
     const store = createStore(state);
+    const persistence = createPersistence(store);
 
     const ctx = {
       store,
+      persistence,
       getState: store.getState,
       subscribe: store.subscribe,
       actions: { selectMovement: vi.fn() },
@@ -443,8 +497,10 @@ describe('movements UI module', () => {
       flags: {}
     };
     const store = createStore(state);
+    const persistence = createPersistence(store);
     const ctx = {
       store,
+      persistence,
       getState: store.getState,
       subscribe: store.subscribe,
       actions: { selectMovement: vi.fn() },

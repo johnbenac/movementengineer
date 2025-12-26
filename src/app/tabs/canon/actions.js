@@ -23,23 +23,16 @@ function getDomainService(ctx) {
   return ctx.services.DomainService;
 }
 
-function getStore(ctx) {
-  return ctx.store || null;
-}
-
-export function persistCanonItem(ctx, { show = false } = {}) {
-  const store = getStore(ctx);
-  store?.markDirty?.('item');
-  store?.saveSnapshot?.({
-    show,
-    clearItemDirty: true,
-    clearMovementDirty: false
+async function persistCanonItem(ctx, snapshot, { show = false } = {}) {
+  await ctx.persistence.commitSnapshot(snapshot, {
+    dirtyScope: 'item',
+    save: { show }
   });
 }
 
-export function addTextCollection(ctx) {
+export async function addTextCollection(ctx) {
   const state = getState(ctx);
-  const snapshot = state.snapshot || {};
+  const snapshot = ctx.persistence.cloneSnapshot();
   const currentMovementId = state.currentMovementId;
   if (!currentMovementId) {
     if (typeof window !== 'undefined') {
@@ -53,7 +46,7 @@ export function addTextCollection(ctx) {
 
   try {
     const collection = DomainService.addNewItem(snapshot, 'textCollections', currentMovementId);
-    persistCanonItem(ctx, { show: false });
+    await persistCanonItem(ctx, snapshot, { show: false });
     applyState(ctx, prev => ({
       ...prev,
       currentShelfId: collection?.id || null,
@@ -70,9 +63,9 @@ export function addTextCollection(ctx) {
   }
 }
 
-export function saveTextCollection(ctx) {
+export async function saveTextCollection(ctx) {
   const state = getState(ctx);
-  const snapshot = state.snapshot || {};
+  const snapshot = ctx.persistence.cloneSnapshot();
   const shelfId = state.currentShelfId;
   if (!shelfId) return null;
 
@@ -92,15 +85,21 @@ export function saveTextCollection(ctx) {
     description: descInput ? descInput.value : shelf.description
   };
 
-  DomainService.upsertItem(snapshot, 'textCollections', updated);
-  persistCanonItem(ctx, { show: false });
-  ctx?.setStatus?.('Shelf saved');
-  return updated;
+  try {
+    DomainService.upsertItem(snapshot, 'textCollections', updated);
+    await persistCanonItem(ctx, snapshot, { show: false });
+    ctx?.setStatus?.('Shelf saved');
+    return updated;
+  } catch (err) {
+    console.error(err);
+    ctx?.setStatus?.('Save failed');
+    return null;
+  }
 }
 
-export function deleteTextCollection(ctx, shelfId = null) {
+export async function deleteTextCollection(ctx, shelfId = null) {
   const state = getState(ctx);
-  const snapshot = state.snapshot || {};
+  const snapshot = ctx.persistence.cloneSnapshot();
   const targetId = shelfId ?? state.currentShelfId;
   if (!targetId) return false;
 
@@ -117,24 +116,30 @@ export function deleteTextCollection(ctx, shelfId = null) {
   const DomainService = getDomainService(ctx);
   if (!DomainService?.deleteItem) return false;
 
-  DomainService.deleteItem(snapshot, 'textCollections', targetId);
-  applyState(ctx, prev => {
-    if (prev.currentShelfId !== targetId) return prev;
-    return {
-      ...prev,
-      currentShelfId: null,
-      currentBookId: null,
-      currentTextId: null
-    };
-  });
-  persistCanonItem(ctx, { show: true });
-  ctx?.setStatus?.('Text collection deleted');
-  return true;
+  try {
+    DomainService.deleteItem(snapshot, 'textCollections', targetId);
+    applyState(ctx, prev => {
+      if (prev.currentShelfId !== targetId) return prev;
+      return {
+        ...prev,
+        currentShelfId: null,
+        currentBookId: null,
+        currentTextId: null
+      };
+    });
+    await persistCanonItem(ctx, snapshot, { show: true });
+    ctx?.setStatus?.('Text collection deleted');
+    return true;
+  } catch (err) {
+    console.error(err);
+    ctx?.setStatus?.('Save failed');
+    return false;
+  }
 }
 
-export function addNewBookToShelf(ctx) {
+export async function addNewBookToShelf(ctx) {
   const state = getState(ctx);
-  const snapshot = state.snapshot || {};
+  const snapshot = ctx.persistence.cloneSnapshot();
   const currentMovementId = state.currentMovementId;
   const currentShelfId = state.currentShelfId;
   if (!currentMovementId) return null;
@@ -164,13 +169,19 @@ export function addNewBookToShelf(ctx) {
     currentBookId: book.id,
     currentTextId: book.id
   }));
-  persistCanonItem(ctx, { show: false });
-  return book;
+  try {
+    await persistCanonItem(ctx, snapshot, { show: false });
+    return book;
+  } catch (err) {
+    console.error(err);
+    ctx?.setStatus?.('Save failed');
+    return null;
+  }
 }
 
-export function addExistingBookToShelf(ctx) {
+export async function addExistingBookToShelf(ctx) {
   const state = getState(ctx);
-  const snapshot = state.snapshot || {};
+  const snapshot = ctx.persistence.cloneSnapshot();
   const currentMovementId = state.currentMovementId;
   const currentShelfId = state.currentShelfId;
   if (!currentMovementId || !currentShelfId) return null;
@@ -214,7 +225,13 @@ export function addExistingBookToShelf(ctx) {
     currentBookId: selected,
     currentTextId: selected
   }));
-  persistCanonItem(ctx, { show: false });
-  ctx?.setStatus?.('Book added to shelf');
-  return selected;
+  try {
+    await persistCanonItem(ctx, snapshot, { show: false });
+    ctx?.setStatus?.('Book added to shelf');
+    return selected;
+  } catch (err) {
+    console.error(err);
+    ctx?.setStatus?.('Save failed');
+    return null;
+  }
 }

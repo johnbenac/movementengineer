@@ -6,7 +6,7 @@ import {
 } from '../../ui/hints.js';
 import { collectDescendants, normaliseArray, parseCsvInput } from '../../utils/values.js';
 import { renderMarkdownPreview, openMarkdownModal } from '../../ui/markdown.js';
-import { deleteTextCollection, persistCanonItem } from './actions.js';
+import { deleteTextCollection } from './actions.js';
 import { createChipTile } from '../../ui/chips.js';
 
 const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
@@ -47,6 +47,15 @@ function setStatus(ctx, text) {
   if (typeof ctx?.setStatus === 'function') return ctx.setStatus(text);
   if (typeof ctx?.store?.setStatus === 'function') return ctx.store.setStatus(text);
   return null;
+}
+
+function commitCanonSnapshot(ctx, snapshot, { show = false } = {}) {
+  return ctx.persistence
+    .commitSnapshot(snapshot, { dirtyScope: 'item', save: { show } })
+    .catch(err => {
+      console.error(err);
+      setStatus(ctx, 'Save failed');
+    });
 }
 
 function normalizeVm(vm) {
@@ -459,12 +468,13 @@ function renderNodeEditor(ctx, vm, selection) {
     save.textContent = 'Save shelf';
     save.addEventListener('click', () => {
       if (!DomainService?.upsertItem) return;
-      DomainService.upsertItem(snapshot, 'textCollections', {
-        ...(snapshot.textCollections || []).find(tc => tc.id === activeShelf.id),
+      const workingSnapshot = ctx.persistence.cloneSnapshot();
+      DomainService.upsertItem(workingSnapshot, 'textCollections', {
+        ...(workingSnapshot.textCollections || []).find(tc => tc.id === activeShelf.id),
         name: nameInput.value,
         description: desc.value
       });
-      persistCanonItem(ctx, { show: false });
+      commitCanonSnapshot(ctx, workingSnapshot, { show: false });
       setStatus(ctx, 'Shelf saved');
       renderLibraryView(ctx);
     });
@@ -569,9 +579,11 @@ function renderNodeEditor(ctx, vm, selection) {
       window.alert?.('Cannot set a descendant as the parent.');
       return;
     }
-    DomainService.upsertItem(snapshot, 'texts', {
+    const workingSnapshot = ctx.persistence.cloneSnapshot();
+    DomainService.upsertItem(workingSnapshot, 'texts', {
       ...(() => {
-        const existing = (snapshot.texts || []).find(t => t.id === activeNode.id) || {};
+        const existing =
+          (workingSnapshot.texts || []).find(t => t.id === activeNode.id) || {};
         const { level: _legacyLevel, ...rest } = existing;
         return rest;
       })(),
@@ -583,7 +595,7 @@ function renderNodeEditor(ctx, vm, selection) {
       mentionsEntityIds: parseCsvInput(mentionsInput.value),
       content: contentInput.value
     });
-    persistCanonItem(ctx, { show: false });
+    commitCanonSnapshot(ctx, workingSnapshot, { show: false });
     setStatus(ctx, 'Saved');
     renderLibraryView(ctx);
   });
@@ -592,7 +604,8 @@ function renderNodeEditor(ctx, vm, selection) {
   addChildBtn.textContent = 'Add child';
   addChildBtn.addEventListener('click', () => {
     if (!DomainService?.addNewItem || !currentMovementId) return;
-    const text = DomainService.addNewItem(snapshot, 'texts', currentMovementId);
+    const workingSnapshot = ctx.persistence.cloneSnapshot();
+    const text = DomainService.addNewItem(workingSnapshot, 'texts', currentMovementId);
     text.parentId = activeNode.id;
     text.title = 'New section';
     applyState(ctx, prev => ({
@@ -600,7 +613,7 @@ function renderNodeEditor(ctx, vm, selection) {
       currentTextId: text.id,
       currentBookId: vm.bookIdByNodeId[activeNode.id] || prev.currentBookId
     }));
-    persistCanonItem(ctx, { show: false });
+    commitCanonSnapshot(ctx, workingSnapshot, { show: false });
     renderLibraryView(ctx);
   });
 
@@ -608,7 +621,8 @@ function renderNodeEditor(ctx, vm, selection) {
   addSiblingBtn.textContent = 'Add sibling';
   addSiblingBtn.addEventListener('click', () => {
     if (!DomainService?.addNewItem || !currentMovementId) return;
-    const text = DomainService.addNewItem(snapshot, 'texts', currentMovementId);
+    const workingSnapshot = ctx.persistence.cloneSnapshot();
+    const text = DomainService.addNewItem(workingSnapshot, 'texts', currentMovementId);
     text.parentId = activeNode.parentId || null;
     text.title = 'New section';
     applyState(ctx, prev => ({
@@ -616,7 +630,7 @@ function renderNodeEditor(ctx, vm, selection) {
       currentTextId: text.id,
       currentBookId: vm.bookIdByNodeId[activeNode.id] || prev.currentBookId
     }));
-    persistCanonItem(ctx, { show: false });
+    commitCanonSnapshot(ctx, workingSnapshot, { show: false });
     renderLibraryView(ctx);
   });
 
@@ -717,15 +731,15 @@ function renderNodeEditor(ctx, vm, selection) {
 
 function toggleBookMembership(ctx, shelfId, bookId, shouldExist) {
   const state = getState(ctx);
-  const snapshot = state.snapshot || {};
+  const workingSnapshot = ctx.persistence.cloneSnapshot();
   const DomainService = getDomainService(ctx);
-  const shelf = (snapshot.textCollections || []).find(tc => tc.id === shelfId);
+  const shelf = (workingSnapshot.textCollections || []).find(tc => tc.id === shelfId);
   if (!shelf) return;
   const roots = new Set(normaliseArray(shelf.rootTextIds));
   if (shouldExist) roots.add(bookId);
   else roots.delete(bookId);
   shelf.rootTextIds = Array.from(roots);
-  DomainService?.upsertItem?.(snapshot, 'textCollections', shelf);
+  DomainService?.upsertItem?.(workingSnapshot, 'textCollections', shelf);
   if (!shouldExist && state.currentShelfId === shelfId && state.currentBookId === bookId) {
     const nextBookId = shelf.rootTextIds[0] || null;
     applyState(ctx, prev => ({
@@ -734,17 +748,17 @@ function toggleBookMembership(ctx, shelfId, bookId, shouldExist) {
       currentTextId: nextBookId
     }));
   }
-  persistCanonItem(ctx, { show: false });
+  commitCanonSnapshot(ctx, workingSnapshot, { show: false });
 }
 
 function removeBookFromShelf(ctx, shelfId, bookId) {
   const state = getState(ctx);
-  const snapshot = state.snapshot || {};
+  const workingSnapshot = ctx.persistence.cloneSnapshot();
   const DomainService = getDomainService(ctx);
-  const shelf = (snapshot.textCollections || []).find(tc => tc.id === shelfId);
+  const shelf = (workingSnapshot.textCollections || []).find(tc => tc.id === shelfId);
   if (!shelf) return;
   shelf.rootTextIds = normaliseArray(shelf.rootTextIds).filter(id => id !== bookId);
-  DomainService?.upsertItem?.(snapshot, 'textCollections', shelf);
+  DomainService?.upsertItem?.(workingSnapshot, 'textCollections', shelf);
   applyState(ctx, prev => {
     if (prev.currentShelfId !== shelfId || prev.currentBookId !== bookId) return prev;
     const nextBookId = shelf.rootTextIds[0] || null;
@@ -754,18 +768,18 @@ function removeBookFromShelf(ctx, shelfId, bookId) {
       currentTextId: nextBookId
     };
   });
-  persistCanonItem(ctx, { show: false });
+  commitCanonSnapshot(ctx, workingSnapshot, { show: false });
   setStatus(ctx, 'Book removed from shelf');
   renderLibraryView(ctx);
 }
 
 function deleteBookAndDescendants(ctx, bookId) {
   const state = getState(ctx);
-  const snapshot = state.snapshot || {};
+  const workingSnapshot = ctx.persistence.cloneSnapshot();
   const ViewModels = getViewModels(ctx);
   const DomainService = getDomainService(ctx);
   if (!ViewModels?.buildLibraryEditorViewModel || !DomainService?.deleteItem) return;
-  const vm = ViewModels.buildLibraryEditorViewModel(snapshot, {
+  const vm = ViewModels.buildLibraryEditorViewModel(workingSnapshot, {
     movementId: state.currentMovementId
   });
   const descendants = Array.from(collectDescendants(bookId, vm.nodesById, new Set()));
@@ -776,8 +790,8 @@ function deleteBookAndDescendants(ctx, bookId) {
     );
   if (!ok) return;
   const descendantSet = new Set(descendants);
-  descendants.forEach(id => DomainService.deleteItem(snapshot, 'texts', id));
-  (snapshot.textCollections || []).forEach(tc => {
+  descendants.forEach(id => DomainService.deleteItem(workingSnapshot, 'texts', id));
+  (workingSnapshot.textCollections || []).forEach(tc => {
     tc.rootTextIds = normaliseArray(tc.rootTextIds).filter(id => !descendantSet.has(id));
   });
   applyState(ctx, prev => ({
@@ -785,6 +799,6 @@ function deleteBookAndDescendants(ctx, bookId) {
     currentTextId: descendantSet.has(prev.currentTextId) ? null : prev.currentTextId,
     currentBookId: descendantSet.has(prev.currentBookId) ? null : prev.currentBookId
   }));
-  persistCanonItem(ctx, { show: true });
+  commitCanonSnapshot(ctx, workingSnapshot, { show: true });
   renderLibraryView(ctx);
 }

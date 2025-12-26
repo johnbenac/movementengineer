@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDomUtils } from '../../../../src/app/ui/dom.js';
+import { createPersistenceFacade } from '../../../../src/app/persistenceFacade.js';
 
 function renderDom() {
   document.body.innerHTML = `
@@ -77,16 +78,27 @@ function createCtx(snapshot, currentMovementId = 'm1', overrides = {}) {
     return setState(next || state);
   };
   const store = {
-    markDirty: vi.fn(),
     getState: () => state,
     setState,
     update
   };
+  const persistence = createPersistenceFacade({
+    getSnapshot: () => state.snapshot,
+    setSnapshot: next => {
+      state = { ...state, snapshot: next };
+    },
+    getState: () => state,
+    setState,
+    saveSnapshot: vi.fn(),
+    setStatus: vi.fn(),
+    defaultShow: false
+  });
   return {
     getState: () => state,
     setState,
     update,
     store,
+    persistence,
     services: { ViewModels, DomainService },
     dom,
     setStatus: vi.fn(),
@@ -197,7 +209,7 @@ describe('claims tab module', () => {
     const upsert = ctx.services.DomainService.upsertItem;
     expect(upsert).toHaveBeenCalledTimes(1);
     expect(upsert).toHaveBeenCalledWith(
-      snapshot,
+      expect.any(Object),
       'claims',
       expect.objectContaining({
         id: 'c1',
@@ -212,7 +224,6 @@ describe('claims tab module', () => {
         notes: 'New note'
       })
     );
-    expect(ctx.store.markDirty).toHaveBeenCalledWith('item');
   });
 
   it('keeps claim selection when clicking a link inside a row', async () => {

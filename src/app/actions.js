@@ -52,11 +52,11 @@ export function createActions(ctx) {
   }
 
   actions.markDirty = scope => {
-    if (ctx?.store?.markDirty) return ctx.store.markDirty(scope);
+    return ctx?.persistence?.markDirty?.(scope);
   };
 
   actions.saveSnapshot = opts => {
-    if (ctx?.store?.saveSnapshot) return ctx.store.saveSnapshot(opts);
+    return ctx?.persistence?.save?.(opts);
   };
 
   actions.activateTab = name => {

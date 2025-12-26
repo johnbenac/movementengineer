@@ -870,7 +870,7 @@ function setCollectionAndItem(ctx, tab, collectionName, itemId, options = {}) {
 function addNewItem(ctx, tab) {
   const state = getState(ctx);
   const DomainService = getDomainService(ctx);
-  const snapshot = state.snapshot || {};
+  const snapshot = ctx.persistence.cloneSnapshot();
   const collName = state.currentCollectionName;
 
   if (!DomainService?.addNewItem) {
@@ -890,15 +890,19 @@ function addNewItem(ctx, tab) {
   const navigation = pushNavigation(state.navigation, collName, skeleton.id);
   const nextState = {
     ...state,
-    snapshot,
     currentItemId: skeleton.id,
     navigation
   };
   applyState(ctx, nextState);
-  const store = getStore(ctx);
-  store?.markDirty?.('snapshot');
-  store?.saveSnapshot?.({ show: false, clearMovementDirty: false, clearItemDirty: true });
-  ctx.setStatus?.('New item created');
+  ctx.persistence
+    .commitSnapshot(snapshot, { dirtyScope: 'item', save: { show: false } })
+    .then(() => {
+      ctx.setStatus?.('New item created');
+    })
+    .catch(err => {
+      console.error(err);
+      ctx.setStatus?.('Save failed');
+    });
   tab.render?.(ctx);
 }
 
@@ -906,7 +910,7 @@ function saveCurrentItem(ctx, tab, options = {}) {
   const { persist = true } = options;
   const state = getState(ctx);
   const DomainService = getDomainService(ctx);
-  const snapshot = state.snapshot || {};
+  const snapshot = ctx.persistence.cloneSnapshot();
   const collName = state.currentCollectionName;
   const coll = snapshot[collName];
   const editor = document.getElementById('item-editor');
@@ -956,12 +960,14 @@ function saveCurrentItem(ctx, tab, options = {}) {
   };
   applyState(ctx, nextState);
   if (persist) {
-    const store = getStore(ctx);
-    store?.saveSnapshot?.({ clearItemDirty: true, clearMovementDirty: false });
+    ctx.persistence
+      .commitSnapshot(snapshot, { dirtyScope: 'item', save: true })
+      .catch(err => {
+        console.error(err);
+        ctx.setStatus?.('Save failed');
+      });
   } else {
-    const store = getStore(ctx);
-    store?.markSaved?.({ item: true });
-    store?.markDirty?.('snapshot');
+    ctx.persistence.commitSnapshot(snapshot, { dirtyScope: 'item' });
   }
   tab.render?.(ctx);
   return true;
@@ -970,7 +976,7 @@ function saveCurrentItem(ctx, tab, options = {}) {
 function deleteCurrentItem(ctx, tab) {
   const state = getState(ctx);
   const DomainService = getDomainService(ctx);
-  const snapshot = state.snapshot || {};
+  const snapshot = ctx.persistence.cloneSnapshot();
   const collName = state.currentCollectionName;
   const coll = snapshot[collName];
 
@@ -997,14 +1003,16 @@ function deleteCurrentItem(ctx, tab) {
   const navigation = pruneNavigation(state.navigation, collName, state.currentItemId);
   const nextState = {
     ...state,
-    snapshot,
     currentItemId: null,
     navigation
   };
   applyState(ctx, nextState);
-  const store = getStore(ctx);
-  store?.markDirty?.('snapshot');
-  store?.saveSnapshot?.({ clearItemDirty: true, clearMovementDirty: false });
+  ctx.persistence
+    .commitSnapshot(snapshot, { dirtyScope: 'item', save: true })
+    .catch(err => {
+      console.error(err);
+      ctx.setStatus?.('Save failed');
+    });
   tab.render?.(ctx);
 }
 
@@ -1081,7 +1089,7 @@ export function registerCollectionsTab(ctx) {
       const handleNavForward = () => tab.navigateHistory?.(context, 1);
       const handleEditorInput = () => {
         if (tab.__state.isPopulatingEditor) return;
-        context.store?.markDirty?.('item');
+        context.persistence?.markDirty?.('item');
       };
       const handleClearFacet = () => tab.clearFacet?.(context);
       const handleCopyMarkdown = async () => {

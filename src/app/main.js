@@ -21,6 +21,7 @@ import { initMovements } from './ui/movements.js';
 import { initShell } from './shell.js';
 import { createActions } from './actions.js';
 import { renderMarkdownPreview, openMarkdownModal } from './ui/markdown.js';
+import { createPersistenceFacade } from './persistenceFacade.js';
 import {
   collectDescendants,
   normaliseArray,
@@ -92,9 +93,20 @@ const utils = {
   }
 };
 const store = createStore({ services });
+const persistence = createPersistenceFacade({
+  getSnapshot: () => store.getState().snapshot,
+  setSnapshot: snapshot => store.setState(prev => ({ ...prev, snapshot })),
+  getState: () => store.getState(),
+  setState: next => store.setState(next),
+  saveSnapshot: snapshot => StorageService?.saveSnapshot?.(snapshot),
+  ensureAllCollections: snapshot => StorageService?.ensureAllCollections?.(snapshot),
+  setStatus: text => ui.setStatus?.(text),
+  defaultShow: true
+});
 
 const ctx = {
   store,
+  persistence,
   services,
   ui,
   dom,
