@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HINT_TEXT } from '../../../../src/app/ui/hints.js';
 import { addTextCollection } from '../../../../src/app/tabs/canon/actions.js';
 import { createDomUtils } from '../../../../src/app/ui/dom.js';
+import { createPersistenceFacade } from '../../../../src/app/persistenceFacade.js';
 
 const baseSnapshot = () => ({
   movements: [],
@@ -54,7 +55,7 @@ function createCtx({ state: stateOverrides = {}, services: servicesOverride = {}
     markDirty: vi.fn(),
     saveSnapshot: vi.fn()
   };
-  return {
+  const ctx = {
     getState: store.getState,
     update: updater => {
       const next = typeof updater === 'function' ? updater(state) : updater;
@@ -90,6 +91,14 @@ function createCtx({ state: stateOverrides = {}, services: servicesOverride = {}
       return lastSubscriber;
     }
   };
+  ctx.persistence = createPersistenceFacade({
+    getSnapshot: () => store.getState().snapshot || {},
+    setSnapshot: nextSnapshot => ctx.update(prev => ({ ...prev, snapshot: nextSnapshot })),
+    saveSnapshot: opts => store.saveSnapshot(opts),
+    markDirty: scope => store.markDirty(scope),
+    defaultShow: true
+  });
+  return ctx;
 }
 
 describe('canon tab module', () => {
@@ -167,6 +176,6 @@ describe('canon tab module', () => {
       clearMovementDirty: false
     });
     expect(ctx.getState().currentShelfId).toBe('tc1');
-    expect(snapshot.textCollections).toHaveLength(1);
+    expect(ctx.getState().snapshot.textCollections).toHaveLength(1);
   });
 });

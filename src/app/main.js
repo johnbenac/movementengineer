@@ -21,6 +21,7 @@ import { initMovements } from './ui/movements.js';
 import { initShell } from './shell.js';
 import { createActions } from './actions.js';
 import { renderMarkdownPreview, openMarkdownModal } from './ui/markdown.js';
+import { createPersistenceFacade } from './persistenceFacade.js';
 import {
   collectDescendants,
   normaliseArray,
@@ -44,6 +45,8 @@ function assertCtx(ctx) {
   if (!ctx?.actions?.openTarget) throw new Error('ctx.actions.openTarget missing');
   if (!ctx?.actions?.openItem) throw new Error('ctx.actions.openItem missing');
   if (!ctx?.actions?.openFacet) throw new Error('ctx.actions.openFacet missing');
+  if (!ctx?.persistence?.commitSnapshot)
+    throw new Error('ctx.persistence.commitSnapshot missing');
 }
 
 const movementEngineerGlobal = (globalThis.MovementEngineer ||= {});
@@ -107,8 +110,18 @@ const ctx = {
   showFatalImportError: (...args) => ui.showFatalImportError?.(...args),
   clearFatalImportError: (...args) => ui.clearFatalImportError?.(...args),
   tabs: movementEngineerGlobal.tabs || {},
-  actions: {}
+  actions: {},
+  persistence: null
 };
+
+ctx.persistence = createPersistenceFacade({
+  getSnapshot: () => store.getState().snapshot || {},
+  setSnapshot: nextSnapshot => store.setState(prev => ({ ...prev, snapshot: nextSnapshot })),
+  saveSnapshot: opts => store.saveSnapshot(opts),
+  markDirty: scope => store.markDirty(scope),
+  ensureAllCollections: services.StorageService?.ensureAllCollections,
+  defaultShow: true
+});
 
 ctx.actions = {
   ...createActions(ctx)

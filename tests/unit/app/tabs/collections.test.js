@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createActions } from '../../../../src/app/actions.js';
 import { createDomUtils } from '../../../../src/app/ui/dom.js';
+import { createPersistenceFacade } from '../../../../src/app/persistenceFacade.js';
 
 function renderDom() {
   document.body.innerHTML = `
@@ -66,6 +67,8 @@ function createCtx(initialState, overrides = {}) {
       update
     };
   store.getState = () => state;
+  store.setState = setState;
+  store.update = update;
   const StorageService =
     overrides.StorageService ||
     {
@@ -74,7 +77,7 @@ function createCtx(initialState, overrides = {}) {
     };
   const dom = createDomUtils();
 
-  return {
+  const ctx = {
     getState: () => state,
     setState,
     update,
@@ -85,6 +88,14 @@ function createCtx(initialState, overrides = {}) {
     actions: overrides.actions || {},
     tabs: {}
   };
+  ctx.persistence = createPersistenceFacade({
+    getSnapshot: () => store.getState().snapshot || {},
+    setSnapshot: nextSnapshot => store.setState(prev => ({ ...prev, snapshot: nextSnapshot })),
+    saveSnapshot: opts => store.saveSnapshot(opts),
+    markDirty: scope => store.markDirty(scope),
+    defaultShow: true
+  });
+  return ctx;
 }
 
 describe('collections tab module', () => {
@@ -154,12 +165,13 @@ describe('collections tab module', () => {
     const result = tab.saveCurrentItem(ctx);
 
     expect(result).toBe(true);
-    expect(snapshot.entities[0].name).toBe('Updated');
+    expect(ctx.getState().snapshot.entities[0].name).toBe('Updated');
     expect(ctx.getState().navigation.stack[0]).toEqual({
       collectionName: 'entities',
       itemId: 'e1'
     });
     expect(store.saveSnapshot).toHaveBeenCalledWith({
+      show: true,
       clearItemDirty: true,
       clearMovementDirty: false
     });
