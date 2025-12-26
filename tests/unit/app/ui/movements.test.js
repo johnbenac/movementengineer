@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDomUtils } from '../../../../src/app/ui/dom.js';
+import { createPersistenceFacade } from '../../../../src/app/persistenceFacade.js';
 import { initMovements } from '../../../../src/app/ui/movements.js';
 
 function createDomainServiceStub() {
@@ -98,6 +99,16 @@ function createStore(initialState) {
   };
 }
 
+function attachPersistence(ctx, store) {
+  ctx.persistence = createPersistenceFacade({
+    getSnapshot: () => store.getState().snapshot || {},
+    setSnapshot: nextSnapshot => store.setState(prev => ({ ...prev, snapshot: nextSnapshot })),
+    saveSnapshot: opts => store.saveSnapshot(opts),
+    markDirty: scope => store.markDirty(scope),
+    defaultShow: true
+  });
+}
+
 describe('movements UI module', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -134,6 +145,7 @@ describe('movements UI module', () => {
       services: { DomainService: createDomainServiceStub() },
       dom: createDomUtils()
     };
+    attachPersistence(ctx, store);
 
     initMovements(ctx);
 
@@ -165,6 +177,7 @@ describe('movements UI module', () => {
       services: { DomainService: createDomainServiceStub() },
       dom: createDomUtils()
     };
+    attachPersistence(ctx, store);
 
     initMovements(ctx);
 
@@ -212,6 +225,7 @@ describe('movements UI module', () => {
       services: { DomainService: domainMock },
       dom: createDomUtils()
     };
+    attachPersistence(ctx, store);
 
     initMovements(ctx);
 
@@ -260,6 +274,7 @@ describe('movements UI module', () => {
       ui: { setStatus: vi.fn() },
       shell: { renderActiveTab: vi.fn() }
     };
+    attachPersistence(ctx, store);
 
     initMovements(ctx);
 
@@ -278,7 +293,11 @@ describe('movements UI module', () => {
     ]);
     expect(selectMovement).toHaveBeenCalledWith('imp1');
     expect(ctx.ui.setStatus).toHaveBeenCalledWith('Repo imported ✓');
-    expect(store.markSaved).toHaveBeenCalledWith({ movement: true, item: true });
+    expect(store.saveSnapshot).toHaveBeenCalledWith({
+      clearMovementDirty: true,
+      clearItemDirty: true,
+      show: false
+    });
   });
   it('preserves existing data when importing an additional repo', async () => {
     const repoUrl = 'https://github.com/example/other';
@@ -330,6 +349,7 @@ describe('movements UI module', () => {
       ui: { setStatus: vi.fn() },
       shell: { renderActiveTab: vi.fn() }
     };
+    attachPersistence(ctx, store);
 
     initMovements(ctx);
 
@@ -399,6 +419,7 @@ describe('movements UI module', () => {
       ui: { setStatus: vi.fn() },
       shell: { renderActiveTab: vi.fn() }
     };
+    attachPersistence(ctx, store);
 
     initMovements(ctx);
 
@@ -455,6 +476,7 @@ describe('movements UI module', () => {
       dom: createDomUtils(),
       ui: { setStatus: vi.fn() }
     };
+    attachPersistence(ctx, store);
 
     initMovements(ctx);
 

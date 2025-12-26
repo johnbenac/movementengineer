@@ -459,12 +459,13 @@ function renderNodeEditor(ctx, vm, selection) {
     save.textContent = 'Save shelf';
     save.addEventListener('click', () => {
       if (!DomainService?.upsertItem) return;
-      DomainService.upsertItem(snapshot, 'textCollections', {
-        ...(snapshot.textCollections || []).find(tc => tc.id === activeShelf.id),
+      const nextSnapshot = ctx.persistence.cloneSnapshot();
+      DomainService.upsertItem(nextSnapshot, 'textCollections', {
+        ...(nextSnapshot.textCollections || []).find(tc => tc.id === activeShelf.id),
         name: nameInput.value,
         description: desc.value
       });
-      persistCanonItem(ctx, { show: false });
+      persistCanonItem(ctx, nextSnapshot, { show: false });
       setStatus(ctx, 'Shelf saved');
       renderLibraryView(ctx);
     });
@@ -569,9 +570,10 @@ function renderNodeEditor(ctx, vm, selection) {
       window.alert?.('Cannot set a descendant as the parent.');
       return;
     }
-    DomainService.upsertItem(snapshot, 'texts', {
+    const nextSnapshot = ctx.persistence.cloneSnapshot();
+    DomainService.upsertItem(nextSnapshot, 'texts', {
       ...(() => {
-        const existing = (snapshot.texts || []).find(t => t.id === activeNode.id) || {};
+        const existing = (nextSnapshot.texts || []).find(t => t.id === activeNode.id) || {};
         const { level: _legacyLevel, ...rest } = existing;
         return rest;
       })(),
@@ -583,7 +585,7 @@ function renderNodeEditor(ctx, vm, selection) {
       mentionsEntityIds: parseCsvInput(mentionsInput.value),
       content: contentInput.value
     });
-    persistCanonItem(ctx, { show: false });
+    persistCanonItem(ctx, nextSnapshot, { show: false });
     setStatus(ctx, 'Saved');
     renderLibraryView(ctx);
   });
@@ -592,7 +594,8 @@ function renderNodeEditor(ctx, vm, selection) {
   addChildBtn.textContent = 'Add child';
   addChildBtn.addEventListener('click', () => {
     if (!DomainService?.addNewItem || !currentMovementId) return;
-    const text = DomainService.addNewItem(snapshot, 'texts', currentMovementId);
+    const nextSnapshot = ctx.persistence.cloneSnapshot();
+    const text = DomainService.addNewItem(nextSnapshot, 'texts', currentMovementId);
     text.parentId = activeNode.id;
     text.title = 'New section';
     applyState(ctx, prev => ({
@@ -600,7 +603,7 @@ function renderNodeEditor(ctx, vm, selection) {
       currentTextId: text.id,
       currentBookId: vm.bookIdByNodeId[activeNode.id] || prev.currentBookId
     }));
-    persistCanonItem(ctx, { show: false });
+    persistCanonItem(ctx, nextSnapshot, { show: false });
     renderLibraryView(ctx);
   });
 
@@ -608,7 +611,8 @@ function renderNodeEditor(ctx, vm, selection) {
   addSiblingBtn.textContent = 'Add sibling';
   addSiblingBtn.addEventListener('click', () => {
     if (!DomainService?.addNewItem || !currentMovementId) return;
-    const text = DomainService.addNewItem(snapshot, 'texts', currentMovementId);
+    const nextSnapshot = ctx.persistence.cloneSnapshot();
+    const text = DomainService.addNewItem(nextSnapshot, 'texts', currentMovementId);
     text.parentId = activeNode.parentId || null;
     text.title = 'New section';
     applyState(ctx, prev => ({
@@ -616,7 +620,7 @@ function renderNodeEditor(ctx, vm, selection) {
       currentTextId: text.id,
       currentBookId: vm.bookIdByNodeId[activeNode.id] || prev.currentBookId
     }));
-    persistCanonItem(ctx, { show: false });
+    persistCanonItem(ctx, nextSnapshot, { show: false });
     renderLibraryView(ctx);
   });
 
@@ -717,7 +721,7 @@ function renderNodeEditor(ctx, vm, selection) {
 
 function toggleBookMembership(ctx, shelfId, bookId, shouldExist) {
   const state = getState(ctx);
-  const snapshot = state.snapshot || {};
+  const snapshot = ctx.persistence.cloneSnapshot();
   const DomainService = getDomainService(ctx);
   const shelf = (snapshot.textCollections || []).find(tc => tc.id === shelfId);
   if (!shelf) return;
@@ -734,12 +738,12 @@ function toggleBookMembership(ctx, shelfId, bookId, shouldExist) {
       currentTextId: nextBookId
     }));
   }
-  persistCanonItem(ctx, { show: false });
+  persistCanonItem(ctx, snapshot, { show: false });
 }
 
 function removeBookFromShelf(ctx, shelfId, bookId) {
   const state = getState(ctx);
-  const snapshot = state.snapshot || {};
+  const snapshot = ctx.persistence.cloneSnapshot();
   const DomainService = getDomainService(ctx);
   const shelf = (snapshot.textCollections || []).find(tc => tc.id === shelfId);
   if (!shelf) return;
@@ -754,14 +758,14 @@ function removeBookFromShelf(ctx, shelfId, bookId) {
       currentTextId: nextBookId
     };
   });
-  persistCanonItem(ctx, { show: false });
+  persistCanonItem(ctx, snapshot, { show: false });
   setStatus(ctx, 'Book removed from shelf');
   renderLibraryView(ctx);
 }
 
 function deleteBookAndDescendants(ctx, bookId) {
   const state = getState(ctx);
-  const snapshot = state.snapshot || {};
+  const snapshot = ctx.persistence.cloneSnapshot();
   const ViewModels = getViewModels(ctx);
   const DomainService = getDomainService(ctx);
   if (!ViewModels?.buildLibraryEditorViewModel || !DomainService?.deleteItem) return;
@@ -785,6 +789,6 @@ function deleteBookAndDescendants(ctx, bookId) {
     currentTextId: descendantSet.has(prev.currentTextId) ? null : prev.currentTextId,
     currentBookId: descendantSet.has(prev.currentBookId) ? null : prev.currentBookId
   }));
-  persistCanonItem(ctx, { show: true });
+  persistCanonItem(ctx, snapshot, { show: true });
   renderLibraryView(ctx);
 }

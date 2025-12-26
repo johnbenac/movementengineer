@@ -414,18 +414,6 @@ export function initMovements(ctx, options = {}) {
     return { repoUrl: `https://github.com/${owner}/${repo}` };
   }
 
-  function markDirty() {
-    if (ctx?.store?.markDirty) {
-      ctx.store.markDirty('movement');
-    }
-  }
-
-  function saveSnapshot() {
-    if (ctx?.store?.saveSnapshot) {
-      ctx.store.saveSnapshot({ clearMovementDirty: true, clearItemDirty: false, show: true });
-    }
-  }
-
   function computeRenderKey(state) {
     const snapshot = state?.snapshot || {};
     const movements = Array.isArray(snapshot.movements) ? snapshot.movements : [];
@@ -555,7 +543,7 @@ export function initMovements(ctx, options = {}) {
 
   function applyFormToSnapshot() {
     const state = getState();
-    const snapshot = state?.snapshot || {};
+    const snapshot = ctx.persistence.cloneSnapshot();
     const movements = Array.isArray(snapshot.movements) ? snapshot.movements : [];
     const targetId = state?.currentMovementId || null;
     const idx = movements.findIndex(m => m?.id === targetId || m?.movementId === targetId);
@@ -576,15 +564,12 @@ export function initMovements(ctx, options = {}) {
     );
     const nextSnapshot = { ...snapshot, movements: nextMovements };
 
-    if (ctx?.store?.setState) {
-      ctx.store.setState(prev => ({ ...prev, snapshot: nextSnapshot }));
-    }
+    ctx.persistence.commitSnapshot(nextSnapshot, { dirtyScope: 'movement' });
   }
 
   function handleInputChange() {
     if (isPopulatingForm) return;
     applyFormToSnapshot();
-    markDirty();
     scheduleRender();
   }
 
@@ -629,13 +614,12 @@ export function initMovements(ctx, options = {}) {
 
     if (!movement) return null;
 
-    if (ctx?.store?.setState) {
-      ctx.store.setState(prev => ({ ...prev, snapshot: nextSnapshot }));
-    }
+    ctx.persistence.commitSnapshot(nextSnapshot, {
+      dirtyScope: 'movement',
+      save: { show: true }
+    });
 
     selectMovement(movement.id || movement.movementId);
-    markDirty();
-    saveSnapshot();
     scheduleRender();
     return movement;
   }
@@ -664,21 +648,22 @@ export function initMovements(ctx, options = {}) {
         ? nextSnapshot.movements[0].id
         : null;
 
-    if (ctx?.store?.setState) {
-      ctx.store.setState(prev => ({
-        ...prev,
-        snapshot: nextSnapshot,
-        currentMovementId: fallbackId || null,
-        currentItemId: null,
-        currentTextId: null,
-        currentShelfId: null,
-        currentBookId: null
-      }));
-    }
+    ctx.store.setState(prev => ({
+      ...prev,
+      snapshot: nextSnapshot,
+      currentMovementId: fallbackId || null,
+      currentItemId: null,
+      currentTextId: null,
+      currentShelfId: null,
+      currentBookId: null
+    }));
+
+    ctx.persistence.commitSnapshot(nextSnapshot, {
+      dirtyScope: 'movement',
+      save: { show: true }
+    });
 
     selectMovement(fallbackId || null);
-    markDirty();
-    saveSnapshot();
     scheduleRender();
   }
 
@@ -781,7 +766,10 @@ export function initMovements(ctx, options = {}) {
       navigation: { stack: [], index: -1 }
     }));
 
-    ctx.store?.markSaved?.({ movement: true, item: true });
+    ctx.persistence.commitSnapshot(mergedSnapshot, {
+      dirtyScope: 'all',
+      save: { show: false }
+    });
 
     if (ctx.actions?.selectMovement && nextMovementId) {
       ctx.actions.selectMovement(nextMovementId);
@@ -946,8 +934,7 @@ export function initMovements(ctx, options = {}) {
   addListener(inputs.exportButton, 'click', () => handleExportZipClick());
   addListener(inputs.saveButton, 'click', () => {
     applyFormToSnapshot();
-    markDirty();
-    saveSnapshot();
+    ctx.persistence.save({ show: true, clearMovementDirty: true, clearItemDirty: false });
     scheduleRender();
   });
 

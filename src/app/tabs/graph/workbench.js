@@ -620,11 +620,12 @@ function ensureGraphWorkbenchDom(ctx, workbenchState) {
 
   dom.createEntityForm.addEventListener('submit', e => {
     e.preventDefault();
-    const { snapshot = {}, currentMovementId } = getState(ctx);
+    const { currentMovementId } = getState(ctx);
     const DomainService = getDomainService(ctx);
     if (!DomainService?.addNewItem || !DomainService?.upsertItem) return;
     if (!currentMovementId) return;
 
+    const snapshot = ctx.persistence.cloneSnapshot();
     const name = (dom.createEntityName.value || '').trim();
     if (!name) return;
 
@@ -646,7 +647,10 @@ function ensureGraphWorkbenchDom(ctx, workbenchState) {
       entity.notes = notes;
 
       DomainService.upsertItem(snapshot, 'entities', entity);
-      getStore(ctx)?.saveSnapshot?.({ show: false });
+      ctx.persistence.commitSnapshot(snapshot, {
+        dirtyScope: 'item',
+        save: { show: false }
+      });
       setStatus(ctx, 'Entity created');
 
       dom.createEntityName.value = '';
@@ -995,8 +999,12 @@ function renderSelected(ctx, dom, baseGraph, snapshot, workbenchState) {
 
     btnSave.addEventListener('click', () => {
       try {
-        DomainService.upsertItem?.(snapshot, collectionName, draft);
-        getStore(ctx)?.saveSnapshot?.({ show: false });
+        const nextSnapshot = ctx.persistence.cloneSnapshot();
+        DomainService.upsertItem?.(nextSnapshot, collectionName, draft);
+        ctx.persistence.commitSnapshot(nextSnapshot, {
+          dirtyScope: 'item',
+          save: { show: false }
+        });
         setStatus(ctx, `${collectionLabel} saved`);
         renderGraphWorkbench(ctx);
       } catch (err) {
@@ -1011,9 +1019,13 @@ function renderSelected(ctx, dom, baseGraph, snapshot, workbenchState) {
       if (!ok) return;
 
       try {
-        DomainService.deleteItem?.(snapshot, collectionName, record.id);
+        const nextSnapshot = ctx.persistence.cloneSnapshot();
+        DomainService.deleteItem?.(nextSnapshot, collectionName, record.id);
         patchWorkbenchState(ctx, { selection: null });
-        getStore(ctx)?.saveSnapshot?.({ show: false });
+        ctx.persistence.commitSnapshot(nextSnapshot, {
+          dirtyScope: 'item',
+          save: { show: false }
+        });
         setStatus(ctx, `${collectionLabel} deleted`);
         renderGraphWorkbench(ctx);
       } catch (err) {

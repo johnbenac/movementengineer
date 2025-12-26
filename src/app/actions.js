@@ -52,10 +52,12 @@ export function createActions(ctx) {
   }
 
   actions.markDirty = scope => {
+    if (ctx?.persistence?.markDirty) return ctx.persistence.markDirty(scope);
     if (ctx?.store?.markDirty) return ctx.store.markDirty(scope);
   };
 
   actions.saveSnapshot = opts => {
+    if (ctx?.persistence?.save) return ctx.persistence.save(opts);
     if (ctx?.store?.saveSnapshot) return ctx.store.saveSnapshot(opts);
   };
 

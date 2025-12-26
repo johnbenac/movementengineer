@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDomUtils } from '../../../../src/app/ui/dom.js';
+import { createPersistenceFacade } from '../../../../src/app/persistenceFacade.js';
 
 function renderDom() {
   document.body.innerHTML = `
@@ -78,11 +79,12 @@ function createCtx(snapshot, currentMovementId = 'm1', overrides = {}) {
   };
   const store = {
     markDirty: vi.fn(),
+    saveSnapshot: vi.fn(),
     getState: () => state,
     setState,
     update
   };
-  return {
+  const ctx = {
     getState: () => state,
     setState,
     update,
@@ -92,6 +94,14 @@ function createCtx(snapshot, currentMovementId = 'm1', overrides = {}) {
     setStatus: vi.fn(),
     tabs: {}
   };
+  ctx.persistence = createPersistenceFacade({
+    getSnapshot: () => store.getState().snapshot || {},
+    setSnapshot: nextSnapshot => store.setState(prev => ({ ...prev, snapshot: nextSnapshot })),
+    saveSnapshot: opts => store.saveSnapshot(opts),
+    markDirty: scope => store.markDirty(scope),
+    defaultShow: false
+  });
+  return ctx;
 }
 
 describe('claims tab module', () => {
@@ -197,7 +207,7 @@ describe('claims tab module', () => {
     const upsert = ctx.services.DomainService.upsertItem;
     expect(upsert).toHaveBeenCalledTimes(1);
     expect(upsert).toHaveBeenCalledWith(
-      snapshot,
+      expect.any(Object),
       'claims',
       expect.objectContaining({
         id: 'c1',

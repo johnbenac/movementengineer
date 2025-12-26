@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDomUtils } from '../../../../src/app/ui/dom.js';
+import { createPersistenceFacade } from '../../../../src/app/persistenceFacade.js';
 
 function renderDom() {
   document.body.innerHTML = `
@@ -102,16 +103,25 @@ function createCtx(snapshot, currentMovementId = 'm1', overrides = {}) {
   });
   const store = {
     markDirty: vi.fn(),
+    saveSnapshot: vi.fn(),
     getState: () => state,
     update
   };
-  return {
+  const ctx = {
     getState: () => state,
     update,
     store,
     services: { ViewModels, DomainService },
     dom
   };
+  ctx.persistence = createPersistenceFacade({
+    getSnapshot: () => store.getState().snapshot || {},
+    setSnapshot: nextSnapshot => store.update(prev => ({ ...prev, snapshot: nextSnapshot })),
+    saveSnapshot: opts => store.saveSnapshot(opts),
+    markDirty: scope => store.markDirty(scope),
+    defaultShow: false
+  });
+  return ctx;
 }
 
 describe('rules tab module', () => {
