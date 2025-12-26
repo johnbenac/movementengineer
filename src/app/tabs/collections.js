@@ -1,9 +1,7 @@
 import { getModelForSnapshot } from '../ui/schemaDoc.js';
 import { getPreviewFields, getSchemaGuide } from '../ui/modelUiHints.js';
 import { renderMarkdownPreview } from '../ui/markdown.js';
-
-const movementEngineerGlobal = window.MovementEngineer || (window.MovementEngineer = {});
-movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
+import { createTab } from './tabKit.js';
 
 function getState(ctx) {
   return ctx.store.getState() || {};
@@ -1043,10 +1041,11 @@ function clearFacet(ctx, tab) {
 
 export function registerCollectionsTab(ctx) {
   ctx?.dom?.installGlobalChipHandler?.(ctx);
-  const tab = {
-    __handlers: null,
-    __state: { isPopulatingEditor: false },
-    mount(context) {
+  let tab = null;
+  tab = createTab(ctx, {
+    name: 'collections',
+    render: context => renderCollectionsTab(context, tab),
+    setup: ({ ctx: context, bucket, rerender }) => {
       const select = document.getElementById('collection-select');
       const filterCheckbox = document.getElementById('collection-filter-by-movement');
       const addBtn = document.getElementById('btn-add-item');
@@ -1058,16 +1057,9 @@ export function registerCollectionsTab(ctx) {
       const copyMarkdownBtn = document.getElementById('btn-copy-item-markdown');
       const clearFacetBtn = document.getElementById('collections-facet-clear');
 
-      const rerender = () => tab.render(context);
-      const handleStateChange = () => {
-        const active = document.querySelector('.tab.active');
-        if (!active || active.dataset.tab !== 'collections') return;
-        rerender();
-      };
-
       const handleSelectChange = e =>
         tab.setCollectionAndItem?.(context, e.target.value, null, { addToHistory: false });
-      const handleFilterChange = rerender;
+      const handleFilterChange = () => rerender({ immediate: true });
       const handleAdd = () => tab.addNewItem?.(context);
       const handleDelete = () => tab.deleteCurrentItem?.(context);
       const handleSave = () => tab.saveCurrentItem?.(context);
@@ -1099,78 +1091,32 @@ export function registerCollectionsTab(ctx) {
         }
       };
 
-      if (select) select.addEventListener('change', handleSelectChange);
-      if (filterCheckbox) filterCheckbox.addEventListener('change', handleFilterChange);
-      if (addBtn) addBtn.addEventListener('click', handleAdd);
-      if (deleteBtn) deleteBtn.addEventListener('click', handleDelete);
-      if (saveBtn) saveBtn.addEventListener('click', handleSave);
-      if (navBack) navBack.addEventListener('click', handleNavBack);
-      if (navForward) navForward.addEventListener('click', handleNavForward);
-      if (editor) editor.addEventListener('input', handleEditorInput);
-      if (copyMarkdownBtn) copyMarkdownBtn.addEventListener('click', handleCopyMarkdown);
-      if (clearFacetBtn) clearFacetBtn.addEventListener('click', handleClearFacet);
-
-      const unsubscribe = context?.subscribe ? context.subscribe(handleStateChange) : null;
-
-      this.__handlers = {
-        select,
-        filterCheckbox,
-        addBtn,
-        deleteBtn,
-        saveBtn,
-        navBack,
-        navForward,
-        editor,
-        copyMarkdownBtn,
-        clearFacetBtn,
-        handleSelectChange,
-        handleFilterChange,
-        handleAdd,
-        handleDelete,
-        handleSave,
-        handleNavBack,
-        handleNavForward,
-        handleEditorInput,
-        handleCopyMarkdown,
-        handleClearFacet,
-        rerender,
-        unsubscribe
-      };
+      if (select) bucket.on(select, 'change', handleSelectChange);
+      if (filterCheckbox) bucket.on(filterCheckbox, 'change', handleFilterChange);
+      if (addBtn) bucket.on(addBtn, 'click', handleAdd);
+      if (deleteBtn) bucket.on(deleteBtn, 'click', handleDelete);
+      if (saveBtn) bucket.on(saveBtn, 'click', handleSave);
+      if (navBack) bucket.on(navBack, 'click', handleNavBack);
+      if (navForward) bucket.on(navForward, 'click', handleNavForward);
+      if (editor) bucket.on(editor, 'input', handleEditorInput);
+      if (copyMarkdownBtn) bucket.on(copyMarkdownBtn, 'click', handleCopyMarkdown);
+      if (clearFacetBtn) bucket.on(clearFacetBtn, 'click', handleClearFacet);
     },
-    render(context) {
-      renderCollectionsTab(context, tab);
+    reset: ({ tab: resetTab }) => {
+      resetTab.__state.isPopulatingEditor = false;
     },
-    unmount() {
-      const h = this.__handlers;
-      if (!h) return;
-      if (h.select) h.select.removeEventListener('change', h.handleSelectChange);
-      if (h.filterCheckbox) h.filterCheckbox.removeEventListener('change', h.handleFilterChange);
-      if (h.addBtn) h.addBtn.removeEventListener('click', h.handleAdd);
-      if (h.deleteBtn) h.deleteBtn.removeEventListener('click', h.handleDelete);
-      if (h.saveBtn) h.saveBtn.removeEventListener('click', h.handleSave);
-      if (h.navBack) h.navBack.removeEventListener('click', h.handleNavBack);
-      if (h.navForward) h.navForward.removeEventListener('click', h.handleNavForward);
-      if (h.editor) h.editor.removeEventListener('input', h.handleEditorInput);
-      if (h.copyMarkdownBtn) h.copyMarkdownBtn.removeEventListener('click', h.handleCopyMarkdown);
-      if (h.clearFacetBtn) h.clearFacetBtn.removeEventListener('click', h.handleClearFacet);
-      if (typeof h.unsubscribe === 'function') h.unsubscribe();
-      this.__handlers = null;
-      this.__state.isPopulatingEditor = false;
-    },
-    setCollectionAndItem: (context, collectionName, itemId, options) =>
-      setCollectionAndItem(context, tab, collectionName, itemId, options),
-    addNewItem: context => addNewItem(context, tab),
-    saveCurrentItem: (context, options) => saveCurrentItem(context, tab, options),
-    deleteCurrentItem: context => deleteCurrentItem(context, tab),
-    navigateHistory: (context, direction) => navigateHistory(context, tab, direction),
-    openFacet: (context, facet, value, scope) => openFacet(context, tab, facet, value, scope),
-    clearFacet: context => clearFacet(context, tab)
-  };
-
-  movementEngineerGlobal.tabs.collections = tab;
-  if (ctx?.tabs) {
-    ctx.tabs.collections = tab;
-  }
+    extend: {
+      __state: { isPopulatingEditor: false },
+      setCollectionAndItem: (context, collectionName, itemId, options) =>
+        setCollectionAndItem(context, tab, collectionName, itemId, options),
+      addNewItem: context => addNewItem(context, tab),
+      saveCurrentItem: (context, options) => saveCurrentItem(context, tab, options),
+      deleteCurrentItem: context => deleteCurrentItem(context, tab),
+      navigateHistory: (context, direction) => navigateHistory(context, tab, direction),
+      openFacet: (context, facet, value, scope) => openFacet(context, tab, facet, value, scope),
+      clearFacet: context => clearFacet(context, tab)
+    }
+  });
 
   return tab;
 }
