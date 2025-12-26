@@ -618,9 +618,9 @@ function ensureGraphWorkbenchDom(ctx, workbenchState) {
     renderGraphWorkbench(ctx);
   });
 
-  dom.createEntityForm.addEventListener('submit', e => {
+  dom.createEntityForm.addEventListener('submit', async e => {
     e.preventDefault();
-    const { snapshot = {}, currentMovementId } = getState(ctx);
+    const { currentMovementId } = getState(ctx);
     const DomainService = getDomainService(ctx);
     if (!DomainService?.addNewItem || !DomainService?.upsertItem) return;
     if (!currentMovementId) return;
@@ -636,7 +636,8 @@ function ensureGraphWorkbenchDom(ctx, workbenchState) {
     const notes = (dom.createEntityNotes.value || '').trim() || null;
 
     try {
-      const entity = DomainService.addNewItem(snapshot, 'entities', currentMovementId);
+      const nextSnapshot = ctx.persistence.cloneSnapshot();
+      const entity = DomainService.addNewItem(nextSnapshot, 'entities', currentMovementId);
       entity.name = name;
       entity.kind = kind;
       entity.summary = summary;
@@ -645,8 +646,11 @@ function ensureGraphWorkbenchDom(ctx, workbenchState) {
       entity.sourceEntityIds = sourceEntityIds;
       entity.notes = notes;
 
-      DomainService.upsertItem(snapshot, 'entities', entity);
-      getStore(ctx)?.saveSnapshot?.({ show: false });
+      DomainService.upsertItem(nextSnapshot, 'entities', entity);
+      await ctx.persistence.commitSnapshot(nextSnapshot, {
+        dirtyScope: 'item',
+        save: { show: false }
+      });
       setStatus(ctx, 'Entity created');
 
       dom.createEntityName.value = '';
@@ -993,10 +997,14 @@ function renderSelected(ctx, dom, baseGraph, snapshot, workbenchState) {
 
     dom.selectedBody.appendChild(form);
 
-    btnSave.addEventListener('click', () => {
+    btnSave.addEventListener('click', async () => {
       try {
-        DomainService.upsertItem?.(snapshot, collectionName, draft);
-        getStore(ctx)?.saveSnapshot?.({ show: false });
+        const nextSnapshot = ctx.persistence.cloneSnapshot();
+        DomainService.upsertItem?.(nextSnapshot, collectionName, draft);
+        await ctx.persistence.commitSnapshot(nextSnapshot, {
+          dirtyScope: 'item',
+          save: { show: false }
+        });
         setStatus(ctx, `${collectionLabel} saved`);
         renderGraphWorkbench(ctx);
       } catch (err) {
@@ -1004,16 +1012,20 @@ function renderSelected(ctx, dom, baseGraph, snapshot, workbenchState) {
       }
     });
 
-    btnDelete.addEventListener('click', () => {
+    btnDelete.addEventListener('click', async () => {
       const ok = window.confirm(
         `Delete this ${collectionLabel.toLowerCase()}?\n\n${title}\n\nThis cannot be undone.`
       );
       if (!ok) return;
 
       try {
-        DomainService.deleteItem?.(snapshot, collectionName, record.id);
+        const nextSnapshot = ctx.persistence.cloneSnapshot();
+        DomainService.deleteItem?.(nextSnapshot, collectionName, record.id);
         patchWorkbenchState(ctx, { selection: null });
-        getStore(ctx)?.saveSnapshot?.({ show: false });
+        await ctx.persistence.commitSnapshot(nextSnapshot, {
+          dirtyScope: 'item',
+          save: { show: false }
+        });
         setStatus(ctx, `${collectionLabel} deleted`);
         renderGraphWorkbench(ctx);
       } catch (err) {

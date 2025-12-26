@@ -91,10 +91,7 @@ function createStore(initialState) {
     subscribe: fn => {
       subscribers.add(fn);
       return () => subscribers.delete(fn);
-    },
-    markDirty: vi.fn(),
-    markSaved: vi.fn(),
-    saveSnapshot: vi.fn()
+    }
   };
 }
 
@@ -131,6 +128,7 @@ describe('movements UI module', () => {
       getState: store.getState,
       subscribe: store.subscribe,
       actions: { selectMovement: vi.fn() },
+      persistence: { markDirty: vi.fn(), save: vi.fn() },
       services: { DomainService: createDomainServiceStub() },
       dom: createDomUtils()
     };
@@ -162,6 +160,7 @@ describe('movements UI module', () => {
       getState: store.getState,
       subscribe: store.subscribe,
       actions: { selectMovement: vi.fn() },
+      persistence: { markDirty: vi.fn(), save: vi.fn() },
       services: { DomainService: createDomainServiceStub() },
       dom: createDomUtils()
     };
@@ -173,7 +172,7 @@ describe('movements UI module', () => {
     nameInput.dispatchEvent(new Event('input', { bubbles: true }));
 
     expect(store.getState().snapshot.movements[0].name).toBe('Updated');
-    expect(store.markDirty).toHaveBeenCalledWith('movement');
+    expect(ctx.persistence.markDirty).toHaveBeenCalledWith('movement');
   });
 
   it('delegates selection, add, and save actions', () => {
@@ -209,6 +208,7 @@ describe('movements UI module', () => {
       getState: store.getState,
       subscribe: store.subscribe,
       actions: { selectMovement },
+      persistence: { markDirty: vi.fn(), save: vi.fn() },
       services: { DomainService: domainMock },
       dom: createDomUtils()
     };
@@ -223,7 +223,7 @@ describe('movements UI module', () => {
     expect(selectMovement).toHaveBeenCalledWith('m2');
 
     document.getElementById('btn-save-movement').click();
-    expect(store.saveSnapshot).toHaveBeenCalledWith({
+    expect(ctx.persistence.save).toHaveBeenCalledWith({
       clearMovementDirty: true,
       clearItemDirty: false,
       show: true
@@ -252,6 +252,7 @@ describe('movements UI module', () => {
       getState: store.getState,
       subscribe: store.subscribe,
       actions: { selectMovement },
+      persistence: { markDirty: vi.fn(), save: vi.fn() },
       services: {
         DomainService: createDomainServiceStub(),
         MarkdownDatasetLoader: { importMovementRepo, parseGitHubRepoUrl }
@@ -278,7 +279,11 @@ describe('movements UI module', () => {
     ]);
     expect(selectMovement).toHaveBeenCalledWith('imp1');
     expect(ctx.ui.setStatus).toHaveBeenCalledWith('Repo imported ✓');
-    expect(store.markSaved).toHaveBeenCalledWith({ movement: true, item: true });
+    expect(ctx.persistence.save).toHaveBeenCalledWith({
+      show: false,
+      clearMovementDirty: true,
+      clearItemDirty: true
+    });
   });
   it('preserves existing data when importing an additional repo', async () => {
     const repoUrl = 'https://github.com/example/other';

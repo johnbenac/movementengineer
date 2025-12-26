@@ -20,18 +20,6 @@ function getDomainService(ctx) {
   return ctx.services.DomainService;
 }
 
-function getStorageService(ctx) {
-  return ctx.services.StorageService;
-}
-
-function cloneSnapshot(snapshot, storageService) {
-  const cloned = snapshot ? JSON.parse(JSON.stringify(snapshot)) : {};
-  if (storageService?.ensureAllCollections) {
-    return storageService.ensureAllCollections(cloned);
-  }
-  return cloned;
-}
-
 function parseCsv(raw) {
   if (!raw) return [];
   return raw
@@ -226,28 +214,17 @@ function renderRuleEditor(ctx, tabState, helpers, editorVm, statusMessage = null
   setSelectedValues(els.sourceEntities, selectedRule.sourceEntityIds || []);
 }
 
-function pushState(ctx, nextState) {
-  if (typeof ctx?.update === 'function') {
-    return ctx.update(() => nextState);
-  }
-  if (typeof ctx?.setState === 'function') {
-    return ctx.setState(nextState);
-  }
-  return nextState;
-}
-
 function renderTab(tab, ctx) {
   if (!tab || typeof tab.render !== 'function') return;
   tab.render.call(tab, ctx);
 }
 
-function handleAddRule(ctx, tab) {
+async function handleAddRule(ctx, tab) {
   const state = getState(ctx);
   const movementId = state.currentMovementId;
   if (!movementId) return;
   const DomainService = getDomainService(ctx);
-  const StorageService = getStorageService(ctx);
-  const snapshot = cloneSnapshot(state.snapshot, StorageService);
+  const snapshot = ctx.persistence.cloneSnapshot();
   let created =
     DomainService && typeof DomainService.addNewItem === 'function'
       ? DomainService.addNewItem(snapshot, 'rules', movementId)
@@ -262,20 +239,17 @@ function handleAddRule(ctx, tab) {
     snapshot.rules = snapshot.rules || [];
     snapshot.rules.push(created);
   }
-  const nextState = { ...state, snapshot };
-  pushState(ctx, nextState);
+  await ctx.persistence.commitSnapshot(snapshot, { dirtyScope: 'item' });
   if (tab?.__state) tab.__state.selectedRuleId = created.id;
-  ctx?.store?.markDirty?.('item');
   renderTab(tab, ctx);
 }
 
-function handleSaveRule(ctx, tab) {
+async function handleSaveRule(ctx, tab) {
   const state = getState(ctx);
   const selectedRuleId = tab?.__state?.selectedRuleId;
   if (!selectedRuleId) return;
   const DomainService = getDomainService(ctx);
-  const StorageService = getStorageService(ctx);
-  const snapshot = cloneSnapshot(state.snapshot, StorageService);
+  const snapshot = ctx.persistence.cloneSnapshot();
   snapshot.rules = snapshot.rules || [];
 
   const els = getRuleEditorEls();
@@ -319,20 +293,17 @@ function handleSaveRule(ctx, tab) {
     else snapshot.rules.push(updated);
   }
 
-  const nextState = { ...state, snapshot };
-  pushState(ctx, nextState);
-  ctx?.store?.markDirty?.('item');
+  await ctx.persistence.commitSnapshot(snapshot, { dirtyScope: 'item' });
   renderTab(tab, ctx);
 }
 
-function handleDeleteRule(ctx, tab) {
+async function handleDeleteRule(ctx, tab) {
   const state = getState(ctx);
   const selectedRuleId = tab?.__state?.selectedRuleId;
   if (!selectedRuleId) return;
 
   const DomainService = getDomainService(ctx);
-  const StorageService = getStorageService(ctx);
-  const snapshot = cloneSnapshot(state.snapshot, StorageService);
+  const snapshot = ctx.persistence.cloneSnapshot();
   snapshot.rules = snapshot.rules || [];
 
   if (DomainService && typeof DomainService.deleteItem === 'function') {
@@ -344,9 +315,7 @@ function handleDeleteRule(ctx, tab) {
   const remaining = (snapshot.rules || []).filter(r => r.movementId === state.currentMovementId);
   if (tab?.__state) tab.__state.selectedRuleId = remaining[0]?.id || null;
 
-  const nextState = { ...state, snapshot };
-  pushState(ctx, nextState);
-  ctx?.store?.markDirty?.('item');
+  await ctx.persistence.commitSnapshot(snapshot, { dirtyScope: 'item' });
   renderTab(tab, ctx);
 }
 

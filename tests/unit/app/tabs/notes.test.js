@@ -55,7 +55,7 @@ function createViewModels() {
   };
 }
 
-function createCtx({ snapshot, DomainService, StorageService, currentMovementId = 'm1' }) {
+function createCtx({ snapshot, DomainService, currentMovementId = 'm1' }) {
   const state = { snapshot, currentMovementId };
   const store = {
     getState: () => state,
@@ -66,9 +66,14 @@ function createCtx({ snapshot, DomainService, StorageService, currentMovementId 
     getState: store.getState,
     setState: store.setState,
     subscribe: () => () => {},
+    persistence: {
+      cloneSnapshot: vi.fn(() => JSON.parse(JSON.stringify(state.snapshot))),
+      commitSnapshot: vi.fn(nextSnapshot => {
+        state.snapshot = nextSnapshot;
+      })
+    },
     services: {
       DomainService,
-      StorageService,
       ViewModels: createViewModels()
     },
     dom: createDomUtils(),
@@ -103,14 +108,11 @@ async function setup(options = {}) {
         return before !== snap[coll].length;
       })
     }))();
-  const StorageService =
-    options.StorageService ||
-    (() => ({ saveSnapshot: vi.fn() }))();
-  const ctx = createCtx({ snapshot, DomainService, StorageService });
+  const ctx = createCtx({ snapshot, DomainService });
   const tab = registerNotesTab(ctx);
   tab.mount(ctx);
   tab.render(ctx);
-  return { tab, ctx, DomainService, StorageService, snapshot };
+  return { tab, ctx, DomainService, snapshot };
 }
 
 describe('notes tab module', () => {
@@ -128,7 +130,6 @@ describe('notes tab module', () => {
         upsertItem: vi.fn(),
         deleteItem: vi.fn()
       }))(),
-      StorageService: { saveSnapshot: vi.fn() },
       currentMovementId: null
     });
 
@@ -149,7 +150,7 @@ describe('notes tab module', () => {
   });
 
   it('creates a new note and persists it', async () => {
-    const { ctx, DomainService, StorageService, snapshot } = await setup();
+    const { ctx, DomainService } = await setup();
 
     document.getElementById('note-target-type').value = 'Entity';
     document.getElementById('note-target-id').value = 'e1';
@@ -163,8 +164,11 @@ describe('notes tab module', () => {
 
     expect(DomainService.addNewItem).toHaveBeenCalled();
     expect(DomainService.upsertItem).toHaveBeenCalled();
-    expect(StorageService.saveSnapshot).toHaveBeenCalledWith(snapshot);
-    const created = snapshot.notes.find(n => n.id === 'note-new');
+    expect(ctx.persistence.commitSnapshot).toHaveBeenCalledWith(
+      expect.any(Object),
+      { dirtyScope: 'item', save: { show: false } }
+    );
+    const created = ctx.getState().snapshot.notes.find(n => n.id === 'note-new');
     expect(created).toMatchObject({
       movementId: 'm1',
       targetType: 'Entity',
@@ -187,7 +191,7 @@ describe('notes tab module', () => {
       tags: []
     });
 
-    const { ctx, DomainService, StorageService } = await setup({ snapshot });
+    const { ctx, DomainService } = await setup({ snapshot });
     vi.spyOn(window, 'confirm').mockReturnValue(true);
 
     const row = document.querySelector('tr[data-note-id="n1"]');
@@ -201,7 +205,7 @@ describe('notes tab module', () => {
     );
 
     expect(DomainService.upsertItem).toHaveBeenCalledWith(
-      snapshot,
+      ctx.getState().snapshot,
       'notes',
       expect.objectContaining({ id: 'n1', body: 'Updated text' })
     );
@@ -209,9 +213,13 @@ describe('notes tab module', () => {
     const deleteBtn = document.querySelector('[data-note-id="n1"][data-note-action="delete"]');
     deleteBtn.click();
 
-    expect(DomainService.deleteItem).toHaveBeenCalledWith(snapshot, 'notes', 'n1');
-    expect(StorageService.saveSnapshot).toHaveBeenCalled();
-    expect(snapshot.notes.find(n => n.id === 'n1')).toBeUndefined();
+    expect(DomainService.deleteItem).toHaveBeenCalledWith(
+      ctx.getState().snapshot,
+      'notes',
+      'n1'
+    );
+    expect(ctx.persistence.commitSnapshot).toHaveBeenCalled();
+    expect(ctx.getState().snapshot.notes.find(n => n.id === 'n1')).toBeUndefined();
   });
 
   it('updates an existing note even when the ID is numeric', async () => {
@@ -226,7 +234,7 @@ describe('notes tab module', () => {
       tags: []
     });
 
-    const { DomainService, snapshot: snap } = await setup({ snapshot });
+    const { DomainService, ctx } = await setup({ snapshot });
 
     const row = document.querySelector('tr[data-note-id="123"]');
     row.click();
@@ -240,11 +248,11 @@ describe('notes tab module', () => {
 
     expect(DomainService.addNewItem).not.toHaveBeenCalled();
     expect(DomainService.upsertItem).toHaveBeenCalledWith(
-      snap,
+      ctx.getState().snapshot,
       'notes',
       expect.objectContaining({ id: 123, body: 'Updated text' })
     );
-    expect(snap.notes.find(n => n.id === 123)?.body).toBe('Updated text');
+    expect(ctx.getState().snapshot.notes.find(n => n.id === 123)?.body).toBe('Updated text');
   });
 
   it('keeps the selected target type and updates target ID suggestions', async () => {

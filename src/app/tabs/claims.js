@@ -142,23 +142,20 @@ function populateClaimForm(form, lookups, claim, dom) {
   dom.ensureDatalistOptions(form.sourceOfTruthDatalist, lookups.sourcesOfTruth);
 }
 
-function handleAddClaim(ctx, tab) {
+async function handleAddClaim(ctx, tab) {
   const ds = getDomainService(ctx);
   const state = getState(ctx);
   const tabState = tab.__state || DEFAULT_TAB_STATE;
   if (!ds || !state.currentMovementId) return;
-  ctx.update(prev => {
-    const snapshot = prev.snapshot || {};
-    const created = ds.addNewItem(snapshot, 'claims', prev.currentMovementId);
-    tabState.selectedClaimId = created.id;
-    return { ...prev, snapshot };
-  });
-  ctx.store?.markDirty?.('item');
+  const snapshot = ctx.persistence.cloneSnapshot();
+  const created = ds.addNewItem(snapshot, 'claims', state.currentMovementId);
+  tabState.selectedClaimId = created.id;
+  await ctx.persistence.commitSnapshot(snapshot, { dirtyScope: 'item' });
   ctx.setStatus?.('New claim created');
   tab?.render?.call(tab, ctx);
 }
 
-function handleDeleteClaim(ctx, tab) {
+async function handleDeleteClaim(ctx, tab) {
   const ds = getDomainService(ctx);
   const state = getState(ctx);
   const tabState = tab.__state || DEFAULT_TAB_STATE;
@@ -171,18 +168,15 @@ function handleDeleteClaim(ctx, tab) {
     `Delete this claim?\n\n${label || tabState.selectedClaimId}\n\nThis cannot be undone.`
   );
   if (!ok) return;
-  ctx.update(prev => {
-    const snapshot = prev.snapshot || {};
-    ds.deleteItem(snapshot, 'claims', tabState.selectedClaimId);
-    return { ...prev, snapshot };
-  });
+  const snapshot = ctx.persistence.cloneSnapshot();
+  ds.deleteItem(snapshot, 'claims', tabState.selectedClaimId);
   tabState.selectedClaimId = null;
-  ctx.store?.markDirty?.('item');
+  await ctx.persistence.commitSnapshot(snapshot, { dirtyScope: 'item' });
   ctx.setStatus?.('Claim deleted');
   tab?.render?.call(tab, ctx);
 }
 
-function handleSaveClaim(ctx, tab) {
+async function handleSaveClaim(ctx, tab) {
   const ds = getDomainService(ctx);
   const state = getState(ctx);
   const tabState = tab.__state || DEFAULT_TAB_STATE;
@@ -222,13 +216,10 @@ function handleSaveClaim(ctx, tab) {
     notes: values.notes || null
   };
 
-  ctx.update(prev => {
-    const snapshot = prev.snapshot || {};
-    ds.upsertItem(snapshot, 'claims', updated);
-    return { ...prev, snapshot };
-  });
+  const snapshot = ctx.persistence.cloneSnapshot();
+  ds.upsertItem(snapshot, 'claims', updated);
   tabState.selectedClaimId = updated.id;
-  ctx.store?.markDirty?.('item');
+  await ctx.persistence.commitSnapshot(snapshot, { dirtyScope: 'item' });
   ctx.setStatus?.('Claim saved');
 }
 

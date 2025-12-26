@@ -18,7 +18,7 @@ export const DEFAULT_GRAPH_WORKBENCH_STATE = {
   filterNodeTypes: []
 };
 
-function ensureFlags(flags = {}) {
+export function ensureFlags(flags = {}) {
   const next = {
     snapshotDirty: !!flags.snapshotDirty,
     movementFormDirty: !!flags.movementFormDirty,

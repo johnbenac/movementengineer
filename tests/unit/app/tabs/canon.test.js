@@ -50,9 +50,13 @@ function createCtx({ state: stateOverrides = {}, services: servicesOverride = {}
       if (next && typeof next === 'object') Object.assign(state, next);
       return state;
     },
-    setStatus: vi.fn(),
-    markDirty: vi.fn(),
-    saveSnapshot: vi.fn()
+    setStatus: vi.fn()
+  };
+  const persistence = {
+    cloneSnapshot: vi.fn(() => JSON.parse(JSON.stringify(state.snapshot))),
+    commitSnapshot: vi.fn(nextSnapshot => {
+      Object.assign(state, { snapshot: nextSnapshot });
+    })
   };
   return {
     getState: store.getState,
@@ -70,6 +74,7 @@ function createCtx({ state: stateOverrides = {}, services: servicesOverride = {}
       return vi.fn();
     },
     store,
+    persistence,
     services: {
       DomainService:
         servicesOverride.DomainService ||
@@ -144,7 +149,7 @@ describe('canon tab module', () => {
     expect(renderSpy).toHaveBeenCalled();
   });
 
-  it('adds and persists a text collection', () => {
+  it('adds and persists a text collection', async () => {
     const snapshot = baseSnapshot();
     const DomainService = {
       addNewItem: vi.fn((snap, collection) => {
@@ -158,15 +163,13 @@ describe('canon tab module', () => {
       services: { DomainService }
     });
 
-    addTextCollection(ctx);
+    await addTextCollection(ctx);
 
-    expect(ctx.store.markDirty).toHaveBeenCalledWith('item');
-    expect(ctx.store.saveSnapshot).toHaveBeenCalledWith({
-      show: false,
-      clearItemDirty: true,
-      clearMovementDirty: false
-    });
+    expect(ctx.persistence.commitSnapshot).toHaveBeenCalledWith(
+      expect.any(Object),
+      { dirtyScope: 'item', save: { show: false } }
+    );
     expect(ctx.getState().currentShelfId).toBe('tc1');
-    expect(snapshot.textCollections).toHaveLength(1);
+    expect(ctx.getState().snapshot.textCollections).toHaveLength(1);
   });
 });

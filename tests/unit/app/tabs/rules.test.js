@@ -101,14 +101,20 @@ function createCtx(snapshot, currentMovementId = 'm1', overrides = {}) {
     return state;
   });
   const store = {
-    markDirty: vi.fn(),
     getState: () => state,
     update
+  };
+  const persistence = {
+    cloneSnapshot: vi.fn(() => JSON.parse(JSON.stringify(state.snapshot))),
+    commitSnapshot: vi.fn(nextSnapshot => {
+      state = { ...state, snapshot: nextSnapshot };
+    })
   };
   return {
     getState: () => state,
     update,
     store,
+    persistence,
     services: { ViewModels, DomainService },
     dom
   };
@@ -249,8 +255,10 @@ describe('rules tab module', () => {
     const savedRule = DomainService.upsertItem.mock.calls[0][2];
     expect(savedRule.shortText).toBe('Updated rule');
     expect(savedRule.supportingTextIds).toEqual(['t1']);
-    expect(ctx.update).toHaveBeenCalled();
-    expect(ctx.store.markDirty).toHaveBeenCalledWith('item');
+    expect(ctx.persistence.commitSnapshot).toHaveBeenCalledWith(
+      expect.any(Object),
+      { dirtyScope: 'item' }
+    );
   });
 
   it('adds a new rule for the current movement', async () => {
@@ -304,9 +312,9 @@ describe('rules tab module', () => {
     tab.render(ctx);
 
     document.getElementById('rules-add-btn').dispatchEvent(new Event('click', { bubbles: true }));
+    await Promise.resolve();
 
     expect(DomainService.addNewItem).toHaveBeenCalledWith(expect.any(Object), 'rules', 'm1');
-    expect(ctx.update).toHaveBeenCalled();
     expect(document.getElementById('rules-editor-select').value).toBe('r2');
   });
 
@@ -438,16 +446,19 @@ describe('rules tab module', () => {
     renderSpy.mockClear();
 
     document.getElementById('rules-add-btn').dispatchEvent(new Event('click', { bubbles: true }));
+    await Promise.resolve();
     expect(renderSpy).toHaveBeenCalled();
 
     renderSpy.mockClear();
     document.getElementById('rules-save-btn').dispatchEvent(new Event('click', { bubbles: true }));
+    await Promise.resolve();
     expect(renderSpy).toHaveBeenCalled();
 
     renderSpy.mockClear();
     document
       .getElementById('rules-delete-btn')
       .dispatchEvent(new Event('click', { bubbles: true }));
+    await Promise.resolve();
     expect(renderSpy).toHaveBeenCalled();
   });
 });

@@ -415,14 +415,21 @@ export function initMovements(ctx, options = {}) {
   }
 
   function markDirty() {
-    if (ctx?.store?.markDirty) {
-      ctx.store.markDirty('movement');
+    if (ctx?.persistence?.markDirty) {
+      ctx.persistence.markDirty('movement');
     }
   }
 
-  function saveSnapshot() {
-    if (ctx?.store?.saveSnapshot) {
-      ctx.store.saveSnapshot({ clearMovementDirty: true, clearItemDirty: false, show: true });
+  async function saveSnapshot() {
+    try {
+      await ctx?.persistence?.save?.({
+        clearMovementDirty: true,
+        clearItemDirty: false,
+        show: true
+      });
+    } catch (err) {
+      console.error(err);
+      ctx?.setStatus?.('Save failed');
     }
   }
 
@@ -781,7 +788,11 @@ export function initMovements(ctx, options = {}) {
       navigation: { stack: [], index: -1 }
     }));
 
-    ctx.store?.markSaved?.({ movement: true, item: true });
+    await ctx.persistence?.save?.({
+      show: false,
+      clearMovementDirty: true,
+      clearItemDirty: true
+    });
 
     if (ctx.actions?.selectMovement && nextMovementId) {
       ctx.actions.selectMovement(nextMovementId);
