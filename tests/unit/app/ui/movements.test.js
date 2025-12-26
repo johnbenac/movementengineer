@@ -91,10 +91,7 @@ function createStore(initialState) {
     subscribe: fn => {
       subscribers.add(fn);
       return () => subscribers.delete(fn);
-    },
-    markDirty: vi.fn(),
-    markSaved: vi.fn(),
-    saveSnapshot: vi.fn()
+    }
   };
 }
 
@@ -126,10 +123,12 @@ describe('movements UI module', () => {
       flags: {}
     };
     const store = createStore(state);
+    const persistence = { markDirty: vi.fn(), save: vi.fn() };
     const ctx = {
       store,
       getState: store.getState,
       subscribe: store.subscribe,
+      persistence,
       actions: { selectMovement: vi.fn() },
       services: { DomainService: createDomainServiceStub() },
       dom: createDomUtils()
@@ -157,10 +156,12 @@ describe('movements UI module', () => {
       flags: {}
     };
     const store = createStore(state);
+    const persistence = { markDirty: vi.fn(), save: vi.fn() };
     const ctx = {
       store,
       getState: store.getState,
       subscribe: store.subscribe,
+      persistence,
       actions: { selectMovement: vi.fn() },
       services: { DomainService: createDomainServiceStub() },
       dom: createDomUtils()
@@ -173,7 +174,7 @@ describe('movements UI module', () => {
     nameInput.dispatchEvent(new Event('input', { bubbles: true }));
 
     expect(store.getState().snapshot.movements[0].name).toBe('Updated');
-    expect(store.markDirty).toHaveBeenCalledWith('movement');
+    expect(ctx.persistence.markDirty).toHaveBeenCalledWith('movement');
   });
 
   it('delegates selection, add, and save actions', () => {
@@ -203,11 +204,13 @@ describe('movements UI module', () => {
       flags: {}
     };
     const store = createStore(state);
+    const persistence = { markDirty: vi.fn(), save: vi.fn() };
     const selectMovement = vi.fn();
     const ctx = {
       store,
       getState: store.getState,
       subscribe: store.subscribe,
+      persistence,
       actions: { selectMovement },
       services: { DomainService: domainMock },
       dom: createDomUtils()
@@ -223,7 +226,7 @@ describe('movements UI module', () => {
     expect(selectMovement).toHaveBeenCalledWith('m2');
 
     document.getElementById('btn-save-movement').click();
-    expect(store.saveSnapshot).toHaveBeenCalledWith({
+    expect(ctx.persistence.save).toHaveBeenCalledWith({
       clearMovementDirty: true,
       clearItemDirty: false,
       show: true
@@ -246,11 +249,13 @@ describe('movements UI module', () => {
       flags: {}
     };
     const store = createStore(state);
+    const persistence = { markDirty: vi.fn(), save: vi.fn() };
     const selectMovement = vi.fn();
     const ctx = {
       store,
       getState: store.getState,
       subscribe: store.subscribe,
+      persistence,
       actions: { selectMovement },
       services: {
         DomainService: createDomainServiceStub(),
@@ -278,7 +283,11 @@ describe('movements UI module', () => {
     ]);
     expect(selectMovement).toHaveBeenCalledWith('imp1');
     expect(ctx.ui.setStatus).toHaveBeenCalledWith('Repo imported ✓');
-    expect(store.markSaved).toHaveBeenCalledWith({ movement: true, item: true });
+    expect(ctx.persistence.save).toHaveBeenCalledWith({
+      show: false,
+      clearMovementDirty: true,
+      clearItemDirty: true
+    });
   });
   it('preserves existing data when importing an additional repo', async () => {
     const repoUrl = 'https://github.com/example/other';
@@ -316,11 +325,13 @@ describe('movements UI module', () => {
     };
 
     const store = createStore(state);
+    const persistence = { markDirty: vi.fn(), save: vi.fn() };
 
     const ctx = {
       store,
       getState: store.getState,
       subscribe: store.subscribe,
+      persistence,
       actions: { selectMovement: vi.fn() },
       services: {
         DomainService: createDomainServiceStub(),
@@ -385,11 +396,13 @@ describe('movements UI module', () => {
     };
 
     const store = createStore(state);
+    const persistence = { markDirty: vi.fn(), save: vi.fn() };
 
     const ctx = {
       store,
       getState: store.getState,
       subscribe: store.subscribe,
+      persistence,
       actions: { selectMovement: vi.fn() },
       services: {
         DomainService: createDomainServiceStub(),
@@ -443,10 +456,12 @@ describe('movements UI module', () => {
       flags: {}
     };
     const store = createStore(state);
+    const persistence = { markDirty: vi.fn(), save: vi.fn() };
     const ctx = {
       store,
       getState: store.getState,
       subscribe: store.subscribe,
+      persistence,
       actions: { selectMovement: vi.fn() },
       services: {
         DomainService: createDomainServiceStub(),

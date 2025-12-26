@@ -51,13 +51,9 @@ export function createActions(ctx) {
     return { stack, index: stack.length - 1 };
   }
 
-  actions.markDirty = scope => {
-    if (ctx?.store?.markDirty) return ctx.store.markDirty(scope);
-  };
+  actions.markDirty = scope => ctx?.persistence?.markDirty?.(scope);
 
-  actions.saveSnapshot = opts => {
-    if (ctx?.store?.saveSnapshot) return ctx.store.saveSnapshot(opts);
-  };
+  actions.saveSnapshot = opts => ctx?.persistence?.save?.(opts);
 
   actions.activateTab = name => {
     ctx?.shell?.activateTab?.(name);

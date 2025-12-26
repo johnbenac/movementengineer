@@ -31,6 +31,8 @@ function renderDom() {
 
 function createCtx(snapshot, currentMovementId = 'm1', overrides = {}) {
   const dom = createDomUtils();
+  let state = { snapshot, currentMovementId };
+  const cloneSnapshot = () => JSON.parse(JSON.stringify(state.snapshot));
   const ViewModels = {
     buildClaimsExplorerViewModel: vi.fn(() => ({
       claims: [
@@ -67,7 +69,6 @@ function createCtx(snapshot, currentMovementId = 'm1', overrides = {}) {
     generateId: vi.fn(() => 'gen-1'),
     ...overrides.DomainService
   };
-  let state = { snapshot, currentMovementId };
   const setState = next => {
     state = typeof next === 'function' ? next(state) : next || state;
     return state;
@@ -77,16 +78,25 @@ function createCtx(snapshot, currentMovementId = 'm1', overrides = {}) {
     return setState(next || state);
   };
   const store = {
-    markDirty: vi.fn(),
     getState: () => state,
     setState,
     update
+  };
+  const persistence = {
+    cloneSnapshot,
+    commitSnapshot: vi.fn((nextSnapshot, _options) => {
+      state = { ...state, snapshot: nextSnapshot };
+      return nextSnapshot;
+    }),
+    markDirty: vi.fn(),
+    save: vi.fn()
   };
   return {
     getState: () => state,
     setState,
     update,
     store,
+    persistence,
     services: { ViewModels, DomainService },
     dom,
     setStatus: vi.fn(),
@@ -197,7 +207,7 @@ describe('claims tab module', () => {
     const upsert = ctx.services.DomainService.upsertItem;
     expect(upsert).toHaveBeenCalledTimes(1);
     expect(upsert).toHaveBeenCalledWith(
-      snapshot,
+      expect.any(Object),
       'claims',
       expect.objectContaining({
         id: 'c1',
@@ -212,7 +222,10 @@ describe('claims tab module', () => {
         notes: 'New note'
       })
     );
-    expect(ctx.store.markDirty).toHaveBeenCalledWith('item');
+    expect(ctx.persistence.commitSnapshot).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({ dirtyScope: 'item' })
+    );
   });
 
   it('keeps claim selection when clicking a link inside a row', async () => {

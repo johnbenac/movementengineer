@@ -1,3 +1,5 @@
+import { ensureFlags } from './dirtyFlags.js';
+
 const DEFAULT_CANON_FILTERS = {
   search: '',
   tag: '',
@@ -17,21 +19,6 @@ export const DEFAULT_GRAPH_WORKBENCH_STATE = {
   filterDepth: null,
   filterNodeTypes: []
 };
-
-function ensureFlags(flags = {}) {
-  const next = {
-    snapshotDirty: !!flags.snapshotDirty,
-    movementFormDirty: !!flags.movementFormDirty,
-    itemEditorDirty: !!flags.itemEditorDirty,
-    isPopulatingMovementForm: !!flags.isPopulatingMovementForm,
-    isPopulatingEditor: !!flags.isPopulatingEditor,
-    isPopulatingCanonForms: !!flags.isPopulatingCanonForms,
-    isCanonMarkdownInitialized: !!flags.isCanonMarkdownInitialized,
-    isCanonCollectionInputsInitialized: !!flags.isCanonCollectionInputsInitialized
-  };
-  next.isDirty = next.snapshotDirty || next.movementFormDirty || next.itemEditorDirty;
-  return next;
-}
 
 function computeCurrentMovementId(snapshot) {
   if (!snapshot) return null;
@@ -128,33 +115,29 @@ export function createStore(options = {}) {
       const flags = ensureFlags(prev.flags);
       if (scope === 'movement') {
         flags.movementFormDirty = true;
-        flags.snapshotDirty = true;
       } else if (scope === 'item') {
         flags.itemEditorDirty = true;
-        flags.snapshotDirty = true;
-      } else if (scope === 'snapshot') {
-        flags.snapshotDirty = true;
+      } else if (scope === 'all' || scope === 'snapshot') {
+        flags.movementFormDirty = true;
+        flags.itemEditorDirty = true;
       }
-      flags.isDirty = flags.snapshotDirty || flags.movementFormDirty || flags.itemEditorDirty;
-      return { ...prev, flags };
+      return { ...prev, flags: ensureFlags(flags) };
     });
   }
 
   function markSaved({ movement = false, item = false } = {}) {
     setState(prev => {
       const flags = ensureFlags(prev.flags);
-      flags.snapshotDirty = false;
       if (movement) flags.movementFormDirty = false;
       if (item) flags.itemEditorDirty = false;
-      flags.isDirty = flags.snapshotDirty || flags.movementFormDirty || flags.itemEditorDirty;
-      return { ...prev, flags };
+      return { ...prev, flags: ensureFlags(flags) };
     });
   }
 
   function saveSnapshot({
     show = true,
-    clearMovementDirty = true,
-    clearItemDirty = true
+    clearMovementDirty = false,
+    clearItemDirty = false
   } = {}) {
     const currentState = getState();
     const snap = currentState.snapshot || {};
@@ -162,11 +145,9 @@ export function createStore(options = {}) {
     StorageService?.saveSnapshot?.(snap);
     setState(prev => {
       const flags = ensureFlags(prev.flags);
-      flags.snapshotDirty = false;
       if (clearMovementDirty) flags.movementFormDirty = false;
       if (clearItemDirty) flags.itemEditorDirty = false;
-      flags.isDirty = flags.snapshotDirty || flags.movementFormDirty || flags.itemEditorDirty;
-      return { ...prev, snapshot: snap, flags };
+      return { ...prev, snapshot: snap, flags: ensureFlags(flags) };
     });
     if (show) setStatus('Saved ✓');
   }

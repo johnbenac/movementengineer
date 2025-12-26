@@ -20,6 +20,7 @@ import { registerBuiltInPlugins } from '../plugins/registerBuiltins.js';
 import { initMovements } from './ui/movements.js';
 import { initShell } from './shell.js';
 import { createActions } from './actions.js';
+import { createPersistenceFacade } from './persistenceFacade.js';
 import { renderMarkdownPreview, openMarkdownModal } from './ui/markdown.js';
 import {
   collectDescendants,
@@ -92,6 +93,13 @@ const utils = {
   }
 };
 const store = createStore({ services });
+const persistence = createPersistenceFacade({
+  getSnapshot: () => store.getState().snapshot,
+  setSnapshot: snapshot => store.setState(prev => ({ ...prev, snapshot })),
+  saveSnapshot: opts => store.saveSnapshot(opts),
+  markDirty: scope => store.markDirty(scope),
+  ensureAllCollections: services.StorageService?.ensureAllCollections
+});
 
 const ctx = {
   store,
@@ -99,6 +107,7 @@ const ctx = {
   ui,
   dom,
   utils,
+  persistence,
   getState: () => store.getState(),
   setState: next => store.setState(next),
   update: updater => store.update(updater),

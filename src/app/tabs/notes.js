@@ -183,35 +183,11 @@ function clearNoteForm(dom) {
   if (dom.tags) dom.tags.value = '';
 }
 
-function persistSnapshot(ctx, snapshot, storageService, statusText) {
-  const state = getState(ctx);
-  const nextState = { ...state, snapshot };
-  if (typeof ctx?.setState === 'function') {
-    ctx.setState(nextState);
-  } else if (ctx?.store?.setState) {
-    ctx.store.setState(nextState);
-  }
-
-  if (storageService?.saveSnapshot) {
-    try {
-      storageService.saveSnapshot(snapshot);
-    } catch (err) {
-      console.error(err);
-      ctx?.setStatus?.('Save failed');
-      return;
-    }
-  }
-
-  if (statusText) {
-    ctx?.setStatus?.(statusText);
-  }
-}
-
 function handleSaveNote(ctx, rerender) {
   const dom = getFormDom();
-  const { DomainService, StorageService } = getServices(ctx);
+  const { DomainService } = getServices(ctx);
   const state = getState(ctx);
-  const snapshot = state.snapshot;
+  const snapshot = ctx.persistence.cloneSnapshot();
   const currentMovementId = state.currentMovementId;
   if (!dom || !snapshot) return;
   if (!currentMovementId) {
@@ -269,7 +245,11 @@ function handleSaveNote(ctx, rerender) {
   }
 
   selectedNoteId = note.id;
-  persistSnapshot(ctx, snapshot, StorageService, 'Note saved');
+  ctx.persistence.commitSnapshot(snapshot, {
+    dirtyScope: 'item',
+    save: { show: false }
+  });
+  ctx?.setStatus?.('Note saved');
   if (typeof rerender === 'function') {
     rerender({ immediate: true, force: true });
   } else {
@@ -278,9 +258,9 @@ function handleSaveNote(ctx, rerender) {
 }
 
 function handleDeleteNote(ctx, noteId, rerender) {
-  const { DomainService, StorageService } = getServices(ctx);
+  const { DomainService } = getServices(ctx);
   const state = getState(ctx);
-  const snapshot = state.snapshot;
+  const snapshot = ctx.persistence.cloneSnapshot();
   if (!snapshot || !Array.isArray(snapshot.notes)) return;
 
   const note = snapshot.notes.find(n => idsMatch(n.id, noteId));
@@ -302,7 +282,11 @@ function handleDeleteNote(ctx, noteId, rerender) {
   if (!deleted) return;
 
   if (idsMatch(selectedNoteId, noteId)) selectedNoteId = null;
-  persistSnapshot(ctx, snapshot, StorageService, 'Note deleted');
+  ctx.persistence.commitSnapshot(snapshot, {
+    dirtyScope: 'item',
+    save: { show: false }
+  });
+  ctx?.setStatus?.('Note deleted');
   if (typeof rerender === 'function') {
     rerender({ immediate: true, force: true });
   } else {

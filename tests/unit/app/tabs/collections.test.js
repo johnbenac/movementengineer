@@ -26,6 +26,7 @@ function renderDom() {
 
 function createCtx(initialState, overrides = {}) {
   let state = initialState;
+  const cloneSnapshot = () => JSON.parse(JSON.stringify(state.snapshot));
   const setState = next => {
     state = typeof next === 'function' ? next(state) : next || state;
     return state;
@@ -58,9 +59,6 @@ function createCtx(initialState, overrides = {}) {
   const store =
     overrides.store ||
     {
-      markDirty: vi.fn(),
-      markSaved: vi.fn(),
-      saveSnapshot: vi.fn(),
       getState: () => state,
       setState,
       update
@@ -73,12 +71,22 @@ function createCtx(initialState, overrides = {}) {
       saveSnapshot: vi.fn()
     };
   const dom = createDomUtils();
+  const persistence = {
+    cloneSnapshot,
+    commitSnapshot: vi.fn((nextSnapshot, _options) => {
+      state = { ...state, snapshot: nextSnapshot };
+      return nextSnapshot;
+    }),
+    markDirty: vi.fn(),
+    save: vi.fn()
+  };
 
   return {
     getState: () => state,
     setState,
     update,
     store,
+    persistence,
     services: { DomainService, StorageService },
     dom,
     setStatus: vi.fn(),
@@ -123,14 +131,6 @@ describe('collections tab module', () => {
   it('saves editor changes and persists the snapshot', async () => {
     renderDom();
     const snapshot = { entities: [{ id: 'e1', movementId: 'm1', name: 'Alpha' }] };
-    const store = {
-      markDirty: vi.fn(),
-      markSaved: vi.fn(),
-      saveSnapshot: vi.fn(),
-      getState: () => ({}),
-      setState: vi.fn(),
-      update: vi.fn()
-    };
     const ctx = createCtx(
       {
         snapshot,
@@ -140,7 +140,7 @@ describe('collections tab module', () => {
         navigation: { stack: [], index: -1 },
         flags: {}
       },
-      { store }
+      {}
     );
     const { registerCollectionsTab } = await import('../../../../src/app/tabs/collections.js');
     const tab = registerCollectionsTab(ctx);
@@ -154,15 +154,15 @@ describe('collections tab module', () => {
     const result = tab.saveCurrentItem(ctx);
 
     expect(result).toBe(true);
-    expect(snapshot.entities[0].name).toBe('Updated');
+    expect(ctx.getState().snapshot.entities[0].name).toBe('Updated');
     expect(ctx.getState().navigation.stack[0]).toEqual({
       collectionName: 'entities',
       itemId: 'e1'
     });
-    expect(store.saveSnapshot).toHaveBeenCalledWith({
-      clearItemDirty: true,
-      clearMovementDirty: false
-    });
+    expect(ctx.persistence.commitSnapshot).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({ dirtyScope: 'item', save: true })
+    );
   });
 
   it('opens referenced items and activates the collections tab', async () => {
@@ -221,6 +221,6 @@ describe('collections tab module', () => {
     editor.value = JSON.stringify(snapshot.entities[0], null, 2);
     editor.dispatchEvent(new Event('input'));
 
-    expect(store.markDirty).toHaveBeenCalledWith('item');
+    expect(ctx.persistence.markDirty).toHaveBeenCalledWith('item');
   });
 });

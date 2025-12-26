@@ -34,6 +34,7 @@ function renderDom() {
 function createCtx(snapshot, currentMovementId = 'm1', overrides = {}) {
   let state = { snapshot, currentMovementId };
   const dom = createDomUtils();
+  const cloneSnapshot = () => JSON.parse(JSON.stringify(state.snapshot));
   const ViewModels =
     overrides.ViewModels ||
     {
@@ -101,14 +102,23 @@ function createCtx(snapshot, currentMovementId = 'm1', overrides = {}) {
     return state;
   });
   const store = {
-    markDirty: vi.fn(),
     getState: () => state,
     update
+  };
+  const persistence = {
+    cloneSnapshot,
+    commitSnapshot: vi.fn((nextSnapshot, _options) => {
+      state = { ...state, snapshot: nextSnapshot };
+      return nextSnapshot;
+    }),
+    markDirty: vi.fn(),
+    save: vi.fn()
   };
   return {
     getState: () => state,
     update,
     store,
+    persistence,
     services: { ViewModels, DomainService },
     dom
   };
@@ -249,8 +259,10 @@ describe('rules tab module', () => {
     const savedRule = DomainService.upsertItem.mock.calls[0][2];
     expect(savedRule.shortText).toBe('Updated rule');
     expect(savedRule.supportingTextIds).toEqual(['t1']);
-    expect(ctx.update).toHaveBeenCalled();
-    expect(ctx.store.markDirty).toHaveBeenCalledWith('item');
+    expect(ctx.persistence.commitSnapshot).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({ dirtyScope: 'item' })
+    );
   });
 
   it('adds a new rule for the current movement', async () => {
@@ -306,7 +318,10 @@ describe('rules tab module', () => {
     document.getElementById('rules-add-btn').dispatchEvent(new Event('click', { bubbles: true }));
 
     expect(DomainService.addNewItem).toHaveBeenCalledWith(expect.any(Object), 'rules', 'm1');
-    expect(ctx.update).toHaveBeenCalled();
+    expect(ctx.persistence.commitSnapshot).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({ dirtyScope: 'item' })
+    );
     expect(document.getElementById('rules-editor-select').value).toBe('r2');
   });
 

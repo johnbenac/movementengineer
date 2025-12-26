@@ -22,40 +22,39 @@ export function useSnapshotOps() {
 
   function upsertRecord(collectionName, record) {
     if (!collectionName || !record) return;
-    ctx?.store?.setState?.(prev => {
-      const prevSnapshot = prev?.snapshot || {};
-      const current = ensureArray(prevSnapshot[collectionName]);
-      const recordId = record.id;
-      const index = current.findIndex(item => item?.id === recordId);
-      const nextCollection = index >= 0
+    const baseSnapshot = ctx?.store?.getState?.()?.snapshot || snapshot;
+    const nextSnapshot = ctx?.persistence?.cloneSnapshot?.() || baseSnapshot;
+    const current = ensureArray(nextSnapshot[collectionName]);
+    const recordId = record.id;
+    const index = current.findIndex(item => item?.id === recordId);
+    const nextCollection =
+      index >= 0
         ? current.map((item, idx) => (idx === index ? { ...item, ...record } : item))
         : current.concat({ ...record });
-      return {
-        ...prev,
-        snapshot: {
-          ...prevSnapshot,
-          [collectionName]: nextCollection
-        }
-      };
-    });
-    ctx?.store?.markDirty?.('snapshot');
+    const scope = collectionName === 'movements' ? 'movement' : 'item';
+    ctx?.persistence?.commitSnapshot?.(
+      {
+        ...nextSnapshot,
+        [collectionName]: nextCollection
+      },
+      { dirtyScope: scope }
+    );
   }
 
   function deleteRecord(collectionName, id) {
     if (!collectionName || !id) return;
-    ctx?.store?.setState?.(prev => {
-      const prevSnapshot = prev?.snapshot || {};
-      const current = ensureArray(prevSnapshot[collectionName]);
-      const nextCollection = current.filter(item => item?.id !== id);
-      return {
-        ...prev,
-        snapshot: {
-          ...prevSnapshot,
-          [collectionName]: nextCollection
-        }
-      };
-    });
-    ctx?.store?.markDirty?.('snapshot');
+    const baseSnapshot = ctx?.store?.getState?.()?.snapshot || snapshot;
+    const nextSnapshot = ctx?.persistence?.cloneSnapshot?.() || baseSnapshot;
+    const current = ensureArray(nextSnapshot[collectionName]);
+    const nextCollection = current.filter(item => item?.id !== id);
+    const scope = collectionName === 'movements' ? 'movement' : 'item';
+    ctx?.persistence?.commitSnapshot?.(
+      {
+        ...nextSnapshot,
+        [collectionName]: nextCollection
+      },
+      { dirtyScope: scope }
+    );
   }
 
   return {
