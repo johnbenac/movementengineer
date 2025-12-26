@@ -2,6 +2,7 @@ import { getCollectionLabel, getCollectionSnapshotKey } from './genericCrudHelpe
 
 export function CollectionList({ model, selectedKey, onSelect }) {
   const wrapper = document.createElement('div');
+  wrapper.dataset.testid = 'generic-crud-collection-select';
   const list = document.createElement('ul');
   list.className = 'item-list';
 

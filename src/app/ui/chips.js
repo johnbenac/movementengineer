@@ -2,6 +2,7 @@
 
 const DEFAULT_LABEL_KEYS = ['name', 'title', 'shortText', 'text', 'id'];
 let globalChipHandlerInstalled = false;
+let globalChipHandlerInstallCount = 0;
 const globalScope = typeof globalThis !== 'undefined' ? globalThis : window;
 const colorScheme =
   globalScope?.MovementEngineerColors || globalScope?.EntityGraphColors || null;
@@ -271,6 +272,14 @@ export function assertNoBareChips(root = document) {
   return true;
 }
 
+export function getGlobalChipHandlerInstallCount() {
+  return globalChipHandlerInstallCount;
+}
+
+export function isGlobalChipHandlerInstalled() {
+  return globalChipHandlerInstalled;
+}
+
 function activateChip(event, ctx) {
   if (shouldIgnoreChipEvent(event)) return;
   const chip = event.target?.closest?.('.chip');
@@ -312,6 +321,7 @@ export function installGlobalChipHandler(ctx) {
   document.addEventListener('click', onClick, true);
   document.addEventListener('keydown', onKeyDown, true);
   globalChipHandlerInstalled = true;
+  globalChipHandlerInstallCount += 1;
   return () => {
     document.removeEventListener('click', onClick, true);
     document.removeEventListener('keydown', onKeyDown, true);

@@ -4,6 +4,7 @@ import {
   createChip,
   createChipTile,
   createChipRow,
+  getGlobalChipHandlerInstallCount,
   installGlobalChipHandler,
   readChipTargetFromEl
 } from './chips.js';
@@ -88,6 +89,7 @@ export function createDomUtils() {
     appendChipRow,
     readChipTargetFromEl,
     assertNoBareChips,
-    installGlobalChipHandler
+    installGlobalChipHandler,
+    getGlobalChipHandlerInstallCount
   };
 }

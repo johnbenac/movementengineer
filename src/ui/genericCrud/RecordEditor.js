@@ -142,6 +142,7 @@ export function RecordEditor({
     const fieldDef = collectionDef?.fields?.[fieldName] || {};
     const row = document.createElement('div');
     row.className = 'form-row';
+    row.dataset.testid = `generic-crud-field-${fieldName}`;
     const label = document.createElement('label');
     label.textContent = fieldName;
     row.appendChild(label);
@@ -206,6 +207,7 @@ export function RecordEditor({
   const saveButton = document.createElement('button');
   saveButton.type = 'button';
   saveButton.textContent = 'Save';
+  saveButton.dataset.testid = 'generic-crud-save';
   saveButton.addEventListener('click', () => {
     if (!draft.id) {
       draft.id = generateId(collectionDef?.fields?.id || null);

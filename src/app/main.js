@@ -37,6 +37,8 @@ function assertCtx(ctx) {
   if (!ctx?.dom?.ensureSelectOptions) throw new Error('ctx.dom.ensureSelectOptions missing');
   if (!ctx?.dom?.ensureMultiSelectOptions)
     throw new Error('ctx.dom.ensureMultiSelectOptions missing');
+  if (!ctx?.dom?.installGlobalChipHandler)
+    throw new Error('ctx.dom.installGlobalChipHandler missing');
   if (!ctx?.ui?.setStatus) throw new Error('ctx.ui.setStatus missing');
   if (!ctx?.ui?.markdown?.renderMarkdownPreview)
     throw new Error('ctx.ui.markdown.renderMarkdownPreview missing');
@@ -47,6 +49,16 @@ function assertCtx(ctx) {
   if (!ctx?.actions?.openFacet) throw new Error('ctx.actions.openFacet missing');
   if (!ctx?.persistence?.commitSnapshot)
     throw new Error('ctx.persistence.commitSnapshot missing');
+}
+
+function assertCtxAfterInit(ctx) {
+  if (!ctx?.shell) throw new Error('ctx.shell missing');
+  if (!ctx?.shell?.renderActiveTab) throw new Error('ctx.shell.renderActiveTab missing');
+  if (!ctx?.shell?.getActiveTabName) throw new Error('ctx.shell.getActiveTabName missing');
+  const chipInstalls = ctx?.dom?.getGlobalChipHandlerInstallCount?.();
+  if (chipInstalls !== 1) {
+    throw new Error(`Chip handler install count is ${chipInstalls}, expected 1`);
+  }
 }
 
 const movementEngineerGlobal = (globalThis.MovementEngineer ||= {});
@@ -131,6 +143,11 @@ movementEngineerGlobal.ctx = ctx;
 
 ctx.dom.installGlobalChipHandler?.(ctx);
 
+const chipInstalls = ctx.dom.getGlobalChipHandlerInstallCount?.();
+if (chipInstalls !== 1) {
+  throw new Error(`Chip handler install count is ${chipInstalls}, expected 1`);
+}
+
 assertCtx(ctx);
 
 const modelRegistry = globalThis.ModelRegistry || null;
@@ -198,4 +215,5 @@ onReady(() => {
   if (!ctx.shell) {
     ctx.shell = initShell(ctx);
   }
+  assertCtxAfterInit(ctx);
 });

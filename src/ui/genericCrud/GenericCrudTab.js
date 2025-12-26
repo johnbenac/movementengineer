@@ -120,6 +120,7 @@ export function createGenericCrudTab(ctx) {
   function renderTab() {
     const container = document.getElementById('generic-crud-root');
     if (!container) return;
+    container.dataset.testid = 'generic-crud-root';
     ctx.dom.clearElement(container);
 
     const { snapshot, upsertRecord } = useSnapshotOps();
@@ -212,6 +213,11 @@ export function createGenericCrudTab(ctx) {
           onSave: draft => {
             if (!draft.id) draft.id = generateId(collectionDef?.fields?.id || null);
             upsertRecord(snapshotKey, draft);
+            ctx.persistence?.save?.({
+              show: false,
+              clearItemDirty: false,
+              clearMovementDirty: false
+            });
             state.selectedRecordId = draft.id;
             state.mode = 'view';
             state.draft = null;

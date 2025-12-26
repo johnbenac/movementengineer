@@ -64,6 +64,7 @@ export function RecordList({
   const newButton = document.createElement('button');
   newButton.type = 'button';
   newButton.textContent = 'New';
+  newButton.dataset.testid = 'generic-crud-new';
   newButton.addEventListener('click', () => onCreate());
 
   actions.appendChild(searchInput);
@@ -87,6 +88,8 @@ export function RecordList({
   } else {
     sorted.forEach(record => {
       const li = document.createElement('li');
+      li.dataset.testid = 'generic-crud-record';
+      if (record?.id) li.dataset.recordId = record.id;
       const label = document.createElement('span');
       label.textContent = getRecordTitle(record, collectionDef);
       const secondary = document.createElement('span');
