@@ -15,18 +15,6 @@ movementEngineerGlobal.tabs = movementEngineerGlobal.tabs || {};
 const MIN_LEFT_WIDTH = 240;
 const MIN_RIGHT_WIDTH = 260;
 
-const GRAPH_NODE_TYPE_LABELS = {
-  Entity: 'Entity',
-  TextCollection: 'Canon collection',
-  TextNode: 'Canon text',
-  Practice: 'Practice',
-  Event: 'Calendar event',
-  Rule: 'Rule',
-  Claim: 'Claim',
-  MediaAsset: 'Media',
-  Note: 'Note'
-};
-
 let workbenchGraphView = null;
 let graphWorkbenchDom = null;
 
@@ -121,7 +109,19 @@ function parseCsvInput(ctx, value) {
     .filter(Boolean);
 }
 
-const labelForNodeType = type => GRAPH_NODE_TYPE_LABELS[type] || type || 'Unknown';
+function labelForNodeType(nodeOrType, model) {
+  if (!nodeOrType) return 'Unknown';
+  const node = typeof nodeOrType === 'string' ? { type: nodeOrType } : nodeOrType;
+  const collectionName = getCollectionNameForGraphNode(node, model);
+  const collectionDef = collectionName ? model?.collections?.[collectionName] || null : null;
+  return (
+    collectionDef?.ui?.label ||
+    collectionDef?.typeName ||
+    node?.type ||
+    collectionName ||
+    'Unknown'
+  );
+}
 const EDIT_FIELD_EXCLUSIONS = new Set(['id', '_id', 'createdAt', 'updatedAt']);
 
 function getModel(ctx, snapshot) {
@@ -167,12 +167,19 @@ function getRecordDisplaySubtitle(ctx, collectionName, record) {
   return null;
 }
 
-function getNodeDisplayInfo(ctx, node, snapshot, model) {
-  const collectionName = getCollectionNameForGraphNode(node, model);
+function getNodeDisplayInfo(ctx, node, snapshot, model, nodeIndex) {
+  const indexed = nodeIndex?.get ? nodeIndex.get(node?.id) : null;
+  const collectionName =
+    indexed?.collectionName || getCollectionNameForGraphNode(node, model);
   const collectionDef = collectionName ? model?.collections?.[collectionName] || null : null;
-  const record = collectionName ? getRecordForCollection(snapshot, collectionName, node?.id) : null;
-  const title = record ? getRecordDisplayTitle(ctx, collectionName, record) : node?.name || node?.id || '—';
-  const subtitle = record ? getRecordDisplaySubtitle(ctx, collectionName, record) : node?.kind || null;
+  const record =
+    indexed?.record || (collectionName ? getRecordForCollection(snapshot, collectionName, node?.id) : null);
+  const title =
+    indexed?.title ||
+    (record ? getRecordDisplayTitle(ctx, collectionName, record) : node?.name || node?.id || '—');
+  const subtitle =
+    indexed?.subtitle ||
+    (record ? getRecordDisplaySubtitle(ctx, collectionName, record) : node?.kind || null);
   return {
     collectionName,
     collectionDef,
@@ -676,13 +683,13 @@ function ensureGraphWorkbenchDom(ctx, workbenchState) {
   return dom;
 }
 
-function renderGraphSearch(ctx, dom, baseGraphNodes, snapshot, workbenchState) {
+function renderGraphSearch(ctx, dom, baseGraphNodes, snapshot, workbenchState, nodeIndex) {
   const nodes = normaliseArray(ctx, baseGraphNodes);
   const model = getModel(ctx, snapshot);
 
   const nodeTypes = uniqueSorted(ctx, nodes.map(n => n.type));
   const opts = [{ value: 'all', label: 'All types' }].concat(
-    nodeTypes.map(t => ({ value: t, label: labelForNodeType(t) }))
+    nodeTypes.map(t => ({ value: t, label: labelForNodeType(t, model) }))
   );
 
   const prev = dom.searchKind.value || workbenchState.searchKind || 'all';
@@ -706,7 +713,7 @@ function renderGraphSearch(ctx, dom, baseGraphNodes, snapshot, workbenchState) {
     const matchesType = typeFilter === 'all' || node.type === typeFilter;
     if (!matchesType) return false;
     if (!q) return true;
-    const info = getNodeDisplayInfo(ctx, node, snapshot, model);
+    const info = getNodeDisplayInfo(ctx, node, snapshot, model, nodeIndex);
     const hay = `${info.title || ''} ${node.id || ''} ${(info.subtitle || '')}`.toLowerCase();
     return hay.includes(q);
   });
@@ -730,7 +737,10 @@ function renderGraphSearch(ctx, dom, baseGraphNodes, snapshot, workbenchState) {
 
   filtered
     .slice(0, 300)
-    .map(node => ({ node, info: getNodeDisplayInfo(ctx, node, snapshot, model) }))
+    .map(node => ({
+      node,
+      info: getNodeDisplayInfo(ctx, node, snapshot, model, nodeIndex)
+    }))
     .sort((a, b) => (a.info.title || a.node.id).localeCompare(b.info.title || b.node.id))
     .forEach(({ node, info }) => {
       const li = document.createElement('li');
@@ -740,7 +750,7 @@ function renderGraphSearch(ctx, dom, baseGraphNodes, snapshot, workbenchState) {
 
       const right = document.createElement('span');
       right.className = 'meta';
-      right.textContent = `${labelForNodeType(node.type)} · ${node.id}`;
+      right.textContent = `${labelForNodeType(node, model)} · ${node.id}`;
 
       li.appendChild(left);
       li.appendChild(right);
@@ -758,7 +768,7 @@ function renderGraphSearch(ctx, dom, baseGraphNodes, snapshot, workbenchState) {
     });
 }
 
-function renderGraphWorkbenchFilters(ctx, dom, baseGraph, snapshot, workbenchState) {
+function renderGraphWorkbenchFilters(ctx, dom, baseGraph, snapshot, workbenchState, nodeIndex) {
   const nodes = normaliseArray(ctx, baseGraph?.nodes);
   const nodeTypes = uniqueSorted(ctx, nodes.map(n => n.type));
   const nodeMap = new Map(nodes.map(n => [n.id, n]));
@@ -786,7 +796,7 @@ function renderGraphWorkbenchFilters(ctx, dom, baseGraph, snapshot, workbenchSta
 
   if (dom.filterCenterLabel) {
     dom.filterCenterLabel.textContent = centerNode
-      ? `${getNodeDisplayInfo(ctx, centerNode, snapshot, model).title || centerNode.id} (${labelForNodeType(centerNode.type)}) [${centerNode.id}]`
+      ? `${getNodeDisplayInfo(ctx, centerNode, snapshot, model, nodeIndex).title || centerNode.id} (${labelForNodeType(centerNode, model)}) [${centerNode.id}]`
       : 'No center selected; showing full graph.';
   }
 
@@ -826,7 +836,7 @@ function renderGraphWorkbenchFilters(ctx, dom, baseGraph, snapshot, workbenchSta
     });
 
     const label = document.createElement('span');
-    label.textContent = labelForNodeType(type);
+    label.textContent = labelForNodeType(type, model);
 
     chip.appendChild(cb);
     chip.appendChild(label);
@@ -836,7 +846,7 @@ function renderGraphWorkbenchFilters(ctx, dom, baseGraph, snapshot, workbenchSta
   return false;
 }
 
-function renderSelected(ctx, dom, baseGraph, snapshot, workbenchState) {
+function renderSelected(ctx, dom, baseGraph, snapshot, workbenchState, nodeIndex) {
   clearElement(ctx, dom.selectedBody);
 
   const selection = workbenchState.selection;
@@ -852,7 +862,7 @@ function renderSelected(ctx, dom, baseGraph, snapshot, workbenchState) {
 
   const nodes = normaliseArray(ctx, baseGraph?.nodes);
   const edges = normaliseArray(ctx, baseGraph?.edges);
-  const nodeIndex = new Map(nodes.map(n => [n.id, n]));
+  const nodeIndexMap = new Map(nodes.map(n => [n.id, n]));
   const model = getModel(ctx, snapshot);
 
   if (selectionType === 'edge') {
@@ -868,8 +878,8 @@ function renderSelected(ctx, dom, baseGraph, snapshot, workbenchState) {
       return;
     }
 
-    const from = nodeIndex.get(edge.fromId);
-    const to = nodeIndex.get(edge.toId);
+    const from = nodeIndex?.get?.(edge.fromId) || nodeIndexMap.get(edge.fromId);
+    const to = nodeIndex?.get?.(edge.toId) || nodeIndexMap.get(edge.toId);
 
     const title = document.createElement('p');
     title.className = 'graph-selected-title';
@@ -878,10 +888,10 @@ function renderSelected(ctx, dom, baseGraph, snapshot, workbenchState) {
     const subtitle = document.createElement('p');
     subtitle.className = 'graph-selected-subtitle';
     const fromLabel = from
-      ? getNodeDisplayInfo(ctx, from, snapshot, model).title || from.id
+      ? getNodeDisplayInfo(ctx, from, snapshot, model, nodeIndex).title || from.id
       : edge.fromId;
     const toLabel = to
-      ? getNodeDisplayInfo(ctx, to, snapshot, model).title || to.id
+      ? getNodeDisplayInfo(ctx, to, snapshot, model, nodeIndex).title || to.id
       : edge.toId;
     subtitle.textContent = `${fromLabel} → ${edge.relationType || 'link'} → ${toLabel}`;
 
@@ -911,7 +921,7 @@ function renderSelected(ctx, dom, baseGraph, snapshot, workbenchState) {
     return;
   }
 
-  const node = nodeIndex.get(selection.id);
+  const node = nodeIndex?.get?.(selection.id) || nodeIndexMap.get(selection.id);
 
   if (node) {
     const DomainService = getDomainService(ctx);
@@ -920,7 +930,7 @@ function renderSelected(ctx, dom, baseGraph, snapshot, workbenchState) {
       return;
     }
 
-    const displayInfo = getNodeDisplayInfo(ctx, node, snapshot, model);
+    const displayInfo = getNodeDisplayInfo(ctx, node, snapshot, model, nodeIndex);
     const { collectionName, collectionDef, record, title, subtitle } = displayInfo;
 
     if (!collectionName || !collectionDef) {
@@ -933,7 +943,7 @@ function renderSelected(ctx, dom, baseGraph, snapshot, workbenchState) {
       titleEl.textContent = node.name || node.id;
       const subtitleEl = document.createElement('p');
       subtitleEl.className = 'graph-selected-subtitle';
-      subtitleEl.textContent = `${labelForNodeType(node.type)} · ${node.id}`;
+      subtitleEl.textContent = `${labelForNodeType(node, model)} · ${node.id}`;
       card.appendChild(titleEl);
       card.appendChild(subtitleEl);
       card.appendChild(createHint('Editing is not available for this node type yet.'));
@@ -1048,6 +1058,8 @@ export function renderGraphWorkbench(ctx) {
 
   const state = getState(ctx);
   const snapshot = state.snapshot || {};
+  const nodeIndexState = state.nodeIndex;
+  const graphIndexState = state.graphIndex;
   const currentMovementId = state.currentMovementId;
   const workbenchState = getWorkbenchState(ctx);
 
@@ -1068,11 +1080,8 @@ export function renderGraphWorkbench(ctx) {
   dom.workbench?.style.setProperty('--graph-right-width', `${workbenchState.rightWidth}px`);
 
   const ViewModels = getViewModels(ctx);
-  if (
-    !ViewModels?.buildMovementGraphModel ||
-    typeof ViewModels.buildMovementGraphModel !== 'function' ||
-    typeof ViewModels.filterGraphModel !== 'function'
-  ) {
+  const GraphIndex = globalThis.GraphIndex || window.GraphIndex || null;
+  if (!GraphIndex?.buildGraphModel || typeof ViewModels?.filterGraphModel !== 'function') {
     guardMissingViewModels({
       ok: false,
       wrappers: [dom.root],
@@ -1083,7 +1092,9 @@ export function renderGraphWorkbench(ctx) {
     return;
   }
 
-  const baseGraph = ViewModels.buildMovementGraphModel(snapshot, {
+  const baseGraph = GraphIndex.buildGraphModel({
+    nodeIndex: nodeIndexState,
+    graphIndex: graphIndexState,
     movementId: currentMovementId
   });
 
@@ -1116,7 +1127,14 @@ export function renderGraphWorkbench(ctx) {
     }
   }
 
-  const filtersPatched = renderGraphWorkbenchFilters(ctx, dom, baseGraph, snapshot, workbenchState);
+  const filtersPatched = renderGraphWorkbenchFilters(
+    ctx,
+    dom,
+    baseGraph,
+    snapshot,
+    workbenchState,
+    nodeIndexState
+  );
   if (filtersPatched) return;
 
   const kinds = uniqueSorted(ctx, visibleEntities.map(e => e.kind));
@@ -1127,8 +1145,8 @@ export function renderGraphWorkbench(ctx) {
     dom.entityKindDatalist.appendChild(opt);
   });
 
-  renderGraphSearch(ctx, dom, baseGraph.nodes, snapshot, getWorkbenchState(ctx));
-  renderSelected(ctx, dom, baseGraph, snapshot, getWorkbenchState(ctx));
+  renderGraphSearch(ctx, dom, baseGraph.nodes, snapshot, getWorkbenchState(ctx), nodeIndexState);
+  renderSelected(ctx, dom, baseGraph, snapshot, getWorkbenchState(ctx), nodeIndexState);
 
   if (!workbenchGraphView) {
     const GraphViewCtor = getEntityGraphView(ctx);

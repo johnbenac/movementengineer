@@ -1,6 +1,9 @@
 export function createActions(ctx) {
   const actions = {};
   const { normaliseArray } = ctx?.utils?.values || {};
+  const cleanId =
+    globalThis?.MovementEngineer?.cleanId ||
+    (value => (value === undefined || value === null ? null : String(value).trim()));
   const normalizeIds = value => {
     if (typeof normaliseArray === 'function') return normaliseArray(value);
     if (Array.isArray(value)) return value.filter(Boolean);
@@ -13,8 +16,12 @@ export function createActions(ctx) {
     const kind = input.kind || input.type || input.targetKind || null;
 
     if (kind === 'item') {
-      if (!input.collection || !input.id) return null;
-      return { kind: 'item', collection: String(input.collection), id: String(input.id) };
+      if (!input.id) return null;
+      return {
+        kind: 'item',
+        collection: input.collection ? String(input.collection) : null,
+        id: String(input.id)
+      };
     }
 
     if (kind === 'facet') {
@@ -74,6 +81,14 @@ export function createActions(ctx) {
       return false;
     }
     if (t.kind === 'facet') return actions.openFacet(t.facet, t.value, t.scope, options);
+    if (!t.collection || t.collection === '*') {
+      const node = ctx?.store?.getState?.()?.nodeIndex?.get?.(cleanId(t.id));
+      if (!node?.collectionName) {
+        ctx?.setStatus?.('Item not found');
+        return false;
+      }
+      return actions.openItem(node.collectionName, t.id, options);
+    }
     return actions.openItem(t.collection, t.id, options);
   };
 
@@ -195,8 +210,15 @@ export function createActions(ctx) {
   };
 
   actions.openItem = (collectionName, id, options = {}) => {
-    const collection = collectionName ? String(collectionName) : '';
+    let collection = collectionName ? String(collectionName) : '';
     const itemId = id ? String(id) : '';
+
+    if (!collection && itemId) {
+      const node = ctx?.store?.getState?.()?.nodeIndex?.get?.(cleanId(itemId));
+      if (node?.collectionName) {
+        collection = node.collectionName;
+      }
+    }
 
     if (!collection || !itemId) return false;
 

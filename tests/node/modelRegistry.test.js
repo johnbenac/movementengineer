@@ -18,6 +18,7 @@ function testListCollections() {
     'movements',
     'texts',
     'entities',
+    'locations',
     'practices',
     'events',
     'rules',

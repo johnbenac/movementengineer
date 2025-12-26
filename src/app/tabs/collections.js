@@ -60,6 +60,10 @@ function validateRecord(ctx, collectionName, record, snapshot, guide) {
 
   if (!record) return issues;
 
+  const nodeIndex = ctx?.store?.getState?.()?.nodeIndex;
+  const registry = globalThis.ModelRegistry || null;
+  const cleanId = globalThis?.MovementEngineer?.cleanId || (value => value);
+
   (guide.requiredKeys || []).forEach(key => {
     const value = record[key];
     const missing =
@@ -73,13 +77,35 @@ function validateRecord(ctx, collectionName, record, snapshot, guide) {
     }
   });
 
-  (guide.referenceFields || []).forEach(({ field, target, kind }) => {
-    if (!target || kind === 'poly') return;
+  (guide.referenceFields || []).forEach(({ field, target }) => {
+    if (!target) return;
 
     const value = record[field];
     if (value === undefined || value === null || value === '') return;
 
-    const targetColl = snapshot?.[target] || [];
+    if (target === '*') {
+      const checkOne = id => {
+        const cleaned = cleanId(id);
+        if (!cleaned) return;
+        const node = nodeIndex?.get?.(cleaned);
+        if (!node) {
+          issues.push({ level: 'warn', message: `Bad ref: ${field} → ${cleaned}` });
+          return;
+        }
+        if (node.movementId && record.movementId && node.movementId !== record.movementId) {
+          issues.push({ level: 'warn', message: `Cross-movement ref: ${field} → ${cleaned}` });
+        }
+      };
+
+      if (Array.isArray(value)) value.filter(Boolean).forEach(checkOne);
+      else checkOne(value);
+      return;
+    }
+
+    const targetCollection = registry?.resolveCollectionName
+      ? registry.resolveCollectionName(target, snapshot?.specVersion)
+      : target;
+    const targetColl = snapshot?.[targetCollection] || [];
     const checkOne = id => {
       const hit = Array.isArray(targetColl) ? targetColl.find(it => it.id === id) : null;
       if (!hit) {
@@ -94,33 +120,6 @@ function validateRecord(ctx, collectionName, record, snapshot, guide) {
     if (Array.isArray(value)) value.filter(Boolean).forEach(checkOne);
     else checkOne(value);
   });
-
-  if (collectionName === 'notes') {
-    const targetType = record.targetType;
-    const targetId = record.targetId;
-    const typeMap = getModel(ctx)?.notes?.targetType?.aliases || {};
-    const canonical = typeMap[String(targetType).replace(/[\s_]/g, '').toLowerCase()] || targetType;
-
-    const targetCollection =
-      canonical === 'Movement' ? 'movements'
-      : canonical === 'TextNode' ? 'texts'
-      : canonical === 'Entity' ? 'entities'
-      : canonical === 'Practice' ? 'practices'
-      : canonical === 'Event' ? 'events'
-      : canonical === 'Rule' ? 'rules'
-      : canonical === 'Claim' ? 'claims'
-      : canonical === 'MediaAsset' ? 'media'
-      : null;
-
-    if (targetCollection && targetId) {
-      const coll = snapshot?.[targetCollection] || [];
-      const hit = Array.isArray(coll) ? coll.find(it => it.id === targetId) : null;
-      if (!hit) issues.push({ level: 'warn', message: `Bad note target: ${targetType} → ${targetId}` });
-      if (hit?.movementId && record.movementId && hit.movementId !== record.movementId) {
-        issues.push({ level: 'warn', message: `Cross-movement note target` });
-      }
-    }
-  }
 
   return issues;
 }
@@ -403,8 +402,12 @@ function getLabelForItem(item) {
   );
 }
 
-function mapIdToLabel(snapshot, collectionName, id) {
+function mapIdToLabel(snapshot, nodeIndex, collectionName, id) {
   if (!id) return '—';
+  if (collectionName === '*' && nodeIndex?.get) {
+    const node = nodeIndex.get(id);
+    return node?.title || id;
+  }
   if (collectionName === 'movements') {
     const movement = (snapshot?.movements || []).find(m => m.id === id);
     return movement ? movement.name || movement.id : id;
@@ -418,6 +421,7 @@ function renderPreviewValue(ctx, container, snapshot, field, value) {
   const dom = ctx.dom;
   const type = field?.type;
   const refCollection = field?.ref;
+  const nodeIndex = ctx?.store?.getState?.()?.nodeIndex;
   const placeholder = () => {
     const span = document.createElement('span');
     span.className = 'muted';
@@ -443,7 +447,7 @@ function renderPreviewValue(ctx, container, snapshot, field, value) {
     case 'id': {
       if (!value) return placeholder();
       const chip = dom.createChip({
-        label: mapIdToLabel(snapshot, refCollection, value),
+        label: mapIdToLabel(snapshot, nodeIndex, refCollection, value),
         attrs: { title: 'Open ' + value },
         target: { kind: 'item', collection: refCollection, id: value }
       });
@@ -456,7 +460,7 @@ function renderPreviewValue(ctx, container, snapshot, field, value) {
       container.appendChild(
         dom.createChipRow(ids, {
           className: '',
-          getLabel: id => mapIdToLabel(snapshot, refCollection, id),
+          getLabel: id => mapIdToLabel(snapshot, nodeIndex, refCollection, id),
           getTarget: id => ({ kind: 'item', collection: refCollection, id })
         })
       );

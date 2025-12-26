@@ -73,7 +73,6 @@
         <button class="tab" data-tab="authority">Authority</button>
         <button class="tab" data-tab="media">Media</button>
         <button class="tab" data-tab="graph">Graph</button>
-        <button class="tab" data-tab="notes">Notes</button>
         <button class="tab" data-tab="collections">Collections</button>
         <button class="tab" data-tab="comparison">Comparison</button>
       </nav>
@@ -543,73 +542,6 @@
         </div>
       </section>
 
-      <!-- Notes -->
-      <section id="tab-notes" class="tab-panel">
-        <div class="panel-body">
-          <h2>Notes</h2>
-          <p class="hint">
-            Browse notes by target type and target within the movement. Add new notes or edit existing
-            ones on the right.
-          </p>
-          <div class="split">
-            <div class="list-pane">
-              <div class="subtab-toolbar">
-                <label>
-                  Target type:
-                  <select id="notes-target-type-filter">
-                    <option value="">All</option>
-                  </select>
-                </label>
-                <label>
-                  Target:
-                  <select id="notes-target-id-filter">
-                    <option value="">Any</option>
-                  </select>
-                </label>
-              </div>
-              <div id="notes-table-wrapper" class="table-wrapper"></div>
-            </div>
-            <div class="detail-pane">
-              <div class="card">
-                <h3 id="notes-form-title">Create note</h3>
-                <form id="notes-editor-form" class="graph-form">
-                  <div class="form-row">
-                    <label>Target type</label>
-                    <select id="note-target-type" required></select>
-                  </div>
-                  <div class="form-row">
-                    <label>Target ID</label>
-                    <input id="note-target-id" type="text" list="notes-target-id-options" required />
-                    <datalist id="notes-target-id-options"></datalist>
-                    <div class="hint">Pick from suggestions or paste any valid ID.</div>
-                  </div>
-                  <div class="form-row">
-                    <label>Author</label>
-                    <input id="note-author" type="text" />
-                  </div>
-                  <div class="form-row">
-                    <label>Body</label>
-                    <textarea id="note-body" rows="3" required></textarea>
-                  </div>
-                  <div class="form-row">
-                    <label>Context</label>
-                    <textarea id="note-context" rows="2"></textarea>
-                  </div>
-                  <div class="form-row">
-                    <label>Tags (comma separated)</label>
-                    <input id="note-tags" type="text" placeholder="tag1, tag2" />
-                  </div>
-                  <div class="form-row inline">
-                    <button type="submit">Save note</button>
-                    <button id="note-reset-btn" type="button">New note</button>
-                    <button id="note-delete-btn" type="button" class="danger" disabled>Delete</button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
       <!-- Generic collection editor -->
       <section id="tab-collections" class="tab-panel">
         <div class="panel-body">
@@ -764,6 +696,7 @@
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="./vendor/d3.min.js"></script>
 
+  <script src="./src/core/ids/cleanId.js"></script>
   <script src="./src/models/dataModel.v2_3.js"></script>
   <script src="./src/core/modelRegistry.js"></script>
   <script src="./src/core/validation/validationTypes.js"></script>
@@ -773,6 +706,8 @@
   <script src="./src/core/validation/legacyAdapter.js"></script>
   <script src="./src/core/validation/validationConfig.js"></script>
   <script src="./src/core/validation/shadowValidation.js"></script>
+  <script src="./src/core/nodeIndex.js"></script>
+  <script src="./src/core/graphIndex.js"></script>
   <script src="./src/core/viewModels.js"></script>
   <script src="./src/core/markdownDatasetLoader.js"></script>
 

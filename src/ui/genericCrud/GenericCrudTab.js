@@ -123,6 +123,7 @@ export function createGenericCrudTab(ctx) {
     ctx.dom.clearElement(container);
 
     const { snapshot, upsertRecord } = useSnapshotOps();
+    const nodeIndex = ctx?.store?.getState?.()?.nodeIndex;
     const model = getModelForSnapshot(snapshot);
     const modelRegistry = getModelRegistry();
     const plugins = usePlugins();
@@ -208,6 +209,7 @@ export function createGenericCrudTab(ctx) {
           collectionDef,
           model,
           snapshot,
+          nodeIndex,
           mode: state.mode,
           onSave: draft => {
             if (!draft.id) draft.id = generateId(collectionDef?.fields?.id || null);
@@ -283,6 +285,7 @@ export function createGenericCrudTab(ctx) {
           collectionName,
           collectionDef,
           snapshot,
+          nodeIndex,
           selectedId: state.selectedRecordId,
           setSelectedId: id => selectRecord(id),
           openEditor: ({ mode, id }) => {

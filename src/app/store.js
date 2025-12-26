@@ -1,3 +1,5 @@
+import { getModelForSnapshot } from './ui/schemaDoc.js';
+
 const DEFAULT_CANON_FILTERS = {
   search: '',
   tag: '',
@@ -5,6 +7,7 @@ const DEFAULT_CANON_FILTERS = {
   parent: '',
   child: ''
 };
+
 
 export const DEFAULT_GRAPH_WORKBENCH_STATE = {
   leftWidth: 360,
@@ -51,6 +54,21 @@ function computeCurrentMovementId(snapshot) {
   return first?.id || first?.movementId || null;
 }
 
+function deriveIndices(snapshot) {
+  const model = getModelForSnapshot(snapshot);
+  const registry = globalThis.ModelRegistry || null;
+  const NodeIndex = globalThis.NodeIndex || null;
+  const GraphIndex = globalThis.GraphIndex || null;
+
+  const nodeIndex = NodeIndex?.buildNodeIndex ? NodeIndex.buildNodeIndex(snapshot, model) : null;
+  const graphIndex =
+    GraphIndex?.buildGraphIndex && nodeIndex
+      ? GraphIndex.buildGraphIndex(snapshot, model, nodeIndex, registry)
+      : null;
+
+  return { nodeIndex, graphIndex };
+}
+
 export function createStore(options = {}) {
   const services = options.services || {};
   const StorageService = services.StorageService;
@@ -59,6 +77,7 @@ export function createStore(options = {}) {
     : {};
   const snapshot =
     StorageService?.ensureAllCollections?.(initialSnapshot) || initialSnapshot || {};
+  const derived = deriveIndices(snapshot);
   let state = {
     snapshot,
     currentMovementId: computeCurrentMovementId(snapshot),
@@ -72,7 +91,9 @@ export function createStore(options = {}) {
     navigation: { stack: [], index: -1 },
     graphWorkbenchState: { ...DEFAULT_GRAPH_WORKBENCH_STATE },
     flags: ensureFlags(),
-    statusText: ''
+    statusText: '',
+    nodeIndex: derived.nodeIndex,
+    graphIndex: derived.graphIndex
   };
 
   const subscribers = new Set();
@@ -93,7 +114,12 @@ export function createStore(options = {}) {
 
   function setState(nextState) {
     if (!nextState) return state;
-    state = typeof nextState === 'function' ? nextState(state) || state : nextState;
+    let next = typeof nextState === 'function' ? nextState(state) || state : nextState;
+    if (next?.snapshot && next.snapshot !== state.snapshot) {
+      const derived = deriveIndices(next.snapshot);
+      next = { ...next, ...derived };
+    }
+    state = next;
     notify(state);
     return state;
   }

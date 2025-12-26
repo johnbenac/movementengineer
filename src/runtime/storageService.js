@@ -18,17 +18,18 @@
 
   const COLLECTION_NAMES = listCollections(DEFAULT_SPEC_VERSION);
 
-  const COLLECTIONS_WITH_MOVEMENT_ID = new Set([
-    'textCollections',
-    'texts',
-    'entities',
-    'practices',
-    'events',
-    'rules',
-    'claims',
-    'media',
-    'notes'
-  ]);
+  function buildCollectionsWithMovementId(specVersion) {
+    const model = ModelRegistry.getModel(specVersion || DEFAULT_SPEC_VERSION);
+    const collectionNames = listCollections(specVersion || DEFAULT_SPEC_VERSION);
+    const withMovement = new Set();
+    collectionNames.forEach(name => {
+      const fields = model?.collections?.[name]?.fields || {};
+      if (fields.movementId) withMovement.add(name);
+    });
+    return withMovement;
+  }
+
+  const COLLECTIONS_WITH_MOVEMENT_ID = buildCollectionsWithMovementId(DEFAULT_SPEC_VERSION);
 
   function createEmptySnapshot() {
     const base = { version: DEFAULT_SPEC_VERSION, specVersion: DEFAULT_SPEC_VERSION };

@@ -7,6 +7,7 @@ import {
   setDisabled
 } from '../ui/hints.js';
 import { appendSection } from '../ui/sections.js';
+import { getModelForSnapshot } from '../ui/schemaDoc.js';
 import { createTab } from './tabKit.js';
 
 function getState(ctx) {
@@ -27,19 +28,19 @@ function getActions(ctx) {
 
 const DEFAULT_TAB_STATE = { selectedEntityId: null, lastMovementId: null };
 
-const GRAPH_NODE_TYPE_LABELS = {
-  Entity: 'Entity',
-  TextCollection: 'Canon collection',
-  TextNode: 'Canon text',
-  Practice: 'Practice',
-  Event: 'Calendar event',
-  Rule: 'Rule',
-  Claim: 'Claim',
-  MediaAsset: 'Media',
-  Note: 'Note'
-};
-
-const labelForNodeType = type => GRAPH_NODE_TYPE_LABELS[type] || type || 'Unknown';
+function labelForNodeType(nodeOrType, model) {
+  if (!nodeOrType) return 'Unknown';
+  const node = typeof nodeOrType === 'string' ? { type: nodeOrType } : nodeOrType;
+  const collectionName = node.collectionName || node.type || null;
+  const collectionDef = collectionName ? model?.collections?.[collectionName] || null : null;
+  return (
+    collectionDef?.ui?.label ||
+    collectionDef?.typeName ||
+    node?.type ||
+    collectionName ||
+    'Unknown'
+  );
+}
 
 let entityGraphViewInstance = null;
 
@@ -50,6 +51,8 @@ function renderEntitiesTab(ctx) {
   const dom = ctx.dom;
   const state = getState(ctx);
   const snapshot = state.snapshot;
+  const model = getModelForSnapshot(snapshot);
+  const nodeIndex = state.nodeIndex;
   const currentMovementId = state.currentMovementId;
 
   const select = document.getElementById('entity-select');
@@ -205,28 +208,17 @@ function renderEntitiesTab(ctx) {
   if (vm.connections && vm.connections.length) {
     appendSection(detailContainer, 'Connections (derived)', section => {
       const ul = document.createElement('ul');
-      const typeToCollection = {
-        Movement: 'movements',
-        TextCollection: 'textCollections',
-        TextNode: 'texts',
-        Entity: 'entities',
-        Practice: 'practices',
-        Event: 'events',
-        Rule: 'rules',
-        Claim: 'claims',
-        MediaAsset: 'media',
-        Note: 'notes'
-      };
 
       vm.connections.forEach(conn => {
         const li = document.createElement('li');
         const arrow = conn.direction === 'incoming' ? '←' : '→';
         const otherLabel = conn.node.name || conn.node.id;
-        const meta = conn.node.type ? ` (${labelForNodeType(conn.node.type)})` : '';
+        const meta = conn.node.type ? ` (${labelForNodeType(conn.node, model)})` : '';
         li.textContent = `${arrow} ${conn.relationType || 'link'} ${arrow} ${otherLabel}${meta}`;
         li.style.cursor = 'pointer';
 
-        const targetCollection = typeToCollection[conn.node.type];
+        const targetCollection =
+          conn.node.collectionName || nodeIndex?.get?.(conn.node.id)?.collectionName;
         li.addEventListener('click', () => {
           if (targetCollection) {
             actions.openItem?.(targetCollection, conn.node.id);
