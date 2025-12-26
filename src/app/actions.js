@@ -1,5 +1,17 @@
 export function createActions(ctx) {
   const actions = {};
+  const cleanId =
+    typeof globalThis !== 'undefined' && globalThis.cleanId
+      ? globalThis.cleanId
+      : value => {
+        if (value === undefined || value === null) return null;
+        const s = String(value).trim();
+        if (!s) return null;
+        const m = s.match(/^\[\[([^\]]+)\]\]$/);
+        const unwrapped = m ? m[1] : s;
+        const trimmed = String(unwrapped).trim();
+        return trimmed || null;
+      };
   const { normaliseArray } = ctx?.utils?.values || {};
   const normalizeIds = value => {
     if (typeof normaliseArray === 'function') return normaliseArray(value);
@@ -13,8 +25,12 @@ export function createActions(ctx) {
     const kind = input.kind || input.type || input.targetKind || null;
 
     if (kind === 'item') {
-      if (!input.collection || !input.id) return null;
-      return { kind: 'item', collection: String(input.collection), id: String(input.id) };
+      if (!input.id) return null;
+      return {
+        kind: 'item',
+        collection: input.collection ? String(input.collection) : '',
+        id: String(input.id)
+      };
     }
 
     if (kind === 'facet') {
@@ -72,6 +88,13 @@ export function createActions(ctx) {
       ctx?.setStatus?.('Invalid navigation target');
       console.warn('openTarget: invalid target', target);
       return false;
+    }
+    if (t.kind === 'item' && (!t.collection || !t.id)) {
+      const fallbackId = cleanId(t.id);
+      const node = ctx?.store?.getState?.()?.nodeIndex?.get?.(fallbackId);
+      if (node?.collectionName && node?.id) {
+        return actions.openItem(node.collectionName, node.id, options);
+      }
     }
     if (t.kind === 'facet') return actions.openFacet(t.facet, t.value, t.scope, options);
     return actions.openItem(t.collection, t.id, options);
@@ -195,9 +218,15 @@ export function createActions(ctx) {
   };
 
   actions.openItem = (collectionName, id, options = {}) => {
-    const collection = collectionName ? String(collectionName) : '';
-    const itemId = id ? String(id) : '';
+    let collection = collectionName ? String(collectionName) : '';
+    const itemId = cleanId(id) || '';
 
+    if (!collection && itemId) {
+      const node = ctx?.store?.getState?.()?.nodeIndex?.get?.(itemId);
+      if (node?.collectionName) {
+        collection = node.collectionName;
+      }
+    }
     if (!collection || !itemId) return false;
 
     if (collection === 'movements') {

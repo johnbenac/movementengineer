@@ -3,6 +3,19 @@ import { getPreviewFields, getSchemaGuide } from '../ui/modelUiHints.js';
 import { renderMarkdownPreview } from '../ui/markdown.js';
 import { createTab } from './tabKit.js';
 
+const cleanId =
+  typeof globalThis !== 'undefined' && globalThis.cleanId
+    ? globalThis.cleanId
+    : value => {
+      if (value === undefined || value === null) return null;
+      const s = String(value).trim();
+      if (!s) return null;
+      const m = s.match(/^\[\[([^\]]+)\]\]$/);
+      const unwrapped = m ? m[1] : s;
+      const trimmed = String(unwrapped).trim();
+      return trimmed || null;
+    };
+
 function getState(ctx) {
   return ctx.store.getState() || {};
 }
@@ -74,53 +87,52 @@ function validateRecord(ctx, collectionName, record, snapshot, guide) {
   });
 
   (guide.referenceFields || []).forEach(({ field, target, kind }) => {
-    if (!target || kind === 'poly') return;
+    if (!target) return;
 
     const value = record[field];
     if (value === undefined || value === null || value === '') return;
 
+    if (kind === 'poly' || target === 'any') {
+      const nodeIndex =
+        getState(ctx)?.nodeIndex || snapshot?.__nodeIndex || snapshot?.nodeIndex || null;
+      const checkOne = id => {
+        const cleaned = cleanId(id);
+        if (!cleaned) return;
+        const hit = nodeIndex?.get?.(cleaned) || null;
+        if (!hit) {
+          issues.push({ level: 'warn', message: `Bad ref: ${field} → ${cleaned}` });
+          return;
+        }
+        if (
+          hit.movementId &&
+          record.movementId &&
+          hit.movementId !== record.movementId
+        ) {
+          issues.push({ level: 'warn', message: `Cross-movement ref: ${field} → ${cleaned}` });
+        }
+      };
+      if (Array.isArray(value)) value.filter(Boolean).forEach(checkOne);
+      else checkOne(value);
+      return;
+    }
+
     const targetColl = snapshot?.[target] || [];
     const checkOne = id => {
-      const hit = Array.isArray(targetColl) ? targetColl.find(it => it.id === id) : null;
+      const cleaned = cleanId(id);
+      if (!cleaned) return;
+      const hit = Array.isArray(targetColl) ? targetColl.find(it => it.id === cleaned) : null;
       if (!hit) {
-        issues.push({ level: 'warn', message: `Bad ref: ${field} → ${id}` });
+        issues.push({ level: 'warn', message: `Bad ref: ${field} → ${cleaned}` });
         return;
       }
       if (hit.movementId && record.movementId && hit.movementId !== record.movementId) {
-        issues.push({ level: 'warn', message: `Cross-movement ref: ${field} → ${id}` });
+        issues.push({ level: 'warn', message: `Cross-movement ref: ${field} → ${cleaned}` });
       }
     };
 
     if (Array.isArray(value)) value.filter(Boolean).forEach(checkOne);
     else checkOne(value);
   });
-
-  if (collectionName === 'notes') {
-    const targetType = record.targetType;
-    const targetId = record.targetId;
-    const typeMap = getModel(ctx)?.notes?.targetType?.aliases || {};
-    const canonical = typeMap[String(targetType).replace(/[\s_]/g, '').toLowerCase()] || targetType;
-
-    const targetCollection =
-      canonical === 'Movement' ? 'movements'
-      : canonical === 'TextNode' ? 'texts'
-      : canonical === 'Entity' ? 'entities'
-      : canonical === 'Practice' ? 'practices'
-      : canonical === 'Event' ? 'events'
-      : canonical === 'Rule' ? 'rules'
-      : canonical === 'Claim' ? 'claims'
-      : canonical === 'MediaAsset' ? 'media'
-      : null;
-
-    if (targetCollection && targetId) {
-      const coll = snapshot?.[targetCollection] || [];
-      const hit = Array.isArray(coll) ? coll.find(it => it.id === targetId) : null;
-      if (!hit) issues.push({ level: 'warn', message: `Bad note target: ${targetType} → ${targetId}` });
-      if (hit?.movementId && record.movementId && hit.movementId !== record.movementId) {
-        issues.push({ level: 'warn', message: `Cross-movement note target` });
-      }
-    }
-  }
 
   return issues;
 }

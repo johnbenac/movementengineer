@@ -39,6 +39,15 @@
 
   const globalScope =
     typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : undefined;
+  const cleanId =
+    globalScope?.cleanId ||
+    function cleanId(value) {
+      const str = stringOrNull(value);
+      if (!str) return null;
+      const trimmed = str.trim();
+      const unwrapped = trimmed.replace(/^\[\[/, '').replace(/\]\]$/, '');
+      return unwrapped.trim() || null;
+    };
 
   function getModelRegistry() {
     if (isNode()) {
@@ -180,14 +189,6 @@
 
   function stringOrEmpty(value) {
     return typeof value === 'string' ? value : '';
-  }
-
-  function cleanId(value) {
-    const str = stringOrNull(value);
-    if (!str) return null;
-    const trimmed = str.trim();
-    const unwrapped = trimmed.replace(/^\[\[/, '').replace(/\]\]$/, '');
-    return unwrapped.trim() || null;
   }
 
   function normaliseIds(value) {
@@ -639,21 +640,17 @@
     const movementId = cleanId(frontMatter.movementId);
     const rawTarget = frontMatter.targetType;
     const targetId = cleanId(frontMatter.targetId);
-    if (!id || !movementId || !rawTarget || !targetId) {
+    if (!id || !movementId || !targetId) {
       throw new Error(`Note missing required fields (${filePath})`);
     }
-    const canonical = NOTE_TARGET_TYPES[String(rawTarget).replace(/[\s_]/g, '').toLowerCase()];
-    if (!canonical) {
-      throw new Error(
-        `Invalid note targetType "${rawTarget}" in ${filePath}. Expected one of: ${Object.values(NOTE_TARGET_TYPES)
-          .filter((v, i, arr) => arr.indexOf(v) === i)
-          .join(', ')}`
-      );
-    }
+    const canonical = rawTarget
+      ? NOTE_TARGET_TYPES[String(rawTarget).replace(/[\s_]/g, '').toLowerCase()] ||
+        String(rawTarget).trim()
+      : null;
     return {
       id,
       movementId,
-      targetType: canonical,
+      targetType: canonical || null,
       targetId,
       author: stringOrNull(frontMatter.author),
       context: stringOrNull(frontMatter.context),
@@ -751,6 +748,14 @@
   function validateReferences(data, fileIndex, collectionNames) {
     const byMovement = buildMovementIndexes(data, collectionNames);
     Object.entries(byMovement).forEach(([movementId, collections]) => {
+      const idToTarget = new Map();
+      collectionNames.forEach(collection => {
+        (collections[collection] || []).forEach(item => {
+          const id = item?.id;
+          if (!id || idToTarget.has(id)) return;
+          idToTarget.set(id, { collection, item });
+        });
+      });
       const textIds = new Set(collections.texts.map(t => t.id));
       const entityIds = new Set(collections.entities.map(e => e.id));
       const practiceIds = new Set(collections.practices.map(p => p.id));
@@ -849,47 +854,20 @@
       });
 
       collections.notes.forEach(note => {
-        let targetCollectionName;
-        switch (note.targetType) {
-          case 'Movement':
-            targetCollectionName = 'movements';
-            break;
-          case 'TextNode':
-            targetCollectionName = 'texts';
-            break;
-          case 'Entity':
-            targetCollectionName = 'entities';
-            break;
-          case 'Practice':
-            targetCollectionName = 'practices';
-            break;
-          case 'Event':
-            targetCollectionName = 'events';
-            break;
-          case 'Rule':
-            targetCollectionName = 'rules';
-            break;
-          case 'Claim':
-            targetCollectionName = 'claims';
-            break;
-          case 'MediaAsset':
-            targetCollectionName = 'media';
-            break;
-          default:
-            throw new Error(`Invalid note targetType ${note.targetType} for ${note.id}`);
-        }
-        const targetCollection = data[targetCollectionName] || [];
-        const target = targetCollection.find(item => item.id === note.targetId);
+        const target = idToTarget.get(note.targetId) || null;
         assertRef('notes', note.id, 'targetId', note.targetId, !!target, fileIndex.get(`notes:${note.id}`));
-        if (targetCollectionName === 'movements') {
+        if (!target) return;
+        if (target.collection === 'movements') {
           if (!movementExists || note.targetId !== movementId) {
             throw new Error(
               `Invalid reference: notes/${note.id} must target its own movement (${movementId})`
             );
           }
-        } else if (target && target.movementId && target.movementId !== movementId) {
+          return;
+        }
+        if (target.item?.movementId && target.item.movementId !== movementId) {
           throw new Error(
-            `Invalid reference: notes/${note.id} targets ${note.targetType}/${note.targetId} from a different movement`
+            `Invalid reference: notes/${note.id} targets ${target.collection}/${note.targetId} from a different movement`
           );
         }
       });

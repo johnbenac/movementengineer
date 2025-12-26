@@ -45,16 +45,20 @@ export function getCollectionDoc(model, collectionName) {
   const referenceFields = [];
   Object.entries(collection.fields || {}).forEach(([name, field]) => {
     if (!field) return;
-    if (collectionName === 'notes' && name === 'targetId') {
-      referenceFields.push({ field: name, target: '(polymorphic via targetType)', kind: 'poly' });
-      return;
-    }
     if (field.type === 'array' && field.items?.ref) {
-      referenceFields.push({ field: name, target: field.items.ref, kind: 'many' });
+      referenceFields.push({
+        field: name,
+        target: field.items.ref === '*' ? 'any' : field.items.ref,
+        kind: field.items.ref === '*' ? 'poly' : 'many'
+      });
       return;
     }
     if (field.ref) {
-      referenceFields.push({ field: name, target: field.ref, kind: 'one' });
+      referenceFields.push({
+        field: name,
+        target: field.ref === '*' ? 'any' : field.ref,
+        kind: field.ref === '*' ? 'poly' : 'one'
+      });
     }
   });
 

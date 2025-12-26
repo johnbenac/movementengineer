@@ -6,6 +6,13 @@ import {
   resolveRefCollectionName
 } from './genericCrudHelpers.js';
 
+function resolveNodeIndex(snapshot) {
+  if (snapshot?.__nodeIndex) return snapshot.__nodeIndex;
+  if (snapshot?.nodeIndex) return snapshot.nodeIndex;
+  const ctx = typeof globalThis !== 'undefined' ? globalThis.MovementEngineer?.ctx : null;
+  return ctx?.store?.getState?.()?.nodeIndex || null;
+}
+
 function renderValue({ value, fieldDef, model, snapshot, isBodyField }) {
   if (value === null) return 'null';
   if (value === undefined) return '—';
@@ -27,6 +34,11 @@ function renderValue({ value, fieldDef, model, snapshot, isBodyField }) {
   }
 
   if (kindInfo.kind === 'ref') {
+    if (kindInfo.ref === '*') {
+      const nodeIndex = resolveNodeIndex(snapshot);
+      const node = nodeIndex?.get?.(value);
+      return node?.title || value;
+    }
     const collectionName = resolveRefCollectionName(kindInfo.ref, model);
     const options = Array.isArray(snapshot?.[collectionName]) ? snapshot[collectionName] : [];
     const match = options.find(item => item?.id === value);

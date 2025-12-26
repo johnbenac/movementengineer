@@ -1,3 +1,6 @@
+import { buildGraphIndex } from '../core/graphIndex.js';
+import { buildNodeIndex } from '../core/nodeIndex.js';
+
 const DEFAULT_CANON_FILTERS = {
   search: '',
   tag: '',
@@ -59,6 +62,8 @@ export function createStore(options = {}) {
     : {};
   const snapshot =
     StorageService?.ensureAllCollections?.(initialSnapshot) || initialSnapshot || {};
+  const initialIndexes = deriveIndexes(snapshot);
+  attachDerivedToSnapshot(snapshot, initialIndexes);
   let state = {
     snapshot,
     currentMovementId: computeCurrentMovementId(snapshot),
@@ -72,7 +77,9 @@ export function createStore(options = {}) {
     navigation: { stack: [], index: -1 },
     graphWorkbenchState: { ...DEFAULT_GRAPH_WORKBENCH_STATE },
     flags: ensureFlags(),
-    statusText: ''
+    statusText: '',
+    nodeIndex: initialIndexes.nodeIndex,
+    graphIndex: initialIndexes.graphIndex
   };
 
   const subscribers = new Set();
@@ -93,7 +100,8 @@ export function createStore(options = {}) {
 
   function setState(nextState) {
     if (!nextState) return state;
-    state = typeof nextState === 'function' ? nextState(state) || state : nextState;
+    const resolved = typeof nextState === 'function' ? nextState(state) || state : nextState;
+    state = applyDerivedState(resolved, state);
     notify(state);
     return state;
   }
@@ -186,4 +194,58 @@ export function createStore(options = {}) {
     saveSnapshot,
     setStatus
   };
+
+  function deriveIndexes(nextSnapshot) {
+    if (!nextSnapshot) return { nodeIndex: null, graphIndex: null };
+    const registry =
+      typeof globalThis !== 'undefined' ? globalThis.ModelRegistry : null;
+    const model = registry?.getModel
+      ? registry.getModel(nextSnapshot.specVersion || registry.DEFAULT_SPEC_VERSION || '2.3')
+      : null;
+    const nodeIndex = model ? buildNodeIndex(nextSnapshot, model) : null;
+    const graphIndex =
+      model && nodeIndex
+        ? buildGraphIndex(nextSnapshot, model, nodeIndex, registry)
+        : null;
+    return { nodeIndex, graphIndex };
+  }
+
+  function applyDerivedState(nextState, prevState) {
+    if (!nextState?.snapshot) return nextState;
+    const snapshotChanged = nextState.snapshot !== prevState?.snapshot;
+    if (!snapshotChanged && nextState.nodeIndex && nextState.graphIndex) {
+      return nextState;
+    }
+    const { nodeIndex, graphIndex } = deriveIndexes(nextState.snapshot);
+    attachDerivedToSnapshot(nextState.snapshot, { nodeIndex, graphIndex });
+    return {
+      ...nextState,
+      nodeIndex,
+      graphIndex
+    };
+  }
+
+  function attachDerivedToSnapshot(snapshotToUpdate, { nodeIndex, graphIndex }) {
+    if (!snapshotToUpdate) return;
+    if (nodeIndex) {
+      try {
+        Object.defineProperty(snapshotToUpdate, '__nodeIndex', {
+          value: nodeIndex,
+          enumerable: false
+        });
+      } catch (err) {
+        // Ignore if snapshot is not extensible.
+      }
+    }
+    if (graphIndex) {
+      try {
+        Object.defineProperty(snapshotToUpdate, '__graphIndex', {
+          value: graphIndex,
+          enumerable: false
+        });
+      } catch (err) {
+        // Ignore if snapshot is not extensible.
+      }
+    }
+  }
 }

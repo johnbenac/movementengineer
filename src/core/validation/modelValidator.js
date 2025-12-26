@@ -29,6 +29,7 @@
 
   function resolveCollectionName(model, ref) {
     if (!ref || !model || !model.collections) return null;
+    if (ref === '*') return '*';
     if (model.collections[ref]) return ref;
     const entries = Object.values(model.collections);
     const match = entries.find(entry => entry.collectionName === ref || entry.typeName === ref);

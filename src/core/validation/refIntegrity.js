@@ -3,6 +3,17 @@
 
   const globalScope =
     typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : undefined;
+  const cleanId =
+    globalScope?.cleanId ||
+    function cleanId(raw) {
+      if (raw === undefined || raw === null) return null;
+      const s = String(raw).trim();
+      if (!s) return null;
+      const m = s.match(/^\[\[([^\]]+)\]\]$/);
+      const unwrapped = m ? m[1] : s;
+      const trimmed = String(unwrapped).trim();
+      return trimmed || null;
+    };
 
   function getValidationTypes() {
     if (typeof module !== 'undefined' && module.exports) {
@@ -21,6 +32,7 @@
 
   function resolveCollectionName(model, ref) {
     if (!ref || !model || !model.collections) return null;
+    if (ref === '*') return '*';
     if (model.collections[ref]) return ref;
     const entries = Object.values(model.collections);
     const match = entries.find(entry => entry.collectionName === ref || entry.typeName === ref);
@@ -30,17 +42,28 @@
   function buildReferenceLookups(snapshot, model) {
     const idSets = {};
     const movementIdById = {};
+    const targetById = new Map();
     listCollections(model).forEach(collectionName => {
       const records = Array.isArray(snapshot[collectionName]) ? snapshot[collectionName] : [];
-      idSets[collectionName] = new Set(records.map(record => record?.id).filter(Boolean));
+      idSets[collectionName] = new Set(
+        records
+          .map(record => cleanId(record?.id))
+          .filter(Boolean)
+      );
       const movementMap = new Map();
       records.forEach(record => {
-        if (!record?.id) return;
-        movementMap.set(record.id, record.movementId);
+        const id = cleanId(record?.id);
+        if (!id) return;
+        const movementId =
+          cleanId(record?.movementId) || (collectionName === 'movements' ? id : null);
+        movementMap.set(id, movementId);
+        if (!targetById.has(id)) {
+          targetById.set(id, { collectionName, movementId });
+        }
       });
       movementIdById[collectionName] = movementMap;
     });
-    return { idSets, movementIdById };
+    return { idSets, movementIdById, targetById };
   }
 
   function pushIssue(issues, issue, ctx) {
@@ -57,13 +80,94 @@
     refValue,
     idSets,
     movementIdById,
+    targetById,
     issues,
     ctx
   }) {
-    if (typeof refValue !== 'string') return;
+    const cleanedValue = cleanId(refValue);
+    if (!cleanedValue) return;
     const resolved = resolveCollectionName(ctx.model, refTarget);
-    if (!resolved || !idSets[resolved]) return;
-    if (!idSets[resolved].has(refValue)) {
+    if (!resolved) return;
+    if (resolved === '*') {
+      const target = targetById?.get(cleanedValue);
+      if (!target) {
+        pushIssue(
+          issues,
+          validationTypes.createIssue({
+            source: 'model',
+            severity: 'error',
+            code: 'REF_MISSING',
+            collection: collectionName,
+            recordId: record?.id,
+            fieldPath,
+            message: `Missing reference to "${cleanedValue}".`,
+            expected: 'any',
+            actual: cleanedValue,
+            meta: {
+              refTargetCollection: '*',
+              refTargetType: refTarget,
+              refValue: cleanedValue
+            }
+          }),
+          ctx
+        );
+        return;
+      }
+      if (target.collectionName === 'movements') {
+        if (record?.movementId && target.movementId && record.movementId !== target.movementId) {
+          pushIssue(
+            issues,
+            validationTypes.createIssue({
+              source: 'model',
+              severity: 'error',
+              code: 'REF_CROSS_MOVEMENT',
+              collection: collectionName,
+              recordId: record?.id,
+              fieldPath,
+              message: `Reference crosses movements: ${collectionName}/${record?.id || 'unknown'} ${fieldPath} -> ${target.collectionName}/${cleanedValue} (movementId mismatch).`,
+              expected: record.movementId,
+              actual: target.movementId,
+              meta: {
+                refTargetCollection: target.collectionName,
+                refTargetType: refTarget,
+                refValue: cleanedValue,
+                sourceMovementId: record?.movementId,
+                targetMovementId: target.movementId
+              }
+            }),
+            ctx
+          );
+        }
+        return;
+      }
+      if (record?.movementId && target.movementId && record.movementId !== target.movementId) {
+        pushIssue(
+          issues,
+          validationTypes.createIssue({
+            source: 'model',
+            severity: 'error',
+            code: 'REF_CROSS_MOVEMENT',
+            collection: collectionName,
+            recordId: record?.id,
+            fieldPath,
+            message: `Reference crosses movements: ${collectionName}/${record?.id || 'unknown'} ${fieldPath} -> ${target.collectionName}/${cleanedValue} (movementId mismatch).`,
+            expected: record.movementId,
+            actual: target.movementId,
+            meta: {
+              refTargetCollection: target.collectionName,
+              refTargetType: refTarget,
+              refValue: cleanedValue,
+              sourceMovementId: record?.movementId,
+              targetMovementId: target.movementId
+            }
+          }),
+          ctx
+        );
+      }
+      return;
+    }
+    if (!idSets[resolved]) return;
+    if (!idSets[resolved].has(cleanedValue)) {
       pushIssue(
         issues,
         validationTypes.createIssue({
@@ -73,13 +177,13 @@
           collection: collectionName,
           recordId: record?.id,
           fieldPath,
-          message: `Missing reference to ${resolved} "${refValue}".`,
+          message: `Missing reference to ${resolved} "${cleanedValue}".`,
           expected: resolved,
-          actual: refValue,
+          actual: cleanedValue,
           meta: {
             refTargetCollection: resolved,
             refTargetType: refTarget,
-            refValue
+            refValue: cleanedValue
           }
         }),
         ctx
@@ -88,8 +192,8 @@
     }
 
     if (resolved === 'movements') return;
-    const sourceMovementId = record?.movementId;
-    const targetMovementId = movementIdById?.[resolved]?.get(refValue);
+    const sourceMovementId = cleanId(record?.movementId);
+    const targetMovementId = movementIdById?.[resolved]?.get(cleanedValue);
     if (!sourceMovementId || !targetMovementId) return;
     if (sourceMovementId !== targetMovementId) {
       pushIssue(
@@ -101,98 +205,14 @@
           collection: collectionName,
           recordId: record?.id,
           fieldPath,
-          message: `Reference crosses movements: ${collectionName}/${record?.id || 'unknown'} ${fieldPath} -> ${resolved}/${refValue} (movementId mismatch).`,
+          message: `Reference crosses movements: ${collectionName}/${record?.id || 'unknown'} ${fieldPath} -> ${resolved}/${cleanedValue} (movementId mismatch).`,
           expected: sourceMovementId,
           actual: targetMovementId,
           meta: {
             refTargetCollection: resolved,
             refTargetType: refTarget,
-            refValue,
+            refValue: cleanedValue,
             sourceMovementId,
-            targetMovementId
-          }
-        }),
-        ctx
-      );
-    }
-  }
-
-  function validateNoteTarget(note, model, idSets, movementIdById, issues, ctx) {
-    if (!note || typeof note.targetType !== 'string' || typeof note.targetId !== 'string') return;
-    const targetCollection = resolveCollectionName(model, note.targetType);
-    if (!targetCollection || !idSets[targetCollection]) return;
-
-    if (!idSets[targetCollection].has(note.targetId)) {
-      pushIssue(
-        issues,
-        validationTypes.createIssue({
-          source: 'model',
-          severity: 'error',
-          code: 'NOTE_TARGET_MISSING',
-          collection: 'notes',
-          recordId: note?.id,
-          fieldPath: 'targetId',
-          message: `Missing note target in ${targetCollection} "${note.targetId}".`,
-          expected: targetCollection,
-          actual: note.targetId,
-          meta: {
-            targetType: note.targetType,
-            targetCollection,
-            targetId: note.targetId
-          }
-        }),
-        ctx
-      );
-      return;
-    }
-
-    if (targetCollection === 'movements') {
-      if (note.movementId && note.targetId !== note.movementId) {
-        pushIssue(
-          issues,
-          validationTypes.createIssue({
-            source: 'model',
-            severity: 'error',
-            code: 'NOTE_TARGET_WRONG_MOVEMENT',
-            collection: 'notes',
-            recordId: note?.id,
-            fieldPath: 'targetId',
-            message: `Note target movement does not match note movementId.`,
-            expected: note.movementId,
-            actual: note.targetId,
-            meta: {
-              targetType: note.targetType,
-              targetCollection,
-              targetId: note.targetId,
-              noteMovementId: note.movementId
-            }
-          }),
-          ctx
-        );
-      }
-      return;
-    }
-
-    const targetMovementId = movementIdById?.[targetCollection]?.get(note.targetId);
-    if (!note.movementId || !targetMovementId) return;
-    if (targetMovementId !== note.movementId) {
-      pushIssue(
-        issues,
-        validationTypes.createIssue({
-          source: 'model',
-          severity: 'error',
-          code: 'NOTE_TARGET_CROSS_MOVEMENT',
-          collection: 'notes',
-          recordId: note?.id,
-          fieldPath: 'targetId',
-          message: `Note target crosses movements.`,
-          expected: note.movementId,
-          actual: targetMovementId,
-          meta: {
-            targetType: note.targetType,
-            targetCollection,
-            targetId: note.targetId,
-            noteMovementId: note.movementId,
             targetMovementId
           }
         }),
@@ -204,7 +224,7 @@
   function validateRecordRefs(record, collectionDef, snapshot, model, ctx = {}) {
     const issues = [];
     if (!record || !collectionDef?.fields || !snapshot || !model) return issues;
-    const { idSets, movementIdById } = buildReferenceLookups(snapshot, model);
+    const { idSets, movementIdById, targetById } = buildReferenceLookups(snapshot, model);
     const collectionName =
       collectionDef.collectionName || collectionDef.collection || collectionDef.typeName || null;
     if (!collectionName) return issues;
@@ -223,6 +243,7 @@
           refValue: value,
           idSets,
           movementIdById,
+          targetById,
           issues,
           ctx
         });
@@ -241,6 +262,7 @@
             refValue: itemValue,
             idSets,
             movementIdById,
+            targetById,
             issues,
             ctx
           });
@@ -248,17 +270,13 @@
       }
     });
 
-    if (collectionName === 'notes') {
-      validateNoteTarget(record, model, idSets, movementIdById, issues, ctx);
-    }
-
     return issues;
   }
 
   function validateRefIntegrity(snapshot, model, ctx = {}) {
     const issues = [];
     if (!snapshot || !model || !model.collections) return issues;
-    const { idSets, movementIdById } = buildReferenceLookups(snapshot, model);
+    const { idSets, movementIdById, targetById } = buildReferenceLookups(snapshot, model);
 
     listCollections(model).forEach(collectionName => {
       if (ctx?.maxIssues && issues.length >= ctx.maxIssues) return;
@@ -274,14 +292,15 @@
           if (fieldDef?.ref) {
             const value = record?.[fieldName];
             if (typeof value !== 'string') return;
-            validateRefValue({
-              collectionName,
-              record,
-              fieldPath: fieldName,
+              validateRefValue({
+                collectionName,
+                record,
+                fieldPath: fieldName,
                 refTarget: fieldDef.ref,
                 refValue: value,
                 idSets,
                 movementIdById,
+                targetById,
                 issues,
                 ctx
               });
@@ -300,16 +319,13 @@
                 refValue: itemValue,
                 idSets,
                 movementIdById,
+                targetById,
                 issues,
                 ctx
               });
             });
           }
         });
-
-        if (collectionName === 'notes') {
-          validateNoteTarget(record, model, idSets, movementIdById, issues, ctx);
-        }
       });
     });
 

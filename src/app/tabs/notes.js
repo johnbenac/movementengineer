@@ -30,23 +30,27 @@ const TARGET_TYPE_LABELS = {
   MediaAsset: 'Media'
 };
 
-const TARGET_COLLECTION_BY_TYPE = {
-  Movement: 'movements',
-  TextNode: 'texts',
-  Entity: 'entities',
-  Practice: 'practices',
-  Event: 'events',
-  Rule: 'rules',
-  Claim: 'claims',
-  MediaAsset: 'media'
-};
-
 let selectedNoteId = null;
 let lastMovementId = null;
 
+const cleanId =
+  typeof globalThis !== 'undefined' && globalThis.cleanId
+    ? globalThis.cleanId
+    : value => {
+      if (value === undefined || value === null) return null;
+      const s = String(value).trim();
+      if (!s) return null;
+      const m = s.match(/^\[\[([^\]]+)\]\]$/);
+      const unwrapped = m ? m[1] : s;
+      const trimmed = String(unwrapped).trim();
+      return trimmed || null;
+    };
+
 function idsMatch(a, b) {
-  if (a == null || b == null) return false;
-  return String(a) === String(b);
+  const left = cleanId(a);
+  const right = cleanId(b);
+  if (!left || !right) return false;
+  return left === right;
 }
 
 function getState(ctx) {
@@ -75,6 +79,12 @@ function labelForTargetType(type) {
 
 function buildTargetTypeOptions(snapshot) {
   const types = [...BASE_TARGET_TYPES];
+  const nodeIndex = snapshot?.__nodeIndex || snapshot?.nodeIndex || null;
+  if (nodeIndex?.all) {
+    nodeIndex.all.forEach(node => {
+      if (node?.typeName) types.push(node.typeName);
+    });
+  }
   if (Array.isArray(snapshot?.notes)) {
     snapshot.notes.forEach(n => {
       if (n?.targetType) types.push(n.targetType);
@@ -90,42 +100,20 @@ function buildTargetTypeOptions(snapshot) {
   return options;
 }
 
-function targetLabelForItem(targetType, item) {
-  if (!item) return '';
-  switch (targetType) {
-    case 'Movement':
-      return item.name || item.shortName || item.id;
-    case 'TextNode':
-      return item.title || item.label || item.id;
-    case 'Rule':
-      return item.shortText || item.id;
-    case 'Claim':
-      return item.text || item.id;
-    default:
-      return item.name || item.title || item.id;
-  }
-}
+function buildTargetIdOptions(snapshot, movementId, targetType) {
+  const nodeIndex = snapshot?.__nodeIndex || snapshot?.nodeIndex || null;
+  const nodes = Array.isArray(nodeIndex?.all) ? nodeIndex.all : [];
+  const filtered = nodes.filter(node => {
+    if (!node?.id) return false;
+    if (movementId && node.movementId && node.movementId !== movementId) return false;
+    if (targetType && node.typeName !== targetType) return false;
+    return true;
+  });
 
-function buildTargetIdOptions(snapshot, movementId, targetType, domainService) {
-  const collectionName = TARGET_COLLECTION_BY_TYPE[targetType];
-  if (!collectionName) return [];
-
-  const items = Array.isArray(snapshot?.[collectionName]) ? snapshot[collectionName] : [];
-  const scopedCollections = domainService?.COLLECTIONS_WITH_MOVEMENT_ID || new Set();
-
-  let filtered = items;
-  if (targetType === 'Movement') {
-    filtered = items.filter(item => item && item.id === movementId);
-  } else if (scopedCollections.has(collectionName)) {
-    filtered = items.filter(item => item && item.movementId === movementId);
-  }
-
-  return filtered
-    .filter(item => item && item.id)
-    .map(item => ({
-      value: item.id,
-      label: targetLabelForItem(targetType, item)
-    }));
+  return filtered.map(node => ({
+    value: node.id,
+    label: node.title || node.id
+  }));
 }
 
 function populateTargetIdOptions(dom, datalistEl, options) {
@@ -201,16 +189,27 @@ function handleSaveNote(ctx, rerender) {
 
   const noteData = {
     targetType: dom.targetType?.value || '',
-    targetId: (dom.targetId?.value || '').trim(),
+    targetId: cleanId(dom.targetId?.value || ''),
     author: (dom.author?.value || '').trim() || null,
     body: (dom.body?.value || '').trim(),
     context: (dom.context?.value || '').trim() || null,
     tags: parseCsvInput(dom.tags?.value)
   };
 
-  if (!noteData.targetType || !noteData.targetId || !noteData.body) {
-    ctx?.setStatus?.('Target type, target ID, and body are required.');
+  if (!noteData.targetId || !noteData.body) {
+    ctx?.setStatus?.('Target ID and body are required.');
     return;
+  }
+
+  const nodeIndex = state.nodeIndex || snapshot.__nodeIndex || null;
+  const targetNode = nodeIndex?.get?.(noteData.targetId) || null;
+  if (currentMovementId && targetNode?.movementId && targetNode.movementId !== currentMovementId) {
+    ctx?.setStatus?.('Note target must belong to the selected movement.');
+    return;
+  }
+
+  if (!noteData.targetType && targetNode?.typeName) {
+    noteData.targetType = targetNode.typeName;
   }
 
   if (!DomainService?.upsertItem) {
@@ -464,8 +463,7 @@ function renderNotesTab(ctx) {
   const targetIdOptions = buildTargetIdOptions(
     snapshot,
     currentMovementId,
-    desiredTargetType,
-    services.DomainService
+    desiredTargetType
   );
   populateTargetIdOptions(dom, formDom.targetIdDatalist, targetIdOptions);
 

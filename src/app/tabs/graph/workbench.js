@@ -1083,7 +1083,12 @@ export function renderGraphWorkbench(ctx) {
     return;
   }
 
-  const baseGraph = ViewModels.buildMovementGraphModel(snapshot, {
+  const dataWithIndexes = {
+    ...snapshot,
+    nodeIndex: state.nodeIndex,
+    graphIndex: state.graphIndex
+  };
+  const baseGraph = ViewModels.buildMovementGraphModel(dataWithIndexes, {
     movementId: currentMovementId
   });
 

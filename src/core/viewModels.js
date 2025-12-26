@@ -14,6 +14,14 @@ function normaliseArray(value) {
   return Array.isArray(value) ? value : [];
 }
 
+function resolveNodeIndex(data) {
+  return data?.nodeIndex || data?.__nodeIndex || null;
+}
+
+function resolveGraphIndex(data) {
+  return data?.graphIndex || data?.__graphIndex || null;
+}
+
 function labelForItem(item) {
   if (!item || typeof item !== 'object') return '';
   return (
@@ -681,9 +689,60 @@ function buildEntityGraphViewModel(data, input) {
 
 function buildMovementGraphModel(data, input) {
   const { movementId, relationTypeFilter } = input;
+  const nodeIndex = resolveNodeIndex(data);
+  const graphIndex = resolveGraphIndex(data);
   const relationFilterSet = Array.isArray(relationTypeFilter)
     ? new Set(relationTypeFilter)
     : null;
+
+  if (nodeIndex && graphIndex?.outEdgesById) {
+    const nodes = new Map();
+    const edges = [];
+
+    const shouldIncludeNode = node => {
+      if (!node) return false;
+      if (!movementId) return true;
+      return node.movementId === movementId;
+    };
+
+    const ensureNode = node => {
+      if (!node || nodes.has(node.id)) return;
+      if (!shouldIncludeNode(node)) return;
+      nodes.set(node.id, {
+        id: node.id,
+        name: node.title || node.id,
+        type: node.typeName || node.collectionName,
+        kind: node.record?.kind ?? null
+      });
+    };
+
+    graphIndex.outEdgesById.forEach((edgeList, fromId) => {
+      const fromNode = nodeIndex.get(fromId);
+      if (!shouldIncludeNode(fromNode)) return;
+      edgeList.forEach(edge => {
+        const toNode = nodeIndex.get(edge.toId);
+        if (!shouldIncludeNode(toNode)) return;
+        const relationType = edge.fieldPath || 'ref';
+        if (relationFilterSet && !relationFilterSet.has(relationType)) return;
+        ensureNode(fromNode);
+        ensureNode(toNode);
+        const id = `${fromId}-${relationType}-${edge.toId}-${edges.length}`;
+        edges.push({
+          id,
+          fromId,
+          toId: edge.toId,
+          relationType,
+          source: {
+            collection: edge.fromCollection,
+            id: fromId,
+            field: edge.fieldPath
+          }
+        });
+      });
+    });
+
+    return { nodes: Array.from(nodes.values()), edges };
+  }
 
   const lookups = {
     Movement: buildLookup(filterByMovement(data.movements, movementId)),
@@ -1656,41 +1715,38 @@ function buildComparisonViewModel(data, input) {
 function buildNotesViewModel(data, input) {
   const { movementId, targetTypeFilter, targetIdFilter } = input;
   let notes = filterByMovement(data.notes, movementId);
-  if (targetTypeFilter) {
-    notes = notes.filter(note => note.targetType === targetTypeFilter);
-  }
+  const nodeIndex = resolveNodeIndex(data);
   if (targetIdFilter) {
     notes = notes.filter(note => note.targetId === targetIdFilter);
   }
+  if (targetTypeFilter) {
+    notes = notes.filter(note => {
+      const node = nodeIndex?.get?.(note.targetId);
+      const resolvedType = node?.typeName || note.targetType || null;
+      return resolvedType === targetTypeFilter;
+    });
+  }
 
-  const lookups = {
-    Movement: buildLookup(data.movements),
-    TextNode: buildLookup(data.texts),
-    Entity: buildLookup(data.entities),
-    Practice: buildLookup(data.practices),
-    Event: buildLookup(data.events),
-    Rule: buildLookup(data.rules),
-    Claim: buildLookup(data.claims),
-    MediaAsset: buildLookup(data.media)
-  };
-
-  const resolveLabel = (targetType, targetId) => {
-    const lookup = lookups[targetType];
-    const item = lookup ? lookup.get(targetId) : null;
-    if (!item) return targetId;
-    return item.name || item.title || item.shortText || targetId;
-  };
-
-  const noteRows = notes.map(note => ({
-    id: note.id,
-    targetType: note.targetType,
-    targetId: note.targetId,
-    targetLabel: resolveLabel(note.targetType, note.targetId),
-    author: note.author ?? null,
-    body: note.body,
-    context: note.context ?? null,
-    tags: normaliseArray(note.tags)
-  }));
+  const noteRows = notes.map(note => {
+    const node = nodeIndex?.get?.(note.targetId);
+    const resolvedType = node?.typeName || note.targetType || null;
+    const targetLabel =
+      node?.title ||
+      node?.record?.name ||
+      node?.record?.title ||
+      note.targetId ||
+      '';
+    return {
+      id: note.id,
+      targetType: resolvedType,
+      targetId: note.targetId,
+      targetLabel,
+      author: note.author ?? null,
+      body: note.body,
+      context: note.context ?? null,
+      tags: normaliseArray(note.tags)
+    };
+  });
 
   return { notes: noteRows };
 }

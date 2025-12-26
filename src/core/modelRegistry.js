@@ -102,11 +102,49 @@
   function resolveCollectionName(value, specVersion = DEFAULT_SPEC_VERSION) {
     if (!value) return null;
     const model = getModel(specVersion);
+    if (value === '*') return '*';
     if (model.collections[value]) return value;
     const match = Object.values(model.collections).find(
       collection => collection.collectionName === value || collection.typeName === value
     );
     return match ? match.collectionName : null;
+  }
+
+  function isRefField(fieldDef) {
+    if (!fieldDef) return false;
+    if (fieldDef.ref) return true;
+    if (fieldDef.type === 'array' && fieldDef.items?.ref) return true;
+    return false;
+  }
+
+  function isRefAnyField(fieldDef) {
+    if (!fieldDef) return false;
+    if (fieldDef.ref === '*') return true;
+    if (fieldDef.type === 'array' && fieldDef.items?.ref === '*') return true;
+    return false;
+  }
+
+  function getRefTarget(fieldDef) {
+    if (!fieldDef) return null;
+    if (fieldDef.ref) return fieldDef.ref;
+    if (fieldDef.type === 'array' && fieldDef.items?.ref) return fieldDef.items.ref;
+    return null;
+  }
+
+  function listRefFieldPaths(collectionDef) {
+    if (!collectionDef?.fields) return [];
+    const refs = [];
+    Object.entries(collectionDef.fields).forEach(([fieldName, fieldDef]) => {
+      if (!fieldDef) return;
+      if (fieldDef.ref) {
+        refs.push({ path: fieldName, def: fieldDef, array: false });
+        return;
+      }
+      if (fieldDef.type === 'array' && fieldDef.items?.ref) {
+        refs.push({ path: fieldName, def: fieldDef, array: true });
+      }
+    });
+    return refs;
   }
 
   // Export schema must remain behavior-identical to the legacy exporter schema.
@@ -151,7 +189,11 @@
     getModel,
     listCollections,
     getCollection,
-    resolveCollectionName
+    resolveCollectionName,
+    isRefField,
+    isRefAnyField,
+    getRefTarget,
+    listRefFieldPaths
   };
 
   if (typeof module !== 'undefined' && module.exports) {

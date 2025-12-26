@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createRequire } from 'module';
 import { createDomUtils } from '../../../../src/app/ui/dom.js';
 import { createPersistenceFacade } from '../../../../src/app/persistenceFacade.js';
+import { buildNodeIndex } from '../../../../src/core/nodeIndex.js';
+
+const require = createRequire(import.meta.url);
+const DATA_MODEL_V2_3 = require('../../../../src/models/dataModel.v2_3.js');
 
 function renderDom() {
   document.body.innerHTML = `
@@ -57,7 +62,13 @@ function createViewModels() {
 }
 
 function createCtx({ snapshot, DomainService, StorageService, currentMovementId = 'm1' }) {
-  const state = { snapshot, currentMovementId };
+  const nodeIndex = buildNodeIndex(snapshot, DATA_MODEL_V2_3);
+  try {
+    Object.defineProperty(snapshot, '__nodeIndex', { value: nodeIndex, enumerable: false });
+  } catch (err) {
+    // Ignore if snapshot is sealed in tests.
+  }
+  const state = { snapshot, currentMovementId, nodeIndex };
   const store = {
     getState: () => state,
     setState: next => Object.assign(state, typeof next === 'function' ? next(state) : next),

@@ -124,7 +124,12 @@ function renderEntitiesTab(ctx) {
   )
     return;
 
-  const vm = ViewModels.buildEntityDetailViewModel(snapshot, { entityId });
+  const dataWithIndexes = {
+    ...snapshot,
+    nodeIndex: state.nodeIndex,
+    graphIndex: state.graphIndex
+  };
+  const vm = ViewModels.buildEntityDetailViewModel(dataWithIndexes, { entityId });
 
   if (!vm?.entity) {
     renderHint(detailContainer, 'Entity not found.');
@@ -255,7 +260,7 @@ function renderEntitiesTab(ctx) {
     .map(s => s.trim())
     .filter(Boolean);
 
-  const graphVm = ViewModels.buildEntityGraphViewModel(snapshot, {
+  const graphVm = ViewModels.buildEntityGraphViewModel(dataWithIndexes, {
     movementId: currentMovementId,
     centerEntityId: entityId,
     depth: Number.isFinite(depth) ? depth : 1,
