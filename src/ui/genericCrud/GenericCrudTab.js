@@ -212,6 +212,7 @@ export function createGenericCrudTab(ctx) {
           onSave: draft => {
             if (!draft.id) draft.id = generateId(collectionDef?.fields?.id || null);
             upsertRecord(snapshotKey, draft);
+            ctx.persistence?.save?.({ show: false, clearItemDirty: true });
             state.selectedRecordId = draft.id;
             state.mode = 'view';
             state.draft = null;
