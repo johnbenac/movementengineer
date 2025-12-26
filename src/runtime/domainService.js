@@ -11,6 +11,7 @@
   const { COLLECTIONS_WITH_MOVEMENT_ID } = globalScope.StorageService;
   const ModelRegistry = globalScope.ModelRegistry;
   const DEFAULT_SPEC_VERSION = ModelRegistry?.DEFAULT_SPEC_VERSION || '2.3';
+  const DEFAULT_MODEL = ModelRegistry?.getModel ? ModelRegistry.getModel(DEFAULT_SPEC_VERSION) : null;
   const COLLECTION_NAMES = ModelRegistry?.listCollections
     ? ModelRegistry.listCollections(DEFAULT_SPEC_VERSION)
     : [];
@@ -184,11 +185,20 @@
           linkedEventIds: [],
           linkedTextIds: []
         };
+      case 'locations':
+        return {
+          id: generateId('loc-'),
+          movementId: rid,
+          name: 'New location',
+          kind: null,
+          description: '',
+          tags: []
+        };
       case 'notes':
         return {
           id: generateId('note-'),
           movementId: rid,
-          targetType: 'Entity',
+          targetType: null,
           targetId: '',
           author: null,
           body: '',
@@ -196,8 +206,17 @@
           tags: []
         };
       default:
-        return { id: generateId('id-') };
+        return buildFallbackRecord(collectionName, movementId);
     }
+  }
+
+  function buildFallbackRecord(collectionName, movementId) {
+    const collectionDef = DEFAULT_MODEL?.collections?.[collectionName] || null;
+    const record = { id: generateId('id-') };
+    if (collectionDef?.fields?.movementId && movementId) {
+      record.movementId = movementId;
+    }
+    return record;
   }
 
   function upsertItem(snapshot, collectionName, item) {

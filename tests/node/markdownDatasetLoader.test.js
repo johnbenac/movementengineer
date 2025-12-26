@@ -90,8 +90,10 @@ async function testLoadAndRepoExport() {
   assert(movement.movementId === movement.id, 'Movement should mirror movementId');
   assert(movement.summary.includes('fixture movement'), 'Movement summary should come from body');
 
-  const note = data.notes[0];
-  assert(note.targetType === 'Entity', 'Note targetType should be canonicalised');
+  const note = data.notes.find(n => n.id === 'not-guide');
+  assert(note && note.targetType === 'Entity', 'Note targetType should be canonicalised');
+  const locationNote = data.notes.find(n => n.id === 'not-park');
+  assert(locationNote?.targetId === 'loc-park', 'Notes should load universal targets');
 
   const textOrder = data.texts.map(t => t.id);
   assert(

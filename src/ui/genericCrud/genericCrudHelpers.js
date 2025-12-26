@@ -24,6 +24,7 @@ export function getCollectionSnapshotKey(collectionDef, model) {
 
 export function resolveRefCollectionName(ref, model) {
   if (!ref) return null;
+  if (ref === '*') return '*';
   const registry = getModelRegistry();
   if (registry?.resolveCollectionName) {
     return registry.resolveCollectionName(ref, model?.specVersion);

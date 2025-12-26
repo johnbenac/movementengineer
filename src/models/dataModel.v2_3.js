@@ -8,6 +8,7 @@
     'textCollections',
     'texts',
     'entities',
+    'locations',
     'practices',
     'events',
     'rules',
@@ -416,6 +417,79 @@
       },
       constraints: [
         { kind: 'unique', scope: 'global', fields: ['id'] }
+      ]
+    },
+    locations: {
+      typeName: 'Location',
+      description: 'Places or geographic anchors in the movement.',
+      collectionName: 'locations',
+      ui: {
+        titleField: 'name',
+        subtitleField: 'kind',
+        previewFields: ['movementId', 'name', 'kind', 'description', 'tags']
+      },
+      serialization: {
+        frontMatterFields: ['id', 'movementId', 'name', 'kind', 'tags', 'order'],
+        bodyField: 'description'
+      },
+      fields: {
+        id: {
+          type: 'string',
+          format: 'id',
+          required: true,
+          nullable: false,
+          description: 'Unique location identifier.'
+        },
+        movementId: {
+          type: 'string',
+          format: 'id',
+          required: true,
+          nullable: false,
+          description: 'Owning movement id.',
+          ref: 'movements'
+        },
+        name: {
+          type: 'string',
+          required: true,
+          nullable: false,
+          description: 'Location name.'
+        },
+        kind: {
+          type: 'string',
+          required: false,
+          nullable: true,
+          default: null,
+          description: 'Optional location kind.'
+        },
+        tags: {
+          type: 'array',
+          required: false,
+          nullable: false,
+          default: [],
+          description: 'Tag list for filtering.',
+          items: { type: 'string' }
+        },
+        order: {
+          type: 'number',
+          required: false,
+          nullable: true,
+          default: null,
+          description: 'Optional ordering hint.'
+        },
+        description: {
+          type: 'string',
+          required: false,
+          nullable: false,
+          default: '',
+          description: 'Markdown description stored in the body.'
+        }
+      },
+      constraints: [
+        { kind: 'unique', scope: 'global', fields: ['id'] },
+        {
+          kind: 'movementScopedRefs',
+          description: 'Referenced ids must exist within the same movement.'
+        }
       ]
     },
     practices: {
@@ -1149,17 +1223,18 @@
         },
         targetType: {
           type: 'string',
-          required: true,
-          nullable: false,
-          description: 'Target collection type (canonicalized via alias map).',
-          enum: 'NoteTargetType'
+          required: false,
+          nullable: true,
+          default: null,
+          description: 'Optional hint; derived from targetId at runtime.'
         },
         targetId: {
           type: 'string',
           format: 'id',
           required: true,
           nullable: false,
-          description: 'Target record id (polymorphic by targetType).'
+          description: 'Target record id (universal).',
+          ref: '*'
         },
         author: {
           type: 'string',

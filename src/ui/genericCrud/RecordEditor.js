@@ -68,6 +68,7 @@ export function RecordEditor({
   collectionDef,
   model,
   snapshot,
+  nodeIndex,
   mode,
   onSave,
   onCancel
@@ -187,6 +188,7 @@ export function RecordEditor({
         record: draft,
         model,
         snapshot,
+        nodeIndex,
         isBodyField: fieldName === bodyField,
         error: null,
         onChange: nextValue => {

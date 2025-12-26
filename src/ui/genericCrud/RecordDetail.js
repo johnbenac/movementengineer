@@ -6,7 +6,7 @@ import {
   resolveRefCollectionName
 } from './genericCrudHelpers.js';
 
-function renderValue({ value, fieldDef, model, snapshot, isBodyField }) {
+function renderValue({ value, fieldDef, model, snapshot, nodeIndex, isBodyField }) {
   if (value === null) return 'null';
   if (value === undefined) return '—';
   const kindInfo = resolveFieldKind(fieldDef, { isBodyField });
@@ -20,14 +20,25 @@ function renderValue({ value, fieldDef, model, snapshot, isBodyField }) {
           value: item,
           fieldDef: kindInfo.items?.kind === 'ref' ? { ref: kindInfo.items.ref } : null,
           model,
-          snapshot
+          snapshot,
+          nodeIndex
         })
       )
       .join(', ');
   }
 
   if (kindInfo.kind === 'ref') {
+    if (kindInfo.ref === '*' && nodeIndex?.get) {
+      const node = nodeIndex.get(value);
+      return node?.title || value;
+    }
     const collectionName = resolveRefCollectionName(kindInfo.ref, model);
+    if (nodeIndex?.get) {
+      const node = nodeIndex.get(value);
+      if (node?.collectionName === collectionName) {
+        return node.title || value;
+      }
+    }
     const options = Array.isArray(snapshot?.[collectionName]) ? snapshot[collectionName] : [];
     const match = options.find(item => item?.id === value);
     return getRecordTitle(match, model?.collections?.[collectionName]) || value;
@@ -37,7 +48,7 @@ function renderValue({ value, fieldDef, model, snapshot, isBodyField }) {
   return String(value);
 }
 
-export function RecordDetail({ record, collectionDef, model, snapshot, onEdit, onDelete }) {
+export function RecordDetail({ record, collectionDef, model, snapshot, nodeIndex, onEdit, onDelete }) {
   const wrapper = document.createElement('div');
 
   const header = document.createElement('div');
@@ -85,6 +96,7 @@ export function RecordDetail({ record, collectionDef, model, snapshot, onEdit, o
       fieldDef,
       model,
       snapshot,
+      nodeIndex,
       isBodyField: fieldName === bodyField
     });
 

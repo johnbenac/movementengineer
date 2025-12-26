@@ -14,6 +14,30 @@ function normaliseArray(value) {
   return Array.isArray(value) ? value : [];
 }
 
+const graphGlobalScope =
+  typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : undefined;
+
+function resolveModelRegistry() {
+  if (typeof module !== 'undefined' && module.exports) {
+    return require('./modelRegistry');
+  }
+  return graphGlobalScope?.ModelRegistry || null;
+}
+
+function resolveNodeIndex() {
+  if (typeof module !== 'undefined' && module.exports) {
+    return require('./nodeIndex');
+  }
+  return graphGlobalScope?.NodeIndex || null;
+}
+
+function resolveGraphIndex() {
+  if (typeof module !== 'undefined' && module.exports) {
+    return require('./graphIndex');
+  }
+  return graphGlobalScope?.GraphIndex || null;
+}
+
 function labelForItem(item) {
   if (!item || typeof item !== 'object') return '';
   return (
@@ -618,7 +642,8 @@ function buildEntityDetailViewModel(data, input) {
               id: otherNode.id,
               name: otherNode.name,
               type: otherNode.type,
-              kind: otherNode.kind ?? null
+              kind: otherNode.kind ?? null,
+              collectionName: otherNode.collectionName || null
             }
           : { id: otherId, name: otherId, type: null, kind: null },
         source: edge.source ?? null
@@ -679,7 +704,7 @@ function buildEntityGraphViewModel(data, input) {
   return { nodes, edges, centerEntityId };
 }
 
-function buildMovementGraphModel(data, input) {
+function buildMovementGraphModelLegacy(data, input) {
   const { movementId, relationTypeFilter } = input;
   const relationFilterSet = Array.isArray(relationTypeFilter)
     ? new Set(relationTypeFilter)
@@ -971,6 +996,32 @@ function buildMovementGraphModel(data, input) {
   });
 
   return { nodes: Array.from(nodes.values()), edges };
+}
+
+function buildMovementGraphModel(data, input) {
+  const { movementId, relationTypeFilter } = input || {};
+  const registry = resolveModelRegistry();
+  const NodeIndex = resolveNodeIndex();
+  const GraphIndex = resolveGraphIndex();
+
+  if (!registry?.getModel || !NodeIndex?.buildNodeIndex || !GraphIndex?.buildGraphIndex) {
+    return { nodes: [], edges: [] };
+  }
+
+  const model = registry.getModel(data?.specVersion || registry.DEFAULT_SPEC_VERSION || '2.3');
+  const nodeIndex = NodeIndex.buildNodeIndex(data, model);
+  const graphIndex = GraphIndex.buildGraphIndex(data, model, nodeIndex, registry);
+
+  if (typeof GraphIndex.buildGraphModel === 'function') {
+    return GraphIndex.buildGraphModel({
+      nodeIndex,
+      graphIndex,
+      movementId,
+      relationTypeFilter
+    });
+  }
+
+  return { nodes: [], edges: [] };
 }
 
 function filterGraphModel(graph, filters = {}) {

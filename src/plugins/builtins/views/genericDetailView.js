@@ -13,6 +13,7 @@ export function GenericDetailView({
   collectionName,
   collectionDef,
   snapshot,
+  nodeIndex,
   selectedId,
   setSelectedId,
   openEditor
@@ -39,6 +40,7 @@ export function GenericDetailView({
       collectionDef,
       model,
       snapshot,
+      nodeIndex,
       onEdit: () => openEditor({ mode: 'edit', id: record.id }),
       onDelete: () => {
         const ok = window.confirm('Delete this record?');

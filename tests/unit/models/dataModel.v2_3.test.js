@@ -15,6 +15,7 @@ describe('DATA_MODEL_V2_3', () => {
       'textCollections',
       'texts',
       'entities',
+      'locations',
       'practices',
       'events',
       'rules',
@@ -51,6 +52,10 @@ describe('DATA_MODEL_V2_3', () => {
       entities: {
         frontMatterFields: ['id', 'movementId', 'name', 'kind', 'tags', 'sourceEntityIds', 'sourcesOfTruth', 'order'],
         bodyField: 'summary'
+      },
+      locations: {
+        frontMatterFields: ['id', 'movementId', 'name', 'kind', 'tags', 'order'],
+        bodyField: 'description'
       },
       practices: {
         frontMatterFields: [
