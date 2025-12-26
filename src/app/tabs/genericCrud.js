@@ -31,6 +31,7 @@ function ensureGenericCrudShell() {
 
     const root = document.createElement('div');
     root.id = 'generic-crud-root';
+    root.setAttribute('data-testid', 'generic-crud-root');
     body.appendChild(root);
 
     panel.appendChild(body);

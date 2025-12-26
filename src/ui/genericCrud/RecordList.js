@@ -47,9 +47,11 @@ export function RecordList({
   searchInput.type = 'search';
   searchInput.placeholder = 'Search';
   searchInput.value = search || '';
+  searchInput.setAttribute('data-testid', 'generic-crud-search');
   searchInput.addEventListener('input', event => onSearchChange(event.target.value));
 
   const sortSelect = document.createElement('select');
+  sortSelect.setAttribute('data-testid', 'generic-crud-sort');
   const titleOpt = document.createElement('option');
   titleOpt.value = 'title';
   titleOpt.textContent = 'Title asc';
@@ -64,6 +66,7 @@ export function RecordList({
   const newButton = document.createElement('button');
   newButton.type = 'button';
   newButton.textContent = 'New';
+  newButton.setAttribute('data-testid', 'generic-crud-new');
   newButton.addEventListener('click', () => onCreate());
 
   actions.appendChild(searchInput);
@@ -87,6 +90,8 @@ export function RecordList({
   } else {
     sorted.forEach(record => {
       const li = document.createElement('li');
+      li.setAttribute('data-testid', 'generic-crud-record');
+      if (record?.id) li.dataset.recordId = record.id;
       const label = document.createElement('span');
       label.textContent = getRecordTitle(record, collectionDef);
       const secondary = document.createElement('span');

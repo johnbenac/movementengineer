@@ -1060,8 +1060,8 @@ export function registerCollectionsTab(ctx) {
 
       const rerender = () => tab.render(context);
       const handleStateChange = () => {
-        const active = document.querySelector('.tab.active');
-        if (!active || active.dataset.tab !== 'collections') return;
+        const activeName = context?.shell?.getActiveTabName?.();
+        if (activeName && activeName !== 'collections') return;
         rerender();
       };
 
