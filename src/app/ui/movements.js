@@ -390,29 +390,6 @@ export function initMovements(ctx, options = {}) {
     }
   }
 
-  function normalizeRepoUrl(rawInput) {
-    if (!rawInput || !rawInput.trim()) {
-      return { error: 'Please provide a GitHub repo URL.' };
-    }
-    const trimmed = rawInput.trim();
-    const candidate = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(trimmed) ? trimmed : `https://${trimmed}`;
-    let url;
-    try {
-      url = new URL(candidate);
-    } catch (err) {
-      return { error: 'Enter a valid URL like https://github.com/owner/repo.' };
-    }
-    const host = (url.hostname || '').toLowerCase();
-    const isGithubHost = host === 'github.com' || host.endsWith('.github.com');
-    if (!isGithubHost) {
-      return { error: 'The repo URL must point to github.com.' };
-    }
-    const [owner, repo] = url.pathname.split('/').filter(Boolean);
-    if (!owner || !repo) {
-      return { error: 'Include both the owner and repository name in the URL.' };
-    }
-    return { repoUrl: `https://github.com/${owner}/${repo}` };
-  }
 
   function computeRenderKey(state) {
     const snapshot = state?.snapshot || {};
@@ -667,17 +644,6 @@ export function initMovements(ctx, options = {}) {
     scheduleRender();
   }
 
-  function validateRepoUrl(repoUrl) {
-    const trimmed = repoUrl?.trim() || '';
-    if (!trimmed) {
-      throw new Error('Please enter a GitHub repository URL.');
-    }
-    const loader = ctx?.services?.MarkdownDatasetLoader;
-    if (loader?.parseGitHubRepoUrl) {
-      loader.parseGitHubRepoUrl(trimmed);
-    }
-    return trimmed;
-  }
   function validateRepoUrl(repoUrl) {
     const trimmed = repoUrl?.trim() || '';
     if (!trimmed) {
