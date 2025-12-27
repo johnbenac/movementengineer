@@ -206,7 +206,7 @@ export function createActions(ctx) {
       navigation: nextNav
     }));
 
-    return actions.activateTab?.('collections');
+    return actions.activateTab?.(collection);
   };
 
   actions.openItem = (collectionName, id, options = {}) => {
@@ -238,24 +238,9 @@ export function createActions(ctx) {
       return actions.openInCollections?.(collection, itemId, options);
     }
 
-    const tabByCollection = {
-      entities: 'entities',
-      practices: 'practices',
-      claims: 'claims',
-      rules: 'rules'
-    };
-
-    const tabName = tabByCollection[collection] || 'collections';
-
-    if (tabName !== 'collections') {
-      const tab = ctx?.tabs?.[tabName];
-      if (typeof tab?.open === 'function') {
-        return tab.open(ctx, itemId, options);
-      }
-      return actions.openInCollections?.(collection, itemId, {
-        ...options,
-        mode: 'collections'
-      });
+    const tab = ctx?.tabs?.[collection];
+    if (typeof tab?.open === 'function') {
+      return tab.open(ctx, itemId, options);
     }
 
     return actions.openInCollections?.(collection, itemId, options);

@@ -499,6 +499,17 @@ export function initMovements(ctx, options = {}) {
   }
 
   function render(state = getState()) {
+    const snapshot = state?.snapshot || {};
+    const movements = Array.isArray(snapshot.movements) ? snapshot.movements : [];
+    if (!state?.currentMovementId && movements.length) {
+      const first = movements[0];
+      const firstId = first?.id || first?.movementId || null;
+      if (firstId) {
+        selectMovement(firstId);
+        return;
+      }
+    }
+
     const key = computeRenderKey(state);
     if (key === lastRenderKey) return;
     lastRenderKey = key;

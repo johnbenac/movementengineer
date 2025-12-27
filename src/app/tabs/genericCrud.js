@@ -2,7 +2,23 @@ import { featureFlags } from '../../core/featureFlags.js';
 import { createGenericCrudTab } from '../../ui/genericCrud/GenericCrudTab.js';
 import { createTab } from './tabKit.js';
 
-function ensureGenericCrudShell() {
+function ensureGenericCrudShell(ctx) {
+  if (ctx?.tabManager) {
+    ctx.tabManager.ensureTab({ id: 'generic', label: 'Generic', group: 'tool' });
+    const body = ctx.tabManager.getPanelBodyEl('generic');
+    if (!body) return;
+    if (!body.querySelector('#generic-crud-root')) {
+      const title = document.createElement('h2');
+      title.textContent = 'Generic CRUD';
+      body.appendChild(title);
+      const root = document.createElement('div');
+      root.id = 'generic-crud-root';
+      root.setAttribute('data-testid', 'generic-crud-root');
+      body.appendChild(root);
+    }
+    return;
+  }
+
   const nav = document.querySelector('.tabs');
   const content = document.querySelector('.content');
   if (!nav || !content) return;
@@ -41,7 +57,7 @@ function ensureGenericCrudShell() {
 
 export function registerGenericCrudTab(ctx) {
   if (!featureFlags.genericCrudUi()) return null;
-  ensureGenericCrudShell();
+  ensureGenericCrudShell(ctx);
   const genericTab = createGenericCrudTab(ctx);
   return createTab(ctx, {
     name: 'generic',
