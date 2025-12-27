@@ -177,7 +177,7 @@ describe('collections tab module', () => {
     });
   });
 
-  it('opens referenced items and activates the collections tab', async () => {
+  it('opens referenced items and activates the collection tab', async () => {
     renderDom();
     const shell = { activateTab: vi.fn(), renderActiveTab: vi.fn() };
     const snapshot = { entities: [{ id: 'e1', movementId: 'm1', name: 'Alpha' }] };
@@ -197,7 +197,7 @@ describe('collections tab module', () => {
 
     ctx.actions.openItem('entities', 'e1');
 
-    expect(shell.activateTab).toHaveBeenCalledWith('collections');
+    expect(shell.activateTab).toHaveBeenCalledWith('entities');
     expect(ctx.getState().currentItemId).toBe('e1');
   });
 

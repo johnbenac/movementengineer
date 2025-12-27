@@ -148,3 +148,12 @@ test('generic CRUD create/save reload persists', async ({ page }) => {
   );
   expect(hasEntity).toBe(true);
 });
+
+test('notes tab is generated from the model', async ({ page }) => {
+  await gotoApp(page);
+
+  await expect(page.locator('[data-tab=\"notes\"]')).toBeVisible();
+  await page.locator('[data-tab=\"notes\"]').click();
+
+  await expect(page.locator('#tab-notes .generic-crud-layout')).toBeVisible();
+});
