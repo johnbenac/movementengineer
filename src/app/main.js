@@ -1,26 +1,16 @@
 import { createStore } from './store.js';
 import { createStatusUi } from './ui/status.js';
 import { createDomUtils } from './ui/dom.js';
-import { registerDashboardTab } from './tabs/dashboard.js';
-import { registerComparisonTab } from './tabs/comparison.js';
-import { registerPracticesTab } from './tabs/practices.js';
-import { registerClaimsTab } from './tabs/claims.js';
-import { registerRulesTab } from './tabs/rules.js';
-import { registerMediaTab } from './tabs/media.js';
-import { registerCanonTab } from './tabs/canon.js';
-import { registerGraphTab } from './tabs/graph.js';
-import { registerEntitiesTab } from './tabs/entities.js';
-import { registerCollectionsTab } from './tabs/collections.js';
-import { registerAuthorityTab } from './tabs/authority.js';
-import { registerGenericCrudTab } from './tabs/genericCrud.js';
 import { PluginProvider } from '../core/plugins/PluginProvider.js';
 import { createPluginRegistry } from '../core/plugins/pluginRegistry.js';
 import { registerBuiltInPlugins } from '../plugins/registerBuiltins.js';
 import { initMovements } from './ui/movements.js';
-import { initShell } from './shell.js';
 import { createActions } from './actions.js';
 import { renderMarkdownPreview, openMarkdownModal } from './ui/markdown.js';
 import { createPersistenceFacade } from './persistenceFacade.js';
+import { registerCollectionTabs } from './tabs/collectionTabs.js';
+import { registerToolTabs } from './tabs/toolTabs.js';
+import { createTabManager } from './ui/tabManager.js';
 import {
   collectDescendants,
   normaliseArray,
@@ -130,7 +120,9 @@ const ctx = {
   clearFatalImportError: (...args) => ui.clearFatalImportError?.(...args),
   tabs: movementEngineerGlobal.tabs || {},
   actions: {},
-  persistence: null
+  persistence: null,
+  tabManager: null,
+  shell: null
 };
 
 ctx.persistence = createPersistenceFacade({
@@ -160,10 +152,6 @@ PluginProvider({ plugins });
 ctx.plugins = plugins;
 
 const enabledTabs = movementEngineerGlobal.bootstrapOptions?.moduleTabs;
-const shouldEnable = name =>
-  !Array.isArray(enabledTabs) ||
-  enabledTabs.includes(name) ||
-  (name === 'collections' && enabledTabs.includes('data'));
 
 ctx.actions.selectMovement = function selectMovement(movementId) {
   const state = ctx.getState();
@@ -188,19 +176,6 @@ ctx.actions.selectMovement = function selectMovement(movementId) {
   ctx.shell?.renderActiveTab?.();
 };
 
-if (shouldEnable('authority')) registerAuthorityTab(ctx);
-if (shouldEnable('dashboard')) registerDashboardTab(ctx);
-if (shouldEnable('comparison')) registerComparisonTab(ctx);
-if (shouldEnable('practices')) registerPracticesTab(ctx);
-if (shouldEnable('claims')) registerClaimsTab(ctx);
-if (shouldEnable('rules')) registerRulesTab(ctx);
-if (shouldEnable('media')) registerMediaTab(ctx);
-if (shouldEnable('canon')) registerCanonTab(ctx);
-if (shouldEnable('graph')) registerGraphTab(ctx);
-if (shouldEnable('entities')) registerEntitiesTab(ctx);
-if (shouldEnable('collections')) registerCollectionsTab(ctx);
-registerGenericCrudTab(ctx);
-
 function onReady(fn) {
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', fn, { once: true });
@@ -213,9 +188,15 @@ onReady(() => {
   if (!ctx.movementsUI) {
     ctx.movementsUI = initMovements(ctx);
   }
-  if (!ctx.shell) {
-    ctx.shell = initShell(ctx);
+
+  if (!ctx.tabManager) {
+    ctx.tabManager = createTabManager(ctx);
   }
+
+  const toolTabs = registerToolTabs(ctx, { enabledTabs });
+  ctx.tabManager.rebuild({ toolTabs });
+  registerCollectionTabs(ctx);
+  ctx.tabManager.renderActiveTab?.();
 
   assertCtxAfterInit(ctx);
 });

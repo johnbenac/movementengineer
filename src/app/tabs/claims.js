@@ -7,6 +7,110 @@ import {
 } from '../ui/hints.js';
 import { renderTable } from '../ui/table.js';
 import { createTab } from './tabKit.js';
+
+function ensureClaimsShell(ctx) {
+  const tabManager = ctx?.tabManager;
+  if (!tabManager) return;
+  tabManager.ensureTab({ id: 'claims', label: 'Claims', group: 'collection' });
+  const body = tabManager.getPanelBodyEl?.('claims');
+  if (!body) return;
+  if (document.getElementById('claims-table-wrapper')) return;
+
+  body.innerHTML = `
+    <h2>Claims</h2>
+    <p class="hint">
+      Inspect claims by category or entity context for the movement.
+    </p>
+    <div class="subtab-toolbar">
+      <label>
+        Category:
+        <select id="claims-category-filter">
+          <option value="">All</option>
+        </select>
+      </label>
+      <label>
+        About entity:
+        <select id="claims-entity-filter">
+          <option value="">Any</option>
+        </select>
+      </label>
+      <div class="toolbar-actions">
+        <button id="claims-add-btn" type="button">New claim</button>
+        <button id="claims-delete-btn" type="button" class="danger" disabled>
+          Delete
+        </button>
+      </div>
+    </div>
+    <div class="split">
+      <div class="list-pane">
+        <div id="claims-table-wrapper" class="table-wrapper"></div>
+      </div>
+      <div class="detail-pane">
+        <form id="claim-editor-form" class="card" autocomplete="off">
+          <div class="section-heading small">Claim editor</div>
+
+          <div class="form-row">
+            <label for="claim-id">ID</label>
+            <input id="claim-id" type="text" readonly />
+          </div>
+
+          <div class="form-row">
+            <label for="claim-category">Category</label>
+            <input id="claim-category" type="text" list="claim-category-options" />
+            <datalist id="claim-category-options"></datalist>
+          </div>
+
+          <div class="form-row">
+            <label for="claim-text">Text</label>
+            <textarea id="claim-text" rows="3"></textarea>
+          </div>
+
+          <div class="form-row">
+            <label for="claim-tags">Tags (comma‑separated)</label>
+            <input id="claim-tags" type="text" list="claim-tag-options" />
+            <datalist id="claim-tag-options"></datalist>
+          </div>
+
+          <div class="form-row">
+            <label for="claim-entities">About entities</label>
+            <select id="claim-entities" multiple></select>
+          </div>
+
+          <div class="form-row">
+            <label for="claim-source-texts">Source texts</label>
+            <select id="claim-source-texts" multiple></select>
+          </div>
+
+          <div class="form-row">
+            <label for="claim-source-entities">Source entities</label>
+            <select id="claim-source-entities" multiple></select>
+          </div>
+
+          <div class="form-row">
+            <label for="claim-sources-of-truth">Sources of truth (comma‑separated)</label>
+            <input
+              id="claim-sources-of-truth"
+              type="text"
+              list="claim-source-of-truth-options"
+            />
+            <datalist id="claim-source-of-truth-options"></datalist>
+          </div>
+
+          <div class="form-row">
+            <label for="claim-notes">Notes</label>
+            <textarea id="claim-notes" rows="2"></textarea>
+          </div>
+
+          <div class="form-actions">
+            <button id="claims-save-btn" type="button">Save claim</button>
+            <button id="claims-reset-btn" type="button">Reset</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
 const DEFAULT_TAB_STATE = { selectedClaimId: null, lastMovementId: null };
 
 function getState(ctx) {
@@ -383,6 +487,7 @@ function renderClaimsTab(ctx) {
 }
 
 export function registerClaimsTab(ctx) {
+  ensureClaimsShell(ctx);
   ctx?.dom?.installGlobalChipHandler?.(ctx);
   return createTab(ctx, {
     name: 'claims',

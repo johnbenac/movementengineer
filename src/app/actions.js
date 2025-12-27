@@ -238,24 +238,17 @@ export function createActions(ctx) {
       return actions.openInCollections?.(collection, itemId, options);
     }
 
-    const tabByCollection = {
-      entities: 'entities',
-      practices: 'practices',
-      claims: 'claims',
-      rules: 'rules'
-    };
-
-    const tabName = tabByCollection[collection] || 'collections';
-
-    if (tabName !== 'collections') {
-      const tab = ctx?.tabs?.[tabName];
-      if (typeof tab?.open === 'function') {
-        return tab.open(ctx, itemId, options);
+    const directTab = ctx?.tabs?.[collection];
+    if (directTab) {
+      if (typeof directTab.open === 'function') {
+        return directTab.open(ctx, itemId, options);
       }
-      return actions.openInCollections?.(collection, itemId, {
-        ...options,
-        mode: 'collections'
-      });
+      ctx?.store?.setState?.(prev => ({
+        ...(prev || {}),
+        currentCollectionName: collection,
+        currentItemId: itemId
+      }));
+      return actions.activateTab?.(collection);
     }
 
     return actions.openInCollections?.(collection, itemId, options);

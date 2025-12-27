@@ -2,29 +2,14 @@ import { featureFlags } from '../../core/featureFlags.js';
 import { createGenericCrudTab } from '../../ui/genericCrud/GenericCrudTab.js';
 import { createTab } from './tabKit.js';
 
-function ensureGenericCrudShell() {
-  const nav = document.querySelector('.tabs');
-  const content = document.querySelector('.content');
-  if (!nav || !content) return;
+function ensureGenericCrudShell(ctx) {
+  const tabManager = ctx?.tabManager;
+  if (!tabManager) return;
+  const entry = tabManager.ensureTab({ id: 'generic', label: 'Generic', group: 'tool' });
+  const body = entry?.bodyEl || tabManager.getPanelBodyEl?.('generic');
+  if (!body) return;
 
-  let tabButton = nav.querySelector('[data-tab="generic"]');
-  if (!tabButton) {
-    tabButton = document.createElement('button');
-    tabButton.className = 'tab';
-    tabButton.dataset.tab = 'generic';
-    tabButton.textContent = 'Generic';
-    nav.appendChild(tabButton);
-  }
-
-  let panel = content.querySelector('#tab-generic');
-  if (!panel) {
-    panel = document.createElement('section');
-    panel.id = 'tab-generic';
-    panel.className = 'tab-panel';
-
-    const body = document.createElement('div');
-    body.className = 'panel-body';
-
+  if (!body.querySelector('[data-testid="generic-crud-root"]')) {
     const title = document.createElement('h2');
     title.textContent = 'Generic CRUD';
     body.appendChild(title);
@@ -33,15 +18,12 @@ function ensureGenericCrudShell() {
     root.id = 'generic-crud-root';
     root.setAttribute('data-testid', 'generic-crud-root');
     body.appendChild(root);
-
-    panel.appendChild(body);
-    content.appendChild(panel);
   }
 }
 
 export function registerGenericCrudTab(ctx) {
   if (!featureFlags.genericCrudUi()) return null;
-  ensureGenericCrudShell();
+  ensureGenericCrudShell(ctx);
   const genericTab = createGenericCrudTab(ctx);
   return createTab(ctx, {
     name: 'generic',

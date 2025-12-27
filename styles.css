@@ -244,6 +244,12 @@ button.danger:hover {
   -webkit-overflow-scrolling: touch;
 }
 
+.tabs-group {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
 .tab {
   padding: 0.5rem 0.9rem;
   border-radius: 0;

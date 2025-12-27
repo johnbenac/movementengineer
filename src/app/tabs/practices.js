@@ -8,6 +8,28 @@ import {
 import { appendSection } from '../ui/sections.js';
 import { createTab } from './tabKit.js';
 
+
+function ensurePracticesShell(ctx) {
+  const tabManager = ctx?.tabManager;
+  if (!tabManager) return;
+  tabManager.ensureTab({ id: 'practices', label: 'Practices', group: 'collection' });
+  const body = tabManager.getPanelBodyEl?.('practices');
+  if (!body) return;
+  if (document.getElementById('practice-select')) return;
+
+  body.innerHTML = `
+    <h2>Practices</h2>
+    <p class="hint">Review and inspect practices tied to the movement.</p>
+    <div class="subtab-toolbar">
+      <label>
+        Practice:
+        <select id="practice-select"></select>
+      </label>
+    </div>
+    <div id="practice-detail" class="detail-section"></div>
+  `;
+}
+
 function getState(ctx) {
   return ctx.store.getState() || {};
 }
@@ -189,6 +211,7 @@ function renderPracticesTab(ctx) {
 }
 
 export function registerPracticesTab(ctx) {
+  ensurePracticesShell(ctx);
   ctx?.dom?.installGlobalChipHandler?.(ctx);
   return createTab(ctx, {
     name: 'practices',

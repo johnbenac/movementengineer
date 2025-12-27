@@ -10,6 +10,52 @@ import { appendSection } from '../ui/sections.js';
 import { getModelForSnapshot } from '../ui/schemaDoc.js';
 import { createTab } from './tabKit.js';
 
+
+function ensureEntitiesShell(ctx) {
+  const tabManager = ctx?.tabManager;
+  if (!tabManager) return;
+  tabManager.ensureTab({ id: 'entities', label: 'Entities', group: 'collection' });
+  const body = tabManager.getPanelBodyEl?.('entities');
+  if (!body) return;
+  if (document.getElementById('entity-select')) return;
+
+  body.innerHTML = `
+    <h2>Entities</h2>
+    <p class="hint">
+      Explore entities and their relationships within the movement.
+    </p>
+    <div class="subtab-toolbar">
+      <label>
+        Entity:
+        <select id="entity-select"></select>
+      </label>
+    </div>
+    <div id="entity-detail" class="detail-section"></div>
+
+    <div class="section-heading small">Relation graph (list view)</div>
+    <div class="subtab-toolbar">
+      <label>
+        Depth:
+        <select id="entity-graph-depth">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+        </select>
+      </label>
+      <label class="grow">
+        Relation types (comma‑separated, optional):
+        <input
+          id="entity-graph-relation-types"
+          type="text"
+          placeholder="mother_of, part_of, instance_of"
+        />
+      </label>
+      <button id="btn-refresh-entity-graph" type="button">Refresh relations</button>
+    </div>
+    <div id="entity-graph" class="detail-section"></div>
+  `;
+}
+
 function getState(ctx) {
   return ctx.store.getState() || {};
 }
@@ -281,6 +327,7 @@ function renderEntitiesTab(ctx) {
 }
 
 export function registerEntitiesTab(ctx) {
+  ensureEntitiesShell(ctx);
   ctx?.dom?.installGlobalChipHandler?.(ctx);
   return createTab(ctx, {
     name: 'entities',

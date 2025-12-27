@@ -8,6 +8,50 @@ import {
 import { appendInlineLabel } from '../ui/chips.js';
 import { createTab } from './tabKit.js';
 
+
+function ensureMediaShell(ctx) {
+  const tabManager = ctx?.tabManager;
+  if (!tabManager) return;
+  tabManager.ensureTab({ id: 'media', label: 'Media', group: 'collection' });
+  const body = tabManager.getPanelBodyEl?.('media');
+  if (!body) return;
+  if (document.getElementById('media-gallery')) return;
+
+  body.innerHTML = `
+    <h2>Media</h2>
+    <p class="hint">
+      Filter media artifacts by related entities, practices, events, or texts.
+    </p>
+    <div class="subtab-toolbar">
+      <label>
+        Entity:
+        <select id="media-entity-filter">
+          <option value="">Any</option>
+        </select>
+      </label>
+      <label>
+        Practice:
+        <select id="media-practice-filter">
+          <option value="">Any</option>
+        </select>
+      </label>
+      <label>
+        Event:
+        <select id="media-event-filter">
+          <option value="">Any</option>
+        </select>
+      </label>
+      <label>
+        Text:
+        <select id="media-text-filter">
+          <option value="">Any</option>
+        </select>
+      </label>
+    </div>
+    <div id="media-gallery" class="card-grid"></div>
+  `;
+}
+
 function getState(ctx) {
   return ctx.store.getState() || {};
 }
@@ -188,6 +232,7 @@ function renderMediaTab(ctx) {
 }
 
 export function registerMediaTab(ctx) {
+  ensureMediaShell(ctx);
   ctx?.dom?.installGlobalChipHandler?.(ctx);
   return createTab(ctx, {
     name: 'media',
