@@ -17,20 +17,134 @@ import sys
 from datetime import datetime
 from itertools import combinations
 from pathlib import Path
-from typing import Dict, List, Set, Tuple
+from hashlib import sha1
+from typing import Dict, List, Sequence, Set, Tuple
 
 
-def parse_pr_number(value: str) -> int:
-    """Parse PR numbers allowing float strings with no fractional component."""
-    try:
-        number = float(value)
-    except ValueError as exc:
-        raise argparse.ArgumentTypeError(f"Invalid PR number: {value}") from exc
+EXPECTED_PR_SELECTION = (
+    "comma-separated PRs and/or inclusive ranges like 123-130,135,140-142"
+)
 
-    if not number.is_integer():
-        raise argparse.ArgumentTypeError(f"PR number must be an integer: {value}")
 
-    return int(number)
+def _selection_error(segment: str, selection: str, detail: str) -> ValueError:
+    return ValueError(
+        f"Invalid PR selection segment '{segment}' in '{selection}': {detail}. "
+        f"Expected format: {EXPECTED_PR_SELECTION}"
+    )
+
+
+def parse_pr_token(token: str, selection: str) -> int:
+    cleaned = token.strip()
+    if cleaned.startswith("#"):
+        cleaned = cleaned[1:].strip()
+    if not cleaned:
+        raise _selection_error(token, selection, "missing PR number")
+    if not cleaned.isdigit():
+        raise _selection_error(token, selection, "PR number must be an integer")
+    value = int(cleaned)
+    if value <= 0:
+        raise _selection_error(token, selection, "PR number must be greater than 0")
+    return value
+
+
+def parse_pr_selection(selection: str) -> List[int]:
+    """Parse a PR selection string into a sorted list of unique PR numbers."""
+    if selection is None:
+        raise _selection_error("<empty>", "", "selection is required")
+    trimmed = selection.strip()
+    if not trimmed:
+        raise _selection_error("<empty>", selection, "selection is required")
+
+    pr_numbers: Set[int] = set()
+    segments = trimmed.split(",")
+    for segment in segments:
+        segment = segment.strip()
+        if not segment:
+            raise _selection_error("<empty>", selection, "empty segment")
+        if "-" in segment:
+            parts = [part.strip() for part in segment.split("-")]
+            if len(parts) != 2 or not parts[0] or not parts[1]:
+                raise _selection_error(segment, selection, "range must be in A-B form")
+            start = parse_pr_token(parts[0], selection)
+            end = parse_pr_token(parts[1], selection)
+            if start > end:
+                raise _selection_error(
+                    segment, selection, "range start must be less than or equal to end"
+                )
+            pr_numbers.update(range(start, end + 1))
+        else:
+            pr_numbers.add(parse_pr_token(segment, selection))
+
+    if not pr_numbers:
+        raise _selection_error("<empty>", selection, "no PR numbers found")
+
+    return sorted(pr_numbers)
+
+
+def format_pr_selection(prs: Sequence[int]) -> str:
+    """Format a sorted list of PR numbers into a canonical range string."""
+    if not prs:
+        return ""
+
+    ranges: List[str] = []
+    start = prev = prs[0]
+    for value in prs[1:]:
+        if value == prev + 1:
+            prev = value
+            continue
+        ranges.append(f"{start}" if start == prev else f"{start}-{prev}")
+        start = prev = value
+    ranges.append(f"{start}" if start == prev else f"{start}-{prev}")
+    return ",".join(ranges)
+
+
+def format_expanded_prs(selected_prs: Sequence[int], max_full: int = 20) -> str:
+    count = len(selected_prs)
+    if not selected_prs:
+        return "# Expanded PRs (count=0)"
+    if count <= max_full:
+        expanded_list = ", ".join(str(pr) for pr in selected_prs)
+        return f"# Expanded PRs (count={count}): {expanded_list}"
+    return (
+        f"# Expanded PRs: count={count} min={selected_prs[0]} max={selected_prs[-1]}"
+    )
+
+
+def format_pr_preview(selected_prs: Sequence[int], preview_count: int = 10) -> str:
+    count = len(selected_prs)
+    if count == 0:
+        return "count=0"
+    min_pr = selected_prs[0]
+    max_pr = selected_prs[-1]
+    if count <= preview_count:
+        expanded = ", ".join(str(pr) for pr in selected_prs)
+        return f"count={count} min={min_pr} max={max_pr} list={expanded}"
+    half = max(1, preview_count // 2)
+    start = ", ".join(str(pr) for pr in selected_prs[:half])
+    end = ", ".join(str(pr) for pr in selected_prs[-half:])
+    return f"count={count} min={min_pr} max={max_pr} preview={start}, …, {end}"
+
+
+def selection_tag(selected_prs: Sequence[int]) -> str:
+    canonical = format_pr_selection(selected_prs)
+    selection_hash = sha1(canonical.encode("utf-8")).hexdigest()[:8]
+    if not selected_prs:
+        return f"0prs-{selection_hash}"
+    return (
+        f"{selected_prs[0]}-{selected_prs[-1]}-"
+        f"{len(selected_prs)}prs-{selection_hash}"
+    )
+
+
+def write_selection_metadata(
+    outf,
+    selection_requested: str,
+    selection_canonical: str,
+    selected_prs: Sequence[int],
+) -> None:
+    outf.write(f"# PR selection (requested): {selection_requested}\n")
+    outf.write(f"# PR selection (canonical): {selection_canonical}\n")
+    outf.write(format_expanded_prs(selected_prs) + "\n")
 
 
 def run_command(cmd: str, check: bool = True, capture_output: bool = True) -> str:
@@ -373,8 +487,9 @@ def run_big_picture(
 
 def create_master_comparison(
     pr_files: List[Tuple[Dict[str, str], str]],
-    start_pr: int,
-    end_pr: int,
+    selection_requested: str,
+    selection_canonical: str,
+    selected_prs: Sequence[int],
     output_file: str,
     include_logs: bool = False,
 ) -> bool:
@@ -387,7 +502,10 @@ def create_master_comparison(
 
     with open(output_file, "w", encoding="utf-8") as outf:
         log_note = " (with logs)" if include_logs else ""
-        outf.write(f"# Master Comparison{log_note}: PRs {start_pr}-{end_pr}\n")
+        outf.write(f"# Master Comparison{log_note}\n")
+        write_selection_metadata(
+            outf, selection_requested, selection_canonical, selected_prs
+        )
         outf.write(f"# Total PRs: {len(pr_files)}\n")
         outf.write(f"# Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
         outf.write("=" * 80 + "\n\n")
@@ -409,8 +527,9 @@ def create_master_comparison(
 def create_touched_files_compilation(
     touched_files: Set[str],
     base_branch: str,
-    start_pr: int,
-    end_pr: int,
+    selection_requested: str,
+    selection_canonical: str,
+    selected_prs: Sequence[int],
     output_file: str,
     master_comparison_file: str | None = None,
     include_logs: bool = False,
@@ -426,7 +545,10 @@ def create_touched_files_compilation(
 
     with open(output_file, "w", encoding="utf-8") as outf:
         log_note = " (with logs)" if include_logs else ""
-        outf.write(f"# Touched Files{log_note} (base branch) for PRs {start_pr}-{end_pr}\n")
+        outf.write(f"# Touched Files{log_note} (base branch)\n")
+        write_selection_metadata(
+            outf, selection_requested, selection_canonical, selected_prs
+        )
         outf.write(f"# Total unique files: {len(sorted_files)}\n")
         outf.write(f"# Source branch: {base_branch}\n")
         outf.write(f"# Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
@@ -464,8 +586,9 @@ def create_touched_files_compilation(
 
 def create_summary_compilation(
     pr_files: List[Tuple[Dict[str, str], str]],
-    start_pr: int,
-    end_pr: int,
+    selection_requested: str,
+    selection_canonical: str,
+    selected_prs: Sequence[int],
     output_file: str,
     include_logs: bool = False,
 ) -> bool:
@@ -478,7 +601,10 @@ def create_summary_compilation(
 
     with open(output_file, "w", encoding="utf-8") as outf:
         log_note = " (with logs)" if include_logs else ""
-        outf.write(f"# PR Summary Compilation{log_note}: PRs {start_pr}-{end_pr}\n")
+        outf.write(f"# PR Summary Compilation{log_note}\n")
+        write_selection_metadata(
+            outf, selection_requested, selection_canonical, selected_prs
+        )
         outf.write(f"# Total PRs: {len(pr_files)}\n")
         outf.write(f"# Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
         outf.write("=" * 80 + "\n\n")
@@ -501,8 +627,9 @@ def create_summary_compilation(
 def create_round_robin_comparisons(
     processed_prs: List[Dict[str, object]],
     output_dir: str,
-    start_pr: int,
-    end_pr: int,
+    selection_requested: str,
+    selection_canonical: str,
+    selected_prs: Sequence[int],
 ) -> List[str]:
     """Create pairwise comparison files for every PR combination."""
     print("Creating round-robin comparisons...")
@@ -555,7 +682,9 @@ def create_round_robin_comparisons(
                 f"# PR #{left_number} vs PR #{right_number}: "
                 f"{left_info.get('title', '')} ↔ {right_info.get('title', '')}\n"
             )
-            outf.write(f"# Range: PRs {start_pr}-{end_pr}\n")
+            write_selection_metadata(
+                outf, selection_requested, selection_canonical, selected_prs
+            )
             outf.write(f"# Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
             outf.write(f"# Left branch: {left_branch}\n")
             outf.write(f"# Right branch: {right_branch}\n")
@@ -575,18 +704,31 @@ def create_round_robin_comparisons(
 
     print(
         f"✓ Created {len(output_files)} round-robin comparison file(s) "
-        f"for PRs {start_pr}-{end_pr}"
+        f"for selection {selection_canonical}"
     )
     return output_files
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Automate diff generation for ranges of pull requests",
+        description="Automate diff generation for selected pull requests",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("start_pr", type=parse_pr_number, help="Starting PR number")
-    parser.add_argument("end_pr", type=parse_pr_number, help="Ending PR number (inclusive)")
+    parser.add_argument(
+        "pr_selection",
+        nargs="?",
+        help=(
+            "PR selection string. Examples: '123-130', '123,125,127-129', "
+            "'#123, #125-#127'"
+        ),
+    )
+    parser.add_argument(
+        "--prs",
+        help=(
+            "Alias for PR selection string. Examples: '123-130', "
+            "'123,125,127-129'"
+        ),
+    )
     parser.add_argument(
         "--base-branch",
         default="main",
@@ -610,29 +752,44 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    if args.start_pr > args.end_pr:
-        print("Error: Start PR must be less than or equal to end PR")
+    if args.pr_selection and args.prs:
+        parser.error("Provide either a positional PR selection or --prs, not both.")
+    selection_requested = args.pr_selection or args.prs
+    if not selection_requested:
+        parser.error("A PR selection string is required.")
+
+    try:
+        selected_prs = parse_pr_selection(selection_requested)
+    except ValueError as exc:
+        print(f"Error: {exc}")
         sys.exit(1)
+    selection_canonical = format_pr_selection(selected_prs)
+    selection_label = selection_tag(selected_prs)
 
     check_current_branch(args.base_branch)
 
     try:
         fetch_remote_branches(args.remote)
 
-        print(f"Collecting info for PRs {args.start_pr} to {args.end_pr}...")
+        print(f"PR selection (requested): {selection_requested}")
+        print(f"PR selection (canonical): {selection_canonical}")
+        print(f"Expanded PRs: {format_pr_preview(selected_prs)}")
+        print("Collecting info for selected PRs...")
         pr_infos: List[Dict[str, str]] = []
         touched_files: Set[str] = set()
+        missing_prs: List[int] = []
 
-        for pr_num in range(args.start_pr, args.end_pr + 1):
+        for pr_num in selected_prs:
             try:
                 pr_info = get_pr_info(pr_num)
                 pr_infos.append(pr_info)
                 print(f"  PR #{pr_num}: {pr_info['title']}")
             except (subprocess.CalledProcessError, json.JSONDecodeError, KeyError) as exc:
                 print(f"  PR #{pr_num}: Not found or inaccessible ({exc})")
+                missing_prs.append(pr_num)
 
         if not pr_infos:
-            print("Error: No valid PRs found in the specified range")
+            print("Error: No valid PRs found in the selection")
             sys.exit(1)
 
         successful_prs: List[Tuple[Dict[str, str], str]] = []
@@ -743,35 +900,45 @@ def main() -> None:
 
         if successful_prs:
             master_output = os.path.join(
-                args.output_dir, f"pr-comparison-{args.start_pr}-{args.end_pr}.txt"
+                args.output_dir, f"pr-comparison-{selection_label}.txt"
             )
             create_master_comparison(
-                successful_prs, args.start_pr, args.end_pr, master_output
+                successful_prs,
+                selection_requested,
+                selection_canonical,
+                selected_prs,
+                master_output,
             )
 
             summary_output = os.path.join(
-                args.output_dir, f"pr-summaries-{args.start_pr}-{args.end_pr}.txt"
+                args.output_dir, f"pr-summaries-{selection_label}.txt"
             )
             create_summary_compilation(
-                successful_prs, args.start_pr, args.end_pr, summary_output
+                successful_prs,
+                selection_requested,
+                selection_canonical,
+                selected_prs,
+                summary_output,
             )
 
             touched_output = os.path.join(
-                args.output_dir, f"pr-touched-files-{args.start_pr}-{args.end_pr}.txt"
+                args.output_dir, f"pr-touched-files-{selection_label}.txt"
             )
             create_touched_files_compilation(
                 touched_files,
                 args.base_branch,
-                args.start_pr,
-                args.end_pr,
+                selection_requested,
+                selection_canonical,
+                selected_prs,
                 touched_output,
                 master_output,
             )
             round_robin_outputs = create_round_robin_comparisons(
                 processed_prs,
                 args.output_dir,
-                args.start_pr,
-                args.end_pr,
+                selection_requested,
+                selection_canonical,
+                selected_prs,
             )
 
             print(f"\n✓ Successfully processed {len(successful_prs)} PR(s) (without logs)")
@@ -789,35 +956,38 @@ def main() -> None:
 
         if successful_prs_with_logs:
             master_output_with_logs = os.path.join(
-                args.output_dir, f"pr-comparison-{args.start_pr}-{args.end_pr}-with-logs.txt"
+                args.output_dir, f"pr-comparison-{selection_label}-with-logs.txt"
             )
             create_master_comparison(
                 successful_prs_with_logs,
-                args.start_pr,
-                args.end_pr,
+                selection_requested,
+                selection_canonical,
+                selected_prs,
                 master_output_with_logs,
                 include_logs=True,
             )
 
             summary_output_with_logs = os.path.join(
-                args.output_dir, f"pr-summaries-{args.start_pr}-{args.end_pr}-with-logs.txt"
+                args.output_dir, f"pr-summaries-{selection_label}-with-logs.txt"
             )
             create_summary_compilation(
                 successful_prs_with_logs,
-                args.start_pr,
-                args.end_pr,
+                selection_requested,
+                selection_canonical,
+                selected_prs,
                 summary_output_with_logs,
                 include_logs=True,
             )
 
             touched_output_with_logs = os.path.join(
-                args.output_dir, f"pr-touched-files-{args.start_pr}-{args.end_pr}-with-logs.txt"
+                args.output_dir, f"pr-touched-files-{selection_label}-with-logs.txt"
             )
             create_touched_files_compilation(
                 touched_files,
                 args.base_branch,
-                args.start_pr,
-                args.end_pr,
+                selection_requested,
+                selection_canonical,
+                selected_prs,
                 touched_output_with_logs,
                 master_output_with_logs,
                 include_logs=True,
@@ -830,6 +1000,23 @@ def main() -> None:
             print(f"✓ Touched files compilation (with logs): {touched_output_with_logs}")
         else:
             print("\nNo PRs were successfully processed (with logs)")
+
+        processed_numbers = sorted(
+            {pr_info["number"] for pr_info, _ in successful_prs}
+        )
+        requested_numbers = set(selected_prs)
+        missing_after_processing = sorted(requested_numbers - set(processed_numbers))
+        print(
+            "\nPR processing summary: "
+            f"requested={len(requested_numbers)} "
+            f"processed={len(processed_numbers)}"
+        )
+        if missing_after_processing:
+            missing_list = ", ".join(str(pr) for pr in missing_after_processing)
+            print(f"Missing PRs: {missing_list}")
+        elif missing_prs:
+            missing_list = ", ".join(str(pr) for pr in missing_prs)
+            print(f"Missing PRs: {missing_list}")
 
     except KeyboardInterrupt:
         print("\nInterrupted by user")
