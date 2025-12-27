@@ -3,14 +3,10 @@ name: PR Batch Big Picture
 on:
   workflow_dispatch:
     inputs:
-      start_pr:
-        description: "Starting PR number"
+      pr_selection:
+        description: "Comma-separated PRs and/or inclusive ranges like 123-130,135,140-142 (e.g. 123,125,127-129)"
         required: true
-        type: number
-      end_pr:
-        description: "Ending PR number (inclusive)"
-        required: true
-        type: number
+        type: string
       base_branch:
         description: "Base branch to diff against"
         default: "main"
@@ -46,8 +42,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           python tools/pr_batch_big_picture.py \
-            ${{ inputs.start_pr }} \
-            ${{ inputs.end_pr }} \
+            "${{ inputs.pr_selection }}" \
             --base-branch "${{ inputs.base_branch }}" \
             --remote "${{ inputs.remote }}" \
             --output-dir "/tmp"
@@ -55,11 +50,13 @@ jobs:
       - name: Upload comparison artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: pr-comparison-${{ inputs.start_pr }}-${{ inputs.end_pr }}
+          name: pr-comparison-selection
           path: |
             /tmp/pr-*-implementation.txt
-            /tmp/pr-comparison-${{ inputs.start_pr }}-${{ inputs.end_pr }}.txt
-            /tmp/pr-summaries-${{ inputs.start_pr }}-${{ inputs.end_pr }}.txt
-            /tmp/pr-touched-files-${{ inputs.start_pr }}-${{ inputs.end_pr }}.txt
+            /tmp/pr-*-implementation-with-logs.txt
+            /tmp/pr-comparison-*.txt
+            /tmp/pr-summaries-*.txt
+            /tmp/pr-touched-files-*.txt
             /tmp/pr-*-versus-*.txt
+            /tmp/pr-round-robin-*.txt
           if-no-files-found: warn
