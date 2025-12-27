@@ -3,6 +3,7 @@
 ## Purpose
 
 This document captures the current routing/navigation structure to support the planned migration away from `src/app/tabs` without changing runtime behavior.
+Destination skeleton folders under `src/app` exist for future migration work, but they are intentionally unused today and do not affect current navigation.
 
 ## How routes are defined in this repo
 
@@ -120,4 +121,3 @@ Best-effort derived route keys are computed from file paths under `src/app` with
   - **Hash-based deep links:** `src/app/shell.js` reads `window.location.hash` to activate a tab by name.
   - **Dynamic collection tabs:** `src/app/tabs/collectionTabs.js` creates tabs based on the current model’s collections, which can add/remove tabs at runtime.
   - **Movement selection:** `src/app/ui/movements.js` updates `currentMovementId` and triggers tab re-rendering.
-

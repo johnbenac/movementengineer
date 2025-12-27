@@ -40,6 +40,12 @@ function deriveRouteKey(filePath) {
   return `/${segments.join('/')}`;
 }
 
+function classifyRouteKind(filePath) {
+  const baseName = path.basename(filePath, path.extname(filePath));
+  if (baseName === '_layout') return 'layout';
+  return 'route';
+}
+
 async function main() {
   const allFiles = await walk(appRoot);
   const routeFiles = allFiles.filter(isRouteFile);
@@ -49,13 +55,14 @@ async function main() {
       const relative = toPosix(path.relative(process.cwd(), file));
       return {
         file: relative,
+        kind: classifyRouteKind(file),
         key: deriveRouteKey(file)
       };
     })
     .sort((a, b) => a.file.localeCompare(b.file));
 
   const keyMap = new Map();
-  for (const route of routes) {
+  for (const route of routes.filter(route => route.kind === 'route')) {
     const list = keyMap.get(route.key) || [];
     list.push(route.file);
     keyMap.set(route.key, list);
@@ -63,7 +70,7 @@ async function main() {
 
   console.log('ROUTES');
   routes.forEach(route => {
-    console.log(`- ${route.file} -> ${route.key}`);
+    console.log(`- ${route.file} -> ${route.key} (${route.kind})`);
   });
 
   const duplicates = Array.from(keyMap.entries()).filter(([, files]) => files.length > 1);
