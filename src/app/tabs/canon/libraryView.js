@@ -615,6 +615,18 @@ function renderNodeEditor(ctx, vm, selection) {
     const text = DomainService.addNewItem(nextSnapshot, 'texts', currentMovementId);
     text.parentId = activeNode.parentId || null;
     text.title = 'New section';
+    if (!text.parentId && DomainService?.upsertItem) {
+      const baseBookId = vm.bookIdByNodeId[activeNode.id] || activeNode.id;
+      const shelfIds = normaliseArray(vm.shelvesByBookId?.[baseBookId]);
+      shelfIds.forEach(shelfId => {
+        const shelf = (nextSnapshot.textCollections || []).find(tc => tc.id === shelfId);
+        if (!shelf) return;
+        const roots = new Set(normaliseArray(shelf.rootTextIds));
+        roots.add(text.id);
+        shelf.rootTextIds = Array.from(roots);
+        DomainService.upsertItem(nextSnapshot, 'textCollections', shelf);
+      });
+    }
     applyState(ctx, prev => ({
       ...prev,
       currentTextId: text.id,
