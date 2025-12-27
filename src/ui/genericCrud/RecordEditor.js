@@ -210,6 +210,7 @@ export function RecordEditor({
   saveButton.type = 'button';
   saveButton.textContent = 'Save';
   saveButton.setAttribute('data-testid', 'generic-crud-save');
+  saveButton.classList.add('primary');
   saveButton.addEventListener('click', () => {
     if (!draft.id) {
       draft.id = generateId(collectionDef?.fields?.id || null);
