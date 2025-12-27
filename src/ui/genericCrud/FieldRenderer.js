@@ -129,6 +129,7 @@ export function FieldRenderer({
       const input = document.createElement('input');
       input.type = 'text';
       input.value = value ?? '';
+      input.placeholder = 'Type to search...';
       const listId = `generic-crud-ref-${fieldName}-${Math.random().toString(36).slice(2)}`;
       input.setAttribute('list', listId);
       const datalist = document.createElement('datalist');
@@ -137,6 +138,7 @@ export function FieldRenderer({
         const opt = document.createElement('option');
         opt.value = node.id;
         opt.label = buildNodeOptionLabel(node);
+        opt.textContent = buildNodeOptionLabel(node);
         datalist.appendChild(opt);
       });
       input.addEventListener('input', event => {
@@ -193,6 +195,7 @@ export function FieldRenderer({
           const input = document.createElement('input');
           input.type = 'text';
           input.value = itemValue ?? '';
+          input.placeholder = 'Type to search...';
           const listId = `generic-crud-ref-${fieldName}-${index}-${Math.random().toString(36).slice(2)}`;
           input.setAttribute('list', listId);
           const datalist = document.createElement('datalist');
@@ -201,6 +204,7 @@ export function FieldRenderer({
             const opt = document.createElement('option');
             opt.value = node.id;
             opt.label = buildNodeOptionLabel(node);
+            opt.textContent = buildNodeOptionLabel(node);
             datalist.appendChild(opt);
           });
           input.addEventListener('input', event => {
@@ -256,6 +260,7 @@ export function FieldRenderer({
       const removeButton = document.createElement('button');
       removeButton.type = 'button';
       removeButton.textContent = 'Remove';
+      removeButton.className = 'danger';
       removeButton.addEventListener('click', () => {
         const next = currentItems.filter((_, idx) => idx !== index);
         updateArray(next);
@@ -275,6 +280,7 @@ export function FieldRenderer({
         if (kindInfo.items.ref === '*') {
           const input = document.createElement('input');
           input.type = 'text';
+          input.placeholder = 'Type to search...';
           const listId = `generic-crud-ref-${fieldName}-add-${Math.random().toString(36).slice(2)}`;
           input.setAttribute('list', listId);
           const datalist = document.createElement('datalist');
@@ -283,6 +289,7 @@ export function FieldRenderer({
             const opt = document.createElement('option');
             opt.value = node.id;
             opt.label = buildNodeOptionLabel(node);
+            opt.textContent = buildNodeOptionLabel(node);
             datalist.appendChild(opt);
           });
           const addButton = document.createElement('button');

@@ -209,6 +209,7 @@ export function RecordEditor({
   const saveButton = document.createElement('button');
   saveButton.type = 'button';
   saveButton.textContent = 'Save';
+  saveButton.classList.add('primary');
   saveButton.setAttribute('data-testid', 'generic-crud-save');
   saveButton.addEventListener('click', () => {
     if (!draft.id) {

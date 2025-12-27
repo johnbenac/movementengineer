@@ -54,9 +54,21 @@ export function RecordDetail({ record, collectionDef, model, snapshot, nodeIndex
   const header = document.createElement('div');
   header.className = 'generic-crud-detail-header';
 
+  const titleGroup = document.createElement('div');
+  titleGroup.className = 'generic-crud-detail-title';
+
   const title = document.createElement('h3');
   title.textContent = getRecordTitle(record, collectionDef) || 'Record';
-  header.appendChild(title);
+  titleGroup.appendChild(title);
+
+  if (record?.id) {
+    const idPill = document.createElement('span');
+    idPill.className = 'code-pill';
+    idPill.textContent = record.id;
+    titleGroup.appendChild(idPill);
+  }
+
+  header.appendChild(titleGroup);
 
   const actions = document.createElement('div');
   actions.className = 'form-actions';
@@ -78,19 +90,19 @@ export function RecordDetail({ record, collectionDef, model, snapshot, nodeIndex
   const bodyField = getBodyField(collectionDef);
   const fields = getOrderedFieldNames(collectionDef);
   const grid = document.createElement('div');
-  grid.className = 'item-detail-grid';
+  grid.className = 'generic-crud-detail-grid';
 
   fields.forEach(fieldName => {
     const fieldDef = collectionDef?.fields?.[fieldName];
     const row = document.createElement('div');
-    row.className = 'item-detail-row';
+    row.className = 'generic-crud-detail-row';
 
     const label = document.createElement('div');
-    label.className = 'item-detail-label';
+    label.className = 'generic-crud-detail-label';
     label.textContent = fieldName;
 
     const value = document.createElement('div');
-    value.className = 'item-detail-value';
+    value.className = 'generic-crud-detail-value';
     value.textContent = renderValue({
       value: record?.[fieldName],
       fieldDef,
