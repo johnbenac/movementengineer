@@ -39,6 +39,7 @@ export function RecordList({
   emptyMessage
 }) {
   const wrapper = document.createElement('div');
+  wrapper.className = 'generic-crud-record-list';
 
   const actions = document.createElement('div');
   actions.className = 'generic-crud-actions';
@@ -65,6 +66,7 @@ export function RecordList({
   newButton.type = 'button';
   newButton.textContent = 'New';
   newButton.setAttribute('data-testid', 'generic-crud-new');
+  newButton.classList.add('primary');
   newButton.addEventListener('click', () => onCreate());
 
   actions.appendChild(searchInput);

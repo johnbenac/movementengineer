@@ -116,6 +116,15 @@ button:hover {
   background: #d1d5db;
 }
 
+button.primary {
+  background: #111827;
+  color: #f9fafb;
+}
+
+button.primary:hover {
+  background: #1f2937;
+}
+
 button.danger {
   background: #fee2e2;
   color: #b91c1c;
@@ -123,6 +132,14 @@ button.danger {
 
 button.danger:hover {
   background: #fecaca;
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid #4f46e5;
+  outline-offset: 2px;
 }
 
 .status {
@@ -222,6 +239,19 @@ button.danger:hover {
   color: #f9fafb;
 }
 
+.generic-crud-pane .item-list li.selected {
+  background: #eef2ff;
+  color: #111827;
+}
+
+.generic-crud-pane .item-list li.selected span.secondary {
+  opacity: 0.7;
+}
+
+.generic-crud-pane .item-list li:hover {
+  background: #f3f4f6;
+}
+
 /* Content */
 
 .content {
@@ -272,6 +302,45 @@ button.danger:hover {
   border-bottom-color: var(--tab-accent, #111827);
   background: var(--tab-accent-soft, #e5e7eb);
   color: var(--tab-accent-text, #111827);
+}
+
+/* Tabs nav: render as two stacked rows (tools, collections) */
+#tabs-nav.tabs {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+#tabs-nav .tab-group {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0.25rem 0.75rem;
+}
+
+#tool-tabs {
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+#collection-tabs {
+  background: #f3f4f6;
+}
+
+#tabs-nav .tab[data-tab-group="collection"] {
+  --tab-accent: #4338ca;
+  --tab-accent-soft: #eef2ff;
+  --tab-accent-text: #111827;
+}
+
+#tabs-nav .tab[data-tab-group="tool"] {
+  --tab-accent: #111827;
+  --tab-accent-soft: #e5e7eb;
+  --tab-accent-text: #111827;
 }
 
 .tab-panel {
@@ -545,6 +614,43 @@ button.danger:hover {
   align-items: start;
 }
 
+.generic-crud-layout--collection {
+  grid-template-columns: minmax(260px, 360px) 1fr;
+  align-items: stretch;
+  height: min(74vh, 880px);
+  min-height: 540px;
+}
+
+@media (max-width: 1100px) {
+  .generic-crud-layout--collection {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: 0;
+  }
+}
+
+.generic-crud-layout--collection .generic-crud-pane {
+  min-height: 0;
+}
+
+.generic-crud-collection-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.generic-crud-collection-header h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.generic-crud-collection-meta {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
 .generic-crud-pane {
   display: flex;
   flex-direction: column;
@@ -577,10 +683,35 @@ button.danger:hover {
   flex: 1;
 }
 
+.generic-crud-record-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+  min-height: 0;
+}
+
+.generic-crud-record-list .item-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
 .generic-crud-empty {
   font-size: 0.85rem;
   color: #6b7280;
   padding: 0.5rem 0.25rem;
+}
+
+.generic-crud-detail-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.generic-crud-detail-title h3 {
+  margin: 0;
 }
 
 .generic-crud-detail-header {
@@ -589,6 +720,29 @@ button.danger:hover {
   justify-content: space-between;
   gap: 0.5rem;
   margin-bottom: 0.5rem;
+}
+
+.generic-crud-detail-grid {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.generic-crud-detail-row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 0.5rem;
+  align-items: start;
+}
+
+.generic-crud-detail-label {
+  font-weight: 600;
+  font-size: 0.78rem;
+  color: #6b7280;
+}
+
+.generic-crud-detail-value {
+  font-size: 0.85rem;
+  word-break: break-word;
 }
 
 .generic-crud-error-summary {
@@ -623,9 +777,20 @@ button.danger:hover {
   align-items: center;
 }
 
+.generic-crud-array-row button {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+}
+
 .generic-crud-array-row input,
 .generic-crud-array-row select {
   flex: 1;
+}
+
+@media (max-width: 720px) {
+  .generic-crud-detail-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 .schema-guide {

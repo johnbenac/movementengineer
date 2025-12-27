@@ -13,6 +13,18 @@ import { getModelForSnapshot } from '../../app/ui/schemaDoc.js';
 const globalScope =
   typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : undefined;
 
+function titleCase(label) {
+  if (!label) return '';
+  return String(label)
+    .replace(/[_-]+/g, ' ')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .trim()
+    .split(' ')
+    .filter(Boolean)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
 function getModelRegistry() {
   return globalScope?.ModelRegistry || null;
 }
@@ -84,8 +96,46 @@ export function CollectionCrudView({ ctx, containerEl, collectionName, state, se
     ? allRecords.filter(record => record?.movementId === currentMovementId)
     : allRecords;
 
+  const header = document.createElement('div');
+  header.className = 'generic-crud-collection-header';
+
+  const title = document.createElement('h2');
+  const label = collectionDef?.ui?.label || titleCase(collectionName);
+  title.textContent = label;
+  header.appendChild(title);
+
+  const meta = document.createElement('div');
+  meta.className = 'generic-crud-collection-meta';
+
+  const totalCount = allRecords.length;
+  const filteredCount = records.length;
+
+  let movementLabel = null;
+  if (currentMovementId) {
+    const movements = Array.isArray(snapshot?.movements) ? snapshot.movements : [];
+    const match =
+      movements.find(m => m?.id === currentMovementId) ||
+      movements.find(m => m?.movementId === currentMovementId) ||
+      null;
+    movementLabel = match?.name || match?.shortName || currentMovementId;
+  }
+
+  if (requiresMovement && !currentMovementId) {
+    meta.textContent = `${totalCount} total • Select a movement to view`;
+  } else if (requiresMovement && currentMovementId) {
+    meta.textContent =
+      totalCount === filteredCount
+        ? `${filteredCount} record${filteredCount === 1 ? '' : 's'} • Movement: ${movementLabel}`
+        : `${filteredCount} record${filteredCount === 1 ? '' : 's'} • Movement: ${movementLabel} • ${totalCount} total`;
+  } else {
+    meta.textContent = `${filteredCount} record${filteredCount === 1 ? '' : 's'}`;
+  }
+
+  header.appendChild(meta);
+  containerEl.appendChild(header);
+
   const layout = document.createElement('div');
-  layout.className = 'generic-crud-layout';
+  layout.className = 'generic-crud-layout generic-crud-layout--collection';
 
   if (requiresMovement && !currentMovementId) {
     const banner = document.createElement('p');
