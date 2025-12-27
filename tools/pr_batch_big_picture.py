@@ -8,6 +8,7 @@ all comments made on the pull requests.
 """
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -20,17 +21,8 @@ from pathlib import Path
 from typing import Dict, List, Set, Tuple
 
 
-def parse_pr_number(value: str) -> int:
-    """Parse PR numbers allowing float strings with no fractional component."""
-    try:
-        number = float(value)
-    except ValueError as exc:
-        raise argparse.ArgumentTypeError(f"Invalid PR number: {value}") from exc
-
-    if not number.is_integer():
-        raise argparse.ArgumentTypeError(f"PR number must be an integer: {value}")
-
-    return int(number)
+class SelectionParseError(ValueError):
+    """Raised when a PR selection string cannot be parsed."""
 
 
 def run_command(cmd: str, check: bool = True, capture_output: bool = True) -> str:
@@ -43,6 +35,147 @@ def run_command(cmd: str, check: bool = True, capture_output: bool = True) -> st
         text=True,
     )
     return result.stdout.strip() if capture_output else ""
+
+
+def parse_pr_selection(selection: str) -> List[int]:
+    """Parse a selection string into a sorted list of unique PR numbers."""
+    original = selection
+    trimmed = selection.strip()
+    if not trimmed:
+        raise SelectionParseError(
+            "Invalid PR selection: empty input. "
+            "Expected format like '123-130,135,140-142'."
+        )
+
+    segments = [segment.strip() for segment in trimmed.split(",")]
+    if any(segment == "" for segment in segments):
+        raise SelectionParseError(
+            f"Invalid PR selection segment '' in '{original}'. "
+            "Expected format like '123-130,135,140-142'."
+        )
+
+    selected: Set[int] = set()
+    for segment in segments:
+        cleaned = re.sub(r"\s+", "", segment)
+        if not cleaned:
+            raise SelectionParseError(
+                f"Invalid PR selection segment '{segment}' in '{original}'. "
+                "Expected format like '123-130,135,140-142'."
+            )
+
+        parts = cleaned.split("-")
+        if len(parts) == 1:
+            number = _parse_pr_token(parts[0], original)
+            selected.add(number)
+        elif len(parts) == 2:
+            start = _parse_pr_token(parts[0], original)
+            end = _parse_pr_token(parts[1], original)
+            if start > end:
+                raise SelectionParseError(
+                    f"Invalid PR range '{segment}' in '{original}': start must be <= end. "
+                    "Expected format like '123-130,135,140-142'."
+                )
+            for number in range(start, end + 1):
+                selected.add(number)
+        else:
+            raise SelectionParseError(
+                f"Invalid PR selection segment '{segment}' in '{original}'. "
+                "Expected format like '123-130,135,140-142'."
+            )
+
+    if not selected:
+        raise SelectionParseError(
+            f"Invalid PR selection '{original}': no PRs parsed. "
+            "Expected format like '123-130,135,140-142'."
+        )
+
+    return sorted(selected)
+
+
+def _parse_pr_token(token: str, original: str) -> int:
+    cleaned = token.strip()
+    if cleaned.startswith("#"):
+        cleaned = cleaned[1:]
+    if cleaned == "" or not cleaned.isdigit():
+        raise SelectionParseError(
+            f"Invalid PR selection token '{token}' in '{original}'. "
+            "Expected format like '123-130,135,140-142'."
+        )
+    number = int(cleaned)
+    if number <= 0:
+        raise SelectionParseError(
+            f"Invalid PR selection token '{token}' in '{original}': "
+            "PR numbers must be positive. "
+            "Expected format like '123-130,135,140-142'."
+        )
+    return number
+
+
+def format_pr_selection(prs: List[int]) -> str:
+    """Format a sorted list of PR numbers into a canonical selection string."""
+    if not prs:
+        return ""
+
+    normalized = sorted(set(prs))
+    ranges: List[Tuple[int, int]] = []
+    start = normalized[0]
+    prev = normalized[0]
+
+    for number in normalized[1:]:
+        if number == prev + 1:
+            prev = number
+            continue
+        ranges.append((start, prev))
+        start = number
+        prev = number
+    ranges.append((start, prev))
+
+    parts: List[str] = []
+    for range_start, range_end in ranges:
+        if range_start == range_end:
+            parts.append(str(range_start))
+        else:
+            parts.append(f"{range_start}-{range_end}")
+    return ",".join(parts)
+
+
+def build_selection_tag(selected_prs: List[int], selection_canonical: str) -> str:
+    selection_hash = hashlib.sha1(selection_canonical.encode("utf-8")).hexdigest()[:8]
+    if not selected_prs:
+        return f"0prs-{selection_hash}"
+    min_pr = min(selected_prs)
+    max_pr = max(selected_prs)
+    return f"{min_pr}-{max_pr}-{len(selected_prs)}prs-{selection_hash}"
+
+
+def format_pr_list_preview(prs: List[int], max_items: int = 20, edge_items: int = 5) -> str:
+    if len(prs) <= max_items:
+        return ", ".join(str(pr) for pr in prs)
+    head = ", ".join(str(pr) for pr in prs[:edge_items])
+    tail = ", ".join(str(pr) for pr in prs[-edge_items:])
+    return f"{head} ... {tail}"
+
+
+def selection_header_lines(
+    selection_requested: str, selection_canonical: str, selected_prs: List[int]
+) -> List[str]:
+    lines = [
+        f"# PR selection (requested): {selection_requested}",
+        f"# PR selection (canonical): {selection_canonical}",
+    ]
+    if selected_prs:
+        if len(selected_prs) <= 20:
+            expanded = ", ".join(str(pr) for pr in selected_prs)
+            lines.append(f"# Expanded PRs (count={len(selected_prs)}): {expanded}")
+        else:
+            preview = format_pr_list_preview(selected_prs)
+            lines.append(
+                f"# Expanded PRs: count={len(selected_prs)} min={min(selected_prs)} "
+                f"max={max(selected_prs)} preview={preview}"
+            )
+    else:
+        lines.append("# Expanded PRs: count=0")
+    return lines
 
 
 def check_current_branch(expected_branch: str) -> None:
@@ -373,8 +506,9 @@ def run_big_picture(
 
 def create_master_comparison(
     pr_files: List[Tuple[Dict[str, str], str]],
-    start_pr: int,
-    end_pr: int,
+    selection_requested: str,
+    selection_canonical: str,
+    selected_prs: List[int],
     output_file: str,
     include_logs: bool = False,
 ) -> bool:
@@ -387,7 +521,11 @@ def create_master_comparison(
 
     with open(output_file, "w", encoding="utf-8") as outf:
         log_note = " (with logs)" if include_logs else ""
-        outf.write(f"# Master Comparison{log_note}: PRs {start_pr}-{end_pr}\n")
+        outf.write(f"# Master Comparison{log_note}\n")
+        for line in selection_header_lines(
+            selection_requested, selection_canonical, selected_prs
+        ):
+            outf.write(f"{line}\n")
         outf.write(f"# Total PRs: {len(pr_files)}\n")
         outf.write(f"# Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
         outf.write("=" * 80 + "\n\n")
@@ -409,8 +547,9 @@ def create_master_comparison(
 def create_touched_files_compilation(
     touched_files: Set[str],
     base_branch: str,
-    start_pr: int,
-    end_pr: int,
+    selection_requested: str,
+    selection_canonical: str,
+    selected_prs: List[int],
     output_file: str,
     master_comparison_file: str | None = None,
     include_logs: bool = False,
@@ -426,7 +565,11 @@ def create_touched_files_compilation(
 
     with open(output_file, "w", encoding="utf-8") as outf:
         log_note = " (with logs)" if include_logs else ""
-        outf.write(f"# Touched Files{log_note} (base branch) for PRs {start_pr}-{end_pr}\n")
+        outf.write(f"# Touched Files{log_note} (base branch)\n")
+        for line in selection_header_lines(
+            selection_requested, selection_canonical, selected_prs
+        ):
+            outf.write(f"{line}\n")
         outf.write(f"# Total unique files: {len(sorted_files)}\n")
         outf.write(f"# Source branch: {base_branch}\n")
         outf.write(f"# Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
@@ -464,8 +607,9 @@ def create_touched_files_compilation(
 
 def create_summary_compilation(
     pr_files: List[Tuple[Dict[str, str], str]],
-    start_pr: int,
-    end_pr: int,
+    selection_requested: str,
+    selection_canonical: str,
+    selected_prs: List[int],
     output_file: str,
     include_logs: bool = False,
 ) -> bool:
@@ -478,7 +622,11 @@ def create_summary_compilation(
 
     with open(output_file, "w", encoding="utf-8") as outf:
         log_note = " (with logs)" if include_logs else ""
-        outf.write(f"# PR Summary Compilation{log_note}: PRs {start_pr}-{end_pr}\n")
+        outf.write(f"# PR Summary Compilation{log_note}\n")
+        for line in selection_header_lines(
+            selection_requested, selection_canonical, selected_prs
+        ):
+            outf.write(f"{line}\n")
         outf.write(f"# Total PRs: {len(pr_files)}\n")
         outf.write(f"# Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
         outf.write("=" * 80 + "\n\n")
@@ -501,8 +649,9 @@ def create_summary_compilation(
 def create_round_robin_comparisons(
     processed_prs: List[Dict[str, object]],
     output_dir: str,
-    start_pr: int,
-    end_pr: int,
+    selection_requested: str,
+    selection_canonical: str,
+    selected_prs: List[int],
 ) -> List[str]:
     """Create pairwise comparison files for every PR combination."""
     print("Creating round-robin comparisons...")
@@ -555,7 +704,10 @@ def create_round_robin_comparisons(
                 f"# PR #{left_number} vs PR #{right_number}: "
                 f"{left_info.get('title', '')} ↔ {right_info.get('title', '')}\n"
             )
-            outf.write(f"# Range: PRs {start_pr}-{end_pr}\n")
+            for line in selection_header_lines(
+                selection_requested, selection_canonical, selected_prs
+            ):
+                outf.write(f"{line}\n")
             outf.write(f"# Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
             outf.write(f"# Left branch: {left_branch}\n")
             outf.write(f"# Right branch: {right_branch}\n")
@@ -575,18 +727,32 @@ def create_round_robin_comparisons(
 
     print(
         f"✓ Created {len(output_files)} round-robin comparison file(s) "
-        f"for PRs {start_pr}-{end_pr}"
+        f"for selection {selection_canonical}"
     )
     return output_files
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Automate diff generation for ranges of pull requests",
+        description="Automate diff generation for selected pull requests",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("start_pr", type=parse_pr_number, help="Starting PR number")
-    parser.add_argument("end_pr", type=parse_pr_number, help="Ending PR number (inclusive)")
+    parser.add_argument(
+        "pr_selection",
+        nargs="?",
+        help=(
+            "PR selection string like '123-130,135,140-142'. "
+            "Accepts commas, ranges, whitespace, and optional # prefixes."
+        ),
+    )
+    parser.add_argument(
+        "--prs",
+        dest="pr_selection",
+        help=(
+            "Alias for the PR selection string. "
+            "Examples: '123-130,135,140-142' or '#123, #125-#127'."
+        ),
+    )
     parser.add_argument(
         "--base-branch",
         default="main",
@@ -610,29 +776,48 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    if args.start_pr > args.end_pr:
-        print("Error: Start PR must be less than or equal to end PR")
-        sys.exit(1)
+    if not args.pr_selection:
+        parser.error("pr_selection is required (e.g. '123-130,135,140-142').")
+
+    try:
+        selected_prs = parse_pr_selection(args.pr_selection)
+    except SelectionParseError as exc:
+        parser.error(str(exc))
+
+    selection_requested = args.pr_selection
+    selection_canonical = format_pr_selection(selected_prs)
+    selection_tag = build_selection_tag(selected_prs, selection_canonical)
+
+    print(f"Requested PR selection: {selection_requested}")
+    print(f"Canonical PR selection: {selection_canonical}")
+    if selected_prs:
+        preview = format_pr_list_preview(selected_prs)
+        print(
+            f"Expanded PRs: count={len(selected_prs)} "
+            f"min={min(selected_prs)} max={max(selected_prs)} preview={preview}"
+        )
 
     check_current_branch(args.base_branch)
 
     try:
         fetch_remote_branches(args.remote)
 
-        print(f"Collecting info for PRs {args.start_pr} to {args.end_pr}...")
+        print(f"Collecting info for PR selection: {selection_canonical}...")
         pr_infos: List[Dict[str, str]] = []
         touched_files: Set[str] = set()
+        missing_prs: List[int] = []
 
-        for pr_num in range(args.start_pr, args.end_pr + 1):
+        for pr_num in selected_prs:
             try:
                 pr_info = get_pr_info(pr_num)
                 pr_infos.append(pr_info)
                 print(f"  PR #{pr_num}: {pr_info['title']}")
             except (subprocess.CalledProcessError, json.JSONDecodeError, KeyError) as exc:
                 print(f"  PR #{pr_num}: Not found or inaccessible ({exc})")
+                missing_prs.append(pr_num)
 
         if not pr_infos:
-            print("Error: No valid PRs found in the specified range")
+            print("Error: No valid PRs found for the requested selection")
             sys.exit(1)
 
         successful_prs: List[Tuple[Dict[str, str], str]] = []
@@ -742,36 +927,59 @@ def main() -> None:
                 )
 
         if successful_prs:
+            requested_count = len(selected_prs)
+            processed_numbers = {info["number"] for info, _ in successful_prs}
+            processed_count = len(processed_numbers)
+            skipped_prs = [pr for pr in selected_prs if pr not in processed_numbers]
+            print(
+                f"\nRequested PR count: {requested_count}; "
+                f"processed PR count: {processed_count}"
+            )
+            if missing_prs:
+                print(f"Missing/inaccessible PRs: {', '.join(map(str, missing_prs))}")
+            if skipped_prs:
+                print(f"Skipped PRs after processing: {', '.join(map(str, skipped_prs))}")
+
             master_output = os.path.join(
-                args.output_dir, f"pr-comparison-{args.start_pr}-{args.end_pr}.txt"
+                args.output_dir, f"pr-comparison-{selection_tag}.txt"
             )
             create_master_comparison(
-                successful_prs, args.start_pr, args.end_pr, master_output
+                successful_prs,
+                selection_requested,
+                selection_canonical,
+                selected_prs,
+                master_output,
             )
 
             summary_output = os.path.join(
-                args.output_dir, f"pr-summaries-{args.start_pr}-{args.end_pr}.txt"
+                args.output_dir, f"pr-summaries-{selection_tag}.txt"
             )
             create_summary_compilation(
-                successful_prs, args.start_pr, args.end_pr, summary_output
+                successful_prs,
+                selection_requested,
+                selection_canonical,
+                selected_prs,
+                summary_output,
             )
 
             touched_output = os.path.join(
-                args.output_dir, f"pr-touched-files-{args.start_pr}-{args.end_pr}.txt"
+                args.output_dir, f"pr-touched-files-{selection_tag}.txt"
             )
             create_touched_files_compilation(
                 touched_files,
                 args.base_branch,
-                args.start_pr,
-                args.end_pr,
+                selection_requested,
+                selection_canonical,
+                selected_prs,
                 touched_output,
                 master_output,
             )
             round_robin_outputs = create_round_robin_comparisons(
                 processed_prs,
                 args.output_dir,
-                args.start_pr,
-                args.end_pr,
+                selection_requested,
+                selection_canonical,
+                selected_prs,
             )
 
             print(f"\n✓ Successfully processed {len(successful_prs)} PR(s) (without logs)")
@@ -789,35 +997,38 @@ def main() -> None:
 
         if successful_prs_with_logs:
             master_output_with_logs = os.path.join(
-                args.output_dir, f"pr-comparison-{args.start_pr}-{args.end_pr}-with-logs.txt"
+                args.output_dir, f"pr-comparison-{selection_tag}-with-logs.txt"
             )
             create_master_comparison(
                 successful_prs_with_logs,
-                args.start_pr,
-                args.end_pr,
+                selection_requested,
+                selection_canonical,
+                selected_prs,
                 master_output_with_logs,
                 include_logs=True,
             )
 
             summary_output_with_logs = os.path.join(
-                args.output_dir, f"pr-summaries-{args.start_pr}-{args.end_pr}-with-logs.txt"
+                args.output_dir, f"pr-summaries-{selection_tag}-with-logs.txt"
             )
             create_summary_compilation(
                 successful_prs_with_logs,
-                args.start_pr,
-                args.end_pr,
+                selection_requested,
+                selection_canonical,
+                selected_prs,
                 summary_output_with_logs,
                 include_logs=True,
             )
 
             touched_output_with_logs = os.path.join(
-                args.output_dir, f"pr-touched-files-{args.start_pr}-{args.end_pr}-with-logs.txt"
+                args.output_dir, f"pr-touched-files-{selection_tag}-with-logs.txt"
             )
             create_touched_files_compilation(
                 touched_files,
                 args.base_branch,
-                args.start_pr,
-                args.end_pr,
+                selection_requested,
+                selection_canonical,
+                selected_prs,
                 touched_output_with_logs,
                 master_output_with_logs,
                 include_logs=True,
