@@ -15,6 +15,7 @@ import shlex
 import subprocess
 import sys
 from datetime import datetime
+from itertools import combinations
 from pathlib import Path
 from typing import Dict, List, Set, Tuple
 
@@ -497,6 +498,88 @@ def create_summary_compilation(
     return True
 
 
+def create_round_robin_comparisons(
+    processed_prs: List[Dict[str, object]],
+    output_dir: str,
+    start_pr: int,
+    end_pr: int,
+) -> List[str]:
+    """Create pairwise comparison files for every PR combination."""
+    print("Creating round-robin comparisons...")
+
+    if len(processed_prs) < 2:
+        print("Warning: Not enough PRs for round-robin comparisons")
+        return []
+
+    output_files: List[str] = []
+
+    for left, right in combinations(processed_prs, 2):
+        left_info = left["info"]
+        right_info = right["info"]
+        left_branch = left["local_branch"]
+        right_branch = right["local_branch"]
+        left_files = left["files"]
+        right_files = right["files"]
+
+        if not isinstance(left_info, dict) or not isinstance(right_info, dict):
+            continue
+        if not isinstance(left_branch, str) or not isinstance(right_branch, str):
+            continue
+        if not isinstance(left_files, list) or not isinstance(right_files, list):
+            continue
+
+        left_number = left_info.get("number")
+        right_number = right_info.get("number")
+        if left_number is None or right_number is None:
+            continue
+
+        output_file = os.path.join(
+            output_dir, f"pr-{left_number}-versus-{right_number}.txt"
+        )
+
+        combined_files = sorted(set(left_files) | set(right_files))
+        files_arg = " ".join(shlex.quote(f) for f in combined_files)
+        diff_cmd = (
+            f"git diff {shlex.quote(left_branch)} {shlex.quote(right_branch)}"
+        )
+        if files_arg:
+            diff_cmd += f" -- {files_arg}"
+
+        diff_output = run_command(diff_cmd)
+
+        left_summary = " ".join(left_info.get("body", "").split()) or "(no summary provided)"
+        right_summary = " ".join(right_info.get("body", "").split()) or "(no summary provided)"
+
+        with open(output_file, "w", encoding="utf-8") as outf:
+            outf.write(
+                f"# PR #{left_number} vs PR #{right_number}: "
+                f"{left_info.get('title', '')} ↔ {right_info.get('title', '')}\n"
+            )
+            outf.write(f"# Range: PRs {start_pr}-{end_pr}\n")
+            outf.write(f"# Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            outf.write(f"# Left branch: {left_branch}\n")
+            outf.write(f"# Right branch: {right_branch}\n")
+            outf.write(f"# Left author: {left_info.get('author', 'unknown')}\n")
+            outf.write(f"# Right author: {right_info.get('author', 'unknown')}\n")
+            outf.write(f"# Left URL: {left_info.get('url', '')}\n")
+            outf.write(f"# Right URL: {right_info.get('url', '')}\n")
+            outf.write(f"# Left summary: {left_summary}\n")
+            outf.write(f"# Right summary: {right_summary}\n")
+            outf.write(f"# Files compared: {len(combined_files)}\n")
+            outf.write(f"# Files: {', '.join(combined_files)}\n\n")
+            outf.write("=" * 80 + "\n")
+            outf.write(diff_output if diff_output else "# No differences found\n")
+            outf.write("\n\n")
+
+        output_files.append(output_file)
+
+    print(
+        f"✓ Created {len(output_files)} round-robin comparison file(s) "
+        f"for PRs {start_pr}-{end_pr}"
+    )
+    return output_files
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Automate diff generation for ranges of pull requests",
@@ -554,6 +637,8 @@ def main() -> None:
 
         successful_prs: List[Tuple[Dict[str, str], str]] = []
         successful_prs_with_logs: List[Tuple[Dict[str, str], str]] = []
+        processed_prs: List[Dict[str, object]] = []
+        processed_prs_with_logs: List[Dict[str, object]] = []
 
         for pr_info in pr_infos:
             print(f"\n--- Processing PR #{pr_info['number']}: {pr_info['title']} ---")
@@ -628,6 +713,14 @@ def main() -> None:
                 local_branch=local_branch,
             ):
                 successful_prs.append((pr_info, output_file))
+                processed_prs.append(
+                    {
+                        "info": pr_info,
+                        "file": output_file,
+                        "local_branch": local_branch,
+                        "files": existing_files,
+                    }
+                )
             if run_big_picture(
                 pr_info,
                 existing_files,
@@ -639,6 +732,14 @@ def main() -> None:
                 local_branch=local_branch,
             ):
                 successful_prs_with_logs.append((pr_info, output_file_with_logs))
+                processed_prs_with_logs.append(
+                    {
+                        "info": pr_info,
+                        "file": output_file_with_logs,
+                        "local_branch": local_branch,
+                        "files": existing_files,
+                    }
+                )
 
         if successful_prs:
             master_output = os.path.join(
@@ -666,12 +767,23 @@ def main() -> None:
                 touched_output,
                 master_output,
             )
+            round_robin_outputs = create_round_robin_comparisons(
+                processed_prs,
+                args.output_dir,
+                args.start_pr,
+                args.end_pr,
+            )
 
             print(f"\n✓ Successfully processed {len(successful_prs)} PR(s) (without logs)")
             print(f"✓ Individual files: {args.output_dir}/pr-{{num}}-implementation.txt")
             print(f"✓ Master comparison: {master_output}")
             print(f"✓ Summary compilation: {summary_output}")
             print(f"✓ Touched files compilation: {touched_output}")
+            if round_robin_outputs:
+                print(
+                    "✓ Round-robin comparisons: "
+                    f"{args.output_dir}/pr-{{left}}-versus-{{right}}.txt"
+                )
         else:
             print("\nNo PRs were successfully processed (without logs)")
 
