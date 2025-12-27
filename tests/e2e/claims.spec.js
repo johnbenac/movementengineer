@@ -61,58 +61,29 @@ const claimsSnapshot = {
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(({ snapshot }) => {
     window.MovementEngineer = Object.assign(window.MovementEngineer || {}, {
-      bootstrapOptions: { moduleTabs: ['claims'] }
+      bootstrapOptions: {}
     });
     localStorage.setItem('movementDesigner.v3.snapshot', JSON.stringify(snapshot));
   }, { snapshot: claimsSnapshot });
 });
 
-test('renders claims tab via module override', async ({ page }) => {
+test('renders claims collection tab from the model', async ({ page }) => {
   await gotoApp(page);
+  await page.locator('#movement-list li').first().click();
 
   await page.getByRole('button', { name: 'Claims' }).click();
 
   await expect(page.locator('#fatal-import-error:not(.hidden)')).toHaveCount(0);
-  await expect(page.locator('#claims-table-wrapper table tr')).toHaveCount(3);
-});
-
-test('filters claims by category and entity', async ({ page }) => {
-  await gotoApp(page);
-  await page.getByRole('button', { name: 'Claims' }).click();
-
-  const rows = page.locator('#claims-table-wrapper table tr');
-  await expect(rows).toHaveCount(3);
-
-  await page.locator('#claims-category-filter').selectOption('Ethos');
-  await expect(rows).toHaveCount(2); // header + 1 row
-
-  await page.locator('#claims-entity-filter').selectOption('e1');
-  await expect(rows).toHaveCount(2);
+  await expect(page.locator('[data-testid="generic-crud-record"]')).toHaveCount(2);
 });
 
 test('switching movements updates claims list', async ({ page }) => {
   await gotoApp(page);
+  await page.locator('#movement-list li').first().click();
   await page.getByRole('button', { name: 'Claims' }).click();
 
-  const rows = page.locator('#claims-table-wrapper table tr');
-  await expect(rows).toHaveCount(3);
+  await expect(page.locator('[data-testid="generic-crud-record"]')).toHaveCount(2);
 
   await page.locator('#movement-list li').filter({ hasText: 'Two' }).click();
-  await expect(rows).toHaveCount(2);
-});
-
-test('shows empty-state message when no claims match', async ({ page }) => {
-  await page.addInitScript(() => {
-    const raw = localStorage.getItem('movementDesigner.v3.snapshot');
-    const snap = raw ? JSON.parse(raw) : null;
-    if (snap) snap.claims = [];
-    localStorage.setItem('movementDesigner.v3.snapshot', JSON.stringify(snap));
-  });
-
-  await gotoApp(page);
-  await page.getByRole('button', { name: 'Claims' }).click();
-
-  await expect(page.locator('#claims-table-wrapper')).toContainText(
-    'No claims match this filter.'
-  );
+  await expect(page.locator('[data-testid="generic-crud-record"]')).toHaveCount(1);
 });

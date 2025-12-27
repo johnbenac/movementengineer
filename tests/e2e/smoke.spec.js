@@ -23,7 +23,7 @@ test('entry loads with no legacy runtime surface', async ({ page }) => {
   expect(info.meModeAttr).toBe('module');
 });
 
-test('import -> collections -> chip routes via canonical router', async ({ page }) => {
+test('import -> collection tab lists imported texts', async ({ page }) => {
   const fixture = {
     movements: [{ id: 'm1', movementId: 'm1', name: 'Movement One' }],
     textCollections: [
@@ -63,20 +63,11 @@ test('import -> collections -> chip routes via canonical router', async ({ page 
     () => window.MovementEngineer?.ctx?.getState?.().snapshot?.movements?.length === 1
   );
 
-  await page.locator('[data-tab="collections"]').click();
-  await page.locator('#collection-select').selectOption('texts');
-  await page.locator('#collection-items li', { hasText: 'Root Text' }).click();
+  await page.locator('#movement-list li').first().click();
+  await page.getByRole('button', { name: 'Texts' }).click();
+  await page.locator('[data-testid="generic-crud-record"]', { hasText: 'Root Text' }).click();
 
-  await page.getByRole('button', { name: 'Chapter 1' }).click();
-
-  await page.waitForFunction(
-    () => window.MovementEngineer?.ctx?.shell?.getActiveTabName?.() === 'canon'
-  );
-
-  const currentTextId = await page.evaluate(
-    () => window.MovementEngineer.ctx.getState().currentTextId
-  );
-  expect(currentTextId).toBe('txt-chapter');
+  await expect(page.locator('.generic-crud-detail-header h3')).toHaveText('Root Text');
 });
 
 test('generic CRUD create/save reload persists', async ({ page }) => {

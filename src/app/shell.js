@@ -48,19 +48,32 @@ export function initShell(ctx, options = {}) {
   const tabSelector = options.tabSelector || '.tab';
   const panelSelector = options.panelSelector || '.tab-panel';
   const activeClass = options.activeClass || 'active';
+  const handleClicks = options.handleClicks !== false;
 
-  const tabs = Array.from(document.querySelectorAll(tabSelector));
-  const panels = Array.from(document.querySelectorAll(panelSelector));
+  const tabManager = ctx?.tabManager || null;
+
+  function getTabs() {
+    return Array.from(document.querySelectorAll(tabSelector));
+  }
+
+  function getPanels() {
+    return Array.from(document.querySelectorAll(panelSelector));
+  }
 
   const mounted = new Set();
   let currentTabName = null;
 
   function findKnownTabNames() {
-    return tabs.map(getTabNameFromEl).filter(Boolean);
+    return getTabs().map(getTabNameFromEl).filter(Boolean);
   }
 
   function getActiveTabName() {
     const known = findKnownTabNames();
+
+    if (tabManager?.getActiveTabId) {
+      const managed = tabManager.getActiveTabId();
+      if (managed && known.includes(managed)) return managed;
+    }
 
     const activeEl = document.querySelector(`${tabSelector}.${activeClass}`);
     const activeName = getTabNameFromEl(activeEl);
@@ -75,7 +88,12 @@ export function initShell(ctx, options = {}) {
   function activateTab(name) {
     if (!name) return;
 
-    tabs.forEach(tabEl => {
+    if (tabManager?.setActiveTab) {
+      tabManager.setActiveTab(name);
+      return;
+    }
+
+    getTabs().forEach(tabEl => {
       const tabName = getTabNameFromEl(tabEl);
       const isActive = tabName === name;
       tabEl.classList.toggle(activeClass, isActive);
@@ -83,7 +101,7 @@ export function initShell(ctx, options = {}) {
       tabEl.tabIndex = isActive ? 0 : -1;
     });
 
-    panels.forEach(panelEl => {
+    getPanels().forEach(panelEl => {
       const panelName = getPanelNameFromEl(panelEl);
       const isActive = panelName === name;
       panelEl.classList.toggle(activeClass, isActive);
@@ -158,13 +176,17 @@ export function initShell(ctx, options = {}) {
     renderActiveTab();
   }
 
-  document.addEventListener('click', onClick, true);
+  if (handleClicks) {
+    document.addEventListener('click', onClick, true);
+  }
   window.addEventListener('hashchange', onHashChange);
 
   const initialRender = renderActiveTab();
 
   function destroy() {
-    document.removeEventListener('click', onClick, true);
+    if (handleClicks) {
+      document.removeEventListener('click', onClick, true);
+    }
     window.removeEventListener('hashchange', onHashChange);
     movementEngineerGlobal[SHELL_KEY] = null;
     if (ctx && 'shell' in ctx) {
