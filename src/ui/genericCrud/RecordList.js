@@ -36,7 +36,8 @@ export function RecordList({
   onSortChange,
   onSelect,
   onCreate,
-  emptyMessage
+  emptyMessage,
+  disableCreate = false
 }) {
   const wrapper = document.createElement('div');
 
@@ -65,6 +66,7 @@ export function RecordList({
   newButton.type = 'button';
   newButton.textContent = 'New';
   newButton.setAttribute('data-testid', 'generic-crud-new');
+  newButton.disabled = !!disableCreate;
   newButton.addEventListener('click', () => onCreate());
 
   actions.appendChild(searchInput);

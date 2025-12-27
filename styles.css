@@ -244,6 +244,13 @@ button.danger:hover {
   -webkit-overflow-scrolling: touch;
 }
 
+.tabs .tab-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  align-items: center;
+}
+
 .tab {
   padding: 0.5rem 0.9rem;
   border-radius: 0;
@@ -536,6 +543,10 @@ button.danger:hover {
   grid-template-columns: 220px 320px 1fr;
   gap: 0.75rem;
   align-items: start;
+}
+
+.collection-crud-layout {
+  grid-template-columns: 320px 1fr;
 }
 
 .generic-crud-pane {

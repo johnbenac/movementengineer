@@ -23,6 +23,13 @@ test('entry loads with no legacy runtime surface', async ({ page }) => {
   expect(info.meModeAttr).toBe('module');
 });
 
+test('collection tabs render from the model', async ({ page }) => {
+  await gotoApp(page);
+
+  await expect(page.locator('[data-tab="notes"]')).toBeVisible();
+  await expect(page.locator('[data-tab="locations"]')).toBeVisible();
+});
+
 test('import -> collections -> chip routes via canonical router', async ({ page }) => {
   const fixture = {
     movements: [{ id: 'm1', movementId: 'm1', name: 'Movement One' }],

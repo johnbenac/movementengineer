@@ -63,22 +63,15 @@
       <div id="sidebar-scrim" class="sidebar-scrim" aria-hidden="true"></div>
 
       <section class="content">
-      <nav class="tabs">
-        <button class="tab active" data-tab="dashboard">Dashboard</button>
-        <button class="tab" data-tab="canon">Library</button>
-        <button class="tab" data-tab="entities">Entities</button>
-        <button class="tab" data-tab="practices">Practices</button>
-        <button class="tab" data-tab="claims">Claims</button>
-        <button class="tab" data-tab="rules">Rules</button>
-        <button class="tab" data-tab="authority">Authority</button>
-        <button class="tab" data-tab="media">Media</button>
-        <button class="tab" data-tab="graph">Graph</button>
-        <button class="tab" data-tab="collections">Collections</button>
-        <button class="tab" data-tab="comparison">Comparison</button>
+      <nav class="tabs" id="tabs-nav">
+        <div id="tool-tabs" class="tab-group"></div>
+        <div id="collection-tabs" class="tab-group"></div>
       </nav>
 
-      <!-- Dashboard tab -->
-      <section id="tab-dashboard" class="tab-panel active">
+      <div id="tabs-panels">
+        <div id="tool-panels">
+          <!-- Dashboard tab -->
+          <section id="tab-dashboard" class="tab-panel active">
         <div class="panel-body">
           <div class="dashboard-grid">
             <section class="card movement-form-card">
@@ -191,6 +184,138 @@
         </div>
       </section>
 
+      <!-- Authority -->
+      <section id="tab-authority" class="tab-panel">
+        <div class="panel-body">
+          <h2>Authority</h2>
+          <p class="hint">
+            Track sources of truth and entities that establish authority.
+          </p>
+          <div class="card authority-layout">
+            <div>
+              <h3>Sources of truth</h3>
+              <div id="authority-sources"></div>
+            </div>
+            <div>
+              <h3>Authority entities</h3>
+              <div id="authority-entities"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Graph -->
+      <section id="tab-graph" class="tab-panel">
+        <div class="panel-body">
+          <div id="graph-workbench-root" class="graph-workbench-root"></div>
+        </div>
+      </section>
+
+      <!-- Collections -->
+      <section id="tab-collections" class="tab-panel">
+        <div class="panel-body">
+          <h2>Collections</h2>
+          <p class="hint">
+            Browse and edit entries for every collection in one place.
+          </p>
+          <div class="collections-layout">
+            <section class="card">
+              <div class="pane-header">
+                <h3>Collections</h3>
+                <label class="inline-checkbox">
+                  <input id="collection-filter-by-movement" type="checkbox" checked />
+                  Only current movement
+                </label>
+              </div>
+              <select id="collection-select">
+                <option value="movements">movements</option>
+                <option value="textCollections">textCollections</option>
+                <option value="texts">texts</option>
+                <option value="entities">entities</option>
+                <option value="locations">locations</option>
+                <option value="practices">practices</option>
+                <option value="events">events</option>
+                <option value="rules">rules</option>
+                <option value="claims">claims</option>
+                <option value="media">media</option>
+                <option value="notes">notes</option>
+              </select>
+              <div id="collections-facet-banner" class="facet-banner hidden">
+                <div>
+                  <div class="muted">Facet</div>
+                  <div id="collections-facet-title" class="facet-title"></div>
+                  <div id="collections-facet-subtitle" class="facet-subtitle"></div>
+                </div>
+                <button id="collections-facet-clear" type="button">Clear</button>
+              </div>
+              <div class="inline-actions">
+                <button id="btn-preview-back" type="button">Back</button>
+                <button id="btn-preview-forward" type="button">Forward</button>
+              </div>
+              <ul id="collection-items" class="item-list"></ul>
+            </section>
+
+            <section class="card collection-preview">
+              <div class="pane-header">
+                <div>
+                  <div class="eyebrow">Preview</div>
+                  <h3 id="item-preview-title" class="card-title">—</h3>
+                  <div id="item-preview-subtitle" class="card-subtitle">—</div>
+                </div>
+                <div class="badge" id="item-preview-collection">—</div>
+              </div>
+              <div id="item-preview-body"></div>
+              <div class="form-actions">
+                <button id="btn-copy-item-markdown" type="button">
+                  Copy markdown
+                </button>
+              </div>
+              <div class="card-section">
+                <h4>Issues</h4>
+                <div id="collections-markdown-issues" class="issues"></div>
+              </div>
+              <div class="card-section">
+                <h4>Raw markdown</h4>
+                <textarea id="collections-markdown-raw" rows="10"></textarea>
+              </div>
+            </section>
+
+            <section class="card collection-editor">
+              <div class="pane-header">
+                <h3>Edit item</h3>
+                <div class="inline-actions">
+                  <button id="btn-add-item" type="button">New</button>
+                  <button id="btn-save-item" type="button">Save</button>
+                  <button id="btn-delete-item" type="button" class="danger">Delete</button>
+                </div>
+              </div>
+              <div id="collections-schema-guide" class="schema-guide"></div>
+              <div class="card-section">
+                <h4>Markdown preview</h4>
+                <div id="collections-markdown-preview" class="markdown-preview"></div>
+              </div>
+              <div class="card-section">
+                <h4>JSON issues</h4>
+                <div id="collections-json-issues" class="issues"></div>
+              </div>
+              <textarea id="item-editor" rows="14"></textarea>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <!-- Comparison -->
+      <section id="tab-comparison" class="tab-panel">
+        <div class="panel-body">
+          <h2>Comparison</h2>
+          <p class="hint">Compare two movements on key facets.</p>
+          <div id="comparison-selector" class="comparison-selector"></div>
+          <div id="comparison-table-wrapper" class="comparison-table-wrapper"></div>
+        </div>
+      </section>
+        </div>
+
+        <div id="collection-panels">
       <!-- Entities -->
       <section id="tab-entities" class="tab-panel">
         <div class="panel-body">
@@ -485,19 +610,6 @@
         </div>
       </section>
 
-      <!-- Authority -->
-      <section id="tab-authority" class="tab-panel">
-        <div class="panel-body">
-          <h2>Authority</h2>
-          <p class="hint">View sources of truth and authority entities for the movement.</p>
-          <div class="section-heading">Sources of truth</div>
-          <div id="authority-sources" class="card-grid"></div>
-
-          <div class="section-heading">Authority entities</div>
-          <div id="authority-entities" class="card-grid"></div>
-        </div>
-      </section>
-
       <!-- Media -->
       <section id="tab-media" class="tab-panel">
         <div class="panel-body">
@@ -535,157 +647,8 @@
         </div>
       </section>
 
-      <!-- Graph -->
-      <section id="tab-graph" class="tab-panel">
-        <div class="panel-body">
-          <div id="graph-workbench-root"></div>
         </div>
-      </section>
-
-      <!-- Generic collection editor -->
-      <section id="tab-collections" class="tab-panel">
-        <div class="panel-body">
-          <h2>Collections</h2>
-          <p class="hint">
-            Edit any collection as JSON. For movement‑scoped collections, you can filter by the
-            currently selected movement.
-          </p>
-
-          <div class="collection-toolbar">
-            <label>
-              Collection:
-              <select id="collection-select">
-                <option value="entities">entities</option>
-                <option value="practices">practices</option>
-                <option value="events">events</option>
-                <option value="rules">rules</option>
-                <option value="claims">claims</option>
-                <option value="textCollections">textCollections</option>
-                <option value="texts">texts</option>
-                <option value="media">media</option>
-                <option value="notes">notes</option>
-              </select>
-            </label>
-
-            <label class="inline">
-              <input id="collection-filter-by-movement" type="checkbox" checked />
-              Filter by current movement
-            </label>
-
-            <div class="collection-actions">
-              <button id="btn-add-item" type="button">New item</button>
-              <button id="btn-delete-item" type="button" class="danger" disabled>
-                Delete item
-              </button>
-            </div>
-          </div>
-
-          <div class="split">
-            <div class="list-pane">
-              <div id="collections-facet-banner" class="facet-banner" hidden>
-                <div>
-                  <div class="eyebrow">Facet explorer</div>
-                  <h3 id="collections-facet-title"></h3>
-                  <div id="collections-facet-subtitle" class="muted"></div>
-                </div>
-                <button id="collections-facet-clear" type="button">Clear</button>
-              </div>
-              <ul id="collection-items" class="item-list"></ul>
-            </div>
-            <div class="detail-pane">
-              <div id="collections-schema-guide" class="schema-guide"></div>
-              <div class="item-detail-grid">
-                <section class="preview-pane">
-                  <div class="preview-header">
-                    <div>
-                      <div class="eyebrow">Human-readable view</div>
-                      <h3 id="item-preview-title">Select an item</h3>
-                      <div id="item-preview-subtitle" class="muted"></div>
-                    </div>
-                    <div class="preview-meta">
-                      <div class="preview-nav">
-                        <button id="btn-preview-back" type="button" title="Back" disabled>
-                          ←
-                        </button>
-                        <button
-                          id="btn-preview-forward"
-                          type="button"
-                          title="Forward"
-                          disabled
-                        >
-                          →
-                        </button>
-                      </div>
-                      <div class="badge" id="item-preview-collection">—</div>
-                    </div>
-                  </div>
-                  <div id="item-preview-body" class="preview-body"></div>
-                </section>
-
-                <section class="markdown-pane">
-                  <div class="preview-header">
-                    <div>
-                      <div class="eyebrow">Markdown + front matter</div>
-                      <h3>Export view</h3>
-                      <div class="muted">Obsidian-friendly representation</div>
-                    </div>
-
-                    <div class="preview-meta">
-                      <div id="collections-markdown-issues" class="issue-strip"></div>
-                      <button id="btn-copy-item-markdown" type="button" title="Copy markdown">
-                        Copy
-                      </button>
-                    </div>
-                  </div>
-
-                  <div id="collections-markdown-preview" class="markdown-preview-panel empty"></div>
-
-                  <details class="markdown-raw-details">
-                    <summary>Raw markdown</summary>
-                    <pre id="collections-markdown-raw" class="markdown-raw"></pre>
-                  </details>
-                </section>
-
-                <section class="editor-pane">
-                  <div class="preview-header">
-                    <div>
-                      <div class="eyebrow">Raw JSON</div>
-                      <h3>Machine view</h3>
-                      <div class="muted">Edit and save changes</div>
-                    </div>
-                    <div class="preview-meta">
-                      <div id="collections-json-issues" class="issue-strip"></div>
-                    </div>
-                  </div>
-                  <textarea
-                    id="item-editor"
-                    rows="20"
-                    spellcheck="false"
-                    placeholder="{ ... }"
-                  ></textarea>
-                  <div class="editor-actions">
-                    <button id="btn-save-item" type="button">Save item</button>
-                  </div>
-                </section>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Comparison tab -->
-      <section id="tab-comparison" class="tab-panel">
-        <div class="panel-body">
-          <h2>Comparison</h2>
-          <p class="hint">
-            Pick movements to compare. The table uses
-            <code>buildComparisonViewModel</code> under the hood.
-          </p>
-
-          <div id="comparison-selector" class="comparison-selector"></div>
-          <div id="comparison-table-wrapper" class="comparison-table-wrapper"></div>
-        </div>
-      </section>
+      </div>
   </section>
   </main>
 

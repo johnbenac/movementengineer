@@ -49,14 +49,14 @@ export function initShell(ctx, options = {}) {
   const panelSelector = options.panelSelector || '.tab-panel';
   const activeClass = options.activeClass || 'active';
 
-  const tabs = Array.from(document.querySelectorAll(tabSelector));
-  const panels = Array.from(document.querySelectorAll(panelSelector));
+  const getTabs = () => Array.from(document.querySelectorAll(tabSelector));
+  const getPanels = () => Array.from(document.querySelectorAll(panelSelector));
 
   const mounted = new Set();
   let currentTabName = null;
 
   function findKnownTabNames() {
-    return tabs.map(getTabNameFromEl).filter(Boolean);
+    return getTabs().map(getTabNameFromEl).filter(Boolean);
   }
 
   function getActiveTabName() {
@@ -75,7 +75,7 @@ export function initShell(ctx, options = {}) {
   function activateTab(name) {
     if (!name) return;
 
-    tabs.forEach(tabEl => {
+    getTabs().forEach(tabEl => {
       const tabName = getTabNameFromEl(tabEl);
       const isActive = tabName === name;
       tabEl.classList.toggle(activeClass, isActive);
@@ -83,7 +83,7 @@ export function initShell(ctx, options = {}) {
       tabEl.tabIndex = isActive ? 0 : -1;
     });
 
-    panels.forEach(panelEl => {
+    getPanels().forEach(panelEl => {
       const panelName = getPanelNameFromEl(panelEl);
       const isActive = panelName === name;
       panelEl.classList.toggle(activeClass, isActive);
@@ -158,13 +158,18 @@ export function initShell(ctx, options = {}) {
     renderActiveTab();
   }
 
-  document.addEventListener('click', onClick, true);
+  const handleClicks = options.handleClicks !== false && !ctx?.tabManager?.handlesClicks;
+  if (handleClicks) {
+    document.addEventListener('click', onClick, true);
+  }
   window.addEventListener('hashchange', onHashChange);
 
   const initialRender = renderActiveTab();
 
   function destroy() {
-    document.removeEventListener('click', onClick, true);
+    if (handleClicks) {
+      document.removeEventListener('click', onClick, true);
+    }
     window.removeEventListener('hashchange', onHashChange);
     movementEngineerGlobal[SHELL_KEY] = null;
     if (ctx && 'shell' in ctx) {

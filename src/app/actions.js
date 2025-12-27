@@ -238,27 +238,26 @@ export function createActions(ctx) {
       return actions.openInCollections?.(collection, itemId, options);
     }
 
-    const tabByCollection = {
-      entities: 'entities',
-      practices: 'practices',
-      claims: 'claims',
-      rules: 'rules'
-    };
+    const addToHistory = options.addToHistory !== false;
+    const state = ctx?.store?.getState?.() || {};
+    const nextNav = addToHistory
+      ? pushNavigation(state.navigation, collection, itemId)
+      : state.navigation;
 
-    const tabName = tabByCollection[collection] || 'collections';
+    ctx?.store?.setState?.(prev => ({
+      ...(prev || {}),
+      currentCollectionName: collection,
+      currentItemId: itemId,
+      navigation: nextNav
+    }));
 
-    if (tabName !== 'collections') {
-      const tab = ctx?.tabs?.[tabName];
-      if (typeof tab?.open === 'function') {
-        return tab.open(ctx, itemId, options);
-      }
-      return actions.openInCollections?.(collection, itemId, {
-        ...options,
-        mode: 'collections'
-      });
+    const tab = ctx?.tabs?.[collection];
+    if (typeof tab?.open === 'function') {
+      tab.open(ctx, itemId, options);
+      return true;
     }
 
-    return actions.openInCollections?.(collection, itemId, options);
+    return actions.activateTab?.(collection);
   };
 
   return actions;
