@@ -32,7 +32,21 @@
   const COLLECTIONS_WITH_MOVEMENT_ID = buildCollectionsWithMovementId(DEFAULT_SPEC_VERSION);
 
   function createEmptySnapshot() {
-    const base = { version: DEFAULT_SPEC_VERSION, specVersion: DEFAULT_SPEC_VERSION };
+    const base = {
+      version: DEFAULT_SPEC_VERSION,
+      specVersion: DEFAULT_SPEC_VERSION,
+      movements: [
+        {
+          id: 'mov-catholic',
+          movementId: 'mov-catholic',
+          name: 'Roman Catholic Church',
+          shortName: 'Catholic',
+          summary:
+            'A worldwide Christian church centered on Jesus Christ, the sacraments, and liturgical life ordered around the Eucharist.',
+          tags: ['christian', 'catholic', 'sacramental', 'liturgical']
+        }
+      ]
+    };
     base.__repoInfo = null;
     base.__repoSource = null;
     base.__repoFileIndex = {};

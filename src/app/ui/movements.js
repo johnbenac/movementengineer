@@ -286,6 +286,14 @@ export function initMovements(ctx, options = {}) {
     const base = existingSnapshot && typeof existingSnapshot === 'object' ? existingSnapshot : {};
     const incoming = importedSnapshot && typeof importedSnapshot === 'object' ? importedSnapshot : {};
     const importedMovements = normaliseArray(incoming.movements);
+    const shouldDropSeededDefaultMovement =
+      importedMovements.length > 0 &&
+      normaliseArray(base.movements).some(
+        movement =>
+          movement?.id === 'mov-catholic' &&
+          movement?.movementId === 'mov-catholic' &&
+          movement?.name === 'Roman Catholic Church'
+      );
     const importedMovementIds = new Set(
       importedMovements.map(m => m?.id || m?.movementId).filter(Boolean)
     );
@@ -333,6 +341,13 @@ export function initMovements(ctx, options = {}) {
 
     COLLECTION_NAMES.forEach(collection => {
       const existingItems = normaliseArray(base[collection]).filter(item => {
+        if (
+          shouldDropSeededDefaultMovement &&
+          collection === 'movements' &&
+          item?.id === 'mov-catholic'
+        ) {
+          return false;
+        }
         const movementId = getMovementIdForRecord(collection, item);
         return !movementId || !importedMovementIds.has(movementId);
       });
