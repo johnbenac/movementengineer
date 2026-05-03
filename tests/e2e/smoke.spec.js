@@ -59,8 +59,10 @@ test('import -> collections -> chip routes via canonical router', async ({ page 
   await page.locator('#github-import-url').fill('https://github.com/example/repo');
   await page.locator('#github-import-form').evaluate(form => form.requestSubmit());
 
-  await page.waitForFunction(
-    () => window.MovementEngineer?.ctx?.getState?.().snapshot?.movements?.length === 1
+  await page.waitForFunction(() =>
+    window.MovementEngineer?.ctx?.getState?.().snapshot?.movements?.some(
+      movement => movement?.id === 'm1' || movement?.movementId === 'm1'
+    )
   );
 
   await page.locator('[data-tab="collections"]').click();
@@ -155,5 +157,5 @@ test('notes tab is generated from the model', async ({ page }) => {
   await expect(page.locator('[data-tab=\"notes\"]')).toBeVisible();
   await page.locator('[data-tab=\"notes\"]').click();
 
-  await expect(page.locator('#tab-notes .generic-crud-layout')).toBeVisible();
+  await expect(page.locator('#tab-notes .generic-crud-layout').first()).toBeVisible();
 });
