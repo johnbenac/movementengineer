@@ -244,6 +244,45 @@ describe('movements UI module', () => {
     });
   });
 
+  it('marks an intentionally cleared workspace when deleting the last movement', () => {
+    const domainMock = {
+      deleteMovement: vi.fn((snapshot, id) => {
+        snapshot.movements = snapshot.movements.filter(m => m.id !== id);
+        return snapshot.movements[0]?.id || null;
+      })
+    };
+    const state = {
+      snapshot: {
+        movements: [{ id: 'm1', movementId: 'm1', name: 'One', shortName: 'O', summary: '' }]
+      },
+      currentMovementId: 'm1',
+      flags: {}
+    };
+    const store = createStore(state);
+    const ctx = {
+      store,
+      getState: store.getState,
+      subscribe: store.subscribe,
+      actions: { selectMovement: vi.fn() },
+      services: { DomainService: domainMock },
+      dom: createDomUtils()
+    };
+    attachPersistence(ctx, store);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    initMovements(ctx);
+    document.getElementById('btn-delete-movement').click();
+
+    expect(domainMock.deleteMovement).toHaveBeenCalledWith(expect.any(Object), 'm1');
+    expect(store.getState().snapshot.movements).toEqual([]);
+    expect(store.getState().snapshot.__userClearedWorkspace).toBe(true);
+    expect(store.saveSnapshot).toHaveBeenCalledWith({
+      clearMovementDirty: true,
+      clearItemDirty: false,
+      show: true
+    });
+  });
+
   it('imports a markdown repo and merges it with the existing snapshot', async () => {
     const repoUrl = 'https://github.com/example/repo';
     const importedSnapshot = {

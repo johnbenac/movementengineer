@@ -106,6 +106,7 @@
 
   function isEmptyStoredSnapshot(snapshot) {
     if (!snapshot || typeof snapshot !== 'object') return false;
+    if (snapshot.__userClearedWorkspace) return false;
     const hasRepoBaseline = Object.keys(snapshot.__repoBaselineByMovement || {}).length > 0;
     const hasRepoRawMarkdown = Object.keys(snapshot.__repoRawMarkdownByPath || {}).length > 0;
     if (hasRepoBaseline || hasRepoRawMarkdown) return false;
