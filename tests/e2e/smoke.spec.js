@@ -7,12 +7,16 @@ test('entry loads with no legacy runtime surface', async ({ page }) => {
   const info = await page.evaluate(() => {
     const g = window.MovementEngineer || {};
     const opts = g.bootstrapOptions || {};
+    const snapshot = g.ctx?.getState?.().snapshot || {};
     return {
       hasLegacyProp: Object.prototype.hasOwnProperty.call(g, 'legacy'),
       hasLegacyAutoInit: Object.prototype.hasOwnProperty.call(opts, 'legacyAutoInit'),
       hasLegacyFree: Object.prototype.hasOwnProperty.call(opts, 'legacyFree'),
       hasLegacyModeFlag: Object.prototype.hasOwnProperty.call(opts, '__mode'),
-      meModeAttr: document.documentElement.dataset.meMode || null
+      meModeAttr: document.documentElement.dataset.meMode || null,
+      defaultMovementName: snapshot.movements?.[0]?.name || null,
+      defaultEntityCount: snapshot.entities?.length || 0,
+      defaultRawMarkdownCount: Object.keys(snapshot.__repoRawMarkdownByPath || {}).length
     };
   });
 
@@ -21,6 +25,9 @@ test('entry loads with no legacy runtime surface', async ({ page }) => {
   expect(info.hasLegacyFree).toBe(false);
   expect(info.hasLegacyModeFlag).toBe(false);
   expect(info.meModeAttr).toBe('module');
+  expect(info.defaultMovementName).toBe('Roman Catholic Church');
+  expect(info.defaultEntityCount).toBeGreaterThan(20);
+  expect(info.defaultRawMarkdownCount).toBe(73);
 });
 
 test('import -> collections -> chip routes via canonical router', async ({ page }) => {
