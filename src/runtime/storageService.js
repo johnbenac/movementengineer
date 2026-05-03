@@ -38,7 +38,22 @@
     base.__repoFileIndex = {};
     base.__repoRawMarkdownByPath = {};
     base.__repoBaselineByMovement = {};
-    return ensureAllCollections(base);
+    const snapshot = ensureAllCollections(base);
+    snapshot.movements = getBundledDefaultMovements();
+    return snapshot;
+  }
+
+  function getBundledDefaultMovements() {
+    return [
+      {
+        id: 'mov-catholic',
+        movementId: 'mov-catholic',
+        name: 'Roman Catholic Church',
+        shortName: 'Catholic',
+        summary:
+          'The Roman Catholic Church is a worldwide Christian church centered on Jesus Christ, the sacraments, and liturgical life.'
+      }
+    ];
   }
 
   function clone(obj) {
