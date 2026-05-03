@@ -31,7 +31,7 @@ You can open `index.html` directly in a browser, or serve the directory with any
 Movement datasets are authored as Markdown files under a `data/` directory that matches the v2.3 spec. Each collection lives in its own folder
 (for example `data/movements`, `data/entities`, `data/texts`, etc.), with YAML front matter describing fields and Markdown bodies providing long-form text.
 
-On first load, the app fetches the Upside dataset from this repository. You can point the UI at any other spec-compliant repo via **Load markdown repo**
+On first load, the app uses a bundled copy of the Catholic dataset from `johnbenac/catholic`, so the default movement is available without fetching or entering a GitHub repository URL. You can point the UI at any other spec-compliant repo via **Load markdown repo**
 in the dashboard.
 
 Collections in the v2.3 model:

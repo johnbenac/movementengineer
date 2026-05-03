@@ -32,6 +32,15 @@
   const COLLECTIONS_WITH_MOVEMENT_ID = buildCollectionsWithMovementId(DEFAULT_SPEC_VERSION);
 
   function createEmptySnapshot() {
+    return getBundledDefaultSnapshot();
+  }
+
+  function getBundledDefaultSnapshot() {
+    const bundled = globalScope.MovementEngineerBundledDefaultSnapshot;
+    if (bundled && typeof bundled === 'object') {
+      return ensureAllCollections(clone(bundled));
+    }
+
     const base = { version: DEFAULT_SPEC_VERSION, specVersion: DEFAULT_SPEC_VERSION };
     base.__repoInfo = null;
     base.__repoSource = null;
@@ -39,12 +48,7 @@
     base.__repoRawMarkdownByPath = {};
     base.__repoBaselineByMovement = {};
     const snapshot = ensureAllCollections(base);
-    snapshot.movements = getBundledDefaultMovements();
-    return snapshot;
-  }
-
-  function getBundledDefaultMovements() {
-    return [
+    snapshot.movements = [
       {
         id: 'mov-catholic',
         movementId: 'mov-catholic',
@@ -54,6 +58,7 @@
           'The Roman Catholic Church is a worldwide Christian church centered on Jesus Christ, the sacraments, and liturgical life.'
       }
     ];
+    return snapshot;
   }
 
   function clone(obj) {
@@ -84,6 +89,21 @@
     return obj;
   }
 
+  function isOldBundledPlaceholder(snapshot) {
+    if (!snapshot || typeof snapshot !== 'object') return false;
+    const movements = Array.isArray(snapshot.movements) ? snapshot.movements : [];
+    const hasOnlyCatholicMovement =
+      movements.length === 1 &&
+      (movements[0]?.id === 'mov-catholic' || movements[0]?.movementId === 'mov-catholic');
+    if (!hasOnlyCatholicMovement) return false;
+
+    const hasRepoBaseline = Object.keys(snapshot.__repoBaselineByMovement || {}).length > 0;
+    const hasRepoRawMarkdown = Object.keys(snapshot.__repoRawMarkdownByPath || {}).length > 0;
+    if (hasRepoBaseline || hasRepoRawMarkdown) return false;
+
+    return COLLECTION_NAMES.every(name => name === 'movements' || !snapshot[name]?.length);
+  }
+
   function loadSnapshot() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -93,7 +113,13 @@
         return defaults;
       }
       const parsed = JSON.parse(raw);
-      return ensureAllCollections(parsed);
+      const snapshot = ensureAllCollections(parsed);
+      if (isOldBundledPlaceholder(snapshot)) {
+        const defaults = getDefaultSnapshot();
+        saveSnapshot(defaults);
+        return defaults;
+      }
+      return snapshot;
     } catch (e) {
       console.warn('Failed to load snapshot from localStorage, using empty:', e);
       return getDefaultSnapshot();
