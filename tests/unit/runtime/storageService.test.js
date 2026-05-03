@@ -79,4 +79,54 @@ describe('StorageService bundled defaults', () => {
     expect(snapshot.entities.length).toBeGreaterThan(20);
     expect(Object.keys(snapshot.__repoRawMarkdownByPath)).toHaveLength(73);
   });
+
+  it('replaces an empty saved snapshot with bundled default data', () => {
+    const StorageService = loadStorageService();
+    window.localStorage.setItem(
+      StorageService.STORAGE_KEY,
+      JSON.stringify({
+        version: '2.3',
+        specVersion: '2.3',
+        __repoInfo: null,
+        __repoSource: null,
+        __repoFileIndex: {},
+        __repoRawMarkdownByPath: {},
+        __repoBaselineByMovement: {},
+        movements: []
+      })
+    );
+
+    const snapshot = StorageService.loadSnapshot();
+
+    expect(snapshot.movements[0]).toMatchObject({
+      id: 'mov-catholic',
+      name: 'Roman Catholic Church'
+    });
+    expect(snapshot.entities.length).toBeGreaterThan(20);
+    expect(Object.keys(snapshot.__repoRawMarkdownByPath)).toHaveLength(73);
+  });
+
+  it('preserves an intentionally cleared empty workspace', () => {
+    const StorageService = loadStorageService();
+    window.localStorage.setItem(
+      StorageService.STORAGE_KEY,
+      JSON.stringify({
+        version: '2.3',
+        specVersion: '2.3',
+        __repoInfo: null,
+        __repoSource: null,
+        __repoFileIndex: {},
+        __repoRawMarkdownByPath: {},
+        __repoBaselineByMovement: {},
+        __userClearedWorkspace: true,
+        movements: []
+      })
+    );
+
+    const snapshot = StorageService.loadSnapshot();
+
+    expect(snapshot.movements).toEqual([]);
+    expect(snapshot.entities).toEqual([]);
+    expect(snapshot.__userClearedWorkspace).toBe(true);
+  });
 });

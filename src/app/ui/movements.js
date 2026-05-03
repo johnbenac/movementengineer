@@ -635,6 +635,11 @@ export function initMovements(ctx, options = {}) {
         )) && nextSnapshot.movements[0]
         ? nextSnapshot.movements[0].id
         : null;
+    if (!fallbackId) {
+      nextSnapshot.__userClearedWorkspace = true;
+    } else if (nextSnapshot.__userClearedWorkspace) {
+      delete nextSnapshot.__userClearedWorkspace;
+    }
 
     ctx.store.setState(prev => ({
       ...prev,

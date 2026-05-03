@@ -104,6 +104,16 @@
     return COLLECTION_NAMES.every(name => name === 'movements' || !snapshot[name]?.length);
   }
 
+  function isEmptyStoredSnapshot(snapshot) {
+    if (!snapshot || typeof snapshot !== 'object') return false;
+    if (snapshot.__userClearedWorkspace) return false;
+    const hasRepoBaseline = Object.keys(snapshot.__repoBaselineByMovement || {}).length > 0;
+    const hasRepoRawMarkdown = Object.keys(snapshot.__repoRawMarkdownByPath || {}).length > 0;
+    if (hasRepoBaseline || hasRepoRawMarkdown) return false;
+
+    return COLLECTION_NAMES.every(name => !snapshot[name]?.length);
+  }
+
   function loadSnapshot() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -114,7 +124,7 @@
       }
       const parsed = JSON.parse(raw);
       const snapshot = ensureAllCollections(parsed);
-      if (isOldBundledPlaceholder(snapshot)) {
+      if (isEmptyStoredSnapshot(snapshot) || isOldBundledPlaceholder(snapshot)) {
         const defaults = getDefaultSnapshot();
         saveSnapshot(defaults);
         return defaults;
